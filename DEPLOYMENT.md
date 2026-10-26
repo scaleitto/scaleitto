@@ -56,19 +56,16 @@ TZ="Africa/Algiers"
    - **Application startup file**: `server.js`
 3. اضغط **Create**. **لا تضغط** "Run NPM Install"، فهو غير مطلوب.
 
-## الخطوة 6: إنشاء جداول قاعدة البيانات
+## الخطوة 6: التأكد من أن كل شيء يعمل
 
-1. في أعلى صفحة التطبيق في **Setup Node.js App** يوجد أمر يبدأ بـ `source /home/...`. **انسخه.**
-2. افتح **cPanel → Terminal**، والصق الأمر واضغط Enter.
-3. ثم اكتب:
+**لا حاجة لأي أوامر.** المنصة تنشئ جداول قاعدة البيانات بنفسها عند تشغيلها.
 
-```bash
-cd ~/scaleitto-app && node scripts/migrate.mjs
-```
+1. في **Setup Node.js App** اضغط **Restart**.
+2. افتح في المتصفح: `https://scaleitto.com/api/health`
+3. يجب أن ترى: `"database":"ok"` و `"plans":3`.
 
-يجب أن يظهر `✓ applied 0000_init` وإنشاء 3 باقات.
-
-4. ارجع إلى **Setup Node.js App** واضغط **Restart**.
+إذا رأيت شيئاً آخر بجانب `database` (مثل `error: ER_ACCESS_DENIED_ERROR`)، فراجع جدول حل المشاكل في آخر هذا الدليل، أو أرسل النص لـClaude.
+هذه الصفحة لا تعرض أي كلمات مرور.
 
 ## الخطوة 7: أول دخول
 
@@ -88,8 +85,8 @@ cd ~/scaleitto-app && node scripts/migrate.mjs
 
 1. نزّل آخر **scaleitto-build** من GitHub (الخطوة 2).
 2. ارفعه إلى `scaleitto-app` وفك الضغط مع **استبدال** الملفات. ملف `.env` لن يتأثر.
-3. نفّذ أوامر الخطوة 6 (`migrate.mjs` آمن، ولا يطبّق إلا التغييرات الجديدة).
-4. اضغط **Restart**.
+3. اضغط **Restart**. تحديثات قاعدة البيانات تُطبَّق تلقائياً.
+4. تأكد من `https://scaleitto.com/api/health`.
 
 ## روابط المتاجر
 
@@ -109,5 +106,8 @@ cd ~/scaleitto-app && node scripts/migrate.mjs
 |---|---|
 | صفحة "Incomplete response" أو خطأ 503 | تأكد أن إصدار Node.js هو 20.9 أو أحدث، ثم اضغط Restart |
 | خطأ `Access denied for user` | تحقق من `DATABASE_URL` في `.env`، ومن إضافة المستخدم إلى قاعدة البيانات بكل الصلاحيات |
-| خطأ `Plans are not seeded` عند التسجيل | لم تُنفَّذ الخطوة 6 |
+| `ER_ACCESS_DENIED_ERROR` في `/api/health` | اسم المستخدم أو كلمة المرور في `DATABASE_URL` خاطئة، أو المستخدم غير مضاف لقاعدة البيانات |
+| `ER_BAD_DB_ERROR` | اسم قاعدة البيانات في `DATABASE_URL` خاطئ (تذكّر البادئة مثل `abcduser_`) |
+| `DATABASE_URL: MISSING` | ملف `.env` غير موجود داخل `scaleitto-app` أو اسمه خاطئ |
+| "This page couldn't load" عند التسجيل | افتح `/api/health` لمعرفة السبب |
 | الإحصائيات اليومية بتوقيت خاطئ | تأكد من وجود `TZ="Africa/Algiers"` في `.env` |
