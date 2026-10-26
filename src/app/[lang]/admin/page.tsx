@@ -2,11 +2,13 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getDictionary, asLocale } from "@/i18n";
+import { requireAdmin } from "@/lib/auth";
 import { getActiveContract, getEffectiveLimits, getUsage, percentUsed } from "@/lib/limits";
 
 export default async function AdminPage({ params }: PageProps<"/[lang]/admin">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
+  await requireAdmin(lang);
 
   const shops = await db
     .select({ shop: schema.shops, owner: schema.users.email, plan: schema.plans.name })

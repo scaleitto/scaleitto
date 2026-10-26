@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getDictionary, asLocale } from "@/i18n";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default async function AdminLayout({ children, params }: LayoutProps<"/[lang]/admin">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const user = await requireUser(lang);
-  if (!user.isPlatformAdmin) notFound();
+  await requireAdmin(lang);
   return (
     <div className="min-h-screen">
       <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">

@@ -4,14 +4,9 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Limits } from "@/db/schema";
 import { getDictionary, asLocale } from "@/i18n";
-import { newId, requireUser } from "@/lib/auth";
+import { newId, requireAdmin } from "@/lib/auth";
 import { getEffectiveLimits, getUsage } from "@/lib/limits";
 import { UsageBar } from "@/components/UsageBar";
-
-async function requireAdmin(lang: string) {
-  const user = await requireUser(lang);
-  if (!user.isPlatformAdmin) notFound();
-}
 
 const limitField = z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().int().min(-1).nullable());
 
@@ -64,6 +59,7 @@ export default async function AdminShopPage({ params }: PageProps<"/[lang]/admin
   const { lang: rawLang, id } = await params;
   const lang = asLocale(rawLang);
   const t = getDictionary(lang);
+  await requireAdmin(lang);
   const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.id, id));
   if (!shop) notFound();
   const [plans, contracts, effective, usage] = await Promise.all([

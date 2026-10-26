@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash, randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { and, eq, gt } from "drizzle-orm";
@@ -51,10 +51,10 @@ export async function destroySession() {
 export type CurrentUser = { id: string; name: string; email: string; isPlatformAdmin: boolean };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
   // Everything after a session read is per-request (expiry checks, "this month" stats…)
   await connection();
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
   const [row] = await db
     .select({
       id: schema.users.id,
@@ -72,6 +72,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 export async function requireUser(locale: string) {
   const user = await getCurrentUser();
   if (!user) redirect(`/${locale}/login`);
+  return user;
+}
+
+// Layouts and pages render in parallel, so every admin page calls this itself.
+export async function requireAdmin(locale: string) {
+  const user = await requireUser(locale);
+  if (!user.isPlatformAdmin) notFound();
   return user;
 }
 
