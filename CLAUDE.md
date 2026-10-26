@@ -11,7 +11,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - No Redis, no background workers yet (shared hosting) — design jobs so they can run from cron later
 
 ## Commands
-- `npm run dev` / `npm run build` / `npm run lint`
+- `npm run dev` / `npm run build` / `npm run lint` / `npm run typecheck` / `npm test` / `npm run test:e2e`
 - `npm run db:generate -- --name <change>` after editing `src/db/schema.ts`, then `npm run db:migrate`
 - `scripts/migrate.mjs` must only depend on `mysql2` (it runs from the standalone bundle on the server)
 

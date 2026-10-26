@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
     "test": "tsx --test tests/unit/*.test.ts",
-    "test:e2e": "node tests/e2e/run.mjs"
+    "test:e2e": "node tests/e2e/run.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
