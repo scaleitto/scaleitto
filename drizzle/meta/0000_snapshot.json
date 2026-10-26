@@ -1,11 +1,11 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "936d0bd3-4d63-48cc-96d8-84eee2712c69",
+  "id": "ff9aa49d-00c1-4f6b-b8fb-32d8f76d5d28",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "order_items": {
-      "name": "order_items",
+    "error_logs": {
+      "name": "error_logs",
       "columns": {
         "id": {
           "name": "id",
@@ -14,189 +14,44 @@
           "notNull": true,
           "autoincrement": false
         },
-        "order_id": {
-          "name": "order_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "varchar(36)",
+        "digest": {
+          "name": "digest",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "variant_id": {
-          "name": "variant_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(200)",
+        "message": {
+          "name": "message",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "variant_title": {
-          "name": "variant_title",
-          "type": "varchar(200)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sku": {
-          "name": "sku",
-          "type": "varchar(80)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "unit_price": {
-          "name": "unit_price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "items_order_idx": {
-          "name": "items_order_idx",
-          "columns": [
-            "order_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "order_items_id": {
-          "name": "order_items_id",
-          "columns": [
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "orders": {
-      "name": "orders",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "shop_id": {
-          "name": "shop_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "number": {
-          "name": "number",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "customer_name": {
-          "name": "customer_name",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "phone": {
-          "name": "phone",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "wilaya_code": {
-          "name": "wilaya_code",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "commune": {
-          "name": "commune",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "address": {
-          "name": "address",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "delivery_type": {
-          "name": "delivery_type",
-          "type": "enum('home','desk')",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "subtotal": {
-          "name": "subtotal",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "shipping_cost": {
-          "name": "shipping_cost",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "total": {
-          "name": "total",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "enum('new','confirmed','shipped','delivered','returned','cancelled')",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'new'"
-        },
-        "note": {
-          "name": "note",
+        "stack": {
+          "name": "stack",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "ip": {
-          "name": "ip",
-          "type": "varchar(45)",
+        "path": {
+          "name": "path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "method": {
+          "name": "method",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "route_type": {
+          "name": "route_type",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -211,35 +66,18 @@
         }
       },
       "indexes": {
-        "orders_shop_number_uq": {
-          "name": "orders_shop_number_uq",
+        "errors_created_idx": {
+          "name": "errors_created_idx",
           "columns": [
-            "shop_id",
-            "number"
-          ],
-          "isUnique": true
-        },
-        "orders_shop_created_idx": {
-          "name": "orders_shop_created_idx",
-          "columns": [
-            "shop_id",
             "created_at"
-          ],
-          "isUnique": false
-        },
-        "orders_phone_idx": {
-          "name": "orders_phone_idx",
-          "columns": [
-            "shop_id",
-            "phone"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "orders_id": {
-          "name": "orders_id",
+        "error_logs_id": {
+          "name": "error_logs_id",
           "columns": [
             "id"
           ]
@@ -331,216 +169,6 @@
       },
       "checkConstraint": {}
     },
-    "product_variants": {
-      "name": "product_variants",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "shop_id": {
-          "name": "shop_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "option_values": {
-          "name": "option_values",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar(200)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sku": {
-          "name": "sku",
-          "type": "varchar(80)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "price": {
-          "name": "price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stock": {
-          "name": "stock",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        }
-      },
-      "indexes": {
-        "variants_product_idx": {
-          "name": "variants_product_idx",
-          "columns": [
-            "product_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "product_variants_id": {
-          "name": "product_variants_id",
-          "columns": [
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "products": {
-      "name": "products",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "shop_id": {
-          "name": "shop_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(200)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "slug": {
-          "name": "slug",
-          "type": "varchar(200)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "price": {
-          "name": "price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "compare_at_price": {
-          "name": "compare_at_price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sku": {
-          "name": "sku",
-          "type": "varchar(80)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stock": {
-          "name": "stock",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "track_stock": {
-          "name": "track_stock",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "images": {
-          "name": "images",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "options": {
-          "name": "options",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "enum('active','draft')",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'active'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(now())"
-        }
-      },
-      "indexes": {
-        "products_shop_slug_uq": {
-          "name": "products_shop_slug_uq",
-          "columns": [
-            "shop_id",
-            "slug"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "products_id": {
-          "name": "products_id",
-          "columns": [
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
     "sessions": {
       "name": "sessions",
       "columns": {
@@ -589,52 +217,6 @@
           "name": "sessions_id",
           "columns": [
             "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "shipping_rates": {
-      "name": "shipping_rates",
-      "columns": {
-        "shop_id": {
-          "name": "shop_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "wilaya_code": {
-          "name": "wilaya_code",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "home_price": {
-          "name": "home_price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "desk_price": {
-          "name": "desk_price",
-          "type": "int",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "shipping_rates_shop_id_wilaya_code_pk": {
-          "name": "shipping_rates_shop_id_wilaya_code_pk",
-          "columns": [
-            "shop_id",
-            "wilaya_code"
           ]
         }
       },
@@ -750,7 +332,7 @@
         },
         "role": {
           "name": "role",
-          "type": "enum('owner','admin','confirmer')",
+          "type": "enum('owner','manager','agent')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -862,28 +444,13 @@
           "notNull": false,
           "autoincrement": false
         },
-        "theme": {
-          "name": "theme",
-          "type": "varchar(40)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'classic'"
-        },
         "primary_color": {
           "name": "primary_color",
           "type": "varchar(9)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'#4f46e5'"
-        },
-        "custom_domain": {
-          "name": "custom_domain",
-          "type": "varchar(191)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "default": "'#10b981'"
         },
         "created_at": {
           "name": "created_at",
@@ -899,13 +466,6 @@
           "name": "shops_slug_uq",
           "columns": [
             "slug"
-          ],
-          "isUnique": true
-        },
-        "shops_domain_uq": {
-          "name": "shops_domain_uq",
-          "columns": [
-            "custom_domain"
           ],
           "isUnique": true
         }
@@ -944,6 +504,13 @@
           "type": "varchar(120)",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "password_hash": {

@@ -15,47 +15,49 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `npm run db:generate -- --name <change>` after editing `src/db/schema.ts`, then `npm run db:migrate`
 - `scripts/migrate.mjs` must only depend on `mysql2` (it runs from the standalone bundle on the server)
 
-## Layout
-- `src/app/[lang]/…` — marketing, auth, merchant dashboard, platform admin. `lang` ∈ ar|fr|en (RTL for ar)
-- `src/app/store/[slug]/…` — public storefronts. `src/proxy.ts` rewrites `<slug>.ROOT_DOMAIN` here
-- `src/i18n/dictionaries/{ar,fr,en}.ts` — dashboard strings (ar is the typed source of truth);
-  `src/i18n/store.ts` — customer-facing storefront strings. Every new UI string goes in all three languages.
-- `src/lib/auth.ts` — sessions + `requireShop()`; `src/lib/limits.ts` — plan limits overridden by shop contracts
-- Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
-- `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
-- Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
-- AI: `src/lib/ai/openai.ts` uses the OpenAI **Responses API in background mode** (`startBackgroundJson` returns an id,
-  `pollBackgroundJson` checks it) so no request on our server waits for the model (shared hosting cuts long requests
-  and may not keep work alive after a response — do NOT use `after()` or long requests for AI). Env OPENAI_API_KEY /
-  OPENAI_MODEL (default gpt-6.1-sol, then gpt-6-luna as fallback) / OPENAI_BASE_URL. Rejected params (reasoning, strict
-  schema, images) are retried without; a model without access or background support falls back to the next model.
-- Landing generation (`src/lib/ai/landing-job.ts`, table `ai_jobs`) is a state machine driven by the wizard:
-  prepare (product / uploaded photos / product link via `src/lib/product-import.ts`) → submit → writing (poll) → save.
-  Each `advanceAiJob` call runs one short step under a DB claim. Prompt + schema: `src/lib/ai/landing-generator.ts`;
-  it forbids invented facts and fake reviews — keep it that way. Usage logged in `ai_generations` (`maxAiPerMonth`).
-- Diagnostics: `onRequestError` + `src/lib/error-log.ts` store errors in `error_logs`; admin → System
-  (`src/app/[lang]/admin/system`) shows build commit, migrations, env status, a full self-test (uploads, OpenAI,
-  background request), the model check and the error log.
-- Uploads: images are resized in the browser (`src/components/dashboard/ImageManager.tsx`) and sent one per request
-  as the raw body to POST /api/uploads; the server only sniffs and stores them (no sharp/native libs).
-  `src/lib/storage.ts` (UPLOADS_DIR, default ~/scaleitto-uploads, outside the app dir),
-  served by `src/app/uploads/[shop]/[file]/route.ts`. Any server-side fetch of a user URL goes through
-  `src/lib/safe-fetch.ts` (blocks private/internal addresses).
-- The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
+## Layout (v2 — rebuilt cleanly, one section at a time)
+- `src/app/[lang]/…` — marketing, auth, merchant dashboard. `lang` ∈ ar|fr|en (RTL for ar). Pages stay thin:
+  they call a guard and render feature components.
+- `src/features/<section>/` — each section's `actions.ts` (server actions), `components.tsx`, validators.
+- `src/ui/` — shared UI kit (`Button`, `Card`, `Field`, `Input`, `Alert`, `PageHeader`…) and `ui/form.tsx`
+  (`useActionForm` — forms never lose typed values after an error —, `SubmitButton`, `FormMessage`, `fieldError`).
+  Colors are tokens in `src/app/globals.css` (dark dashboard, green accent).
+- `src/lib/permissions.ts` — the ONLY place that says which role sees which sidebar section (sidebar order =
+  the owner's image: Overview, Products, Orders, Delivery, Store Design, Theme Store, Call Centers, Landing Pages,
+  Analytics, Pixels, Apps, Plans, Settings, Profile). Roles: owner / manager / agent (call center).
+- `src/server/auth/` — sessions, passwords, `requireShop()`, `requireSection(lang, key)` (redirects to the
+  member's home section when not allowed), `requirePlatformAdmin()`.
+- `src/server/errors.ts` — every server action is wrapped in `safeAction(where, fn)`: errors are logged to
+  `error_logs` and the user gets a translated message, never a crash screen. Validation errors are `e:<key>`
+  message keys mapped by `fieldErrorsFrom` to `t.errors.<key>`.
+- `src/server/db/schema.ts` — Drizzle schema (v2 baseline migration `drizzle/0000_init.sql`; v2 needs a fresh DB).
+- `src/i18n/dictionaries/{ar,fr,en}.ts` — all strings (ar is the typed source of truth). Every new UI string goes in all three.
+- `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, storage, tracking). Any server-side
+  fetch of a user URL must go through `safe-fetch.ts`.
+- The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
+  `/api/health` shows version, DB, migrations and env status.
+
+## Testing (required before pushing every section)
+- `npm test` — unit tests in `tests/unit/` (node test runner via tsx).
+- `npm run test:e2e` — Playwright flows in `tests/e2e/phaseN.mjs` against a running server (E2E_URL, default
+  localhost:3000) with the DB from `.env`; also fails if any new row appears in `error_logs`.
+- Each new section adds its own `tests/e2e/phaseN.mjs` and registers it in `tests/e2e/run.mjs`.
+- CI (`.github/workflows/build.yml`) runs lint, typecheck, unit tests, build and the e2e tests on MariaDB, then
+  publishes the deploy artifact.
 
 ## Rules
-- Tenant isolation: every dashboard query/mutation filters by `shop.id` from `requireShop()`; never trust ids from the client alone.
+- Tenant isolation: every dashboard query/mutation filters by `shop.id` from `requireShop()`/`requireSection()`;
+  never trust ids from the client alone.
 - Money is integer DZD.
 - Next 16 + Cache Components: pages under `[lang]` and `store` set `instant = false` in their root layout;
   call `connection()` before using `new Date()`/random values in server components outside a session read.
-- Root layouts are `src/app/[lang]/layout.tsx` and `src/app/store/layout.tsx` (no `src/app/layout.tsx`).
-- Test the real flow in a browser (Playwright is preinstalled) before pushing.
+- Root layouts are `src/app/[lang]/layout.tsx` and (when the storefront is rebuilt) `src/app/store/layout.tsx`.
+- No duplicated logic: reuse `src/ui`, `safeAction`, `permissions.ts`. Build a section completely, with its e2e
+  test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-Done: shops, products + variants + SKU/stock, COD orders, wilaya shipping rates,
-fake-order checks (phone format, per-phone/IP limits, honeypot), plans, per-shop contracts with custom
-ceilings and dates, usage threshold alerts, ar/fr/en, landing pages (section builder, views/conversion),
-Meta/TikTok pixel + GTM events, abandoned carts/leads, quantity offers, post-order upsell, staff roles,
-AI landing page generator (OpenAI) with per-page language/color.
-Next: delivery companies (Yalidine, ZR Express, Noest…), Google Sheets, Ecomanager, Stripe, custom domains,
-YouCan/Shopify import, analytics, themes, markets/currencies, AI features, mobile app.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile). Next: Products, Orders +
+storefront checkout (fake-order protection, abandoned carts), Delivery (wilaya rates, Yalidine/ZR Express/Noest),
+Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
+The v1 code (main branch) has working versions of most features to consult while rebuilding.

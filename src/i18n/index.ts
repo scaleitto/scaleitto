@@ -6,12 +6,12 @@ import { isLocale, defaultLocale, type Locale } from "./config";
 
 const dictionaries = { ar, fr, en };
 
-export function getDictionary(locale: string) {
-  return dictionaries[isLocale(locale) ? locale : defaultLocale];
-}
-
 export function asLocale(value: string): Locale {
   return isLocale(value) ? value : defaultLocale;
+}
+
+export function getDictionary(locale: string) {
+  return dictionaries[asLocale(locale)];
 }
 
 export * from "./config";

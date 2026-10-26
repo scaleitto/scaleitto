@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "scaleitto",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,10 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate": "node scripts/migrate.mjs",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:e2e": "node tests/e2e/run.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
+    "lucide-react": "^1.61.0",
     "mysql2": "^3.24.6",
     "next": "16.4.3",
     "react": "19.3.0",
@@ -27,6 +30,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

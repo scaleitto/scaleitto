@@ -1,0 +1,29 @@
+// Runs every end-to-end phase against a running server (E2E_URL, default http://localhost:3000)
+// and checks that no server error was logged while testing.
+import { BASE, db, failed, playwright, step, expect } from "./helpers.mjs";
+import phase0 from "./phase0.mjs";
+
+const phases = { phase0 };
+const only = process.argv[2];
+
+const { chromium } = playwright();
+const browser = await chromium.launch();
+const errorCount = async () => (await db.query("SELECT COUNT(*) AS n FROM error_logs"))[0][0].n;
+const before = await errorCount();
+
+console.log(`E2E against ${BASE}`);
+for (const [name, run] of Object.entries(phases)) {
+  if (only && only !== name) continue;
+  console.log(`\n${name}`);
+  await run(browser);
+}
+
+await step("no server errors were logged during the tests", async () => {
+  const [rows] = await db.query("SELECT path, message FROM error_logs ORDER BY created_at DESC LIMIT ?", [(await errorCount()) - before]);
+  expect(rows.length === 0, `no new errors (got: ${rows.map((r) => `${r.path}: ${r.message}`).join(" | ")})`);
+});
+
+await browser.close();
+await db.end();
+console.log(failed() ? `\n✗ ${failed()} failing step(s)` : "\n✓ all steps passed");
+process.exit(failed() ? 1 : 0);

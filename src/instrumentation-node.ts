@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { runMigrations } from "../scripts/migrate-lib.mjs";
-import { setMigrationStatus } from "./lib/migration-status";
+import { setMigrationStatus } from "./server/migration-status";
 
 // Brings the database up to date at startup, so a deploy on shared hosting needs
 // no terminal access. Errors are logged, not thrown, so the site still starts and

@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1793018893071,
+      "when": 1793041399613,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1793026687102,
-      "tag": "0001_sales_tools",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1793029391616,
-      "tag": "0002_ai_landing",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1793033108954,
-      "tag": "0003_error_logs",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1793035563702,
-      "tag": "0004_ai_jobs",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "5",
-      "when": 1793037826164,
-      "tag": "0005_ai_jobs_background",
       "breakpoints": true
     }
   ]

@@ -6,12 +6,9 @@ import "../globals.css";
 
 const cairo = Cairo({ subsets: ["arabic", "latin"], variable: "--font-cairo" });
 
-export const metadata: Metadata = {
-  title: "Scaleitto",
-  description: "Algerian e-commerce platform",
-};
+export const metadata: Metadata = { title: "Scaleitto", description: "Algerian e-commerce platform" };
 
-// Most pages read the session or the database, so they render per request.
+// Almost every page reads the session or the database, so pages render per request.
 export const instant = false;
 
 export function generateStaticParams() {
@@ -22,8 +19,8 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   return (
-    <html lang={lang} dir={dir(lang)} className={cairo.variable}>
-      <body className="min-h-screen font-sans">{children}</body>
+    <html lang={lang} dir={dir(lang)} className={`${cairo.variable} bg-bg`}>
+      <body className="min-h-screen bg-bg font-sans text-fg">{children}</body>
     </html>
   );
 }
