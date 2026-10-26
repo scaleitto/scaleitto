@@ -28,6 +28,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   retries without `reasoning_effort` or with JSON mode if a model rejects them),
   `src/lib/ai/landing-generator.ts` (prompt + schema). Generations are logged in `ai_generations` and limited by `maxAiPerMonth`.
   The prompt forbids invented facts and fake reviews — keep it that way.
+- Diagnostics: `onRequestError` in `src/instrumentation.ts` stores server errors in `error_logs`; admin → System
+  (`src/app/[lang]/admin/system`) shows build commit, migrations, env status, AI model check and the error log.
+  OPENAI_MODEL falls back to gpt-6.1-sol then gpt-6-luna when the configured model does not exist.
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
 
 ## Rules

@@ -14,6 +14,7 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
           {t.brand} · {t.admin.title}
         </Link>
         <div className="flex items-center gap-3">
+          <Link href={`/${lang}/admin/system`} className="text-sm font-medium text-slate-600">{t.admin.system}</Link>
           <LanguageSwitcher current={lang} />
           <Link href={`/${lang}/dashboard`} className="text-sm text-slate-600">{t.nav.overview}</Link>
         </div>

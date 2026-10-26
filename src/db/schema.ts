@@ -309,3 +309,20 @@ export const aiGenerations = mysqlTable(
   },
   (t) => [index("ai_shop_created_idx").on(t.shopId, t.createdAt)],
 );
+
+// ─── Server errors (shown to the platform admin; shared hosting has no easy log access) ─
+
+export const errorLogs = mysqlTable(
+  "error_logs",
+  {
+    id: id().primaryKey(),
+    digest: varchar("digest", { length: 64 }),
+    message: text("message").notNull(),
+    stack: text("stack"),
+    path: varchar("path", { length: 500 }),
+    method: varchar("method", { length: 10 }),
+    routeType: varchar("route_type", { length: 20 }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("errors_created_idx").on(t.createdAt)],
+);

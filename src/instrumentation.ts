@@ -6,3 +6,15 @@ export async function register() {
     await migrateOnStartup();
   }
 }
+
+// Server errors are saved to the database so the platform admin can read them.
+export async function onRequestError(
+  error: unknown,
+  request: { path: string; method: string },
+  context: { routeType: string },
+) {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { logRequestError } = await import("./instrumentation-node");
+    await logRequestError(error, request, context);
+  }
+}

@@ -22,6 +22,13 @@
       "when": 1793029391616,
       "tag": "0002_ai_landing",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1793033108954,
+      "tag": "0003_error_logs",
+      "breakpoints": true
     }
   ]
 }

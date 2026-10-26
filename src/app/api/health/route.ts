@@ -23,11 +23,22 @@ export async function GET() {
     database = `error: ${cause.code ?? ""} ${cause.message ?? String(err)}`.trim();
   }
 
+  let migrations: string[] = [];
+  try {
+    const [rows] = (await db.execute(sql`SELECT name FROM _migrations ORDER BY name`)) as unknown as [{ name: string }[]];
+    migrations = rows.map((r) => r.name);
+  } catch {
+    // table missing: startupMigration below explains why
+  }
+
   return Response.json({
     app: "ok",
+    // Compare with the latest commit on GitHub to be sure the new version is the one running
+    version: { commit: process.env.BUILD_COMMIT, builtAt: process.env.BUILD_TIME },
     node: process.version,
     database,
     plans,
+    migrations,
     startupMigration: getMigrationStatus() ?? "not run (DATABASE_URL missing at startup?)",
     env,
   });
