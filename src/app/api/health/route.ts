@@ -8,7 +8,7 @@ import { getMigrationStatus } from "@/server/migration-status";
 export async function GET() {
   await connection();
   const env = Object.fromEntries(
-    ["DATABASE_URL", "APP_URL", "ROOT_DOMAIN", "PLATFORM_ADMIN_EMAIL", "TZ", "OPENAI_API_KEY"].map((k) => [k, process.env[k] ? "set" : "MISSING"]),
+    ["DATABASE_URL", "APP_URL", "ROOT_DOMAIN", "PLATFORM_ADMIN_EMAIL", "APP_SECRET", "TZ", "OPENAI_API_KEY"].map((k) => [k, process.env[k] ? "set" : "MISSING"]),
   );
 
   let database = "ok";

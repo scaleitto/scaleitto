@@ -9,8 +9,26 @@ import { addOrderNote, updateOrderCustomer } from "./actions";
 import { CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
 import { isOrderStatus, statusTone } from "./statuses";
+import { ShipmentCard } from "@/features/delivery/ShipmentCard";
+import { findCarrier } from "@/features/delivery/carriers";
+import type { CarrierAccountRow } from "@/features/delivery/queries";
+import type { schema } from "@/server/db";
 
-export function OrderDetail({ lang, t, order }: { lang: string; t: Dictionary; order: Order }) {
+export function OrderDetail({
+  lang,
+  t,
+  order,
+  shipment,
+  accounts,
+  canManageDelivery,
+}: {
+  lang: string;
+  t: Dictionary;
+  order: Order;
+  shipment: typeof schema.shipments.$inferSelect | null;
+  accounts: CarrierAccountRow[];
+  canManageDelivery: boolean;
+}) {
   const o = t.orders;
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
   const cur = t.common.currency;
@@ -33,6 +51,25 @@ export function OrderDetail({ lang, t, order }: { lang: string; t: Dictionary; o
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <StatusPicker lang={lang} orderId={order.id} status={order.status} t={text} />
+          <ShipmentCard
+            lang={lang}
+            orderId={order.id}
+            orderStatus={order.status}
+            shipment={
+              shipment && {
+                carrierName: shipment.carrierName,
+                trackingNumber: shipment.trackingNumber,
+                labelUrl: shipment.labelUrl,
+                status: shipment.status,
+                rawStatus: shipment.rawStatus,
+                checkedAt: shipment.checkedAt ? formatDate(shipment.checkedAt, lang) : null,
+                fromCarrier: Boolean(shipment.carrierAccountId),
+              }
+            }
+            accounts={accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault }))}
+            deliveryHref={canManageDelivery ? sectionHref(lang, "delivery") : null}
+            t={{ delivery: t.delivery, errors: t.errors, common: t.common }}
+          />
           <CustomerCard
             customer={{
               customerName: order.customerName,

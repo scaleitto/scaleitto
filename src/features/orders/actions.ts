@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -12,7 +12,8 @@ import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { wilayas } from "@/lib/wilayas";
 import type { ActionState } from "@/lib/action";
 import { deliveryTypes } from "@/server/db/schema";
-import { holdsStock, isOrderStatus } from "./statuses";
+import { isOrderStatus } from "./statuses";
+import { applyOrderStatus } from "./transition";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "orders");
 
@@ -20,36 +21,7 @@ export async function changeOrderStatus(lang: string, orderId: string, status: s
   return safeAction("orders/status", async () => {
     const { shop, user } = await guard(lang);
     if (!isOrderStatus(status)) return { ok: false, error: "invalid" };
-    await db.transaction(async (tx) => {
-      const [order] = await tx
-        .select({ status: schema.orders.status })
-        .from(schema.orders)
-        .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)))
-        .for("update");
-      if (!order || order.status === status) return;
-      // Cancelling/returning gives the pieces back; reopening takes them again.
-      const before = holdsStock(order.status);
-      const after = holdsStock(status);
-      if (before !== after) {
-        const items = await tx.select().from(schema.orderItems).where(and(eq(schema.orderItems.orderId, orderId), eq(schema.orderItems.stockTracked, true)));
-        for (const item of items) {
-          const delta = after ? -item.quantity : item.quantity;
-          if (item.variantId) {
-            await tx
-              .update(schema.productVariants)
-              .set({ stock: sql`GREATEST(${schema.productVariants.stock} + ${delta}, 0)` })
-              .where(and(eq(schema.productVariants.shopId, shop.id), eq(schema.productVariants.id, item.variantId)));
-          } else if (item.productId) {
-            await tx
-              .update(schema.products)
-              .set({ stock: sql`GREATEST(${schema.products.stock} + ${delta}, 0)` })
-              .where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, item.productId)));
-          }
-        }
-      }
-      await tx.update(schema.orders).set({ status }).where(eq(schema.orders.id, orderId));
-      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "status", fromStatus: order.status, toStatus: status });
-    });
+    await db.transaction((tx) => applyOrderStatus(tx, shop.id, orderId, status, user.id));
     refresh();
     return { ok: true };
   });

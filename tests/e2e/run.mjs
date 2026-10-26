@@ -4,9 +4,14 @@ import { BASE, db, failed, playwright, step, expect } from "./helpers.mjs";
 import phase0 from "./phase0.mjs";
 import phase1 from "./phase1.mjs";
 import phase2 from "./phase2.mjs";
+import phase3 from "./phase3.mjs";
+import { startMockCarriers } from "./mock-carriers.mjs";
 
-const phases = { phase0, phase1, phase2 };
+const phases = { phase0, phase1, phase2, phase3 };
 const only = process.argv[2];
+
+// The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)
+const mock = process.env.E2E_CARRIER_URL ? await startMockCarriers(Number(new URL(process.env.E2E_CARRIER_URL).port)) : null;
 
 const { chromium } = playwright();
 const browser = await chromium.launch();
@@ -26,6 +31,7 @@ await step("no server errors were logged during the tests", async () => {
 });
 
 await browser.close();
+mock?.close();
 await db.end();
 console.log(failed() ? `\n✗ ${failed()} failing step(s)` : "\n✓ all steps passed");
 process.exit(failed() ? 1 : 0);

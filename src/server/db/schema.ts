@@ -265,6 +265,52 @@ export const shippingRates = mysqlTable(
   (t) => [primaryKey({ columns: [t.shopId, t.wilayaCode] })],
 );
 
+// A delivery company account connected by the shop. Credentials are encrypted (src/server/crypto.ts).
+export const carrierPlatforms = ["yalidine", "ecotrack", "procolis", "noest"] as const;
+export type CarrierPlatform = (typeof carrierPlatforms)[number];
+
+export const carrierAccounts = mysqlTable(
+  "carrier_accounts",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    // Key from the catalog in src/features/delivery/carriers.ts (e.g. "yalidine", "dhd")
+    carrier: varchar("carrier", { length: 40 }).notNull(),
+    platform: mysqlEnum("platform", carrierPlatforms).notNull(),
+    baseUrl: varchar("base_url", { length: 255 }).notNull(),
+    credentials: text("credentials").notNull(),
+    // Wilaya the parcels leave from (required by Yalidine)
+    originWilaya: int("origin_wilaya").notNull().default(16),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("carrier_accounts_shop_carrier_uq").on(t.shopId, t.carrier)],
+);
+
+// normalized parcel statuses, whatever the carrier's wording
+export const shipmentStatuses = ["created", "in_transit", "out_for_delivery", "attempted", "delivered", "returning", "returned", "cancelled", "unknown"] as const;
+export type ShipmentStatus = (typeof shipmentStatuses)[number];
+
+// The parcel of an order at a delivery company (or entered by hand).
+export const shipments = mysqlTable(
+  "shipments",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    orderId: id("order_id").notNull(),
+    // null when the tracking number was typed by hand
+    carrierAccountId: id("carrier_account_id"),
+    carrierName: varchar("carrier_name", { length: 80 }).notNull(),
+    trackingNumber: varchar("tracking_number", { length: 80 }).notNull(),
+    labelUrl: varchar("label_url", { length: 500 }),
+    status: mysqlEnum("status", shipmentStatuses).notNull().default("created"),
+    rawStatus: varchar("raw_status", { length: 120 }),
+    checkedAt: timestamp("checked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("shipments_order_uq").on(t.orderId), index("shipments_shop_status_idx").on(t.shopId, t.status)],
+);
+
 // Phone numbers a shop refuses orders from (fake orders, repeated refusals…).
 export const blockedPhones = mysqlTable(
   "blocked_phones",

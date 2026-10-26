@@ -25,6 +25,8 @@ jobs:
       APP_URL: http://localhost:3000
       ROOT_DOMAIN: localhost
       PLATFORM_ADMIN_EMAIL: admin@scaleitto.com
+      # Fake delivery company server started by the e2e tests
+      E2E_CARRIER_URL: http://127.0.0.1:4010
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

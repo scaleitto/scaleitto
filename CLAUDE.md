@@ -47,6 +47,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   duplicates, per-phone/IP limits, honeypot), `pricing.ts` (offers, shipping per wilaya; no rates → free).
 - Orders dashboard (`src/features/orders/`): list with status counts/search, detail (status, customer edit,
   phone history + block, notes, history), abandoned carts. Cancelled/returned orders give stock back (`holdsStock`).
+- Delivery (`src/features/delivery/`): `carriers.ts` (catalog; couriers grouped by platform: yalidine, ecotrack —
+  one API on <name>.ecotrack.dz for 80+ couriers —, procolis = ZR Express, noest), `platforms/*` (one client per
+  platform: test / createParcel / trackingStatus), keys encrypted with `src/server/crypto.ts` (APP_SECRET, falls back
+  to DATABASE_URL). Rates per wilaya in `shipping_rates`; sending/tracking from the order page (`ShipmentCard`);
+  delivered/returned parcels close the order through `src/features/orders/transition.ts` (`applyOrderStatus`, the
+  only place that changes an order status: stock + history). E2E tests use `tests/e2e/mock-carriers.mjs` via
+  E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ), not
+  official docs: verify with a real merchant account before relying on a platform.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
@@ -72,8 +80,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts).
-Next: Delivery (wilaya rates, Yalidine/ZR Express/Noest),
-Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery).
+Next: Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.
