@@ -16,7 +16,7 @@ export function aiConfigured() {
 }
 
 export function aiModel() {
-  return process.env.OPENAI_MODEL || "gpt-5-mini";
+  return process.env.OPENAI_MODEL || "gpt-6.1-sol";
 }
 
 export type JsonCompletion<T> = { data: T; model: string; inputTokens: number; outputTokens: number };
@@ -39,35 +39,55 @@ export async function jsonCompletion<T>({
   const model = aiModel();
   const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
 
-  const body: Record<string, unknown> = {
-    model,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } },
-    max_completion_tokens: 12_000,
-  };
-  // Reasoning models (gpt-5*, o*) accept a reasoning effort; low keeps generation fast.
-  if (/^(gpt-5|o\d)/.test(model)) body.reasoning_effort = "low";
+  // Reasoning models (gpt-5+, o*) accept a reasoning effort; "low" keeps generation fast and cheap
+  // and is valid for every model that supports the parameter.
+  const reasoning = /^(gpt-([5-9]|\d\d)|o\d)/.test(model);
+  // Strict JSON schema first; if the model rejects a parameter, retry without just that one
+  // (JSON mode + schema in the prompt still gets validated by the caller).
+  const attempt = { reasoningEffort: reasoning, strictSchema: true };
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  }).catch((err: unknown) => {
-    throw new AiRequestError(err instanceof Error ? err.message : String(err));
-  });
-
-  const json = (await res.json().catch(() => null)) as {
-    error?: { message?: string };
+  type ApiResponse = {
+    error?: { message?: string; param?: string | null };
     model?: string;
     choices?: { message?: { content?: string | null; refusal?: string | null }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   } | null;
 
-  if (!res.ok) throw new AiRequestError(json?.error?.message ?? `OpenAI HTTP ${res.status}`, res.status);
+  let json: ApiResponse = null;
+  for (let tries = 0; ; tries++) {
+    const body: Record<string, unknown> = {
+      model,
+      messages: [
+        {
+          role: "system",
+          content: attempt.strictSchema ? system : `${system}\n\nReply with a single JSON object that follows this JSON schema exactly:\n${JSON.stringify(schema)}`,
+        },
+        { role: "user", content: user },
+      ],
+      response_format: attempt.strictSchema ? { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } } : { type: "json_object" },
+      max_completion_tokens: 12_000,
+    };
+    if (attempt.reasoningEffort) body.reasoning_effort = "low";
+
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    }).catch((err: unknown) => {
+      throw new AiRequestError(err instanceof Error ? err.message : String(err));
+    });
+    json = (await res.json().catch(() => null)) as ApiResponse;
+    if (res.ok) break;
+
+    const message = json?.error?.message ?? `OpenAI HTTP ${res.status}`;
+    const rejected = `${json?.error?.param ?? ""} ${message}`;
+    if (res.status === 400 && tries < 2 && attempt.reasoningEffort && /reasoning/i.test(rejected)) attempt.reasoningEffort = false;
+    else if (res.status === 400 && tries < 2 && attempt.strictSchema && /response_format|json_schema/i.test(rejected)) attempt.strictSchema = false;
+    else throw new AiRequestError(message, res.status);
+    console.warn(`[ai] ${model} rejected a parameter, retrying: ${message}`);
+  }
+
   const choice = json?.choices?.[0];
   if (choice?.message?.refusal) throw new AiRequestError(`Refused: ${choice.message.refusal}`);
   if (!choice?.message?.content) throw new AiRequestError(`Empty response (finish_reason: ${choice?.finish_reason ?? "unknown"})`);

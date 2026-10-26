@@ -24,7 +24,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
 - `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
 - Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
-- AI: `src/lib/ai/openai.ts` (Chat Completions + strict JSON schema; env OPENAI_API_KEY / OPENAI_MODEL / OPENAI_BASE_URL),
+- AI: `src/lib/ai/openai.ts` (Chat Completions + strict JSON schema; env OPENAI_API_KEY / OPENAI_MODEL (default gpt-6.1-sol; gpt-6-luna cheaper) / OPENAI_BASE_URL;
+  retries without `reasoning_effort` or with JSON mode if a model rejects them),
   `src/lib/ai/landing-generator.ts` (prompt + schema). Generations are logged in `ai_generations` and limited by `maxAiPerMonth`.
   The prompt forbids invented facts and fake reviews — keep it that way.
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
