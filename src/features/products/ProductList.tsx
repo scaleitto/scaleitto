@@ -131,16 +131,16 @@ export async function ProductList({ lang, t, shopId, q, status, page, created }:
 
           {total > PAGE_SIZE && (
             <div className="flex items-center justify-between border-t border-line p-4 text-sm text-muted">
-              <span>{fmt(p.showing, { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, total), total })}</span>
+              <span>{fmt(t.common.showing, { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, total), total })}</span>
               <div className="flex gap-2">
                 {page > 1 && (
                   <Link href={href({ page: page - 1 })} className={buttonClass("secondary")}>
-                    {p.previous}
+                    {t.common.previous}
                   </Link>
                 )}
                 {page * PAGE_SIZE < total && (
                   <Link href={href({ page: page + 1 })} className={buttonClass("secondary")}>
-                    {p.next}
+                    {t.common.next}
                   </Link>
                 )}
               </div>

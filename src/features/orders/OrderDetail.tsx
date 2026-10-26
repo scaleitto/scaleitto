@@ -1,0 +1,132 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import type { Dictionary } from "@/i18n/dictionaries/ar";
+import { sectionHref } from "@/lib/permissions";
+import { fmt, formatDate, formatPrice } from "@/lib/format";
+import { wilayaName, wilayas } from "@/lib/wilayas";
+import { Alert, Badge, Card, PageHeader } from "@/ui";
+import { addOrderNote, updateOrderCustomer } from "./actions";
+import { CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
+import type { OrderDetail as Order } from "./queries";
+import { isOrderStatus, statusTone } from "./statuses";
+
+export function OrderDetail({ lang, t, order }: { lang: string; t: Dictionary; order: Order }) {
+  const o = t.orders;
+  const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
+  const cur = t.common.currency;
+  const statusLabel = (s: string | null) => (s && isOrderStatus(s) ? o.statuses[s] : (s ?? ""));
+
+  return (
+    <>
+      <PageHeader
+        title={fmt(o.title, { number: order.number })}
+        description={formatDate(order.createdAt, lang)}
+        actions={
+          <>
+            <Badge tone={statusTone[order.status]}>{o.statuses[order.status]}</Badge>
+            <Link href={sectionHref(lang, "orders")} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-sm text-muted hover:bg-panel-2 hover:text-fg">
+              <ArrowRight size={16} className="ltr:rotate-180" /> {t.common.back}
+            </Link>
+          </>
+        }
+      />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <StatusPicker lang={lang} orderId={order.id} status={order.status} t={text} />
+          <CustomerCard
+            customer={{
+              customerName: order.customerName,
+              phone: order.phone,
+              wilayaCode: order.wilayaCode,
+              commune: order.commune,
+              address: order.address,
+              deliveryType: order.deliveryType,
+              shippingPrice: order.shippingPrice,
+            }}
+            wilayaLabel={wilayaName(order.wilayaCode, lang)}
+            wilayas={wilayas.map((w) => ({ code: w.code, name: wilayaName(w.code, lang) }))}
+            t={text}
+            action={updateOrderCustomer.bind(null, lang, order.id)}
+          />
+          <Card className="space-y-3">
+            <h2 className="font-semibold">{o.items}</h2>
+            <ul className="divide-y divide-line">
+              {order.items.map((item) => (
+                <li key={item.id} className="flex justify-between gap-3 py-2.5 text-sm">
+                  <span>
+                    <span className="font-semibold">{item.name}</span>
+                    {item.variantTitle && <span className="text-muted"> · {item.variantTitle}</span>}
+                    <span className="text-muted"> {fmt(o.quantityShort, { n: item.quantity })}</span>
+                    {item.offerLabel && <Badge tone="warning">{item.offerLabel}</Badge>}
+                    {item.sku && (
+                      <span className="block text-xs text-muted" dir="ltr">
+                        {item.sku}
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-semibold whitespace-nowrap">{formatPrice(item.total, cur)}</span>
+                </li>
+              ))}
+            </ul>
+            <dl className="space-y-1.5 border-t border-line pt-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted">{o.subtotal}</dt>
+                <dd>{formatPrice(order.subtotal, cur)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">{o.shipping}</dt>
+                <dd>{formatPrice(order.shippingPrice, cur)}</dd>
+              </div>
+              <div className="flex justify-between text-base font-bold">
+                <dt>{o.total}</dt>
+                <dd data-testid="order-total">{formatPrice(order.total, cur)}</dd>
+              </div>
+            </dl>
+            {order.customerNote && (
+              <Alert variant="info">
+                <span className="font-semibold">{o.customerNote}: </span>
+                {order.customerNote}
+              </Alert>
+            )}
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="space-y-3" data-testid="phone-history">
+            <h2 className="font-semibold">{o.phoneHistory}</h2>
+            {order.phoneStats.orders <= 1 ? (
+              <p className="text-sm text-muted">{o.firstOrder}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge>{fmt(o.phoneOrders, { n: order.phoneStats.orders })}</Badge>
+                <Badge tone="accent">{fmt(o.phoneDelivered, { n: order.phoneStats.delivered })}</Badge>
+                {order.phoneStats.failed > 0 && <Badge tone="danger">{fmt(o.phoneFailed, { n: order.phoneStats.failed })}</Badge>}
+              </div>
+            )}
+            {order.phoneBlocked && <Alert>{o.blocked}</Alert>}
+            <PhoneBlockButton lang={lang} phone={order.phone} blocked={order.phoneBlocked} t={text} />
+          </Card>
+
+          <Card className="space-y-4">
+            <h2 className="font-semibold">{o.history}</h2>
+            <ol className="space-y-3 border-s border-line ps-4 text-sm" data-testid="history">
+              {order.events.map(({ event, userName }) => (
+                <li key={event.id} className="relative">
+                  <span className="absolute -start-[1.3rem] top-1.5 size-2 rounded-full bg-accent" />
+                  <p className="font-medium">
+                    {event.type === "status" ? fmt(o.events.status, { from: statusLabel(event.fromStatus), to: statusLabel(event.toStatus) }) : o.events[event.type]}
+                  </p>
+                  {event.note && <p className="mt-0.5 whitespace-pre-line text-fg/90">{event.note}</p>}
+                  <p className="text-xs text-muted">
+                    <bdi>{userName ?? o.byCustomer}</bdi> · <bdi>{formatDate(event.createdAt, lang)}</bdi>
+                  </p>
+                </li>
+              ))}
+            </ol>
+            <NoteForm t={text} action={addOrderNote.bind(null, lang, order.id)} />
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}

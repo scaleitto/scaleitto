@@ -78,12 +78,13 @@ export function Alert({ variant = "error", children }: { variant?: "error" | "su
   );
 }
 
-export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" | "warning" | "danger" }) {
+export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" | "warning" | "danger" | "info" }) {
   const tones = {
     neutral: "bg-panel-2 text-muted",
     accent: "bg-accent/15 text-accent",
     warning: "bg-amber-400/15 text-amber-300",
     danger: "bg-danger/15 text-danger",
+    info: "bg-sky-400/15 text-sky-300",
   };
   return <span className={cx("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold", tones[tone])}>{children}</span>;
 }

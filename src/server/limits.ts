@@ -38,6 +38,11 @@ export async function getEffectiveLimits(shopId: string): Promise<EffectiveLimit
 // How much of each limit a shop uses. Sections add their counter when they are built.
 const counters: Partial<Record<LimitKey, (shopId: string) => Promise<number>>> = {
   maxProducts: async (shopId) => (await db.select({ n: count() }).from(schema.products).where(eq(schema.products.shopId, shopId)))[0].n,
+  maxOrdersPerMonth: async (shopId) => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return (await db.select({ n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, monthStart))))[0].n;
+  },
   maxStaff: async (shopId) => (await db.select({ n: count() }).from(schema.shopMembers).where(eq(schema.shopMembers.shopId, shopId)))[0].n,
 };
 

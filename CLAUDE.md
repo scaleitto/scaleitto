@@ -40,6 +40,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `src/server/storage.ts` sniffs and stores it under UPLOADS_DIR (outside the app) and returns a path
   `/uploads/<shop>/<file>` (not a full URL) served by `src/app/uploads/[shop]/[file]/route.ts`.
   Filesystem calls on those paths carry `/* turbopackIgnore: true */` so the build does not trace the whole project.
+- Storefront (`src/app/store/[slug]/…`, light theme, shop language from `shops.default_locale`, strings in
+  `src/i18n/store.ts`): home, product page (`src/features/storefront/CheckoutForm.tsx`), thanks page.
+  `src/features/checkout/`: `place-order.ts` (one function used by every order form: stock is taken atomically,
+  per-shop order numbers from #1001, history event, abandoned cart → converted), `protection.ts` (blocked phones,
+  duplicates, per-phone/IP limits, honeypot), `pricing.ts` (offers, shipping per wilaya; no rates → free).
+- Orders dashboard (`src/features/orders/`): list with status counts/search, detail (status, customer edit,
+  phone history + block, notes, history), abandoned carts. Cancelled/returned orders give stock back (`holdsStock`).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
@@ -65,8 +72,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products). Next: Orders +
-storefront checkout (fake-order protection, abandoned carts), Delivery (wilaya rates, Yalidine/ZR Express/Noest),
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts).
+Next: Delivery (wilaya rates, Yalidine/ZR Express/Noest),
 Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

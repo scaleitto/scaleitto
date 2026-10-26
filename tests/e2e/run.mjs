@@ -3,8 +3,9 @@
 import { BASE, db, failed, playwright, step, expect } from "./helpers.mjs";
 import phase0 from "./phase0.mjs";
 import phase1 from "./phase1.mjs";
+import phase2 from "./phase2.mjs";
 
-const phases = { phase0, phase1 };
+const phases = { phase0, phase1, phase2 };
 const only = process.argv[2];
 
 const { chromium } = playwright();

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { mysqlTable, varchar, int, text, boolean, timestamp, json, mysqlEnum, uniqueIndex, index, primaryKey, date } from "drizzle-orm/mysql-core";
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
@@ -149,6 +150,131 @@ export const productVariants = mysqlTable(
     position: int("position").notNull().default(0),
   },
   (t) => [index("variants_product_idx").on(t.productId)],
+);
+
+// ─── Orders (cash on delivery) ────────────────────────────
+
+// no_answer: the customer did not pick up; postponed: asked to be called later
+export const orderStatuses = ["new", "no_answer", "postponed", "confirmed", "shipped", "delivered", "returned", "cancelled"] as const;
+export type OrderStatus = (typeof orderStatuses)[number];
+export const deliveryTypes = ["home", "office"] as const;
+export type DeliveryType = (typeof deliveryTypes)[number];
+
+export const orders = mysqlTable(
+  "orders",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    // Sequential per shop, shown to merchants and customers (#1001, #1002…)
+    number: int("number").notNull(),
+    status: mysqlEnum("status", orderStatuses).notNull().default("new"),
+    customerName: varchar("customer_name", { length: 120 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    wilayaCode: int("wilaya_code").notNull(),
+    commune: varchar("commune", { length: 120 }).notNull(),
+    address: varchar("address", { length: 255 }),
+    deliveryType: mysqlEnum("delivery_type", deliveryTypes).notNull(),
+    subtotal: int("subtotal").notNull(),
+    shippingPrice: int("shipping_price").notNull(),
+    total: int("total").notNull(),
+    customerNote: varchar("customer_note", { length: 500 }),
+    ip: varchar("ip", { length: 45 }),
+    userAgent: varchar("user_agent", { length: 255 }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [
+    uniqueIndex("orders_shop_number_uq").on(t.shopId, t.number),
+    index("orders_shop_created_idx").on(t.shopId, t.createdAt),
+    index("orders_shop_status_idx").on(t.shopId, t.status),
+    index("orders_shop_phone_idx").on(t.shopId, t.phone),
+  ],
+);
+
+// A snapshot of what was ordered: later product edits never change past orders.
+export const orderItems = mysqlTable(
+  "order_items",
+  {
+    id: id().primaryKey(),
+    orderId: id("order_id").notNull(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id"),
+    variantId: id("variant_id"),
+    name: varchar("name", { length: 200 }).notNull(),
+    variantTitle: varchar("variant_title", { length: 200 }),
+    sku: varchar("sku", { length: 80 }),
+    unitPrice: int("unit_price").notNull(),
+    quantity: int("quantity").notNull(),
+    total: int("total").notNull(),
+    offerLabel: varchar("offer_label", { length: 60 }),
+    // True when stock was taken for this line (given back if the order is cancelled or returned)
+    stockTracked: boolean("stock_tracked").notNull().default(false),
+  },
+  (t) => [index("order_items_order_idx").on(t.orderId)],
+);
+
+// Order history: creation, status changes, notes and edits, with who did it.
+export const orderEvents = mysqlTable(
+  "order_events",
+  {
+    id: id().primaryKey(),
+    orderId: id("order_id").notNull(),
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id"),
+    type: mysqlEnum("type", ["created", "status", "note", "edit"]).notNull(),
+    fromStatus: varchar("from_status", { length: 20 }),
+    toStatus: varchar("to_status", { length: 20 }),
+    note: text("note"),
+    // Milliseconds, so events of the same second stay in order
+    createdAt: timestamp("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (t) => [index("order_events_order_idx").on(t.orderId, t.createdAt)],
+);
+
+// Visitors who typed a valid phone in the order form but did not order (abandoned carts).
+export const leadStatuses = ["abandoned", "contacted", "converted"] as const;
+export const leads = mysqlTable(
+  "leads",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id").notNull(),
+    variantId: id("variant_id"),
+    quantity: int("quantity").notNull().default(1),
+    name: varchar("name", { length: 120 }),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    wilayaCode: int("wilaya_code"),
+    status: mysqlEnum("status", leadStatuses).notNull().default("abandoned"),
+    orderId: id("order_id"),
+    ip: varchar("ip", { length: 45 }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [index("leads_shop_status_idx").on(t.shopId, t.status, t.createdAt), index("leads_shop_phone_idx").on(t.shopId, t.phone)],
+);
+
+// Delivery price per wilaya (edited in the Delivery section). null → that delivery type is unavailable.
+export const shippingRates = mysqlTable(
+  "shipping_rates",
+  {
+    shopId: id("shop_id").notNull(),
+    wilayaCode: int("wilaya_code").notNull(),
+    homePrice: int("home_price"),
+    officePrice: int("office_price"),
+  },
+  (t) => [primaryKey({ columns: [t.shopId, t.wilayaCode] })],
+);
+
+// Phone numbers a shop refuses orders from (fake orders, repeated refusals…).
+export const blockedPhones = mysqlTable(
+  "blocked_phones",
+  {
+    shopId: id("shop_id").notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    reason: varchar("reason", { length: 200 }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.shopId, t.phone] })],
 );
 
 // ─── Operations ───────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type KeyboardEvent } from "react";
-import { ArrowRight, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Plus, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import type { ActionState } from "@/lib/action";
@@ -37,7 +37,7 @@ type VariantData = { sku: string; price: number | null; stock: number };
 
 const toNumber = (v: string) => (v.trim() === "" ? null : Number(v.replace(/\s/g, "")));
 
-export function ProductForm({ t, action, values, backHref, isNew }: { t: ProductFormText; action: Action; values: ProductFormValues; backHref: string; isNew: boolean }) {
+export function ProductForm({ t, action, values, backHref, viewHref, isNew }: { t: ProductFormText; action: Action; values: ProductFormValues; backHref: string; viewHref?: string; isNew: boolean }) {
   const p = t.products;
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(action);
@@ -93,6 +93,11 @@ export function ProductForm({ t, action, values, backHref, isNew }: { t: Product
             <Link href={backHref} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg">
               <ArrowRight size={16} className="ltr:rotate-180" /> {t.common.back}
             </Link>
+            {viewHref && (
+              <a href={viewHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg">
+                <ExternalLink size={16} /> {p.viewInStore}
+              </a>
+            )}
             <SubmitButton pending={pending} pendingText={t.common.loading}>
               {t.common.save}
             </SubmitButton>
