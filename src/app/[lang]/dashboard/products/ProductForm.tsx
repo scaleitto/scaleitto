@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ProductOption, QuantityOffer } from "@/db/schema";
+import { ImageManager } from "@/components/dashboard/ImageManager";
 
 type Variant = {
   optionValues: Record<string, string>;
@@ -48,6 +49,7 @@ export function ProductForm({
   initial?: ProductFormValues;
   otherProducts: { id: string; name: string }[];
 }) {
+  const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [offers, setOffers] = useState<{ quantity: string; price: string; label: string }[]>(
     initial?.offers.map((o) => ({ quantity: String(o.quantity), price: String(o.price), label: o.label ?? "" })) ?? [],
   );
@@ -94,8 +96,8 @@ export function ProductForm({
           <textarea className="input min-h-32" id="description" name="description" defaultValue={initial?.description} />
         </div>
         <div>
-          <label className="label" htmlFor="images">{p.images}</label>
-          <textarea className="input min-h-20 font-mono text-xs" dir="ltr" id="images" name="images" defaultValue={initial?.images.join("\n")} placeholder="https://..." />
+          <span className="label">{p.images}</span>
+          <ImageManager t={t} name="images" value={images} onChange={setImages} />
         </div>
       </div>
 

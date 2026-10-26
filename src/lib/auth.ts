@@ -90,15 +90,29 @@ export type ShopContext = {
 
 // Every dashboard read/write goes through this: it resolves the shop from the
 // session, so a merchant can never act on another merchant's shop.
-export async function requireShop(locale: string): Promise<ShopContext> {
-  const user = await requireUser(locale);
+async function shopOf(user: CurrentUser) {
   const [row] = await db
     .select({ shop: schema.shops, role: schema.shopMembers.role })
     .from(schema.shopMembers)
     .innerJoin(schema.shops, eq(schema.shops.id, schema.shopMembers.shopId))
     .where(eq(schema.shopMembers.userId, user.id))
     .limit(1);
+  return row ?? null;
+}
+
+export async function requireShop(locale: string): Promise<ShopContext> {
+  const user = await requireUser(locale);
+  const row = await shopOf(user);
   if (!row) redirect(`/${locale}/register`);
+  return { user, shop: row.shop, role: row.role };
+}
+
+// For route handlers: the signed-in manager's shop, or null (no redirects).
+export async function getManagerContext(): Promise<ShopContext | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const row = await shopOf(user);
+  if (!row || row.role === "confirmer") return null;
   return { user, shop: row.shop, role: row.role };
 }
 

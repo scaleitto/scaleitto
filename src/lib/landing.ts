@@ -29,3 +29,30 @@ export const sectionSchema = z.discriminatedUnion("type", [
 export const sectionsSchema = z.array(sectionSchema).max(30);
 
 export const sectionTypes = ["hero", "badges", "text", "image", "features", "steps", "testimonials", "faq", "cta"] as const satisfies readonly LandingSection["type"][];
+
+const LIMITS: Record<string, number> = { title: 200, subtitle: 200, badge: 60, body: 5000, url: 500, image: 500, name: 200, q: 200, a: 5000, text: 5000 };
+
+function trimDeep(value: unknown, key = "", inBadges = false): unknown {
+  if (typeof value === "string") return value.trim().slice(0, inBadges ? 60 : (LIMITS[key] ?? 200));
+  if (Array.isArray(value)) return value.slice(0, 20).map((v) => trimDeep(v, key, inBadges));
+  if (value && typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, trimDeep(v, k, o.type === "badges" || inBadges)]));
+  }
+  return value;
+}
+
+// Never fails a whole save because of one section: long texts are shortened and
+// sections that are still invalid (empty, broken image link…) are dropped.
+export function sanitizeSections(raw: unknown): LandingSection[] {
+  if (!Array.isArray(raw)) return [];
+  const out: LandingSection[] = [];
+  for (const s of raw.slice(0, 30)) {
+    const section = trimDeep(s) as Record<string, unknown>;
+    if (section?.type === "badges" && Array.isArray(section.items)) section.items = section.items.slice(0, 6);
+    if (section?.type === "steps" && Array.isArray(section.items)) section.items = section.items.slice(0, 8);
+    const parsed = sectionSchema.safeParse(section);
+    if (parsed.success) out.push(parsed.data as LandingSection);
+  }
+  return out;
+}

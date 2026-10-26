@@ -326,3 +326,35 @@ export const errorLogs = mysqlTable(
   },
   (t) => [index("errors_created_idx").on(t.createdAt)],
 );
+
+// ─── Background AI jobs (long generations run after the request returns) ─────
+
+export type AiJobInput = {
+  source: "product" | "images" | "link";
+  productId?: string;
+  images?: string[];
+  link?: string;
+  price?: number;
+  compareAtPrice?: number | null;
+  language: "ar" | "dz" | "fr" | "en";
+  tone: "persuasive" | "premium" | "friendly" | "urgent";
+  audience: string;
+  notes: string;
+};
+
+export const aiJobs = mysqlTable(
+  "ai_jobs",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id").notNull(),
+    status: mysqlEnum("status", ["queued", "running", "done", "failed"]).notNull().default("queued"),
+    stage: varchar("stage", { length: 30 }),
+    input: json("input").$type<AiJobInput>().notNull(),
+    landingPageId: id("landing_page_id"),
+    error: text("error"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [index("ai_jobs_shop_idx").on(t.shopId, t.createdAt)],
+);

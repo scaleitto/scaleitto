@@ -1,6 +1,6 @@
 import "server-only";
 import type { LandingSection, QuantityOffer, ProductOption } from "@/db/schema";
-import { sectionSchema } from "@/lib/landing";
+import { sanitizeSections } from "@/lib/landing";
 import { jsonCompletion } from "./openai";
 
 export const aiLanguages = ["ar", "dz", "fr", "en"] as const;
@@ -22,6 +22,12 @@ export type LandingBrief = {
   tone: AiTone;
   audience: string;
   notes: string;
+  /** Same images as product.images, as data: URLs, so the model can look at them. */
+  visionImages?: string[];
+  /** Text imported from a product page link (supplier or other store). */
+  sourceText?: string;
+  /** The product does not exist yet: also write its name and description. */
+  writeProduct?: boolean;
 };
 
 const languageRules: Record<AiLanguage, string> = {
@@ -58,7 +64,16 @@ Strict honesty rules (non-negotiable):
 - Never promise free delivery unless the merchant notes say so.
 - Mention discounts only if a compare-at price or quantity offers exist, using the exact numbers given.
 - Images: only use URLs from the provided image list; never invent URLs. Use null when no image fits.
-- Prices are in Algerian dinars (DA / د.ج).`;
+- Prices are in Algerian dinars (DA / د.ج).
+
+When product photos are attached:
+- Look at them carefully and describe only what is clearly visible (type of product, color, material, finish, size cues, what is included). Do not guess technical specs.
+- Use the photos to make the copy concrete and vivid (e.g. "stainless steel bracelet", "padded interior").
+- Image i in the attached photos is the i-th URL of the product "images" list. Put the most attractive full-product photo in the hero, and spread the others as image sections between text blocks (never two image sections in a row).
+
+When source text from a product link is provided, treat it as raw supplier information: reuse the facts, never copy its wording, never mention the source site, ignore its prices/shipping/return terms (this store sells in Algeria with its own terms).
+
+product_name / product_description: when asked to write them, give a short, clear product name (max ~8 words, no brand you cannot see) and a 2–4 sentence product description in the page language. Otherwise return null.`;
 
 // Strict Structured Outputs schema: every property is required, optional ones are nullable.
 const str = { type: "string" };
@@ -74,9 +89,11 @@ const section = (type: string, properties: Record<string, unknown>) => ({
 const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "sections"],
+  required: ["title", "product_name", "product_description", "sections"],
   properties: {
     title: { type: "string", description: "Short internal name of the page" },
+    product_name: { type: ["string", "null"] },
+    product_description: { type: ["string", "null"] },
     sections: {
       type: "array",
       items: {
@@ -113,8 +130,7 @@ function clean(raw: RawSection[], allowedImages: Set<string>): LandingSection[] 
     if (copy.type === "image" && !allowedImages.has(String(copy.url))) continue;
     if (copy.type === "hero" && copy.image && !allowedImages.has(String(copy.image))) delete copy.image;
     if (copy.type === "badges" && Array.isArray(copy.items)) copy.items = copy.items.slice(0, 6);
-    const parsed = sectionSchema.safeParse(copy);
-    if (parsed.success) out.push(parsed.data as LandingSection);
+    out.push(...sanitizeSections([copy]));
   }
   return out.slice(0, 30);
 }
@@ -138,14 +154,20 @@ export async function generateLandingPage(brief: LandingBrief) {
     brief.audience ? `Target audience: ${brief.audience}` : "Target audience: infer it from the product.",
     `Product data (JSON):\n${JSON.stringify(productData, null, 2)}`,
     brief.notes ? `Merchant notes (facts you may use):\n${brief.notes}` : "Merchant notes: none. Stay generic where facts are missing.",
+    brief.sourceText ? `Source text from the product link (raw facts only):\n${brief.sourceText.slice(0, 4000)}` : "",
+    brief.visionImages?.length ? `${brief.visionImages.length} product photo(s) are attached, in the same order as the images list.` : "No photos attached.",
+    brief.writeProduct ? "This is a new product: write product_name and product_description." : "The product already exists: return null for product_name and product_description.",
     "Return the landing page as JSON.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-  const result = await jsonCompletion<{ title: string; sections: RawSection[] }>({
+  const result = await jsonCompletion<{ title: string; product_name: string | null; product_description: string | null; sections: RawSection[] }>({
     system: SYSTEM,
     user,
     schemaName: "landing_page",
     schema: RESPONSE_SCHEMA,
+    images: brief.visionImages ?? [],
   });
 
   const sections = clean(result.data.sections ?? [], new Set(p.images));
@@ -154,6 +176,8 @@ export async function generateLandingPage(brief: LandingBrief) {
   }
   return {
     title: String(result.data.title || p.name).slice(0, 200),
+    productName: result.data.product_name?.trim().slice(0, 200) || null,
+    productDescription: result.data.product_description?.trim().slice(0, 5000) || null,
     sections,
     model: result.model,
     inputTokens: result.inputTokens,

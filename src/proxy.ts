@@ -32,7 +32,7 @@ export function proxy(req: NextRequest) {
   }
 
   const first = pathname.split("/")[1];
-  if (first === "store" || first === "api" || (locales as readonly string[]).includes(first)) {
+  if (first === "store" || first === "api" || first === "uploads" || (locales as readonly string[]).includes(first)) {
     return NextResponse.next();
   }
 
@@ -42,5 +42,6 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
+  // api/ is excluded so uploads are not buffered (and size-limited) by the proxy.
+  matcher: ["/((?!_next|api/|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };

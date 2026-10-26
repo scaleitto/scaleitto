@@ -1,16 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { newId, requireManager } from "@/lib/auth";
 import { canAdd } from "@/lib/limits";
 import { slugify } from "@/lib/format";
-import { sectionsSchema } from "@/lib/landing";
+import { sanitizeSections } from "@/lib/landing";
 import { asLocale, locales } from "@/i18n";
-import { aiConfigured, AiNotConfiguredError, AiRequestError } from "@/lib/ai/openai";
-import { aiLanguages, aiTones, generateLandingPage } from "@/lib/ai/landing-generator";
+import { aiConfigured } from "@/lib/ai/openai";
+import { aiLanguages, aiTones } from "@/lib/ai/landing-generator";
+import { runLandingJob, STALE_JOB_MS } from "@/lib/ai/landing-job";
 
 const formSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -23,7 +25,13 @@ const formSchema = z.object({
 
 async function parse(formData: FormData, shopId: string) {
   const data = formSchema.parse(Object.fromEntries(formData));
-  const sections = sectionsSchema.parse(JSON.parse(data.sections));
+  let raw: unknown = [];
+  try {
+    raw = JSON.parse(data.sections);
+  } catch {
+    // unreadable sections: save the rest of the page with no sections rather than crashing
+  }
+  const sections = sanitizeSections(raw);
   const [product] = await db
     .select({ id: schema.products.id })
     .from(schema.products)
@@ -82,75 +90,83 @@ export async function deleteLandingPage(lang: string, id: string) {
   redirect(`/${locale}/dashboard/landing-pages`);
 }
 
-export type AiFormState = { error?: "limit" | "pageLimit" | "notConfigured" | "failed" | "validation"; detail?: string };
+export type AiStartState = {
+  error?: "limit" | "pageLimit" | "productLimit" | "notConfigured" | "validation" | "price" | "noImages";
+  jobId?: string;
+};
 
-const aiFormSchema = z.object({
-  productId: z.string().min(1),
+const httpUrl = z.string().trim().max(2000).regex(/^https?:\/\/\S+$/);
+const aiStartSchema = z.object({
+  source: z.enum(["product", "images", "link"]),
+  productId: z.string().optional().default(""),
+  images: z.string().optional().default("[]"),
+  link: z.union([z.literal(""), httpUrl]).optional().default(""),
+  price: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(1).max(10_000_000).optional()),
+  compareAtPrice: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(0).max(10_000_000).optional()),
   language: z.enum(aiLanguages),
   tone: z.enum(aiTones),
   audience: z.string().trim().max(300).optional().default(""),
   notes: z.string().trim().max(4000).optional().default(""),
 });
 
-// Writes a full landing page with AI and saves it as a draft for the merchant to review.
-export async function generateWithAi(lang: string, _prev: AiFormState, formData: FormData): Promise<AiFormState> {
+// Starts a background generation and returns at once (long requests get cut by shared hosting).
+export async function startAiLanding(lang: string, _prev: AiStartState, formData: FormData): Promise<AiStartState> {
   const locale = asLocale(lang);
   const { shop, user } = await requireManager(locale);
   if (!aiConfigured()) return { error: "notConfigured" };
-  const parsed = aiFormSchema.safeParse(Object.fromEntries(formData));
+  const parsed = aiStartSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "validation" };
   const d = parsed.data;
+  const images = z.array(httpUrl).max(10).catch([]).parse(JSON.parse(d.images || "[]"));
+
+  if (d.source === "product") {
+    const [product] = await db
+      .select({ id: schema.products.id })
+      .from(schema.products)
+      .where(and(eq(schema.products.id, d.productId), eq(schema.products.shopId, shop.id)));
+    if (!product) return { error: "validation" };
+  } else {
+    if (!d.price) return { error: "price" };
+    if (d.source === "images" && images.length === 0) return { error: "noImages" };
+    if (d.source === "link" && !d.link) return { error: "validation" };
+    if (!(await canAdd(shop.id, "maxProducts"))) return { error: "productLimit" };
+  }
   if (!(await canAdd(shop.id, "maxAiPerMonth"))) return { error: "limit" };
   if (!(await canAdd(shop.id, "maxLandingPages"))) return { error: "pageLimit" };
 
-  const [product] = await db
-    .select()
-    .from(schema.products)
-    .where(and(eq(schema.products.id, d.productId), eq(schema.products.shopId, shop.id)));
-  if (!product) return { error: "validation" };
-
-  let page;
-  try {
-    page = await generateLandingPage({
-      product: {
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        compareAtPrice: product.compareAtPrice,
-        images: product.images,
-        options: product.options,
-        offers: product.offers ?? [],
-      },
+  const jobId = newId();
+  await db.insert(schema.aiJobs).values({
+    id: jobId,
+    shopId: shop.id,
+    userId: user.id,
+    input: {
+      source: d.source,
+      productId: d.source === "product" ? d.productId : undefined,
+      images,
+      link: d.link || undefined,
+      price: d.price,
+      compareAtPrice: d.compareAtPrice ?? null,
       language: d.language,
       tone: d.tone,
       audience: d.audience,
       notes: d.notes,
-    });
-  } catch (err) {
-    if (err instanceof AiNotConfiguredError) return { error: "notConfigured" };
-    console.error("[ai] landing generation failed:", err);
-    return { error: "failed", detail: err instanceof AiRequestError ? err.message : undefined };
-  }
+    },
+  });
+  after(() => runLandingJob(jobId));
+  return { jobId };
+}
 
-  const id = newId();
-  await db.insert(schema.landingPages).values({
-    id,
-    shopId: shop.id,
-    productId: product.id,
-    slug: await uniqueSlug(shop.id, page.title),
-    title: page.title,
-    sections: page.sections,
-    status: "draft",
-    locale: d.language === "dz" ? "ar" : d.language,
-  });
-  await db.insert(schema.aiGenerations).values({
-    id: newId(),
-    shopId: shop.id,
-    userId: user.id,
-    kind: "landing_page",
-    model: page.model,
-    inputTokens: page.inputTokens,
-    outputTokens: page.outputTokens,
-  });
-  redirect(`/${locale}/dashboard/landing-pages/${id}?generated=1`);
+export type AiJobStatus = { status: "queued" | "running" | "done" | "failed"; stage?: string | null; landingPageId?: string | null; error?: string | null };
+
+export async function getAiJobStatus(lang: string, jobId: string): Promise<AiJobStatus> {
+  const { shop } = await requireManager(asLocale(lang));
+  const [job] = await db
+    .select()
+    .from(schema.aiJobs)
+    .where(and(eq(schema.aiJobs.id, jobId), eq(schema.aiJobs.shopId, shop.id)));
+  if (!job) return { status: "failed", error: "Job not found" };
+  if ((job.status === "running" || job.status === "queued") && Date.now() - job.updatedAt.getTime() > STALE_JOB_MS) {
+    return { status: "failed", error: "Timed out (the server may have restarted). Please try again." };
+  }
+  return { status: job.status, stage: job.stage, landingPageId: job.landingPageId, error: job.error };
 }

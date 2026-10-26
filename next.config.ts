@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     BUILD_TIME: new Date().toISOString(),
   },
   // Kept as a real package in the standalone bundle so scripts/migrate.mjs can use it
-  serverExternalPackages: ["mysql2"],
+  serverExternalPackages: ["mysql2", "sharp"],
   turbopack: {
     rules: {
       "*.css": {

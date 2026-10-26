@@ -29,6 +29,13 @@
       "when": 1793033108954,
       "tag": "0003_error_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1793035563702,
+      "tag": "0004_ai_jobs",
+      "breakpoints": true
     }
   ]
 }

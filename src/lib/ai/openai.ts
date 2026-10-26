@@ -54,12 +54,15 @@ export async function jsonCompletion<T>({
   user,
   schemaName,
   schema,
-  timeoutMs = 120_000,
+  images = [],
+  timeoutMs = 180_000,
 }: {
   system: string;
   user: string;
   schemaName: string;
   schema: Record<string, unknown>;
+  /** Image URLs or data: URLs the model should look at (vision). */
+  images?: string[];
   timeoutMs?: number;
 }): Promise<JsonCompletion<T>> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -80,7 +83,7 @@ export async function jsonCompletion<T>({
     // and is valid for every model that supports the parameter.
     // Strict JSON schema first; if the model rejects a parameter, retry without just that one
     // (JSON mode + schema in the prompt still gets validated by the caller).
-    const attempt = { reasoningEffort: /^(gpt-([5-9]|\d\d)|o\d)/.test(model), strictSchema: true };
+    const attempt = { reasoningEffort: /^(gpt-([5-9]|\d\d)|o\d)/.test(model), strictSchema: true, images: images.length > 0 };
     for (let tries = 0; ; tries++) {
       const body: Record<string, unknown> = {
         model,
@@ -89,7 +92,12 @@ export async function jsonCompletion<T>({
             role: "system",
             content: attempt.strictSchema ? system : `${system}\n\nReply with a single JSON object that follows this JSON schema exactly:\n${JSON.stringify(schema)}`,
           },
-          { role: "user", content: user },
+          {
+          role: "user",
+          content: attempt.images
+            ? [{ type: "text", text: user }, ...images.map((url) => ({ type: "image_url", image_url: { url, detail: "low" } }))]
+            : user,
+        },
         ],
         response_format: attempt.strictSchema ? { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } } : { type: "json_object" },
         max_completion_tokens: 12_000,
@@ -113,8 +121,9 @@ export async function jsonCompletion<T>({
         continue modelLoop;
       }
       const rejected = `${json?.error?.param ?? ""} ${message}`;
-      if (res.status === 400 && tries < 2 && attempt.reasoningEffort && /reasoning/i.test(rejected)) attempt.reasoningEffort = false;
-      else if (res.status === 400 && tries < 2 && attempt.strictSchema && /response_format|json_schema/i.test(rejected)) attempt.strictSchema = false;
+      if (res.status === 400 && tries < 3 && attempt.images && /image/i.test(rejected)) attempt.images = false;
+      else if (res.status === 400 && tries < 3 && attempt.reasoningEffort && /reasoning/i.test(rejected)) attempt.reasoningEffort = false;
+      else if (res.status === 400 && tries < 3 && attempt.strictSchema && /response_format|json_schema/i.test(rejected)) attempt.strictSchema = false;
       else throw new AiRequestError(message, res.status);
       console.warn(`[ai] ${model} rejected a parameter, retrying: ${message}`);
     }

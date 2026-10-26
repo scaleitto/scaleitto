@@ -31,6 +31,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Diagnostics: `onRequestError` in `src/instrumentation.ts` stores server errors in `error_logs`; admin → System
   (`src/app/[lang]/admin/system`) shows build commit, migrations, env status, AI model check and the error log.
   OPENAI_MODEL falls back to gpt-6.1-sol then gpt-6-luna when the configured model does not exist.
+- AI landing generation runs as a background job (`ai_jobs`, `src/lib/ai/landing-job.ts`, started with `after()`,
+  polled by the wizard) because shared hosting cuts long requests. Sources: existing product, uploaded photos (sent to
+  the model as images), or a product link (`src/lib/product-import.ts`: Shopify .json, JSON-LD, OpenGraph).
+- Uploads: `src/lib/storage.ts` (UPLOADS_DIR, default ~/scaleitto-uploads, outside the app dir), POST /api/uploads,
+  served by `src/app/uploads/[shop]/[file]/route.ts`. Any server-side fetch of a user URL goes through
+  `src/lib/safe-fetch.ts` (blocks private/internal addresses).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
 
 ## Rules
