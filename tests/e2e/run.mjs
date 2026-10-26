@@ -2,8 +2,9 @@
 // and checks that no server error was logged while testing.
 import { BASE, db, failed, playwright, step, expect } from "./helpers.mjs";
 import phase0 from "./phase0.mjs";
+import phase1 from "./phase1.mjs";
 
-const phases = { phase0 };
+const phases = { phase0, phase1 };
 const only = process.argv[2];
 
 const { chromium } = playwright();

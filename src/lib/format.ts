@@ -19,3 +19,8 @@ export function slugify(input: string) {
     .slice(0, 80);
   return s || "product";
 }
+
+// "{n} variants" + { n: 3 } → "3 variants"
+export function fmt(template: string, vars: Record<string, string | number>) {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
+}

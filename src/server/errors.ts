@@ -1,7 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { unstable_rethrow } from "next/navigation";
-import type { ZodError } from "zod";
 import { db, schema } from "@/server/db";
 import type { ActionState } from "@/lib/action";
 
@@ -25,14 +24,4 @@ export async function safeAction(where: string, fn: () => Promise<ActionState>):
     await logError(where, err);
     return { ok: false, error: "unexpected" };
   }
-}
-
-// Zod issues → { field: "messageKey" } using the first problem of each field.
-export function fieldErrorsFrom(error: ZodError): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0] ?? "form");
-    if (!out[field]) out[field] = issue.message.startsWith("e:") ? issue.message.slice(2) : "invalid";
-  }
-  return out;
 }

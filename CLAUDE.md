@@ -12,7 +12,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 
 ## Commands
 - `npm run dev` / `npm run build` / `npm run lint` / `npm run typecheck` / `npm test` / `npm run test:e2e`
-- `npm run db:generate -- --name <change>` after editing `src/db/schema.ts`, then `npm run db:migrate`
+- `npm run db:generate -- --name <change>` after editing `src/server/db/schema.ts`, then `npm run db:migrate`
 - `scripts/migrate.mjs` must only depend on `mysql2` (it runs from the standalone bundle on the server)
 
 ## Layout (v2 — rebuilt cleanly, one section at a time)
@@ -32,7 +32,16 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   message keys mapped by `fieldErrorsFrom` to `t.errors.<key>`.
 - `src/server/db/schema.ts` — Drizzle schema (v2 baseline migration `drizzle/0000_init.sql`; v2 needs a fresh DB).
 - `src/i18n/dictionaries/{ar,fr,en}.ts` — all strings (ar is the typed source of truth). Every new UI string goes in all three.
-- `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, storage, tracking). Any server-side
+- Products (`src/features/products/`): `validators.ts` (zod; options/variants/offers arrive as JSON fields),
+  `variants.ts` (variants are rebuilt on the server from the options; existing rows keep their id by title),
+  `queries.ts`, `actions.ts`, `ProductForm.tsx`, `ProductList.tsx`. Plan ceilings: `src/server/limits.ts` (`canAdd`;
+  add a counter there when a section with a limit is built).
+- Uploads: `src/ui/ImageManager.tsx` resizes in the browser and POSTs one raw image to `/api/uploads`;
+  `src/server/storage.ts` sniffs and stores it under UPLOADS_DIR (outside the app) and returns a path
+  `/uploads/<shop>/<file>` (not a full URL) served by `src/app/uploads/[shop]/[file]/route.ts`.
+  Filesystem calls on those paths carry `/* turbopackIgnore: true */` so the build does not trace the whole project.
+- Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
+- `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
   `/api/health` shows version, DB, migrations and env status.
@@ -56,7 +65,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile). Next: Products, Orders +
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products). Next: Orders +
 storefront checkout (fake-order protection, abandoned carts), Delivery (wilaya rates, Yalidine/ZR Express/Noest),
 Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.

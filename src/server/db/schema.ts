@@ -97,6 +97,60 @@ export const shopContracts = mysqlTable(
   (t) => [index("contracts_shop_idx").on(t.shopId)],
 );
 
+// ─── Catalog ──────────────────────────────────────────────
+
+// e.g. { name: "Size", values: ["S", "M", "L"] }
+export type ProductOption = { name: string; values: string[] };
+// "2 pieces for 4500 DZD": the total price for that quantity
+export type QuantityOffer = { quantity: number; price: number; label?: string };
+
+export const productStatuses = ["active", "draft"] as const;
+
+export const products = mysqlTable(
+  "products",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    name: varchar("name", { length: 200 }).notNull(),
+    slug: varchar("slug", { length: 200 }).notNull(),
+    description: text("description"),
+    price: int("price").notNull(),
+    compareAtPrice: int("compare_at_price"),
+    // What the merchant pays for one piece, for profit in analytics
+    costPrice: int("cost_price"),
+    sku: varchar("sku", { length: 80 }),
+    trackStock: boolean("track_stock").notNull().default(false),
+    // Used only when the product has no variants (each variant has its own stock)
+    stock: int("stock").notNull().default(0),
+    // Paths like /uploads/<shop>/<file>; the first one is the main image
+    images: json("images").$type<string[]>().notNull(),
+    options: json("options").$type<ProductOption[]>().notNull(),
+    offers: json("offers").$type<QuantityOffer[]>().notNull(),
+    status: mysqlEnum("status", productStatuses).notNull().default("active"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [uniqueIndex("products_shop_slug_uq").on(t.shopId, t.slug), index("products_shop_created_idx").on(t.shopId, t.createdAt)],
+);
+
+// One row per combination of option values, e.g. { Size: "L", Color: "Black" }
+export const productVariants = mysqlTable(
+  "product_variants",
+  {
+    id: id().primaryKey(),
+    productId: id("product_id").notNull(),
+    shopId: id("shop_id").notNull(),
+    optionValues: json("option_values").$type<Record<string, string>>().notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    sku: varchar("sku", { length: 80 }),
+    // null → the product's price
+    price: int("price"),
+    stock: int("stock").notNull().default(0),
+    position: int("position").notNull().default(0),
+  },
+  (t) => [index("variants_product_idx").on(t.productId)],
+);
+
 // ─── Operations ───────────────────────────────────────────
 
 // Server errors, readable by the platform admin (shared hosting has no easy log access).

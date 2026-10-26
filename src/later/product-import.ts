@@ -139,7 +139,7 @@ export async function importProductFromUrl(input: string): Promise<ImportedProdu
 // Copies remote product images into our own uploads (so pages don't depend on the source site).
 // Downloads run in parallel with a short timeout so this step stays quick.
 export async function downloadImages(shopId: string, urls: string[], max = 6): Promise<string[]> {
-  const { saveImage, MAX_UPLOAD_BYTES } = await import("./storage");
+  const { saveImage, MAX_UPLOAD_BYTES } = await import("@/server/storage");
   const results = await Promise.all(
     urls.slice(0, max).map(async (url) => {
       try {
