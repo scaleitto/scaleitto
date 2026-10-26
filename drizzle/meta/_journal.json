@@ -15,6 +15,13 @@
       "when": 1793026687102,
       "tag": "0001_sales_tools",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1793029391616,
+      "tag": "0002_ai_landing",
+      "breakpoints": true
     }
   ]
 }

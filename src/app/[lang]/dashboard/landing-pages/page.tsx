@@ -32,7 +32,10 @@ export default async function LandingPagesList({ params, searchParams }: PagePro
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{l.title}</h1>
-        <Link href={`/${lang}/dashboard/landing-pages/new`} className="btn">+ {l.new}</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/${lang}/dashboard/landing-pages/ai`} className="btn bg-linear-to-l from-fuchsia-600 to-indigo-600">{l.aiButton}</Link>
+          <Link href={`/${lang}/dashboard/landing-pages/new`} className="btn-outline">+ {l.new}</Link>
+        </div>
       </div>
       {error === "limit" && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{l.limitReached}</p>}
       {pages.length === 0 ? (

@@ -9,7 +9,19 @@ type Shop = typeof schema.shops.$inferSelect;
 type Product = typeof schema.products.$inferSelect;
 
 // The COD order form for one product, used by product pages and landing pages.
-export async function ProductCheckout({ shop, product, currency, landingPageId = null }: { shop: Shop; product: Product; currency: string; landingPageId?: string | null }) {
+export async function ProductCheckout({
+  shop,
+  product,
+  currency,
+  locale = shop.defaultLocale,
+  landingPageId = null,
+}: {
+  shop: Shop;
+  product: Product;
+  currency: string;
+  locale?: string;
+  landingPageId?: string | null;
+}) {
   const [variants, rateRows] = await Promise.all([
     db.select().from(schema.productVariants).where(eq(schema.productVariants.productId, product.id)),
     db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shop.id)),
@@ -24,8 +36,8 @@ export async function ProductCheckout({ shop, product, currency, landingPageId =
         saveLead={saveLead.bind(null, shop.slug, product.id, landingPageId)}
         product={{ id: product.id, name: product.name }}
         offers={product.offers ?? []}
-        s={getStoreDictionary(shop.defaultLocale)}
-        locale={shop.defaultLocale}
+        s={getStoreDictionary(locale)}
+        locale={locale}
         currency={currency}
         currencyCode={shop.currency}
         price={product.price}

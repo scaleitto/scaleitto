@@ -24,6 +24,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
 - `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
 - Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
+- AI: `src/lib/ai/openai.ts` (Chat Completions + strict JSON schema; env OPENAI_API_KEY / OPENAI_MODEL / OPENAI_BASE_URL),
+  `src/lib/ai/landing-generator.ts` (prompt + schema). Generations are logged in `ai_generations` and limited by `maxAiPerMonth`.
+  The prompt forbids invented facts and fake reviews — keep it that way.
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
 
 ## Rules
@@ -38,6 +41,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 Done: shops, products + variants + SKU/stock, COD orders, wilaya shipping rates,
 fake-order checks (phone format, per-phone/IP limits, honeypot), plans, per-shop contracts with custom
 ceilings and dates, usage threshold alerts, ar/fr/en, landing pages (section builder, views/conversion),
-Meta/TikTok pixel + GTM events, abandoned carts/leads, quantity offers, post-order upsell, staff roles.
+Meta/TikTok pixel + GTM events, abandoned carts/leads, quantity offers, post-order upsell, staff roles,
+AI landing page generator (OpenAI) with per-page language/color.
 Next: delivery companies (Yalidine, ZR Express, Noest…), Google Sheets, Ecomanager, Stripe, custom domains,
 YouCan/Shopify import, analytics, themes, markets/currencies, AI features, mobile app.

@@ -20,12 +20,13 @@ async function saveContract(lang: string, shopId: string, formData: FormData) {
       maxProducts: limitField,
       maxOrdersPerMonth: limitField,
       maxStaff: limitField,
+      maxAiPerMonth: limitField,
       alertThreshold: z.coerce.number().int().min(1).max(100),
       priceMonthly: limitField,
       notes: z.string().max(2000).optional().default(""),
     })
     .parse(Object.fromEntries(formData));
-  const limits: Limits = { maxProducts: d.maxProducts, maxOrdersPerMonth: d.maxOrdersPerMonth, maxStaff: d.maxStaff };
+  const limits: Limits = { maxProducts: d.maxProducts, maxOrdersPerMonth: d.maxOrdersPerMonth, maxStaff: d.maxStaff, maxAiPerMonth: d.maxAiPerMonth };
   await db.insert(schema.shopContracts).values({
     id: newId(),
     shopId,
@@ -99,6 +100,7 @@ export default async function AdminShopPage({ params }: PageProps<"/[lang]/admin
           <UsageBar label={a.maxProducts} used={usage.maxProducts} limit={effective.limits.maxProducts} unlimitedLabel={t.common.unlimited} />
           <UsageBar label={a.maxOrders} used={usage.maxOrdersPerMonth} limit={effective.limits.maxOrdersPerMonth} unlimitedLabel={t.common.unlimited} />
           <UsageBar label={a.maxStaff} used={usage.maxStaff} limit={effective.limits.maxStaff} unlimitedLabel={t.common.unlimited} />
+          <UsageBar label={a.maxAi} used={usage.maxAiPerMonth} limit={effective.limits.maxAiPerMonth} unlimitedLabel={t.common.unlimited} />
         </div>
       </div>
 
@@ -113,6 +115,7 @@ export default async function AdminShopPage({ params }: PageProps<"/[lang]/admin
           <div><label className="label">{a.maxProducts}</label><input name="maxProducts" type="number" min={-1} className="input" /></div>
           <div><label className="label">{a.maxOrders}</label><input name="maxOrdersPerMonth" type="number" min={-1} className="input" /></div>
           <div><label className="label">{a.maxStaff}</label><input name="maxStaff" type="number" min={-1} className="input" /></div>
+          <div><label className="label">{a.maxAi}</label><input name="maxAiPerMonth" type="number" min={-1} className="input" /></div>
         </div>
         <div><label className="label">{a.notes}</label><textarea name="notes" className="input" /></div>
         <button className="btn">{a.saveContract}</button>

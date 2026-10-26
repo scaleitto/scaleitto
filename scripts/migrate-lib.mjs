@@ -10,21 +10,21 @@ const defaultPlans = [
     code: "starter",
     name: "Starter",
     priceMonthly: 0,
-    limits: { maxProducts: 20, maxOrdersPerMonth: 100, maxStaff: 1, maxLandingPages: 2 },
+    limits: { maxProducts: 20, maxOrdersPerMonth: 100, maxStaff: 1, maxLandingPages: 2, maxAiPerMonth: 3 },
     features: ["landing_pages", "variants", "pixels"],
   },
   {
     code: "pro",
     name: "Pro",
     priceMonthly: 3900,
-    limits: { maxProducts: 200, maxOrdersPerMonth: 2000, maxStaff: 5, maxLandingPages: 50 },
+    limits: { maxProducts: 200, maxOrdersPerMonth: 2000, maxStaff: 5, maxLandingPages: 50, maxAiPerMonth: 50 },
     features: ["landing_pages", "variants", "pixels", "custom_domain", "google_sheets", "abandoned_cart", "upsell", "delivery_integrations", "analytics"],
   },
   {
     code: "business",
     name: "Business",
     priceMonthly: 9900,
-    limits: { maxProducts: -1, maxOrdersPerMonth: -1, maxStaff: 20, maxLandingPages: -1 },
+    limits: { maxProducts: -1, maxOrdersPerMonth: -1, maxStaff: 20, maxLandingPages: -1, maxAiPerMonth: 300 },
     features: ["landing_pages", "variants", "pixels", "custom_domain", "google_sheets", "abandoned_cart", "upsell", "delivery_integrations", "analytics", "ai", "api"],
   },
 ];
@@ -52,8 +52,18 @@ export async function runMigrations(connection, root, log = console.log) {
     }
 
     for (const p of defaultPlans) {
-      const [rows] = await connection.query("SELECT id FROM plans WHERE code = ?", [p.code]);
-      if (rows.length === 0) {
+      const [rows] = await connection.query("SELECT id, limits FROM plans WHERE code = ?", [p.code]);
+      if (rows.length > 0) {
+        // Limits added in later versions get their default value; existing values are kept.
+        const current = typeof rows[0].limits === "string" ? JSON.parse(rows[0].limits) : rows[0].limits;
+        const missing = Object.keys(p.limits).filter((k) => !(k in current));
+        if (missing.length) {
+          const merged = { ...current };
+          for (const k of missing) merged[k] = p.limits[k];
+          await connection.query("UPDATE plans SET limits = ? WHERE id = ?", [JSON.stringify(merged), rows[0].id]);
+          log(`✓ plan "${p.code}" got new limits: ${missing.join(", ")}`);
+        }
+      } else {
         await connection.query(
           "INSERT INTO plans (id, code, name, price_monthly, limits, features) VALUES (?, ?, ?, ?, ?, ?)",
           [randomUUID(), p.code, p.name, p.priceMonthly, JSON.stringify(p.limits), JSON.stringify(p.features)],

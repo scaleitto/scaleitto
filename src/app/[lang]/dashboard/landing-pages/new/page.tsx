@@ -26,7 +26,7 @@ export default async function NewLandingPage({ params }: PageProps<"/[lang]/dash
           </div>
         </div>
       ) : (
-        <LandingForm t={t} action={createLandingPage.bind(null, lang)} products={products.map((p) => ({ id: p.id, name: p.name, image: p.images[0] ?? null }))} />
+        <LandingForm t={t} action={createLandingPage.bind(null, lang)} shopColor={shop.primaryColor} products={products.map((p) => ({ id: p.id, name: p.name, image: p.images[0] ?? null }))} />
       )}
     </div>
   );

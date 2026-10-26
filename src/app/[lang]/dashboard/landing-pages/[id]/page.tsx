@@ -7,8 +7,9 @@ import { storeUrl } from "@/lib/urls";
 import { deleteLandingPage, updateLandingPage } from "../actions";
 import { LandingForm } from "../LandingForm";
 
-export default async function EditLandingPage({ params }: PageProps<"/[lang]/dashboard/landing-pages/[id]">) {
+export default async function EditLandingPage({ params, searchParams }: PageProps<"/[lang]/dashboard/landing-pages/[id]">) {
   const { lang: rawLang, id } = await params;
+  const { generated } = await searchParams;
   const lang = asLocale(rawLang);
   const t = getDictionary(lang);
   const { shop } = await requireManager(lang);
@@ -34,11 +35,20 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
           <button className="btn-danger">{t.common.delete}</button>
         </form>
       </div>
+      {generated && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">✨ {t.landingPages.generated}</p>}
       <LandingForm
+        shopColor={shop.primaryColor}
         t={t}
         action={updateLandingPage.bind(null, lang, id)}
         products={products.map((p) => ({ id: p.id, name: p.name, image: p.images[0] ?? null }))}
-        initial={{ title: page.title, productId: page.productId, status: page.status, sections: page.sections }}
+        initial={{
+          title: page.title,
+          productId: page.productId,
+          status: page.status,
+          sections: page.sections,
+          locale: page.locale,
+          accentColor: page.accentColor,
+        }}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import { sectionTypes } from "@/lib/landing";
 
 type SectionType = LandingSection["type"];
 // Editable form of a section: list sections are kept as raw text lines while typing.
-type Draft = { type: SectionType; title: string; subtitle: string; image: string; body: string; lines: string };
+type Draft = { type: SectionType; title: string; subtitle: string; image: string; body: string; lines: string; badge: string };
 
 const isUrl = (s: string) => /^https?:\/\//.test(s.trim());
 const splitPair = (line: string) => {
@@ -17,10 +17,16 @@ const splitPair = (line: string) => {
 const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
 
 function toDraft(s: LandingSection): Draft {
-  const d: Draft = { type: s.type, title: "", subtitle: "", image: "", body: "", lines: "" };
+  const d: Draft = { type: s.type, title: "", subtitle: "", image: "", body: "", lines: "", badge: "" };
   switch (s.type) {
     case "hero":
-      return { ...d, title: s.title, subtitle: s.subtitle ?? "", image: s.image ?? "" };
+      return { ...d, title: s.title, subtitle: s.subtitle ?? "", image: s.image ?? "", badge: s.badge ?? "" };
+    case "badges":
+      return { ...d, lines: s.items.join("\n") };
+    case "steps":
+      return { ...d, title: s.title ?? "", lines: s.items.join("\n") };
+    case "cta":
+      return { ...d, title: s.title, subtitle: s.subtitle ?? "" };
     case "text":
       return { ...d, title: s.title ?? "", body: s.body };
     case "image":
@@ -39,7 +45,19 @@ function fromDraft(d: Draft): LandingSection | null {
   const title = d.title.trim() || undefined;
   switch (d.type) {
     case "hero":
-      return title ? { type: "hero", title, subtitle: d.subtitle.trim() || undefined, image: isUrl(d.image) ? d.image.trim() : undefined } : null;
+      return title
+        ? { type: "hero", title, subtitle: d.subtitle.trim() || undefined, image: isUrl(d.image) ? d.image.trim() : undefined, badge: d.badge.trim() || undefined }
+        : null;
+    case "badges": {
+      const items = lines(d.lines).slice(0, 6);
+      return items.length ? { type: "badges", items } : null;
+    }
+    case "steps": {
+      const items = lines(d.lines);
+      return items.length ? { type: "steps", title, items } : null;
+    }
+    case "cta":
+      return title ? { type: "cta", title, subtitle: d.subtitle.trim() || undefined } : null;
     case "text":
       return d.body.trim() ? { type: "text", title, body: d.body.trim() } : null;
     case "image":
@@ -59,22 +77,34 @@ function fromDraft(d: Draft): LandingSection | null {
   }
 }
 
-export type LandingFormValues = { title: string; productId: string; status: "active" | "draft"; sections: LandingSection[] };
+export type LandingFormValues = {
+  title: string;
+  productId: string;
+  status: "active" | "draft";
+  sections: LandingSection[];
+  locale: string | null;
+  accentColor: string | null;
+};
+
+const emptyDraft = (type: SectionType): Draft => ({ type, title: "", subtitle: "", image: "", body: "", lines: "", badge: "" });
 
 export function LandingForm({
   t,
   action,
   products,
   initial,
+  shopColor,
 }: {
   t: Dictionary;
   action: (formData: FormData) => void;
   products: { id: string; name: string; image: string | null }[];
   initial?: LandingFormValues;
+  shopColor: string;
 }) {
+  const [customColor, setCustomColor] = useState(!!initial?.accentColor);
   const l = t.landingPages;
   const [drafts, setDrafts] = useState<Draft[]>(
-    () => initial?.sections.map(toDraft) ?? [{ type: "hero", title: "", subtitle: "", image: products[0]?.image ?? "", body: "", lines: "" }],
+    () => initial?.sections.map(toDraft) ?? [{ ...emptyDraft("hero"), image: products[0]?.image ?? "" }],
   );
   const [newType, setNewType] = useState<SectionType>("features");
 
@@ -111,6 +141,29 @@ export function LandingForm({
             <option value="draft">{t.products.draft}</option>
           </select>
         </div>
+        <div>
+          <label className="label" htmlFor="locale">{l.pageLanguage}</label>
+          <select className="input" id="locale" name="locale" defaultValue={initial?.locale ?? ""}>
+            <option value="">—</option>
+            <option value="ar">العربية</option>
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div className="sm:col-span-2">
+          <span className="label">{l.accentColor}</span>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={!customColor} onChange={(e) => setCustomColor(!e.target.checked)} />
+              {l.useShopColor}
+            </label>
+            {customColor ? (
+              <input type="color" name="accentColor" defaultValue={initial?.accentColor ?? shopColor} className="h-10 w-20 cursor-pointer rounded-lg border border-slate-300" />
+            ) : (
+              <input type="hidden" name="accentColor" value="" />
+            )}
+          </div>
+        </div>
       </div>
 
       <h2 className="text-lg font-bold">{l.sections}</h2>
@@ -124,22 +177,26 @@ export function LandingForm({
               <button type="button" className="btn-danger px-2 py-1 text-xs" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))}>{t.common.delete}</button>
             </div>
           </div>
-          {d.type !== "image" && (
+          {d.type === "hero" && (
+            <input className="input" placeholder={l.fields.badge} value={d.badge} onChange={(e) => update(i, { badge: e.target.value })} />
+          )}
+          {d.type !== "image" && d.type !== "badges" && (
             <input className="input" placeholder={l.fields.title} value={d.title} onChange={(e) => update(i, { title: e.target.value })} />
           )}
-          {d.type === "hero" && (
+          {(d.type === "hero" || d.type === "cta") && (
             <input className="input" placeholder={l.fields.subtitle} value={d.subtitle} onChange={(e) => update(i, { subtitle: e.target.value })} />
           )}
+          {d.type === "testimonials" && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{l.reviewsNote}</p>}
           {(d.type === "hero" || d.type === "image") && (
             <input className="input font-mono text-xs" dir="ltr" placeholder={`${l.fields.image} https://...`} value={d.image} onChange={(e) => update(i, { image: e.target.value })} />
           )}
           {d.type === "text" && (
             <textarea className="input min-h-28" placeholder={l.fields.body} value={d.body} onChange={(e) => update(i, { body: e.target.value })} />
           )}
-          {(d.type === "features" || d.type === "testimonials" || d.type === "faq") && (
+          {(d.type === "features" || d.type === "badges" || d.type === "steps" || d.type === "testimonials" || d.type === "faq") && (
             <textarea
               className="input min-h-28"
-              placeholder={d.type === "features" ? l.fields.items : d.type === "testimonials" ? l.fields.testimonials : l.fields.faq}
+              placeholder={d.type === "testimonials" ? l.fields.testimonials : d.type === "faq" ? l.fields.faq : l.fields.items}
               value={d.lines}
               onChange={(e) => update(i, { lines: e.target.value })}
             />
@@ -156,7 +213,7 @@ export function LandingForm({
         <button
           type="button"
           className="btn-outline"
-          onClick={() => setDrafts([...drafts, { type: newType, title: "", subtitle: "", image: "", body: "", lines: "" }])}
+          onClick={() => setDrafts([...drafts, emptyDraft(newType)])}
         >
           + {l.addSection}
         </button>

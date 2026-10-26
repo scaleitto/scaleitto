@@ -37,7 +37,7 @@ export async function getEffectiveLimits(shopId: string) {
     .where(eq(schema.shops.id, shopId));
   const contract = await getActiveContract(shopId);
   const planLimits = row?.plan.limits ?? {};
-  const keys: LimitKey[] = ["maxProducts", "maxOrdersPerMonth", "maxStaff", "maxLandingPages"];
+  const keys: LimitKey[] = ["maxProducts", "maxOrdersPerMonth", "maxStaff", "maxLandingPages", "maxAiPerMonth"];
   const limits = {} as EffectiveLimits;
   for (const k of keys) {
     limits[k] = contract?.limits[k] ?? planLimits[k] ?? 0;
@@ -46,7 +46,7 @@ export async function getEffectiveLimits(shopId: string) {
 }
 
 export async function getUsage(shopId: string) {
-  const [[products], [orders], [staff], [landing]] = await Promise.all([
+  const [[products], [orders], [staff], [landing], [ai]] = await Promise.all([
     db.select({ n: count() }).from(schema.products).where(eq(schema.products.shopId, shopId)),
     db
       .select({ n: count() })
@@ -54,12 +54,17 @@ export async function getUsage(shopId: string) {
       .where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, startOfMonth()))),
     db.select({ n: count() }).from(schema.shopMembers).where(eq(schema.shopMembers.shopId, shopId)),
     db.select({ n: count() }).from(schema.landingPages).where(eq(schema.landingPages.shopId, shopId)),
+    db
+      .select({ n: count() })
+      .from(schema.aiGenerations)
+      .where(and(eq(schema.aiGenerations.shopId, shopId), gte(schema.aiGenerations.createdAt, startOfMonth()))),
   ]);
   return {
     maxProducts: products.n,
     maxOrdersPerMonth: orders.n,
     maxStaff: staff.n,
     maxLandingPages: landing.n,
+    maxAiPerMonth: ai.n,
   } satisfies EffectiveLimits;
 }
 

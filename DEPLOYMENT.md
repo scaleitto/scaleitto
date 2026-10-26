@@ -41,7 +41,11 @@ ROOT_DOMAIN="scaleitto.com"
 SHOP_SUBDOMAINS=false
 PLATFORM_ADMIN_EMAIL="بريدك@gmail.com"
 TZ="Africa/Algiers"
+OPENAI_API_KEY="مفتاح OpenAI الخاص بك"
 ```
+
+> `OPENAI_API_KEY` يفعّل إنشاء صفحات الهبوط بالذكاء الاصطناعي. تحصل عليه من https://platform.openai.com/api-keys
+> (يجب أن يكون في حسابك رصيد). لا تشارك هذا المفتاح مع أي أحد. إذا تركته فارغاً، تبقى المنصة تعمل لكن بدون ميزات الذكاء الاصطناعي.
 
 > ⚠️ إذا كانت كلمة مرور قاعدة البيانات تحتوي رموزاً مثل `@` أو `#` أو `/`، فاختر كلمة مرور من أحرف وأرقام فقط، لأن هذه الرموز تكسر الرابط.
 
@@ -110,4 +114,7 @@ TZ="Africa/Algiers"
 | `ER_BAD_DB_ERROR` | اسم قاعدة البيانات في `DATABASE_URL` خاطئ (تذكّر البادئة مثل `abcduser_`) |
 | `DATABASE_URL: MISSING` | ملف `.env` غير موجود داخل `scaleitto-app` أو اسمه خاطئ |
 | "This page couldn't load" عند التسجيل | افتح `/api/health` لمعرفة السبب |
+| "الذكاء الاصطناعي غير مفعّل" | أضف `OPENAI_API_KEY` في `.env` ثم Restart. تأكد أن `/api/health` يعرض `"OPENAI_API_KEY":"set"` |
+| خطأ `Incorrect API key` أو `insufficient_quota` عند الإنشاء | المفتاح خاطئ أو لا يوجد رصيد في حساب OpenAI |
+| خطأ `model ... does not exist` | حسابك لا يدعم النموذج الافتراضي. أضف مثلاً `OPENAI_MODEL="gpt-4.1-mini"` في `.env` ثم Restart |
 | الإحصائيات اليومية بتوقيت خاطئ | تأكد من وجود `TZ="Africa/Algiers"` في `.env` |

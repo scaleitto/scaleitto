@@ -22,6 +22,7 @@ export type Limits = {
   maxOrdersPerMonth?: number | null;
   maxStaff?: number | null;
   maxLandingPages?: number | null;
+  maxAiPerMonth?: number | null; // AI generations (landing pages…) per month
 };
 
 // ─── Accounts ─────────────────────────────────────────────
@@ -240,7 +241,10 @@ export const shippingRates = mysqlTable(
 // ─── Landing pages ────────────────────────────────────────
 
 export type LandingSection =
-  | { type: "hero"; title: string; subtitle?: string; image?: string }
+  | { type: "hero"; title: string; subtitle?: string; image?: string; badge?: string }
+  | { type: "badges"; items: string[] }
+  | { type: "steps"; title?: string; items: string[] }
+  | { type: "cta"; title: string; subtitle?: string }
   | { type: "text"; title?: string; body: string }
   | { type: "image"; url: string }
   | { type: "features"; title?: string; items: string[] }
@@ -257,6 +261,9 @@ export const landingPages = mysqlTable(
     title: varchar("title", { length: 200 }).notNull(),
     sections: json("sections").$type<LandingSection[]>().notNull(),
     status: mysqlEnum("status", ["active", "draft"]).notNull().default("active"),
+    // Page language (null → shop default) and accent color (null → shop color)
+    locale: varchar("locale", { length: 5 }),
+    accentColor: varchar("accent_color", { length: 9 }),
     views: int("views").notNull().default(0),
     createdAt: createdAt(),
   },
@@ -284,4 +291,21 @@ export const leads = mysqlTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
   (t) => [index("leads_shop_status_idx").on(t.shopId, t.status), index("leads_shop_phone_idx").on(t.shopId, t.phone)],
+);
+
+// ─── AI usage (for per-plan monthly limits and cost tracking) ─────────
+
+export const aiGenerations = mysqlTable(
+  "ai_generations",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id").notNull(),
+    kind: varchar("kind", { length: 40 }).notNull(), // "landing_page"
+    model: varchar("model", { length: 80 }).notNull(),
+    inputTokens: int("input_tokens").notNull().default(0),
+    outputTokens: int("output_tokens").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_shop_created_idx").on(t.shopId, t.createdAt)],
 );
