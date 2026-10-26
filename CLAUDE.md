@@ -22,6 +22,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `src/i18n/store.ts` — customer-facing storefront strings. Every new UI string goes in all three languages.
 - `src/lib/auth.ts` — sessions + `requireShop()`; `src/lib/limits.ts` — plan limits overridden by shop contracts
 
+- Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
+- `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
+- Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
+- The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
+
 ## Rules
 - Tenant isolation: every dashboard query/mutation filters by `shop.id` from `requireShop()`; never trust ids from the client alone.
 - Money is integer DZD.
@@ -31,9 +36,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Test the real flow in a browser (Playwright is preinstalled) before pushing.
 
 ## Roadmap (from the owner's feature list)
-Done: shops, staff roles (schema), products + variants + SKU/stock, COD orders, wilaya shipping rates,
+Done: shops, products + variants + SKU/stock, COD orders, wilaya shipping rates,
 fake-order checks (phone format, per-phone/IP limits, honeypot), plans, per-shop contracts with custom
-ceilings and dates, usage threshold alerts, ar/fr/en.
-Next: landing pages, Meta/TikTok pixels + GTM, abandoned carts, leads, upsell/cross-sell, staff invites,
-delivery companies (Yalidine, ZR Express, Noest…), Google Sheets, Ecomanager, Stripe, custom domains,
+ceilings and dates, usage threshold alerts, ar/fr/en, landing pages (section builder, views/conversion),
+Meta/TikTok pixel + GTM events, abandoned carts/leads, quantity offers, post-order upsell, staff roles.
+Next: delivery companies (Yalidine, ZR Express, Noest…), Google Sheets, Ecomanager, Stripe, custom domains,
 YouCan/Shopify import, analytics, themes, markets/currencies, AI features, mobile app.

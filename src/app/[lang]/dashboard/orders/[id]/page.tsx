@@ -58,12 +58,15 @@ export default async function OrderPage({ params }: PageProps<"/[lang]/dashboard
               {items.map((it) => (
                 <tr key={it.id}>
                   <td>
-                    <div className="font-medium">{it.name}</div>
+                    <div className="font-medium">
+                      {it.name}
+                      {it.isUpsell && <span className="badge ms-2 bg-purple-100 text-purple-700">Upsell</span>}
+                    </div>
                     {it.variantTitle && <div className="text-xs text-slate-500">{it.variantTitle}</div>}
                     {it.sku && <div className="text-xs text-slate-400" dir="ltr">{it.sku}</div>}
                   </td>
                   <td>{it.quantity}</td>
-                  <td className="whitespace-nowrap">{money(it.unitPrice * it.quantity)}</td>
+                  <td className="whitespace-nowrap">{money(it.lineTotal ?? it.unitPrice * it.quantity)}</td>
                 </tr>
               ))}
             </tbody>

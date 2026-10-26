@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getShopBySlug, storeBase } from "@/lib/store";
 import { dir, isLocale } from "@/i18n/config";
+import { safeTrackingIds } from "@/lib/tracking-ids";
+import { TrackingScripts } from "@/components/storefront/Tracking";
 
 export async function generateMetadata({ params }: LayoutProps<"/store/[slug]">): Promise<Metadata> {
   const shop = await getShopBySlug((await params).slug);
@@ -18,6 +20,7 @@ export default async function StoreLayout({ children, params }: LayoutProps<"/st
 
   return (
     <div lang={locale} dir={dir(locale)} className="min-h-screen" style={{ ["--brand" as string]: shop.primaryColor }}>
+      <TrackingScripts ids={safeTrackingIds(shop)} />
       <header className="sticky top-0 z-10 border-b border-slate-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href={base || "/"} className="flex items-center gap-2 text-xl font-extrabold text-brand">

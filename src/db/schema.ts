@@ -77,6 +77,9 @@ export const shops = mysqlTable(
     theme: varchar("theme", { length: 40 }).notNull().default("classic"),
     primaryColor: varchar("primary_color", { length: 9 }).notNull().default("#4f46e5"),
     customDomain: varchar("custom_domain", { length: 191 }),
+    metaPixelId: varchar("meta_pixel_id", { length: 30 }),
+    tiktokPixelId: varchar("tiktok_pixel_id", { length: 40 }),
+    gtmId: varchar("gtm_id", { length: 20 }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -118,6 +121,8 @@ export const shopMembers = mysqlTable(
 // ─── Catalog ──────────────────────────────────────────────
 
 export type ProductOption = { name: string; values: string[] };
+// "Buy 2 for 4500": total price for a given quantity
+export type QuantityOffer = { quantity: number; price: number; label?: string };
 
 export const products = mysqlTable(
   "products",
@@ -135,6 +140,11 @@ export const products = mysqlTable(
     images: json("images").$type<string[]>().notNull(),
     options: json("options").$type<ProductOption[]>().notNull(),
     status: mysqlEnum("status", ["active", "draft"]).notNull().default("active"),
+    // Nullable so the column can be added to existing rows; null means no offers.
+    offers: json("offers").$type<QuantityOffer[] | null>(),
+    // Post-purchase one-click add-on offered on the thank-you page
+    upsellProductId: id("upsell_product_id"),
+    upsellPrice: int("upsell_price"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("products_shop_slug_uq").on(t.shopId, t.slug)],
@@ -186,6 +196,7 @@ export const orders = mysqlTable(
     status: mysqlEnum("status", orderStatuses).notNull().default("new"),
     note: text("note"),
     ip: varchar("ip", { length: 45 }),
+    landingPageId: id("landing_page_id"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -207,6 +218,9 @@ export const orderItems = mysqlTable(
     sku: varchar("sku", { length: 80 }),
     unitPrice: int("unit_price").notNull(),
     quantity: int("quantity").notNull(),
+    // Set when a quantity offer applies ("2 for 4500"); otherwise unitPrice × quantity
+    lineTotal: int("line_total"),
+    isUpsell: boolean("is_upsell").notNull().default(false),
   },
   (t) => [index("items_order_idx").on(t.orderId)],
 );
@@ -221,4 +235,53 @@ export const shippingRates = mysqlTable(
     deskPrice: int("desk_price"), // null → stop-desk unavailable
   },
   (t) => [primaryKey({ columns: [t.shopId, t.wilayaCode] })],
+);
+
+// ─── Landing pages ────────────────────────────────────────
+
+export type LandingSection =
+  | { type: "hero"; title: string; subtitle?: string; image?: string }
+  | { type: "text"; title?: string; body: string }
+  | { type: "image"; url: string }
+  | { type: "features"; title?: string; items: string[] }
+  | { type: "testimonials"; title?: string; items: { name: string; text: string }[] }
+  | { type: "faq"; title?: string; items: { q: string; a: string }[] };
+
+export const landingPages = mysqlTable(
+  "landing_pages",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id").notNull(),
+    slug: varchar("slug", { length: 120 }).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    sections: json("sections").$type<LandingSection[]>().notNull(),
+    status: mysqlEnum("status", ["active", "draft"]).notNull().default("active"),
+    views: int("views").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("landing_shop_slug_uq").on(t.shopId, t.slug)],
+);
+
+// ─── Leads / abandoned carts ──────────────────────────────
+// Saved as soon as a visitor types a valid phone in the order form,
+// so the merchant can call people who did not finish their order.
+
+export const leads = mysqlTable(
+  "leads",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id"),
+    landingPageId: id("landing_page_id"),
+    name: varchar("name", { length: 120 }),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    wilayaCode: int("wilaya_code"),
+    status: mysqlEnum("status", ["abandoned", "contacted", "converted"]).notNull().default("abandoned"),
+    orderId: id("order_id"),
+    ip: varchar("ip", { length: 45 }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [index("leads_shop_status_idx").on(t.shopId, t.status), index("leads_shop_phone_idx").on(t.shopId, t.phone)],
 );

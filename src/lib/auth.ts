@@ -102,4 +102,17 @@ export async function requireShop(locale: string): Promise<ShopContext> {
   return { user, shop: row.shop, role: row.role };
 }
 
+// Owners and admins manage the shop; confirmers only handle orders and abandoned carts.
+export async function requireManager(locale: string): Promise<ShopContext> {
+  const ctx = await requireShop(locale);
+  if (ctx.role === "confirmer") redirect(`/${locale}/dashboard/orders`);
+  return ctx;
+}
+
+export async function requireOwner(locale: string): Promise<ShopContext> {
+  const ctx = await requireShop(locale);
+  if (ctx.role !== "owner") redirect(`/${locale}/dashboard`);
+  return ctx;
+}
+
 export const newId = () => randomUUID();

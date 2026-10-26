@@ -8,15 +8,24 @@ import { logout } from "../(auth)/actions";
 export default async function DashboardLayout({ children, params }: LayoutProps<"/[lang]/dashboard">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const { shop, user } = await requireShop(lang);
+  const { shop, user, role } = await requireShop(lang);
   const base = `/${lang}/dashboard`;
 
+  const isManager = role !== "confirmer";
   const nav = [
-    { href: base, label: t.nav.overview },
+    ...(isManager ? [{ href: base, label: t.nav.overview }] : []),
     { href: `${base}/orders`, label: t.nav.orders },
-    { href: `${base}/products`, label: t.nav.products },
-    { href: `${base}/shipping`, label: t.nav.shipping },
-    { href: `${base}/settings`, label: t.nav.settings },
+    { href: `${base}/abandoned`, label: t.nav.abandoned },
+    ...(isManager
+      ? [
+          { href: `${base}/products`, label: t.nav.products },
+          { href: `${base}/landing-pages`, label: t.nav.landingPages },
+          { href: `${base}/shipping`, label: t.nav.shipping },
+          { href: `${base}/tracking`, label: t.nav.marketing },
+          { href: `${base}/settings`, label: t.nav.settings },
+        ]
+      : []),
+    ...(role === "owner" ? [{ href: `${base}/team`, label: t.nav.team }] : []),
   ];
 
   return (

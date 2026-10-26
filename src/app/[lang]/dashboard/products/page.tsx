@@ -2,14 +2,14 @@ import Link from "next/link";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getDictionary, asLocale } from "@/i18n";
-import { requireShop } from "@/lib/auth";
+import { requireManager } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 
 export default async function ProductsPage({ params, searchParams }: PageProps<"/[lang]/dashboard/products">) {
   const lang = asLocale((await params).lang);
   const { error } = await searchParams;
   const t = getDictionary(lang);
-  const { shop } = await requireShop(lang);
+  const { shop } = await requireManager(lang);
 
   const products = await db.select().from(schema.products).where(eq(schema.products.shopId, shop.id)).orderBy(desc(schema.products.createdAt));
   const variants = products.length

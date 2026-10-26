@@ -2,11 +2,9 @@ import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getShopBySlug } from "@/lib/store";
-import { getStoreDictionary } from "@/i18n/store";
 import { getDictionary } from "@/i18n";
 import { formatPrice } from "@/lib/format";
-import { placeOrder } from "../../actions";
-import { OrderForm } from "./OrderForm";
+import { ProductCheckout } from "../../ProductCheckout";
 
 function safeDecode(s: string) {
   try {
@@ -20,7 +18,6 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
   const { slug, product: productSlug } = await params;
   const shop = await getShopBySlug(slug);
   if (!shop) notFound();
-  const s = getStoreDictionary(shop.defaultLocale);
   const currency = getDictionary(shop.defaultLocale).common.currency;
 
   const [product] = await db
@@ -28,12 +25,6 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
     .from(schema.products)
     .where(and(eq(schema.products.shopId, shop.id), eq(schema.products.slug, safeDecode(productSlug)), eq(schema.products.status, "active")));
   if (!product) notFound();
-
-  const [variants, rateRows] = await Promise.all([
-    db.select().from(schema.productVariants).where(eq(schema.productVariants.productId, product.id)),
-    db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shop.id)),
-  ]);
-  const rates = rateRows.length ? Object.fromEntries(rateRows.map((r) => [r.wilayaCode, { home: r.homePrice, desk: r.deskPrice }])) : null;
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
@@ -63,18 +54,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
             )}
           </div>
         </div>
-        <OrderForm
-          action={placeOrder.bind(null, shop.slug, product.id)}
-          s={s}
-          locale={shop.defaultLocale}
-          currency={currency}
-          price={product.price}
-          options={product.options}
-          variants={variants.map((v) => ({ id: v.id, title: v.title, optionValues: v.optionValues, price: v.price, stock: v.stock }))}
-          trackStock={product.trackStock}
-          productStock={product.stock}
-          rates={rates}
-        />
+        <ProductCheckout shop={shop} product={product} currency={currency} />
         {product.description && <div className="whitespace-pre-line leading-relaxed text-slate-700">{product.description}</div>}
       </div>
     </div>

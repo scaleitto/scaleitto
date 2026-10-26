@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import { getDictionary, asLocale } from "@/i18n";
-import { requireShop } from "@/lib/auth";
+import { requireManager } from "@/lib/auth";
 import { wilayas } from "@/lib/wilayas";
 
 function priceOrNull(v: FormDataEntryValue | null) {
@@ -12,7 +12,7 @@ function priceOrNull(v: FormDataEntryValue | null) {
 
 async function saveRates(lang: string, formData: FormData) {
   "use server";
-  const { shop } = await requireShop(asLocale(lang));
+  const { shop } = await requireManager(asLocale(lang));
   const allHome = priceOrNull(formData.get("all_home"));
   const allDesk = priceOrNull(formData.get("all_desk"));
   const useAll = formData.get("apply_all") === "1";
@@ -32,7 +32,7 @@ async function saveRates(lang: string, formData: FormData) {
 export default async function ShippingPage({ params }: PageProps<"/[lang]/dashboard/shipping">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const { shop } = await requireShop(lang);
+  const { shop } = await requireManager(lang);
   const rates = new Map(
     (await db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shop.id))).map((r) => [r.wilayaCode, r]),
   );

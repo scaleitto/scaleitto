@@ -46,19 +46,20 @@ export async function getEffectiveLimits(shopId: string) {
 }
 
 export async function getUsage(shopId: string) {
-  const [[products], [orders], [staff]] = await Promise.all([
+  const [[products], [orders], [staff], [landing]] = await Promise.all([
     db.select({ n: count() }).from(schema.products).where(eq(schema.products.shopId, shopId)),
     db
       .select({ n: count() })
       .from(schema.orders)
       .where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, startOfMonth()))),
     db.select({ n: count() }).from(schema.shopMembers).where(eq(schema.shopMembers.shopId, shopId)),
+    db.select({ n: count() }).from(schema.landingPages).where(eq(schema.landingPages.shopId, shopId)),
   ]);
   return {
     maxProducts: products.n,
     maxOrdersPerMonth: orders.n,
     maxStaff: staff.n,
-    maxLandingPages: 0,
+    maxLandingPages: landing.n,
   } satisfies EffectiveLimits;
 }
 

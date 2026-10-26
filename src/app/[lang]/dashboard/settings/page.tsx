@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { getDictionary, asLocale, locales, localeNames } from "@/i18n";
-import { requireShop } from "@/lib/auth";
+import { requireManager } from "@/lib/auth";
 
 const settingsSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -16,8 +16,7 @@ const settingsSchema = z.object({
 async function saveSettings(lang: string, formData: FormData) {
   "use server";
   const locale = asLocale(lang);
-  const { shop, role } = await requireShop(locale);
-  if (role === "confirmer") return;
+  const { shop } = await requireManager(locale);
   const parsed = settingsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/${locale}/dashboard/settings?error=1`);
   const d = parsed.data;
@@ -32,7 +31,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
   const lang = asLocale((await params).lang);
   const { saved, error } = await searchParams;
   const t = getDictionary(lang);
-  const { shop } = await requireShop(lang);
+  const { shop } = await requireManager(lang);
 
   return (
     <div className="max-w-2xl space-y-6">

@@ -1,7 +1,7 @@
 import { and, count, eq, gte, sum } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getDictionary, asLocale } from "@/i18n";
-import { requireShop } from "@/lib/auth";
+import { requireManager } from "@/lib/auth";
 import { getEffectiveLimits, getUsage, startOfMonth } from "@/lib/limits";
 import { formatPrice } from "@/lib/format";
 import { UsageBar } from "@/components/UsageBar";
@@ -9,7 +9,7 @@ import { UsageBar } from "@/components/UsageBar";
 export default async function Overview({ params }: PageProps<"/[lang]/dashboard">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const { shop } = await requireShop(lang);
+  const { shop } = await requireManager(lang);
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -56,6 +56,8 @@ export default async function Overview({ params }: PageProps<"/[lang]/dashboard"
         </div>
         <UsageBar label={t.nav.products} used={usage.maxProducts} limit={limits.maxProducts} unlimitedLabel={t.common.unlimited} />
         <UsageBar label={t.overview.ordersMonth} used={usage.maxOrdersPerMonth} limit={limits.maxOrdersPerMonth} unlimitedLabel={t.common.unlimited} />
+        <UsageBar label={t.nav.landingPages} used={usage.maxLandingPages} limit={limits.maxLandingPages} unlimitedLabel={t.common.unlimited} />
+        <UsageBar label={t.nav.team} used={usage.maxStaff} limit={limits.maxStaff} unlimitedLabel={t.common.unlimited} />
       </div>
     </div>
   );
