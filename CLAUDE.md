@@ -21,7 +21,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `src/i18n/dictionaries/{ar,fr,en}.ts` — dashboard strings (ar is the typed source of truth);
   `src/i18n/store.ts` — customer-facing storefront strings. Every new UI string goes in all three languages.
 - `src/lib/auth.ts` — sessions + `requireShop()`; `src/lib/limits.ts` — plan limits overridden by shop contracts
-
 - Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
 - `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
 - Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
