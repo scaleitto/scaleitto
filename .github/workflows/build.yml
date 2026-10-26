@@ -1,0 +1,34 @@
+# Builds the production bundle on GitHub (shared hosting has too little memory
+# to run `next build`). Download the "scaleitto-build" artifact from the run
+# page and upload it to the server — see DEPLOYMENT.md.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - name: Assemble deploy folder
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public 2>/dev/null || true
+          cp -r drizzle scripts .next/standalone/
+          cp .env.example .next/standalone/.env.example
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scaleitto-build
+          path: .next/standalone
+          include-hidden-files: true
+          retention-days: 14
