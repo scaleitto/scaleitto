@@ -26,27 +26,16 @@ export function sniffImage(buf: Buffer): ImageType | null {
 export const mimeForExt = (ext: string) =>
   ({ jpg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" })[ext] ?? "application/octet-stream";
 
-// Shrinks big photos to 1600px WebP when sharp is available on the server; otherwise keeps the original.
-async function optimize(buf: Buffer, type: ImageType): Promise<{ buf: Buffer; type: ImageType }> {
-  if (type.ext === "gif") return { buf, type };
-  try {
-    const sharp = (await import("sharp")).default;
-    const out = await sharp(buf).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-    return { buf: out, type: { ext: "webp", mime: "image/webp" } };
-  } catch {
-    return { buf, type };
-  }
-}
-
 export async function saveImage(shopId: string, input: Buffer): Promise<string> {
   const type = sniffImage(input);
-  if (!type) throw new Error("Unsupported image type");
+  if (!type) throw new Error("Unsupported image type (use JPG, PNG or WebP)");
   if (input.length > MAX_UPLOAD_BYTES) throw new Error("Image too large");
-  const { buf, type: finalType } = await optimize(input, type);
-  const name = `${randomUUID()}.${finalType.ext}`;
+  // Images are resized in the browser before upload; the server only stores them
+  // (no native image library, so nothing can break on shared hosting).
+  const name = `${randomUUID()}.${type.ext}`;
   const dir = path.join(uploadsDir(), shopId);
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), buf);
+  await writeFile(path.join(dir, name), input);
   return `${(process.env.APP_URL ?? "").replace(/\/$/, "")}/uploads/${shopId}/${name}`;
 }
 

@@ -1,29 +1,24 @@
 import { getManagerContext } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES, saveImage } from "@/lib/storage";
+import { logError } from "@/lib/error-log";
 
-const MAX_FILES = 10;
-
-// Image upload for shop managers (product photos, landing page images).
+// Uploads ONE image per request, sent as the raw request body (already resized by the browser).
 export async function POST(req: Request) {
   const ctx = await getManagerContext();
-  if (!ctx) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!ctx) return Response.json({ error: "Not signed in" }, { status: 401 });
 
-  const form = await req.formData().catch(() => null);
-  const files = (form?.getAll("files") ?? []).filter((f): f is File => f instanceof File).slice(0, MAX_FILES);
-  if (files.length === 0) return Response.json({ error: "no files" }, { status: 400 });
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_UPLOAD_BYTES) return Response.json({ error: "Image too large (max 8 MB)" }, { status: 413 });
 
-  const urls: string[] = [];
-  const errors: string[] = [];
-  for (const file of files) {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      errors.push(`${file.name}: too large`);
-      continue;
-    }
-    try {
-      urls.push(await saveImage(ctx.shop.id, Buffer.from(await file.arrayBuffer())));
-    } catch (err) {
-      errors.push(`${file.name}: ${err instanceof Error ? err.message : "failed"}`);
-    }
+  try {
+    const buf = Buffer.from(await req.arrayBuffer());
+    if (buf.length === 0) return Response.json({ error: "Empty file" }, { status: 400 });
+    if (buf.length > MAX_UPLOAD_BYTES) return Response.json({ error: "Image too large (max 8 MB)" }, { status: 413 });
+    return Response.json({ url: await saveImage(ctx.shop.id, buf) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/Unsupported image type|too large/.test(message)) return Response.json({ error: message }, { status: 400 });
+    await logError("api/uploads", err);
+    return Response.json({ error: `Could not save the image: ${message}` }, { status: 500 });
   }
-  return Response.json({ urls, errors });
 }

@@ -88,7 +88,7 @@ async function tryShopify(url: URL): Promise<ImportedProduct | null> {
   const m = url.pathname.match(/\/products\/([^/?#.]+)/);
   if (!m) return null;
   try {
-    const res = await safeFetch(`${url.origin}/products/${m[1]}.json`, { accept: "application/json" });
+    const res = await safeFetch(`${url.origin}/products/${m[1]}.json`, { accept: "application/json", timeoutMs: 10_000 });
     if (res.status !== 200 || !res.contentType.includes("json")) return null;
     const p = (JSON.parse(res.body.toString("utf8")) as { product?: { title: string; body_html: string; images: { src: string }[]; variants: { price: string }[] } }).product;
     if (!p?.title) return null;
@@ -111,7 +111,7 @@ export async function importProductFromUrl(input: string): Promise<ImportedProdu
   const shopify = await tryShopify(url);
   if (shopify) return shopify;
 
-  const res = await safeFetch(url.toString(), { accept: "text/html,application/xhtml+xml" });
+  const res = await safeFetch(url.toString(), { accept: "text/html,application/xhtml+xml", timeoutMs: 12_000 });
   if (res.status >= 400) throw new SafeFetchError(`The page answered HTTP ${res.status}`);
   const html = res.body.toString("utf8");
 
@@ -137,16 +137,18 @@ export async function importProductFromUrl(input: string): Promise<ImportedProdu
 }
 
 // Copies remote product images into our own uploads (so pages don't depend on the source site).
+// Downloads run in parallel with a short timeout so this step stays quick.
 export async function downloadImages(shopId: string, urls: string[], max = 6): Promise<string[]> {
   const { saveImage, MAX_UPLOAD_BYTES } = await import("./storage");
-  const saved: string[] = [];
-  for (const url of urls.slice(0, max)) {
-    try {
-      const res = await safeFetch(url, { maxBytes: MAX_UPLOAD_BYTES, accept: "image/*" });
-      if (res.status === 200) saved.push(await saveImage(shopId, res.body));
-    } catch {
-      // skip images that cannot be downloaded or are not real images
-    }
-  }
-  return saved;
+  const results = await Promise.all(
+    urls.slice(0, max).map(async (url) => {
+      try {
+        const res = await safeFetch(url, { maxBytes: MAX_UPLOAD_BYTES, timeoutMs: 10_000, accept: "image/*" });
+        return res.status === 200 ? await saveImage(shopId, res.body) : null;
+      } catch {
+        return null; // skip images that cannot be downloaded or are not real images
+      }
+    }),
+  );
+  return results.filter((u): u is string => !!u);
 }

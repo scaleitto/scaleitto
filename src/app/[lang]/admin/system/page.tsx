@@ -5,7 +5,8 @@ import { requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { aiConfigured, aiModel, DEFAULT_MODELS } from "@/lib/ai/openai";
 import { AiCheck } from "./AiCheck";
-import { checkAi, clearErrors } from "./actions";
+import { checkAi, checkUploads, clearErrors, pollBackgroundCheck, startBackgroundCheck } from "./actions";
+import { SelfTest } from "./SelfTest";
 
 const ENV_KEYS = ["DATABASE_URL", "APP_URL", "ROOT_DOMAIN", "PLATFORM_ADMIN_EMAIL", "TZ", "OPENAI_API_KEY", "OPENAI_MODEL"];
 
@@ -49,6 +50,21 @@ export default async function SystemPage({ params }: PageProps<"/[lang]/admin/sy
             ))}
           </ul>
         </div>
+      </div>
+
+      <div className="card space-y-3 border-2 border-brand/30">
+        <div>
+          <h2 className="font-bold">{a.selfTest}</h2>
+          <p className="mt-1 text-sm text-slate-500">{a.selfTestHint}</p>
+        </div>
+        <SelfTest
+          t={t}
+          chain={chain}
+          checkUploads={checkUploads.bind(null, lang)}
+          checkAi={checkAi.bind(null, lang)}
+          startBackground={startBackgroundCheck.bind(null, lang)}
+          pollBackground={pollBackgroundCheck.bind(null, lang)}
+        />
       </div>
 
       <div className="card space-y-3">

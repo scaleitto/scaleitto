@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
@@ -12,7 +11,7 @@ import { sanitizeSections } from "@/lib/landing";
 import { asLocale, locales } from "@/i18n";
 import { aiConfigured } from "@/lib/ai/openai";
 import { aiLanguages, aiTones } from "@/lib/ai/landing-generator";
-import { runLandingJob, STALE_JOB_MS } from "@/lib/ai/landing-job";
+import { advanceLandingJob, type JobView } from "@/lib/ai/landing-job";
 
 const formSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -109,7 +108,8 @@ const aiStartSchema = z.object({
   notes: z.string().trim().max(4000).optional().default(""),
 });
 
-// Starts a background generation and returns at once (long requests get cut by shared hosting).
+// Creates the generation job and returns at once; the wizard then calls advanceAiJob()
+// repeatedly, each call running one short step (long requests get cut by shared hosting).
 export async function startAiLanding(lang: string, _prev: AiStartState, formData: FormData): Promise<AiStartState> {
   const locale = asLocale(lang);
   const { shop, user } = await requireManager(locale);
@@ -152,21 +152,12 @@ export async function startAiLanding(lang: string, _prev: AiStartState, formData
       notes: d.notes,
     },
   });
-  after(() => runLandingJob(jobId));
   return { jobId };
 }
 
-export type AiJobStatus = { status: "queued" | "running" | "done" | "failed"; stage?: string | null; landingPageId?: string | null; error?: string | null };
+export type AiJobStatus = JobView;
 
-export async function getAiJobStatus(lang: string, jobId: string): Promise<AiJobStatus> {
+export async function advanceAiJob(lang: string, jobId: string): Promise<AiJobStatus> {
   const { shop } = await requireManager(asLocale(lang));
-  const [job] = await db
-    .select()
-    .from(schema.aiJobs)
-    .where(and(eq(schema.aiJobs.id, jobId), eq(schema.aiJobs.shopId, shop.id)));
-  if (!job) return { status: "failed", error: "Job not found" };
-  if ((job.status === "running" || job.status === "queued") && Date.now() - job.updatedAt.getTime() > STALE_JOB_MS) {
-    return { status: "failed", error: "Timed out (the server may have restarted). Please try again." };
-  }
-  return { status: job.status, stage: job.stage, landingPageId: job.landingPageId, error: job.error };
+  return advanceLandingJob(jobId, shop.id);
 }

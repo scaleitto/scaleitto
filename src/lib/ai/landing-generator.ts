@@ -1,7 +1,7 @@
 import "server-only";
 import type { LandingSection, QuantityOffer, ProductOption } from "@/db/schema";
 import { sanitizeSections } from "@/lib/landing";
-import { jsonCompletion } from "./openai";
+import type { BackgroundRequest } from "./openai";
 
 export const aiLanguages = ["ar", "dz", "fr", "en"] as const;
 export type AiLanguage = (typeof aiLanguages)[number];
@@ -135,7 +135,8 @@ function clean(raw: RawSection[], allowedImages: Set<string>): LandingSection[] 
   return out.slice(0, 30);
 }
 
-export async function generateLandingPage(brief: LandingBrief) {
+// Builds the background request for a landing page (see openai.ts startBackgroundJson).
+export function buildLandingRequest(brief: LandingBrief): BackgroundRequest {
   const p = brief.product;
   const productData = {
     name: p.name,
@@ -162,25 +163,21 @@ export async function generateLandingPage(brief: LandingBrief) {
     .filter(Boolean)
     .join("\n\n");
 
-  const result = await jsonCompletion<{ title: string; product_name: string | null; product_description: string | null; sections: RawSection[] }>({
-    system: SYSTEM,
-    user,
-    schemaName: "landing_page",
-    schema: RESPONSE_SCHEMA,
-    images: brief.visionImages ?? [],
-  });
+  return { instructions: SYSTEM, user, images: brief.visionImages ?? [], schemaName: "landing_page", schema: RESPONSE_SCHEMA };
+}
 
-  const sections = clean(result.data.sections ?? [], new Set(p.images));
+export type LandingAiOutput = { title?: string; product_name?: string | null; product_description?: string | null; sections?: RawSection[] };
+
+// Turns the model's JSON into a safe, valid page (unknown images dropped, texts trimmed).
+export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[]) {
+  const sections = clean(Array.isArray(data.sections) ? data.sections : [], new Set(images));
   if (!sections.some((s) => s.type === "hero")) {
-    sections.unshift({ type: "hero", title: p.name, image: p.images[0] });
+    sections.unshift({ type: "hero", title: fallbackName.slice(0, 200), image: images[0] });
   }
   return {
-    title: String(result.data.title || p.name).slice(0, 200),
-    productName: result.data.product_name?.trim().slice(0, 200) || null,
-    productDescription: result.data.product_description?.trim().slice(0, 5000) || null,
+    title: String(data.title || fallbackName).slice(0, 200),
+    productName: data.product_name?.trim().slice(0, 200) || null,
+    productDescription: data.product_description?.trim().slice(0, 5000) || null,
     sections,
-    model: result.model,
-    inputTokens: result.inputTokens,
-    outputTokens: result.outputTokens,
   };
 }

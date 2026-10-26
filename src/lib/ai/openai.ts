@@ -1,6 +1,8 @@
 import "server-only";
 
-// Minimal OpenAI Chat Completions client with Structured Outputs (strict JSON schema).
+// OpenAI client for long generations on shared hosting: requests run in OpenAI's
+// *background mode* (Responses API) — we submit, get an id at once, and poll with
+// short requests. Nothing on our server waits for the model.
 // Configured from the environment: OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL.
 
 export class AiNotConfiguredError extends Error {}
@@ -23,126 +25,143 @@ export function aiModel() {
 
 // The configured model first, then the defaults: a mistyped or unavailable
 // OPENAI_MODEL falls back instead of breaking generation.
-function modelChain() {
+export function modelChain() {
   return [...new Set([aiModel(), ...DEFAULT_MODELS])];
 }
 
 const baseUrl = () => (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
 
-const isModelMissing = (status: number, error?: { message?: string; code?: string | null }) =>
+function apiKey() {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new AiNotConfiguredError("OPENAI_API_KEY is not set");
+  return key;
+}
+
+type ApiError = { message?: string; param?: string | null; code?: string | null };
+
+async function call(path: string, init: { method?: string; body?: unknown; timeoutMs?: number } = {}) {
+  const res = await fetch(`${baseUrl()}${path}`, {
+    method: init.method ?? "GET",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    signal: AbortSignal.timeout(init.timeoutMs ?? 30_000),
+  }).catch((err: unknown) => {
+    throw new AiRequestError(`Could not reach OpenAI: ${err instanceof Error ? err.message : String(err)}`);
+  });
+  const json = (await res.json().catch(() => null)) as (Record<string, unknown> & { error?: ApiError }) | null;
+  return { res, json };
+}
+
+const isModelMissing = (status: number, error?: ApiError) =>
   status === 404 || error?.code === "model_not_found" || /model.*(does not exist|not found)/i.test(error?.message ?? "");
 
 // Lists the model IDs this API key can use (for the admin AI check).
 export async function listModels(): Promise<string[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new AiNotConfiguredError("OPENAI_API_KEY is not set");
-  const res = await fetch(`${baseUrl()}/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(20_000),
-  }).catch((err: unknown) => {
-    throw new AiRequestError(err instanceof Error ? err.message : String(err));
-  });
-  const json = (await res.json().catch(() => null)) as { data?: { id: string }[]; error?: { message?: string } } | null;
+  const { res, json } = await call("/models", { timeoutMs: 20_000 });
   if (!res.ok) throw new AiRequestError(json?.error?.message ?? `OpenAI HTTP ${res.status}`, res.status);
-  return (json?.data ?? []).map((m) => m.id).sort();
+  return ((json?.data as { id: string }[] | undefined) ?? []).map((m) => m.id).sort();
 }
 
-export type JsonCompletion<T> = { data: T; model: string; inputTokens: number; outputTokens: number };
-
-export async function jsonCompletion<T>({
-  system,
-  user,
-  schemaName,
-  schema,
-  images = [],
-  timeoutMs = 180_000,
-}: {
-  system: string;
+export type BackgroundRequest = {
+  instructions: string;
   user: string;
-  schemaName: string;
-  schema: Record<string, unknown>;
   /** Image URLs or data: URLs the model should look at (vision). */
   images?: string[];
-  timeoutMs?: number;
-}): Promise<JsonCompletion<T>> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new AiNotConfiguredError("OPENAI_API_KEY is not set");
-  type ApiResponse = {
-    error?: { message?: string; param?: string | null; code?: string | null };
-    model?: string;
-    choices?: { message?: { content?: string | null; refusal?: string | null }; finish_reason?: string }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-  } | null;
+  schemaName: string;
+  schema: Record<string, unknown>;
+  maxOutputTokens?: number;
+};
 
+// Submits a background generation and returns its id in a second or two.
+export async function startBackgroundJson(req: BackgroundRequest): Promise<{ responseId: string; model: string }> {
+  const images = req.images ?? [];
   const models = modelChain();
-  let json: ApiResponse = null;
-  let model = models[0];
-  modelLoop: for (const [m, candidate] of models.entries()) {
-    model = candidate;
-    // Reasoning models (gpt-5+, o*) accept a reasoning effort; "low" keeps generation fast and cheap
-    // and is valid for every model that supports the parameter.
-    // Strict JSON schema first; if the model rejects a parameter, retry without just that one
-    // (JSON mode + schema in the prompt still gets validated by the caller).
-    const attempt = { reasoningEffort: /^(gpt-([5-9]|\d\d)|o\d)/.test(model), strictSchema: true, images: images.length > 0 };
-    for (let tries = 0; ; tries++) {
+  for (const [m, model] of models.entries()) {
+    // Strict JSON schema, images and low reasoning effort first; if the model rejects one of
+    // them, retry without just that one (JSON mode + schema in the prompt is still validated later).
+    const attempt = { reasoning: /^(gpt-([5-9]|\d\d)|o\d)/.test(model), strict: true, images: images.length > 0 };
+    for (let tries = 0; tries < 4; tries++) {
       const body: Record<string, unknown> = {
         model,
-        messages: [
+        background: true,
+        store: true,
+        instructions: attempt.strict ? req.instructions : `${req.instructions}\n\nReply with one JSON object that follows this JSON schema exactly:\n${JSON.stringify(req.schema)}`,
+        input: [
           {
-            role: "system",
-            content: attempt.strictSchema ? system : `${system}\n\nReply with a single JSON object that follows this JSON schema exactly:\n${JSON.stringify(schema)}`,
+            role: "user",
+            content: [
+              { type: "input_text", text: req.user },
+              ...(attempt.images ? images.map((url) => ({ type: "input_image", image_url: url, detail: "low" })) : []),
+            ],
           },
-          {
-          role: "user",
-          content: attempt.images
-            ? [{ type: "text", text: user }, ...images.map((url) => ({ type: "image_url", image_url: { url, detail: "low" } }))]
-            : user,
-        },
         ],
-        response_format: attempt.strictSchema ? { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } } : { type: "json_object" },
-        max_completion_tokens: 12_000,
+        text: { format: attempt.strict ? { type: "json_schema", name: req.schemaName, schema: req.schema, strict: true } : { type: "json_object" } },
+        max_output_tokens: req.maxOutputTokens ?? 16_000,
       };
-      if (attempt.reasoningEffort) body.reasoning_effort = "low";
+      if (attempt.reasoning) body.reasoning = { effort: "low" };
 
-      const res = await fetch(`${baseUrl()}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
-      }).catch((err: unknown) => {
-        throw new AiRequestError(err instanceof Error ? err.message : String(err));
-      });
-      json = (await res.json().catch(() => null)) as ApiResponse;
-      if (res.ok) break modelLoop;
+      const { res, json } = await call("/responses", { method: "POST", body });
+      if (res.ok && typeof json?.id === "string") return { responseId: json.id, model };
 
-      const message = json?.error?.message ?? `OpenAI HTTP ${res.status}`;
-      if (isModelMissing(res.status, json?.error ?? undefined) && m < models.length - 1) {
-        console.warn(`[ai] model "${model}" is not available, trying "${models[m + 1]}": ${message}`);
-        continue modelLoop;
+      const error = json?.error ?? undefined;
+      const message = error?.message ?? `OpenAI HTTP ${res.status}`;
+      const rejected = `${error?.param ?? ""} ${message}`;
+      const tryNextModel = isModelMissing(res.status, error) || (res.status === 400 && /background/i.test(rejected));
+      if (tryNextModel && m < models.length - 1) {
+        console.warn(`[ai] "${model}" cannot be used (${message}), trying "${models[m + 1]}"`);
+        break;
       }
-      const rejected = `${json?.error?.param ?? ""} ${message}`;
-      if (res.status === 400 && tries < 3 && attempt.images && /image/i.test(rejected)) attempt.images = false;
-      else if (res.status === 400 && tries < 3 && attempt.reasoningEffort && /reasoning/i.test(rejected)) attempt.reasoningEffort = false;
-      else if (res.status === 400 && tries < 3 && attempt.strictSchema && /response_format|json_schema/i.test(rejected)) attempt.strictSchema = false;
+      if (res.status === 400 && attempt.images && /image/i.test(rejected)) attempt.images = false;
+      else if (res.status === 400 && attempt.reasoning && /reasoning/i.test(rejected)) attempt.reasoning = false;
+      else if (res.status === 400 && attempt.strict && /json_schema|text\.format|format/i.test(rejected)) attempt.strict = false;
       else throw new AiRequestError(message, res.status);
       console.warn(`[ai] ${model} rejected a parameter, retrying: ${message}`);
     }
   }
+  throw new AiRequestError("No configured model accepted the request");
+}
 
-  const choice = json?.choices?.[0];
-  if (choice?.message?.refusal) throw new AiRequestError(`Refused: ${choice.message.refusal}`);
-  if (!choice?.message?.content) throw new AiRequestError(`Empty response (finish_reason: ${choice?.finish_reason ?? "unknown"})`);
+export type BackgroundResult<T> =
+  | { state: "pending" }
+  | { state: "done"; data: T; model: string; inputTokens: number; outputTokens: number }
+  | { state: "failed"; error: string };
 
-  let data: T;
-  try {
-    data = JSON.parse(choice.message.content) as T;
-  } catch {
-    throw new AiRequestError("The model returned invalid JSON");
+type ResponseObject = {
+  status?: string;
+  model?: string;
+  error?: ApiError | null;
+  incomplete_details?: { reason?: string } | null;
+  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
+  usage?: { input_tokens?: number; output_tokens?: number };
+};
+
+// One short status check of a background generation.
+export async function pollBackgroundJson<T>(responseId: string): Promise<BackgroundResult<T>> {
+  const { res, json } = await call(`/responses/${encodeURIComponent(responseId)}`, { timeoutMs: 20_000 });
+  if (!res.ok) {
+    // Temporary network/server problems: keep waiting; a missing id is final.
+    if (res.status === 404) return { state: "failed", error: "OpenAI no longer has this request (expired)" };
+    if (res.status >= 500 || res.status === 429) return { state: "pending" };
+    return { state: "failed", error: json?.error?.message ?? `OpenAI HTTP ${res.status}` };
   }
-  return {
-    data,
-    model: json?.model ?? model,
-    inputTokens: json?.usage?.prompt_tokens ?? 0,
-    outputTokens: json?.usage?.completion_tokens ?? 0,
-  };
+  const r = json as ResponseObject;
+  if (r.status === "queued" || r.status === "in_progress") return { state: "pending" };
+  if (r.status !== "completed") {
+    return { state: "failed", error: r.error?.message ?? (r.incomplete_details?.reason ? `Incomplete: ${r.incomplete_details.reason}` : `Status: ${r.status}`) };
+  }
+  const parts = (r.output ?? []).filter((o) => o.type === "message").flatMap((o) => o.content ?? []);
+  const refusal = parts.find((p) => p.type === "refusal");
+  if (refusal) return { state: "failed", error: `Refused: ${refusal.refusal}` };
+  const text = parts.filter((p) => p.type === "output_text").map((p) => p.text ?? "").join("");
+  try {
+    return {
+      state: "done",
+      data: JSON.parse(text) as T,
+      model: r.model ?? "",
+      inputTokens: r.usage?.input_tokens ?? 0,
+      outputTokens: r.usage?.output_tokens ?? 0,
+    };
+  } catch {
+    return { state: "failed", error: "The model returned invalid JSON" };
+  }
 }

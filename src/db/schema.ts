@@ -342,6 +342,8 @@ export type AiJobInput = {
   notes: string;
 };
 
+export type AiJobPrepared = { images: string[]; sourceText: string; productName: string };
+
 export const aiJobs = mysqlTable(
   "ai_jobs",
   {
@@ -353,6 +355,13 @@ export const aiJobs = mysqlTable(
     input: json("input").$type<AiJobInput>().notNull(),
     landingPageId: id("landing_page_id"),
     error: text("error"),
+    // Data gathered in the "prepare" step (imported text, final image list…)
+    prepared: json("prepared").$type<AiJobPrepared>(),
+    // OpenAI background response being generated
+    responseId: varchar("response_id", { length: 120 }),
+    model: varchar("model", { length: 80 }),
+    // Only one request at a time may run a step of a job
+    claimedUntil: timestamp("claimed_until"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },

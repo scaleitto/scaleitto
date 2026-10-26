@@ -5,7 +5,7 @@ import { requireManager } from "@/lib/auth";
 import { getEffectiveLimits, getUsage } from "@/lib/limits";
 import { aiConfigured } from "@/lib/ai/openai";
 import { UsageBar } from "@/components/UsageBar";
-import { getAiJobStatus, startAiLanding } from "../actions";
+import { advanceAiJob, startAiLanding } from "../actions";
 import { AiForm } from "./AiForm";
 
 export default async function AiLandingPage({ params }: PageProps<"/[lang]/dashboard/landing-pages/ai">) {
@@ -37,7 +37,7 @@ export default async function AiLandingPage({ params }: PageProps<"/[lang]/dashb
           t={t}
           lang={lang}
           action={startAiLanding.bind(null, lang)}
-          checkStatus={getAiJobStatus.bind(null, lang)}
+          checkStatus={advanceAiJob.bind(null, lang)}
           products={products.map((p) => ({ id: p.id, name: p.name, image: p.images[0] ?? null }))}
           defaultLanguage={shop.defaultLocale}
         />

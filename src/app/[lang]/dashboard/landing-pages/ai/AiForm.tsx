@@ -9,7 +9,7 @@ import type { AiJobStatus, AiStartState } from "../actions";
 const languages = ["ar", "dz", "fr", "en"] as const;
 const tones = ["persuasive", "premium", "friendly", "urgent"] as const;
 const sources = ["product", "images", "link"] as const;
-const stages = ["starting", "importing", "images", "writing", "saving"] as const;
+const stages = ["prepare", "submit", "writing", "saving"] as const;
 type Source = (typeof sources)[number];
 
 const icons: Record<Source, string> = { product: "📦", images: "📷", link: "🔗" };
@@ -41,11 +41,12 @@ export function AiForm({
   // A new job id from the server starts the progress screen.
   if (state.jobId && state.jobId !== jobId) {
     setJobId(state.jobId);
-    setJob({ status: "queued", stage: "starting" });
+    setJob({ status: "queued", stage: "prepare", landingPageId: null, error: null });
     setElapsed(0);
   }
 
-  // Poll the background job until it finishes, then open the editor.
+  // Drive the job: each call runs one short step on the server (prepare → submit → wait for
+  // the model → save). Calls are sequential, so a slow step never overlaps the next one.
   useEffect(() => {
     if (!jobId) return;
     let stopped = false;
@@ -64,9 +65,9 @@ export function AiForm({
       } catch {
         // network hiccup: keep polling
       }
-      setTimeout(poll, 2500);
+      setTimeout(poll, 2000);
     };
-    const first = setTimeout(poll, 1500);
+    const first = setTimeout(poll, 300);
     return () => {
       stopped = true;
       clearInterval(tick);
@@ -75,8 +76,8 @@ export function AiForm({
   }, [jobId, checkStatus, lang, router]);
 
   if (jobId && job && job.status !== "failed") {
-    const visible = stages.filter((s) => source === "link" || (s !== "importing" && s !== "images"));
-    const current = Math.max(0, visible.indexOf((job.stage ?? "starting") as (typeof stages)[number]));
+    const visible = stages;
+    const current = Math.max(0, visible.indexOf((job.stage ?? "prepare") as (typeof stages)[number]));
     return (
       <div className="card space-y-6 text-center">
         <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />

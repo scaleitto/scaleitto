@@ -3,6 +3,26 @@
 import { useRef, useState } from "react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 
+// Shrinks a photo in the browser (max 1600px, WebP/JPEG) so uploads are small and the
+// server needs no image library. GIFs and already-small files are sent as they are.
+async function shrink(file: File): Promise<Blob> {
+  if (file.type === "image/gif" || file.size < 300 * 1024) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const encode = (type: string) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.85));
+    let blob = await encode("image/webp");
+    if (!blob || blob.type !== "image/webp") blob = await encode("image/jpeg");
+    return blob && blob.size < file.size ? blob : file;
+  } catch {
+    return file; // the browser cannot decode it; let the server decide
+  }
+}
+
 // Product/landing images: upload from the device or add by link. The first image is the main one.
 export function ImageManager({
   t,
@@ -27,19 +47,30 @@ export function ImageManager({
     if (!files?.length) return;
     setUploading(true);
     setError(null);
-    const body = new FormData();
-    for (const f of Array.from(files).slice(0, max - value.length)) body.append("files", f);
-    try {
-      const res = await fetch("/api/uploads", { method: "POST", body });
-      const json = (await res.json()) as { urls?: string[]; errors?: string[] };
-      if (json.urls?.length) onChange([...value, ...json.urls].slice(0, max));
-      if (!res.ok || json.errors?.length) setError(`${m.failed}${json.errors?.length ? `: ${json.errors.join("، ")}` : ""}`);
-    } catch {
-      setError(m.failed);
-    } finally {
-      setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
+    const added: string[] = [];
+    const problems: string[] = [];
+    // One image per request keeps every request small and simple.
+    for (const file of Array.from(files).slice(0, max - value.length)) {
+      try {
+        const body = await shrink(file);
+        const res = await fetch("/api/uploads", { method: "POST", body, headers: { "Content-Type": body.type || "application/octet-stream" } });
+        const text = await res.text();
+        let json: { url?: string; error?: string } = {};
+        try {
+          json = JSON.parse(text);
+        } catch {
+          // not JSON: the hosting answered with its own error page
+        }
+        if (res.ok && json.url) added.push(json.url);
+        else problems.push(`${file.name}: ${json.error ?? `HTTP ${res.status}${text ? ` – ${text.replace(/<[^>]+>/g, " ").trim().slice(0, 120)}` : ""}`}`);
+      } catch (err) {
+        problems.push(`${file.name}: ${err instanceof Error ? err.message : "network error"}`);
+      }
     }
+    if (added.length) onChange([...value, ...added].slice(0, max));
+    if (problems.length) setError(`${m.failed}: ${problems.join(" | ")}`);
+    setUploading(false);
+    if (fileInput.current) fileInput.current.value = "";
   }
 
   return (

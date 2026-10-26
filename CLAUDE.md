@@ -24,17 +24,21 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Roles: `requireShop()` (any member), `requireManager()` (owner/admin), `requireOwner()`; confirmers only get orders + abandoned carts
 - `src/app/store/[slug]/ProductCheckout.tsx` — the COD order form used by product pages and landing pages
 - Storefront tracking: `src/components/storefront/Tracking.tsx` + `src/lib/track.ts`; pixel IDs are validated by `src/lib/tracking-ids.ts` because they go into inline scripts
-- AI: `src/lib/ai/openai.ts` (Chat Completions + strict JSON schema; env OPENAI_API_KEY / OPENAI_MODEL (default gpt-6.1-sol; gpt-6-luna cheaper) / OPENAI_BASE_URL;
-  retries without `reasoning_effort` or with JSON mode if a model rejects them),
-  `src/lib/ai/landing-generator.ts` (prompt + schema). Generations are logged in `ai_generations` and limited by `maxAiPerMonth`.
-  The prompt forbids invented facts and fake reviews — keep it that way.
-- Diagnostics: `onRequestError` in `src/instrumentation.ts` stores server errors in `error_logs`; admin → System
-  (`src/app/[lang]/admin/system`) shows build commit, migrations, env status, AI model check and the error log.
-  OPENAI_MODEL falls back to gpt-6.1-sol then gpt-6-luna when the configured model does not exist.
-- AI landing generation runs as a background job (`ai_jobs`, `src/lib/ai/landing-job.ts`, started with `after()`,
-  polled by the wizard) because shared hosting cuts long requests. Sources: existing product, uploaded photos (sent to
-  the model as images), or a product link (`src/lib/product-import.ts`: Shopify .json, JSON-LD, OpenGraph).
-- Uploads: `src/lib/storage.ts` (UPLOADS_DIR, default ~/scaleitto-uploads, outside the app dir), POST /api/uploads,
+- AI: `src/lib/ai/openai.ts` uses the OpenAI **Responses API in background mode** (`startBackgroundJson` returns an id,
+  `pollBackgroundJson` checks it) so no request on our server waits for the model (shared hosting cuts long requests
+  and may not keep work alive after a response — do NOT use `after()` or long requests for AI). Env OPENAI_API_KEY /
+  OPENAI_MODEL (default gpt-6.1-sol, then gpt-6-luna as fallback) / OPENAI_BASE_URL. Rejected params (reasoning, strict
+  schema, images) are retried without; a model without access or background support falls back to the next model.
+- Landing generation (`src/lib/ai/landing-job.ts`, table `ai_jobs`) is a state machine driven by the wizard:
+  prepare (product / uploaded photos / product link via `src/lib/product-import.ts`) → submit → writing (poll) → save.
+  Each `advanceAiJob` call runs one short step under a DB claim. Prompt + schema: `src/lib/ai/landing-generator.ts`;
+  it forbids invented facts and fake reviews — keep it that way. Usage logged in `ai_generations` (`maxAiPerMonth`).
+- Diagnostics: `onRequestError` + `src/lib/error-log.ts` store errors in `error_logs`; admin → System
+  (`src/app/[lang]/admin/system`) shows build commit, migrations, env status, a full self-test (uploads, OpenAI,
+  background request), the model check and the error log.
+- Uploads: images are resized in the browser (`src/components/dashboard/ImageManager.tsx`) and sent one per request
+  as the raw body to POST /api/uploads; the server only sniffs and stores them (no sharp/native libs).
+  `src/lib/storage.ts` (UPLOADS_DIR, default ~/scaleitto-uploads, outside the app dir),
   served by `src/app/uploads/[shop]/[file]/route.ts`. Any server-side fetch of a user URL goes through
   `src/lib/safe-fetch.ts` (blocks private/internal addresses).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`); `/api/health` shows DB/config status
