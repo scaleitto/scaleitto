@@ -3,9 +3,10 @@ import type { CarrierPlatform } from "@/server/db/schema";
 // Delivery companies a shop can connect. Most Algerian couriers run on a few shared platforms:
 // - yalidine: Yalidine's API (also Yalitec, Guepex…): API ID + API token
 // - ecotrack: one API on each courier's own <name>.ecotrack.dz domain: one API token
-// - procolis: ZR Express (procolis.com): token + key
+// - zrexpress: ZR Express's new platform (api.zrexpress.app): tenant id + API key
+// - procolis: ZR Express's old platform (procolis.com): token + key
 // - noest: NOEST's own API: API token + user GUID
-export type CredentialField = "apiId" | "apiToken" | "token" | "key" | "userGuid";
+export type CredentialField = "apiId" | "apiToken" | "token" | "key" | "userGuid" | "tenantId" | "apiKey";
 
 export type CarrierInfo = {
   key: string;
@@ -20,13 +21,15 @@ export const platformFields: Record<CarrierPlatform, CredentialField[]> = {
   ecotrack: ["token"],
   procolis: ["token", "key"],
   noest: ["apiToken", "userGuid"],
+  zrexpress: ["tenantId", "apiKey"],
 };
 
 const eco = (key: string, name: string, sub?: string): CarrierInfo => ({ key, name, platform: "ecotrack", baseUrl: sub ? `https://${sub}.ecotrack.dz` : undefined });
 
 export const carriers: CarrierInfo[] = [
   { key: "yalidine", name: "Yalidine", platform: "yalidine", baseUrl: "https://api.yalidine.app" },
-  { key: "zrexpress", name: "ZR Express", platform: "procolis", baseUrl: "https://procolis.com" },
+  { key: "zr", name: "ZR Express", platform: "zrexpress", baseUrl: "https://api.zrexpress.app" },
+  { key: "zrexpress", name: "ZR Express (Procolis)", platform: "procolis", baseUrl: "https://procolis.com" },
   { key: "noest", name: "NOEST Express", platform: "noest", baseUrl: "https://app.noest-dz.com" },
   eco("anderson", "Anderson Delivery", "anderson"),
   eco("dhd", "DHD", "dhd"),

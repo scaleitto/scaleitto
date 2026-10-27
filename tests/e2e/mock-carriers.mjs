@@ -1,6 +1,7 @@
 // A fake delivery company server for the end-to-end tests. It speaks the four platforms the app
-// supports (Yalidine, Ecotrack, Procolis/ZR Express, NOEST). The app is pointed at it with E2E_CARRIER_URL.
-// Valid keys: apiId "good-id" / apiToken "good-token", token "good-token", key "good-key", userGuid "good-guid".
+// supports (Yalidine, Ecotrack, Procolis/ZR Express, NOEST, ZR Express new platform). The app is pointed at it with E2E_CARRIER_URL.
+// Valid keys: apiId "good-id" / apiToken "good-token", token "good-token", key "good-key", userGuid "good-guid",
+// tenantId "good-tenant" / apiKey "good-key".
 import { createServer } from "node:http";
 
 const parcels = new Map(); // tracking → { status, payload }
@@ -55,6 +56,33 @@ export function startMockCarriers(port) {
       }
       const m = path.match(/^\/v1\/parcels\/(.+)$/);
       if (m) return send(res, 200, { data: [{ tracking: m[1], last_status: parcels.get(m[1])?.status ?? "" }] });
+    }
+
+    // ZR Express new platform (same /api/v1 prefix as Ecotrack, told apart by its X-Tenant header)
+    if (path.startsWith("/api/v1/") && h["x-tenant"] !== undefined) {
+      if (h["x-tenant"] !== "good-tenant" || h["x-api-key"] !== "good-key") return send(res, 401, { title: "Unauthorized", status: 401 });
+      const filter = (field) => body.advancedFilter?.filters?.find((f) => f.field === field)?.value;
+      if (path === "/api/v1/territories/search") {
+        if (filter("level") === "commune") {
+          const items = filter("parentId") === "w-16" ? [{ id: "c-kouba", name: "Kouba", parentId: "w-16" }, { id: "c-bab", name: "Bab El Oued", parentId: "w-16" }] : [];
+          return send(res, 200, { items, hasNext: false });
+        }
+        return send(res, 200, { items: [{ id: "w-16", code: 16, name: "Alger" }, { id: "w-31", code: 31, name: "Oran" }], hasNext: false });
+      }
+      if (path === "/api/v1/hubs/search") return send(res, 200, { items: [{ id: "hub-16", isPickupPoint: true, address: { cityTerritoryId: "w-16", districtTerritoryId: "c-bab" } }], hasNext: false });
+      if (path === "/api/v1/parcels" && req.method === "POST") {
+        received.push({ platform: "zrexpress", ...body });
+        const id = `zr-${++counter}`;
+        parcels.set(`16-${counter}-ZR`, { id, status: "commande_recue", payload: body });
+        return send(res, 201, { id });
+      }
+      const m = path.match(/^\/api\/v1\/parcels\/(.+)$/);
+      if (m) {
+        const key = decodeURIComponent(m[1]);
+        const found = [...parcels].find(([tracking, p]) => tracking === key || p.id === key);
+        if (!found) return send(res, 404, { title: "Not Found", status: 404 });
+        return send(res, 200, { id: found[1].id, trackingNumber: found[0], state: { name: found[1].status } });
+      }
     }
 
     // Ecotrack

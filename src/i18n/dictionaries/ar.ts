@@ -307,7 +307,7 @@ const ar = {
     makeDefault: "اجعلها الافتراضية",
     soon: "قريباً",
     soonHint: "يمكنك حالياً إدخال رقم التتبع يدوياً في صفحة الطلب",
-    fields: { apiId: "API ID", apiToken: "API Token", token: "Token (مفتاح API)", key: "Key", userGuid: "User GUID" },
+    fields: { apiId: "API ID", apiToken: "API Token", token: "Token (مفتاح API)", key: "Key", userGuid: "User GUID", tenantId: "Tenant ID", apiKey: "API Key" },
     baseUrl: "رابط لوحة تحكم الشركة",
     baseUrlHint: "مثال: navex.ecotrack.dz",
     originWilaya: "ولاية انطلاق الطرود",

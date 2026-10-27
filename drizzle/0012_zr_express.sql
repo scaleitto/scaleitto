@@ -1,0 +1,1 @@
+ALTER TABLE `carrier_accounts` MODIFY COLUMN `platform` enum('yalidine','ecotrack','procolis','noest','zrexpress') NOT NULL;

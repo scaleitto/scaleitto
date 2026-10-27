@@ -5,6 +5,7 @@ import { noestClient } from "./noest";
 import { procolisClient } from "./procolis";
 import type { CarrierClient, Credentials } from "./types";
 import { yalidineClient } from "./yalidine";
+import { zrexpressClient } from "./zrexpress";
 
 export { CarrierError, type ParcelInput } from "./types";
 
@@ -13,6 +14,7 @@ const factories: Record<CarrierPlatform, (baseUrl: string, creds: Credentials) =
   ecotrack: ecotrackClient,
   procolis: procolisClient,
   noest: noestClient,
+  zrexpress: zrexpressClient,
 };
 
 // E2E_CARRIER_URL points every courier at a local fake server during the automated tests.

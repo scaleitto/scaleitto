@@ -309,7 +309,7 @@ const en: Dictionary = {
     makeDefault: "Make default",
     soon: "Soon",
     soonHint: "Meanwhile, type the tracking number by hand on the order",
-    fields: { apiId: "API ID", apiToken: "API Token", token: "Token (API key)", key: "Key", userGuid: "User GUID" },
+    fields: { apiId: "API ID", apiToken: "API Token", token: "Token (API key)", key: "Key", userGuid: "User GUID", tenantId: "Tenant ID", apiKey: "API Key" },
     baseUrl: "Company dashboard address",
     baseUrlHint: "e.g. navex.ecotrack.dz",
     originWilaya: "Wilaya parcels leave from",

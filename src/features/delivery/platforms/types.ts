@@ -1,6 +1,6 @@
 import "server-only";
 
-export type Credentials = Partial<Record<"apiId" | "apiToken" | "token" | "key" | "userGuid", string>>;
+export type Credentials = Partial<Record<"apiId" | "apiToken" | "token" | "key" | "userGuid" | "tenantId" | "apiKey", string>>;
 
 // One order, in the shape every courier needs (names in French: couriers use the French spelling).
 export type ParcelInput = {

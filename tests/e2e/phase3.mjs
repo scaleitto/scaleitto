@@ -136,8 +136,17 @@ export default async function phase3(browser) {
     await page.waitForSelector('[data-testid=history] >> text=قيد التوصيل ← مرتجع');
   });
 
-  await step("ZR Express and NOEST: connect, send, read the status", async () => {
+  await step("ZR Express (both platforms) and NOEST: connect, send, read the status", async () => {
     await page.goto(delivery);
+    await page.click('[data-carrier="zr"] button:has-text("ربط")');
+    await page.fill("#zr-tenantId", "good-tenant");
+    await page.fill("#zr-apiKey", "wrong-key");
+    await page.locator('[data-connect="zr"] button[type=submit]').click();
+    await page.locator('[data-connect="zr"]').getByText("شركة التوصيل رفضت المفاتيح").waitFor();
+    expect(!(await page.locator('[data-account="zr"]').count()), "refused keys are not saved");
+    await page.fill("#zr-apiKey", "good-key");
+    await page.locator('[data-connect="zr"] button[type=submit]').click();
+    await page.waitForSelector('[data-account="zr"]');
     await page.click('[data-carrier="zrexpress"] button:has-text("ربط")');
     await page.fill("#zrexpress-token", "good-token");
     await page.fill("#zrexpress-key", "good-key");
@@ -149,7 +158,7 @@ export default async function phase3(browser) {
     await page.locator('[data-connect="noest"] button[type=submit]').click();
     await page.waitForSelector('[data-account="noest"]');
 
-    for (const [label, platform, phone] of [["ZR Express", "procolis", "0661000001"], ["NOEST Express", "noest", "0661000002"]]) {
+    for (const [label, platform, phone] of [["ZR Express", "zrexpress", "0661000003"], ["ZR Express (Procolis)", "procolis", "0661000001"], ["NOEST Express", "noest", "0661000002"]]) {
       const id = await placeOrder("كريم", phone, 16, "Kouba");
       await page.goto(`${orders}/${id}`);
       await page.click('[data-testid=status-picker] button:has-text("مؤكد")');
@@ -158,9 +167,11 @@ export default async function phase3(browser) {
       await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
       await page.waitForSelector("[data-testid=tracking-number]");
       const sent = received.findLast((r) => r.platform === platform);
-      if (platform === "procolis") expect(sent.IDWilaya === "16" && sent.Total === "3300" && sent.TypeLivraison === "0" && sent.MobileA === phone, "ZR parcel data");
+      if (platform === "zrexpress")
+        expect(sent.deliveryAddress.cityTerritoryId === "w-16" && sent.deliveryAddress.districtTerritoryId === "c-kouba" && sent.amount === 3300 && sent.customer.phone.number1 === "+213661000003" && sent.deliveryType === "home", "ZR (new) parcel data");
+      else if (platform === "procolis") expect(sent.IDWilaya === "16" && sent.Total === "3300" && sent.TypeLivraison === "0" && sent.MobileA === phone, "ZR parcel data");
       else expect(sent.wilaya_id === 16 && sent.montant === 3300 && sent.phone === phone, "NOEST parcel data");
-      setParcelStatus(await page.locator("[data-testid=tracking-number]").innerText(), "Livré");
+      setParcelStatus(await page.locator("[data-testid=tracking-number]").innerText(), platform === "zrexpress" ? "livre" : "Livré");
       await page.click('button:has-text("تحديث الحالة")');
       await page.waitForSelector('[data-testid=history] >> text=قيد التوصيل ← تم التسليم');
     }

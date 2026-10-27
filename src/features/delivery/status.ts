@@ -3,13 +3,14 @@ import type { OrderStatus, ShipmentStatus } from "@/server/db/schema";
 // Couriers describe parcels in their own words (French, Arabic, codes). This maps them
 // to one set of statuses. Unknown wording stays visible as the raw status.
 const rules: [RegExp, ShipmentStatus][] = [
+  [/commande re[çc]ue|order received/i, "created"],
   [/annul|cancel|ملغ/i, "cancelled"],
-  [/retour.*(en cours|transit|vers)|en retour|returning|retour en/i, "returning"],
+  [/retour.*(en cours|transit|vers)|en retour|returning|in return|retour en/i, "returning"],
   [/retourn|retour|returned|مرتجع|إرجاع/i, "returned"],
-  [/tentative|échou|echou|absent|injoignable|report|refus|attempt|محاولة/i, "attempted"],
-  [/en cours de livraison|sorti en livraison|out for delivery|خرج/i, "out_for_delivery"],
+  [/tentative|échou|echou|[ée]chec|failed|absent|injoignable|report|refus|attempt|محاولة/i, "attempted"],
+  [/en cours de livraison|sortie? en livraison|^en livraison|out for delivery|خرج/i, "out_for_delivery"],
   [/livr[ée]|delivered|تم التسليم|encaiss/i, "delivered"],
-  [/transit|transf|exp[ée]di|enlev|ramass|re[çc]u|centre|hub|agence|stop ?desk|picked|shipped|قيد/i, "in_transit"],
+  [/transit|transf|exp[ée]di|enlev|ramass|re[çc]u|centre|hub|agence|stop ?desk|picked|shipped|dispatch|vers wilaya|bureau|قيد/i, "in_transit"],
   [/pr[ée]paration|attente|cr[ée]{1,2}|enregistr|pending|prêt|pret|created/i, "created"],
 ];
 
@@ -32,3 +33,17 @@ export function splitName(full: string) {
   if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
   return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1] };
 }
+
+// "Béjaïa", "BEJAIA", "Bejaia " → "bejaia"
+export const nameKey = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9؀-ۿ]+/g, "");
+// "en_retour" → "en retour", "OutForDelivery" → "Out For Delivery" (readable, and understood by normalizeShipmentStatus)
+export const readableState = (v: string) =>
+  v
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim();

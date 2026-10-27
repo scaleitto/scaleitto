@@ -48,13 +48,17 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Orders dashboard (`src/features/orders/`): list with status counts/search, detail (status, customer edit,
   phone history + block, notes, history), abandoned carts. Cancelled/returned orders give stock back (`holdsStock`).
 - Delivery (`src/features/delivery/`): `carriers.ts` (catalog; couriers grouped by platform: yalidine, ecotrack —
-  one API on <name>.ecotrack.dz for 80+ couriers —, procolis = ZR Express, noest), `platforms/*` (one client per
+  one API on <name>.ecotrack.dz for 80+ couriers —, zrexpress = ZR Express's new platform api.zrexpress.app (X-Tenant +
+  X-Api-Key, territory UUIDs found by wilaya code / commune name without accents, stop desk = the wilaya's pickup hub), procolis =
+  ZR Express's old platform, noest), `platforms/*` (one client per
   platform: test / createParcel / trackingStatus), keys encrypted with `src/server/crypto.ts` (APP_SECRET, falls back
   to DATABASE_URL). Rates per wilaya in `shipping_rates`; sending/tracking from the order page (`ShipmentCard`);
   delivered/returned parcels close the order through `src/features/orders/transition.ts` (`applyOrderStatus`, the
   only place that changes an order status: stock + history). E2E tests use `tests/e2e/mock-carriers.mjs` via
-  E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ), not
-  official docs: verify with a real merchant account before relying on a platform.
+  E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ, dz-delivery for
+  ZR's new platform), not official docs: verify with a real merchant account before relying on a platform. Courier status words
+  → `delivery/status.ts` (ZR states pass through `readableState`). Meta Conversions API version: `META_VERSION` in
+  `pixels/server.ts` (Meta retires versions ~2 years after the next one: move it forward yearly).
 - Store Design (`src/features/design/`): `shops.design` JSON read through `resolveDesign()` (defaults for missing keys —
   add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
   `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
@@ -171,5 +175,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 
 ## Roadmap (from the owner's feature list)
 v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
-Next: real-account checks of the integrations (carriers, pixels, Sheets, OpenAI images).
+Next: real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
+against public docs/clients; ZR Express new platform added.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

@@ -134,7 +134,7 @@ export default async function phase9(browser) {
     expect((await dataLayer(customer)).some((x) => Array.isArray(x) && x[1] === "purchase" && x[2].transaction_id === watchOrder), "GA4 purchase");
     const meta = await waitFor(() => received.find((r) => r.platform === "meta" && r.body.data[0].event_id === watchOrder), "server Meta event");
     const ev = meta.body.data[0];
-    expect(meta.path === `/meta/v21.0/${META}/events` && ev.event_name === "Purchase" && ev.custom_data.value === 3500 && ev.custom_data.currency === "DZD", "Meta Conversions API purchase");
+    expect(meta.path === `/meta/v25.0/${META}/events` && ev.event_name === "Purchase" && ev.custom_data.value === 3500 && ev.custom_data.currency === "DZD", "Meta Conversions API purchase");
     expect(ev.user_data.ph[0].length === 64 && !JSON.stringify(ev).includes("0555112233"), "phone sent hashed only");
     expect(String(ev.event_source_url).includes("/p/watch"), "page URL sent");
     const ga = await waitFor(() => received.find((r) => r.platform === "ga4" && r.body.events[0].params.transaction_id === watchOrder), "server GA4 event");

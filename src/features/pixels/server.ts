@@ -20,7 +20,7 @@ const hosts = () => {
     ga4: fake ? `${fake}/ga4` : "https://www.google-analytics.com",
   };
 };
-const META_VERSION = "v21.0";
+const META_VERSION = "v25.0"; // Meta retires a version about two years after the next one ships: move it forward yearly
 const CURRENCY = "DZD";
 const sha = (v: string) => createHash("sha256").update(v.trim().toLowerCase()).digest("hex");
 // 0555123456 → 213555123456

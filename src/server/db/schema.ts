@@ -369,7 +369,7 @@ export const shippingRates = mysqlTable(
 );
 
 // A delivery company account connected by the shop. Credentials are encrypted (src/server/crypto.ts).
-export const carrierPlatforms = ["yalidine", "ecotrack", "procolis", "noest"] as const;
+export const carrierPlatforms = ["yalidine", "ecotrack", "procolis", "noest", "zrexpress"] as const;
 export type CarrierPlatform = (typeof carrierPlatforms)[number];
 
 export const carrierAccounts = mysqlTable(

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeShipmentStatus, orderStatusFor, splitName } from "../../src/features/delivery/status";
+import { nameKey, normalizeShipmentStatus, orderStatusFor, readableState, splitName } from "../../src/features/delivery/status";
 import { carriers, findCarrier, normalizeEcotrackUrl, platformFields } from "../../src/features/delivery/carriers";
 
 test("courier wording maps to one status set", () => {
@@ -20,6 +20,27 @@ test("courier wording maps to one status set", () => {
   assert.equal(orderStatusFor("delivered"), "delivered");
   assert.equal(orderStatusFor("returned"), "returned");
   assert.equal(orderStatusFor("in_transit"), null);
+});
+
+test("ZR Express (new platform) states and place names", () => {
+  const cases: [string, string][] = [
+    ["livre", "delivered"],
+    ["Delivered", "delivered"],
+    ["encaisse", "delivered"],
+    ["en_retour", "returning"],
+    ["InReturn", "returning"],
+    ["retour_confirme", "returned"],
+    ["Returned", "returned"],
+    ["echec_livraison", "attempted"],
+    ["FailedDelivery", "attempted"],
+    ["OutForDelivery", "out_for_delivery"],
+    ["sortie_en_livraison", "out_for_delivery"],
+    ["commande_annulee", "cancelled"],
+    ["en_preparation", "created"],
+  ];
+  for (const [raw, expected] of cases) assert.equal(normalizeShipmentStatus(readableState(raw)), expected, raw);
+  assert.equal(nameKey("Béjaïa "), nameKey("BEJAIA"));
+  assert.equal(nameKey("Bab-El-Oued"), nameKey("bab el oued"));
 });
 
 test("names are split for couriers", () => {

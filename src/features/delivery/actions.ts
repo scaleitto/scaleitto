@@ -63,6 +63,8 @@ const connectSchema = z.object({
   token: z.string().trim().max(2000).optional(),
   key: z.string().trim().max(500).optional(),
   userGuid: z.string().trim().max(200).optional(),
+  tenantId: z.string().trim().max(200).optional(),
+  apiKey: z.string().trim().max(2000).optional(),
 });
 
 export async function connectCarrier(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
