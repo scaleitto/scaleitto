@@ -13,6 +13,13 @@
   --color-accent-fg: #052e14;
   --color-danger: #f87171;
   --color-brand: var(--brand, #22c55e);
+  /* Storefront theme tokens (set per store by src/features/themes/themes.ts) */
+  --color-s-bg: var(--s-bg, #f8fafc);
+  --color-s-surface: var(--s-surface, #ffffff);
+  --color-s-text: var(--s-text, #0f172a);
+  --color-s-muted: var(--s-muted, #64748b);
+  --color-s-line: var(--s-line, #e2e8f0);
+  --color-s-card-border: var(--s-card-border, #e2e8f0);
 }
 
 :root {

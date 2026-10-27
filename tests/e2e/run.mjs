@@ -6,9 +6,10 @@ import phase1 from "./phase1.mjs";
 import phase2 from "./phase2.mjs";
 import phase3 from "./phase3.mjs";
 import phase4 from "./phase4.mjs";
+import phase5 from "./phase5.mjs";
 import { startMockCarriers } from "./mock-carriers.mjs";
 
-const phases = { phase0, phase1, phase2, phase3, phase4 };
+const phases = { phase0, phase1, phase2, phase3, phase4, phase5 };
 const only = process.argv[2];
 
 // The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)

@@ -11,6 +11,7 @@ import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form"
 import { ImageManager } from "@/ui/ImageManager";
 import { AnnouncementBar, Hero, ProductGrid, StoreFooter, StoreFrame, StoreHeader, TrustBadges, type GridProduct } from "@/features/storefront/blocks";
 import { colorPresets, type StoreDesign } from "./types";
+import { findTheme } from "@/features/themes/themes";
 
 export type DesignText = Pick<Dictionary, "design" | "media" | "errors" | "common">;
 
@@ -52,6 +53,7 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const set = <K extends keyof StoreDesign>(key: K, value: StoreDesign[K]) => setDesign((prev) => ({ ...prev, [key]: value }));
   const validColor = /^#[0-9a-f]{6}$/i.test(color) ? color : initial.primaryColor;
+  const theme = findTheme(design.theme);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
@@ -166,13 +168,13 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
             inert
             data-testid="design-preview"
           >
-            <StoreFrame locale={preview.locale} color={validColor}>
+            <StoreFrame locale={preview.locale} color={validColor} theme={theme}>
               {design.announcement.enabled && design.announcement.text && <AnnouncementBar text={design.announcement.text} />}
-              <StoreHeader name={preview.shopName} logoUrl={logo[0] ?? null} phone={preview.phone} homeHref="#" />
+              <StoreHeader name={preview.shopName} logoUrl={logo[0] ?? null} phone={preview.phone} homeHref="#" align={theme.layout.header} />
               <div className="space-y-6 p-4">
-                {design.hero.enabled && <Hero hero={design.hero} />}
+                {design.hero.enabled && <Hero hero={design.hero} variant={theme.layout.hero} />}
                 {design.showBadges && <TrustBadges t={preview.storeText} />}
-                <ProductGrid title={design.productsTitle} products={preview.products} base="#" currency={preview.currency} t={preview.storeText} />
+                <ProductGrid title={design.productsTitle} products={preview.products} base="#" currency={preview.currency} t={preview.storeText} layout={theme.layout} />
               </div>
               <StoreFooter name={preview.shopName} about={design.about} socials={design.socials} t={preview.storeText} />
             </StoreFrame>

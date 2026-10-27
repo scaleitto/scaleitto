@@ -1,6 +1,8 @@
 // How a shop's storefront looks. Stored as JSON in shops.design; missing keys fall back to the defaults,
 // so new options can be added later without migrating old shops.
 export type StoreDesign = {
+  // Key of the theme chosen in the Theme Store (src/features/themes/themes.ts)
+  theme: string;
   announcement: { enabled: boolean; text: string };
   hero: { enabled: boolean; image: string; title: string; subtitle: string; buttonText: string };
   productsTitle: string;
@@ -10,6 +12,7 @@ export type StoreDesign = {
 };
 
 export const defaultDesign: StoreDesign = {
+  theme: "classic",
   announcement: { enabled: false, text: "" },
   hero: { enabled: false, image: "", title: "", subtitle: "", buttonText: "" },
   productsTitle: "",
@@ -24,6 +27,7 @@ const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (
 export function resolveDesign(saved: unknown): StoreDesign {
   const s = obj(saved);
   return {
+    theme: typeof s.theme === "string" ? s.theme : defaultDesign.theme,
     announcement: { ...defaultDesign.announcement, ...obj(s.announcement) } as StoreDesign["announcement"],
     hero: { ...defaultDesign.hero, ...obj(s.hero) } as StoreDesign["hero"],
     productsTitle: typeof s.productsTitle === "string" ? s.productsTitle : defaultDesign.productsTitle,

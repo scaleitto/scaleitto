@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { Cairo } from "next/font/google";
+import { fontVariables } from "../fonts";
 import { notFound } from "next/navigation";
 import { dir, isLocale, locales } from "@/i18n/config";
 import "../globals.css";
-
-const cairo = Cairo({ subsets: ["arabic", "latin"], variable: "--font-cairo" });
 
 export const metadata: Metadata = { title: "Scaleitto", description: "Algerian e-commerce platform" };
 
@@ -19,7 +17,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   return (
-    <html lang={lang} dir={dir(lang)} className={`${cairo.variable} bg-bg`}>
+    <html lang={lang} dir={dir(lang)} className={`${fontVariables} bg-bg`}>
       <body className="min-h-screen bg-bg font-sans text-fg">{children}</body>
     </html>
   );

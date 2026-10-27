@@ -47,13 +47,13 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           <h1 className="text-2xl font-extrabold leading-snug">{product.name}</h1>
           <p className="flex flex-wrap items-baseline gap-3">
             <span className="text-3xl font-extrabold text-brand">{formatPrice(product.price, cur)}</span>
-            {product.compareAtPrice ? <span className="text-lg text-slate-400 line-through">{formatPrice(product.compareAtPrice, cur)}</span> : null}
+            {product.compareAtPrice ? <span className="text-lg text-s-muted line-through">{formatPrice(product.compareAtPrice, cur)}</span> : null}
           </p>
-          <ul className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-            <li className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 shadow-sm">
+          <ul className="flex flex-wrap gap-2 text-xs font-semibold text-s-muted">
+            <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
               <BadgeCheck size={14} className="text-brand" /> {t.cod}
             </li>
-            <li className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 shadow-sm">
+            <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
               <Truck size={14} className="text-brand" /> {t.fastDelivery}
             </li>
           </ul>
@@ -68,7 +68,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           action={submitOrder.bind(null, shop.slug, product.id)}
           saveLead={saveLead.bind(null, shop.slug, product.id)}
         />
-        {product.description && <div className="whitespace-pre-line rounded-2xl bg-white p-5 leading-relaxed text-slate-700 shadow-sm">{product.description}</div>}
+        {product.description && <div className="whitespace-pre-line rounded-[var(--s-radius)] bg-s-surface p-5 leading-relaxed text-s-muted shadow-[var(--s-shadow)]">{product.description}</div>}
       </div>
     </div>
   );

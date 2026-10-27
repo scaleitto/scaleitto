@@ -7,13 +7,13 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
   const [current, setCurrent] = useState(0);
   if (!images.length)
     return (
-      <div className="flex aspect-square items-center justify-center rounded-2xl bg-slate-100">
-        <ImageOff size={48} className="text-slate-300" />
+      <div className="flex aspect-square items-center justify-center rounded-[var(--s-radius)] bg-s-bg">
+        <ImageOff size={48} className="text-s-muted/50" />
       </div>
     );
   return (
     <div className="space-y-3">
-      <div className="aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="aspect-square overflow-hidden rounded-[var(--s-radius)] border border-s-line bg-s-surface">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={images[current]} alt={alt} className="size-full object-cover" />
       </div>

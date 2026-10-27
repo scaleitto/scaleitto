@@ -19,10 +19,10 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
     <div className="mx-auto max-w-lg space-y-5 py-6 text-center">
       <CircleCheckBig size={64} className="mx-auto text-brand" />
       <h1 className="text-2xl font-extrabold">{t.thanks.title}</h1>
-      <p className="text-slate-600">{fmt(t.thanks.body, { phone: order.phone })}</p>
-      <div className="space-y-3 rounded-2xl bg-white p-5 text-start shadow-sm">
+      <p className="text-s-muted">{fmt(t.thanks.body, { phone: order.phone })}</p>
+      <div className="space-y-3 rounded-[var(--s-radius)] bg-s-surface p-5 text-start shadow-[var(--s-shadow)]">
         <p className="flex justify-between text-sm">
-          <span className="text-slate-500">{t.thanks.number}</span>
+          <span className="text-s-muted">{t.thanks.number}</span>
           <span className="font-extrabold" data-testid="order-number">
             #{order.number}
           </span>
@@ -31,16 +31,16 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
           <p key={item.id} className="flex justify-between gap-3 text-sm">
             <span>
               {item.name}
-              {item.variantTitle && <span className="text-slate-500"> · {item.variantTitle}</span>} ×{item.quantity}
+              {item.variantTitle && <span className="text-s-muted"> · {item.variantTitle}</span>} ×{item.quantity}
             </span>
             <span className="font-semibold whitespace-nowrap">{formatPrice(item.total, cur)}</span>
           </p>
         ))}
         <p className="flex justify-between text-sm">
-          <span className="text-slate-500">{t.summary.shipping}</span>
+          <span className="text-s-muted">{t.summary.shipping}</span>
           <span className="font-semibold">{order.shippingPrice === 0 ? t.summary.free : formatPrice(order.shippingPrice, cur)}</span>
         </p>
-        <p className="flex justify-between border-t border-slate-100 pt-3 text-lg">
+        <p className="flex justify-between border-t border-s-line pt-3 text-lg">
           <span className="font-bold">{t.summary.total}</span>
           <span className="font-extrabold text-brand">{formatPrice(order.total, cur)}</span>
         </p>

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { Cairo } from "next/font/google";
+import { fontVariables } from "../fonts";
 import "../globals.css";
-
-const cairo = Cairo({ subsets: ["arabic", "latin"], variable: "--font-cairo" });
 
 export const metadata: Metadata = { title: "Store" };
 
@@ -12,8 +10,8 @@ export const instant = false;
 // The shop's own language and direction are applied by ./[slug]/layout.tsx.
 export default function StoreRootLayout({ children }: LayoutProps<"/store">) {
   return (
-    <html lang="ar" className={cairo.variable}>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">{children}</body>
+    <html lang="ar" className={fontVariables}>
+      <body className="min-h-screen bg-s-bg font-sans text-s-text antialiased">{children}</body>
     </html>
   );
 }

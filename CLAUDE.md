@@ -59,6 +59,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
   `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
   look there, not in pages).
+- Themes (`src/features/themes/themes.ts`): each theme = tokens (font, surfaces, radii, card style) + layout
+  switches (header, hero, columns, image shape). `themeStyle()` sets CSS variables on `StoreFrame`; storefront
+  code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-line`…), `rounded-[var(--s-radius)]`,
+  `rounded-[var(--s-radius-btn)]` and `shadow-[var(--s-shadow)]` — never fixed slate/white colors, or dark themes
+  break. Fonts for all themes are declared once in `src/app/fonts.ts`. The chosen theme is `design.theme`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
@@ -84,7 +89,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design).
-Next: Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store).
+Next: Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

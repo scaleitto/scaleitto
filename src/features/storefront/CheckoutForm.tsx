@@ -13,8 +13,8 @@ import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
 type LeadInput = { name?: string; phone?: string; wilaya?: number | null; variantId?: string; quantity?: number };
 
-const field = "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
-const label = "mb-1.5 block text-sm font-semibold text-slate-700";
+const field = "w-full rounded-[var(--s-radius-btn)] border border-s-line bg-s-surface px-3.5 py-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
+const label = "mb-1.5 block text-sm font-semibold text-s-muted";
 
 export function CheckoutForm({
   t,
@@ -94,10 +94,10 @@ export function CheckoutForm({
 
   return (
     <>
-      <form ref={formRef} id="order-form" onSubmit={onSubmit} noValidate className="space-y-5 rounded-2xl border-2 border-brand/30 bg-white p-4 shadow-sm sm:p-5">
+      <form ref={formRef} id="order-form" onSubmit={onSubmit} noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
         <div>
           <h2 className="text-xl font-extrabold">{t.form.title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{t.form.subtitle}</p>
+          <p className="mt-1 text-sm text-s-muted">{t.form.subtitle}</p>
         </div>
 
         <input type="hidden" name="variantId" value={variant?.id ?? ""} />
@@ -119,8 +119,8 @@ export function CheckoutForm({
                     aria-pressed={active}
                     disabled={!ok}
                     onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
-                    className={`min-w-12 rounded-xl border-2 px-4 py-2 text-sm font-bold transition ${
-                      active ? "border-brand bg-brand text-white" : "border-slate-200 bg-white hover:border-brand"
+                    className={`min-w-12 rounded-[var(--s-radius-btn)] border-2 px-4 py-2 text-sm font-bold transition ${
+                      active ? "border-brand bg-brand text-white" : "border-s-line bg-s-surface hover:border-brand"
                     } disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`}
                   >
                     {value}
@@ -142,7 +142,7 @@ export function CheckoutForm({
                 return (
                   <label
                     key={q}
-                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-slate-200"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-line"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
                   >
                     <span className="flex items-center gap-3">
                       <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 accent-[var(--brand)]" />
@@ -161,7 +161,7 @@ export function CheckoutForm({
         ) : (
           <div>
             <span className={label}>{t.form.quantity}</span>
-            <div className="inline-flex items-center rounded-xl border border-slate-300">
+            <div className="inline-flex items-center rounded-[var(--s-radius-btn)] border border-s-line">
               <button type="button" aria-label="-" className="p-3 disabled:opacity-30" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
                 <Minus size={16} />
               </button>
@@ -237,7 +237,7 @@ export function CheckoutForm({
               return (
                 <label
                   key={type}
-                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-slate-200"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
+                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-s-line"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
                 >
                   <span className="flex items-center gap-2 font-semibold">
                     <input type="radio" name="deliveryType" value={type} checked={deliveryType === type} disabled={unavailable} onChange={() => setDeliveryType(type)} className="size-4 accent-[var(--brand)]" />
@@ -265,20 +265,20 @@ export function CheckoutForm({
           <textarea id="note" name="note" rows={2} maxLength={500} className={field} />
         </div>
 
-        <dl className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm" data-testid="summary">
+        <dl className="space-y-2 rounded-[var(--s-radius-btn)] bg-s-bg p-4 text-sm" data-testid="summary">
           <div className="flex justify-between">
-            <dt className="text-slate-600">
+            <dt className="text-s-muted">
               {t.summary.product} {quantity > 1 && `(×${quantity})`}
             </dt>
             <dd className="font-semibold">{formatPrice(line.total, currency)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-600">{t.summary.shipping}</dt>
+            <dt className="text-s-muted">{t.summary.shipping}</dt>
             <dd className="font-semibold">
               {!hasRates ? t.summary.free : shipping === undefined ? t.summary.chooseWilayaFirst : shipping === null ? t.summary.notDelivered : shipping === 0 ? t.summary.free : formatPrice(shipping, currency)}
             </dd>
           </div>
-          <div className="flex justify-between border-t border-slate-200 pt-2 text-base">
+          <div className="flex justify-between border-t border-s-line pt-2 text-base">
             <dt className="font-bold">{t.summary.total}</dt>
             <dd className="font-extrabold text-brand" data-testid="total">
               {formatPrice(total, currency)}
@@ -287,7 +287,7 @@ export function CheckoutForm({
         </dl>
 
         {state.error && (
-          <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <p role="alert" className="rounded-[var(--s-radius-btn)] bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             {errors[state.error] ?? errors.unexpected}
           </p>
         )}
@@ -295,7 +295,7 @@ export function CheckoutForm({
         <button
           type="submit"
           disabled={pending || soldOut}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
           {soldOut ? t.outOfStock : pending ? t.form.sending : `${t.form.submit} · ${formatPrice(total, currency)}`}
@@ -304,7 +304,7 @@ export function CheckoutForm({
       </form>
 
       {/* Mobile: a sticky button that brings the form into view */}
-      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-xl bg-brand py-3.5 text-base font-extrabold text-white shadow-xl md:hidden`}>
+      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-white shadow-xl md:hidden`}>
         <ShoppingBag size={18} /> {t.form.title}
       </a>
     </>
