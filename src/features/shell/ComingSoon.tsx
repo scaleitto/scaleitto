@@ -4,7 +4,7 @@ import { Badge, Card, PageHeader } from "@/ui";
 import type { SectionKey } from "@/lib/permissions";
 
 // Placeholder for sections that are not rebuilt yet: says what the section will contain.
-export function ComingSoon({ t, section }: { t: Dictionary; section: Exclude<SectionKey, "overview" | "profile" | "products" | "orders" | "delivery" | "storeDesign" | "themes" | "callCenters" | "landingPages"> }) {
+export function ComingSoon({ t, section }: { t: Dictionary; section: Exclude<SectionKey, "overview" | "profile" | "products" | "orders" | "delivery" | "storeDesign" | "themes" | "callCenters" | "landingPages" | "analytics"> }) {
   const info = t.sections[section];
   return (
     <>
