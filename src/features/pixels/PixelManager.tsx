@@ -7,7 +7,7 @@ import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, Select } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { pixelPlatforms, purchaseTriggers, type PixelPlatform } from "@/server/db/schema";
+import { pixelPlatforms, purchaseTriggers, type PixelPlatform } from "@/lib/enums";
 import { serverPlatforms } from "./ids";
 import { deletePixel, savePixel, sendTestEvent, setPixelActive } from "./actions";
 import type { PixelRow } from "./queries";

@@ -11,6 +11,11 @@ export function formatDate(d: Date, locale: string) {
   return d.toLocaleString(intlLocale(locale), { dateStyle: "short", timeStyle: "short", timeZone: TIME_ZONE });
 }
 
+// A calendar day (no time), in Algeria time
+export function formatDay(d: Date, locale: string) {
+  return d.toLocaleDateString(intlLocale(locale), { dateStyle: "medium", timeZone: TIME_ZONE });
+}
+
 export function formatTime(d: Date, locale: string) {
   return d.toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE });
 }

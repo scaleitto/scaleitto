@@ -13,6 +13,7 @@ export function visibleOrders(v: OrderViewer) {
   return and(eq(schema.orders.shopId, v.shopId), v.role === "agent" ? eq(schema.orders.assignedTo, v.userId) : undefined);
 }
 
+// Changing an order: it must be visible to the viewer and not locked (over the plan's limit).
 export async function canTouchOrder(v: OrderViewer, orderId: string) {
-  return (await db.$count(schema.orders, and(visibleOrders(v), eq(schema.orders.id, orderId)))) > 0;
+  return (await db.$count(schema.orders, and(visibleOrders(v), eq(schema.orders.id, orderId), eq(schema.orders.locked, false)))) > 0;
 }

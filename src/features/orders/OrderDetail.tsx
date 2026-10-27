@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
-import { Alert, Badge, Card, PageHeader } from "@/ui";
+import { Alert, Badge, Card, PageHeader, buttonClass } from "@/ui";
 import { addOrderNote, updateOrderCustomer } from "./actions";
 import { AssignCard, CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
@@ -51,10 +51,23 @@ export function OrderDetail({
           </>
         }
       />
+      {order.locked && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4" data-testid="order-locked">
+          <Lock size={20} className="shrink-0 text-amber-300" />
+          <div className="me-auto">
+            <p className="font-semibold">{o.locked.title}</p>
+            <p className="text-sm text-muted">{o.locked.body}</p>
+          </div>
+          <Link href={sectionHref(lang, "plans")} className={buttonClass("primary")}>
+            {o.locked.upgrade}
+          </Link>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <StatusPicker lang={lang} orderId={order.id} status={order.status} t={text} />
-          <ShipmentCard
+          {/* A locked order (over the plan's limit) can only be looked at: no actions, no customer details */}
+          {!order.locked && <StatusPicker lang={lang} orderId={order.id} status={order.status} t={text} />}
+          {!order.locked && <ShipmentCard
             lang={lang}
             orderId={order.id}
             orderStatus={order.status}
@@ -72,8 +85,8 @@ export function OrderDetail({
             accounts={accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault }))}
             deliveryHref={canManageDelivery ? sectionHref(lang, "delivery") : null}
             t={{ delivery: t.delivery, errors: t.errors, common: t.common }}
-          />
-          <CustomerCard
+          />}
+          {!order.locked && <CustomerCard
             customer={{
               customerName: order.customerName,
               phone: order.phone,
@@ -87,7 +100,7 @@ export function OrderDetail({
             wilayas={wilayas.map((w) => ({ code: w.code, name: wilayaName(w.code, lang) }))}
             t={text}
             action={updateOrderCustomer.bind(null, lang, order.id)}
-          />
+          />}
           <Card className="space-y-3">
             <h2 className="font-semibold">{o.items}</h2>
             <ul className="divide-y divide-line">
@@ -151,8 +164,8 @@ export function OrderDetail({
         </div>
 
         <div className="space-y-6">
-          <AssignCard lang={lang} orderId={order.id} assignedTo={order.assignedTo} assigneeName={order.assigneeName} members={members} t={text} />
-          <Card className="space-y-3" data-testid="phone-history">
+          {!order.locked && <AssignCard lang={lang} orderId={order.id} assignedTo={order.assignedTo} assigneeName={order.assigneeName} members={members} t={text} />}
+          {!order.locked && <Card className="space-y-3" data-testid="phone-history">
             <h2 className="font-semibold">{o.phoneHistory}</h2>
             {order.phoneStats.orders <= 1 ? (
               <p className="text-sm text-muted">{o.firstOrder}</p>
@@ -165,7 +178,7 @@ export function OrderDetail({
             )}
             {order.phoneBlocked && <Alert>{o.blocked}</Alert>}
             <PhoneBlockButton lang={lang} phone={order.phone} blocked={order.phoneBlocked} t={text} />
-          </Card>
+          </Card>}
 
           <Card className="space-y-4">
             <h2 className="font-semibold">{o.history}</h2>
@@ -189,7 +202,7 @@ export function OrderDetail({
                 </li>
               ))}
             </ol>
-            <NoteForm t={text} action={addOrderNote.bind(null, lang, order.id)} />
+            {!order.locked && <NoteForm t={text} action={addOrderNote.bind(null, lang, order.id)} />}
           </Card>
         </div>
       </div>

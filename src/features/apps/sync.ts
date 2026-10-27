@@ -133,7 +133,8 @@ export async function syncOrder(shopId: string, orderId: string, event: "order.c
     const apps = await db.select().from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.active, true)));
     if (!apps.length) return;
     const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
-    if (!order) return;
+    // A locked order (over the plan's limit) is sent once it is unlocked
+    if (!order || order.locked) return;
     const [full] = await loadOrders(shopId, [order]);
     const locale = await shopLocaleOf(shopId);
     for (const app of apps) {
@@ -160,7 +161,7 @@ const BACKFILL_MAX = 500;
 // Fills a newly connected sheet with the last 30 days of orders (oldest first, 100 rows per request).
 export async function backfillSheet(app: App): Promise<Result> {
   const since = new Date(Date.now() - BACKFILL_DAYS * 86400_000);
-  const orders = (await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, app.shopId), gte(schema.orders.createdAt, since))).orderBy(desc(schema.orders.createdAt)).limit(BACKFILL_MAX)).reverse();
+  const orders = (await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, app.shopId), eq(schema.orders.locked, false), gte(schema.orders.createdAt, since))).orderBy(desc(schema.orders.createdAt)).limit(BACKFILL_MAX)).reverse();
   const locale = await shopLocaleOf(app.shopId);
   let sent = 0;
   for (let i = 0; i < orders.length; i += 100) {

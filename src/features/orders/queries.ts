@@ -21,8 +21,8 @@ export async function listOrders(viewer: OrderViewer, { q = "", status, page = 1
     const like_ = `%${escapeLike(term)}%`;
     filters.push(
       or(
-        like(o.customerName, like_),
-        digits ? like(o.phone, `%${digits.replace(/^213/, "")}%`) : undefined,
+        // A locked order's customer cannot be found by name or phone (that would reveal them)
+        and(eq(o.locked, false), or(like(o.customerName, like_), digits ? like(o.phone, `%${digits.replace(/^213/, "")}%`) : undefined)),
         /^#?\d+$/.test(term) ? eq(o.number, Number(term.replace("#", ""))) : undefined,
       ),
     );
@@ -39,6 +39,7 @@ export async function listOrders(viewer: OrderViewer, { q = "", status, page = 1
         wilayaCode: o.wilayaCode,
         total: o.total,
         createdAt: o.createdAt,
+        locked: o.locked,
         assigneeName: schema.users.name,
         // First product of the order, for the list
         // (written as plain SQL: inside a select Drizzle drops table names, which made the columns ambiguous)
@@ -52,7 +53,7 @@ export async function listOrders(viewer: OrderViewer, { q = "", status, page = 1
       .offset((Math.max(1, page) - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(o).where(where),
   ]);
-  return { rows, total };
+  return { rows: rows.map((r) => (r.locked ? { ...r, customerName: "", phone: "" } : r)), total };
 }
 
 export async function statusCounts(viewer: OrderViewer) {
@@ -90,10 +91,15 @@ export async function getOrder(viewer: OrderViewer, id: string) {
     delivered: byStatus.delivered ?? 0,
     failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0),
   };
-  return { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null,
+  const detail = { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null,
     landingTitle: (landing as { title: string } | undefined)?.title ?? null,
     extra: Array.isArray(order.extra) ? (order.extra as { label: string; value: string }[]) : [],
   };
+  // Locked (over the plan's limit): nothing that identifies the customer leaves the server
+  if (order.locked) {
+    return { ...detail, customerName: "", phone: "", commune: "", address: null, customerNote: null, extra: [], ip: null, userAgent: null, tracking: null, phoneStats: { orders: 0, delivered: 0, failed: 0 }, phoneBlocked: false };
+  }
+  return detail;
 }
 
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;

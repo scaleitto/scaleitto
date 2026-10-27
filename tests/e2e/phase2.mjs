@@ -32,8 +32,9 @@ export default async function phase2(browser) {
     await customer.goto(store);
     await customer.waitForSelector("text=ساعة كلاسيكية");
     expect(!(await customer.locator("text=مسودة مخفية").count()), "draft product hidden");
-    const res = await customer.goto(`${store}/p/hidden`);
-    expect(res.status() === 404 || (await customer.locator("text=404").count()), "draft product page not found");
+    // The not-found page can arrive streamed after the first bytes: wait for it
+    await customer.goto(`${store}/p/hidden`);
+    await customer.waitForSelector("[data-testid=not-found]");
   });
 
   await step("order form: field errors in the shop language, sold-out color disabled", async () => {

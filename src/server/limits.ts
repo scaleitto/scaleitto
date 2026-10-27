@@ -2,6 +2,7 @@ import "server-only";
 import { and, count, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { limitKeys, type LimitKey } from "@/server/db/schema";
+import { algeriaMonthStart } from "@/lib/time";
 
 // -1 means unlimited
 export type EffectiveLimits = Record<LimitKey, number>;
@@ -24,12 +25,26 @@ export async function getActiveContract(shopId: string) {
   return contract ?? null;
 }
 
+export const FREE_PLAN = "starter";
+
+// The shop's plan, or the free plan once a paid period has ended
+export async function getCurrentPlan(shopId: string) {
+  const [row] = await db
+    .select({ plan: schema.plans, expiresAt: schema.shops.planExpiresAt })
+    .from(schema.shops)
+    .innerJoin(schema.plans, eq(schema.plans.id, schema.shops.planId))
+    .where(eq(schema.shops.id, shopId));
+  if (!row) return null;
+  const expired = Boolean(row.expiresAt && row.expiresAt < new Date() && row.plan.code !== FREE_PLAN);
+  if (!expired) return { plan: row.plan, expiresAt: row.expiresAt, expired: false };
+  const [free] = await db.select().from(schema.plans).where(eq(schema.plans.code, FREE_PLAN));
+  return { plan: free ?? row.plan, expiresAt: row.expiresAt, expired: true, previous: row.plan };
+}
+
 // The plan's limits, overridden key by key by the shop's active contract.
 export async function getEffectiveLimits(shopId: string): Promise<EffectiveLimits> {
-  const [[row], contract] = await Promise.all([
-    db.select({ limits: schema.plans.limits }).from(schema.shops).innerJoin(schema.plans, eq(schema.plans.id, schema.shops.planId)).where(eq(schema.shops.id, shopId)),
-    getActiveContract(shopId),
-  ]);
+  const [current, contract] = await Promise.all([getCurrentPlan(shopId), getActiveContract(shopId)]);
+  const row = current?.plan;
   const limits = {} as EffectiveLimits;
   for (const key of limitKeys) limits[key] = contract?.limits[key] ?? row?.limits[key] ?? 0;
   return limits;
@@ -38,21 +53,18 @@ export async function getEffectiveLimits(shopId: string): Promise<EffectiveLimit
 // How much of each limit a shop uses. Sections add their counter when they are built.
 const counters: Partial<Record<LimitKey, (shopId: string) => Promise<number>>> = {
   maxProducts: async (shopId) => (await db.select({ n: count() }).from(schema.products).where(eq(schema.products.shopId, shopId)))[0].n,
-  maxOrdersPerMonth: async (shopId) => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return (await db.select({ n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, monthStart))))[0].n;
-  },
+  maxOrdersPerMonth: async (shopId) => (await db.select({ n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, algeriaMonthStart()))))[0].n,
   maxLandingPages: async (shopId) => (await db.select({ n: count() }).from(schema.landingPages).where(eq(schema.landingPages.shopId, shopId)))[0].n,
   // Every request sent to the AI this month (failed ones included: they used the AI too)
-  maxAiPerMonth: async (shopId) => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return (await db.select({ n: count() }).from(schema.aiGenerations).where(and(eq(schema.aiGenerations.shopId, shopId), gte(schema.aiGenerations.createdAt, monthStart))))[0].n;
-  },
+  maxAiPerMonth: async (shopId) => (await db.select({ n: count() }).from(schema.aiGenerations).where(and(eq(schema.aiGenerations.shopId, shopId), gte(schema.aiGenerations.createdAt, algeriaMonthStart()))))[0].n,
   // Deactivated members do not count
   maxStaff: async (shopId) => (await db.select({ n: count() }).from(schema.shopMembers).where(and(eq(schema.shopMembers.shopId, shopId), eq(schema.shopMembers.active, true))))[0].n,
 };
+
+export async function getAllUsage(shopId: string): Promise<Record<LimitKey, number>> {
+  const values = await Promise.all(limitKeys.map((k) => getUsage(shopId, k)));
+  return Object.fromEntries(limitKeys.map((k, i) => [k, values[i]])) as Record<LimitKey, number>;
+}
 
 export async function getUsage(shopId: string, key: LimitKey) {
   return (await counters[key]?.(shopId)) ?? 0;

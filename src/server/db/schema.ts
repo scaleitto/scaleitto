@@ -2,6 +2,11 @@ import { sql } from "drizzle-orm";
 import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mysqlEnum, uniqueIndex, index, primaryKey, date } from "drizzle-orm/mysql-core";
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
+// Value lists shared with browser code live in a plain module (no database code in client bundles)
+import { limitKeys, paymentMethods, pixelPlatforms, purchaseTriggers, type LimitKey } from "../../lib/enums";
+export { limitKeys, paymentMethods, pixelPlatforms, purchaseTriggers };
+export type { LimitKey, PaymentMethod, PixelPlatform, PurchaseTrigger } from "../../lib/enums";
+
 const id = (name = "id") => varchar(name, { length: 36 });
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
 
@@ -33,8 +38,6 @@ export const sessions = mysqlTable(
 // ─── Plans and shops ──────────────────────────────────────
 
 // A limit of -1 means unlimited. In a contract, a missing/null limit means "use the plan's".
-export const limitKeys = ["maxProducts", "maxOrdersPerMonth", "maxStaff", "maxLandingPages", "maxAiPerMonth"] as const;
-export type LimitKey = (typeof limitKeys)[number];
 export type Limits = Partial<Record<LimitKey, number | null>>;
 
 export const plans = mysqlTable("plans", {
@@ -56,6 +59,8 @@ export const shops = mysqlTable(
     name: varchar("name", { length: 120 }).notNull(),
     ownerId: id("owner_id").notNull(),
     planId: id("plan_id").notNull(),
+    // End of a paid period (null: no end). After it, the shop is back on the free plan's limits.
+    planExpiresAt: datetime("plan_expires_at"),
     status: mysqlEnum("status", ["active", "suspended"]).notNull().default("active"),
     defaultLocale: varchar("default_locale", { length: 5 }).notNull().default("ar"),
     currency: varchar("currency", { length: 3 }).notNull().default("DZD"),
@@ -198,6 +203,9 @@ export const orders = mysqlTable(
     landingPageId: id("landing_page_id"),
     // Answers to the landing page's custom form fields: [{ label, value }]
     extra: json("extra").$type<{ label: string; value: string }[] | null>(),
+    // Placed after the month's order limit was reached: kept, but the customer's details stay hidden
+    // until the shop upgrades or the month is over (src/features/plans/locked.ts)
+    locked: boolean("locked").notNull().default(false),
     // Ad-click identifiers captured when the order was placed (for server-side pixel events)
     tracking: json("tracking").$type<OrderTracking | null>(),
     // Call center agent in charge of confirming the order
@@ -214,6 +222,7 @@ export const orders = mysqlTable(
     index("orders_shop_status_idx").on(t.shopId, t.status),
     index("orders_shop_phone_idx").on(t.shopId, t.phone),
     index("orders_shop_assigned_idx").on(t.shopId, t.assignedTo, t.status),
+    index("orders_shop_locked_idx").on(t.shopId, t.locked, t.createdAt),
   ],
 );
 
@@ -436,11 +445,6 @@ export const errorLogs = mysqlTable(
 // ─── Pixels ───────────────────────────────────────────────
 
 export type OrderTracking = { url?: string; fbp?: string; fbc?: string; ttp?: string; ttclid?: string; gaClientId?: string };
-export const pixelPlatforms = ["meta", "tiktok", "ga4", "gtm"] as const;
-export type PixelPlatform = (typeof pixelPlatforms)[number];
-// When the "purchase" is reported: as soon as the customer orders, or only once the call center confirms / the parcel is delivered
-export const purchaseTriggers = ["placed", "confirmed", "delivered"] as const;
-export type PurchaseTrigger = (typeof purchaseTriggers)[number];
 
 // One ad platform tag of a shop. Several per platform are allowed (e.g. one Meta pixel per product).
 export const pixels = mysqlTable(
@@ -518,4 +522,30 @@ export const appEvents = mysqlTable(
     createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },
   (t) => [index("app_events_shop_idx").on(t.shopId, t.createdAt)],
+);
+
+// ─── Plan upgrades ────────────────────────────────────────
+
+export const planRequestStatuses = ["pending", "approved", "rejected", "cancelled"] as const;
+
+// A merchant's request to move to a plan, paid by transfer (receipt image) and approved by the platform admin.
+export const planRequests = mysqlTable(
+  "plan_requests",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    planId: id("plan_id").notNull(),
+    months: int("months").notNull(),
+    amount: int("amount").notNull(),
+    method: mysqlEnum("method", paymentMethods).notNull(),
+    // /uploads/<shop>/<file> (transfer receipt), null for WhatsApp
+    receiptUrl: varchar("receipt_url", { length: 255 }),
+    note: varchar("note", { length: 500 }),
+    status: mysqlEnum("status", planRequestStatuses).notNull().default("pending"),
+    adminNote: varchar("admin_note", { length: 500 }),
+    requestedBy: id("requested_by").notNull(),
+    decidedAt: datetime("decided_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("plan_requests_shop_idx").on(t.shopId, t.createdAt), index("plan_requests_status_idx").on(t.status, t.createdAt)],
 );

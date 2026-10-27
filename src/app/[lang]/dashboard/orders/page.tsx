@@ -5,11 +5,14 @@ import { OrderList } from "@/features/orders/OrderList";
 import { isOrderStatus } from "@/features/orders/statuses";
 import { viewerOf } from "@/features/orders/access";
 import { assignableMembers } from "@/features/team/queries";
+import { releaseLockedOrders } from "@/features/plans/locked";
 
 export default async function OrdersPage({ params, searchParams }: PageProps<"/[lang]/dashboard/orders">) {
   const lang = asLocale((await params).lang);
   const ctx = await requireSection(lang, "orders");
   const { shop } = ctx;
+  // Unlock what the shop is now entitled to (new month, higher limit) before reading the orders
+  await releaseLockedOrders(shop.id);
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const status = one(sp.status);

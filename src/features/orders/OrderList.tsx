@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Search, ShoppingCart } from "lucide-react";
+import { ExternalLink, Lock, Search, ShoppingCart } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatPrice } from "@/lib/format";
@@ -153,10 +153,18 @@ export async function OrderList({
                         </Link>
                       </td>
                       <td className="p-3">
-                        <span className="block font-semibold">{r.customerName}</span>
-                        <span className="block text-xs text-muted" dir="ltr">
-                          {r.phone}
-                        </span>
+                        {r.locked ? (
+                          <span className="flex items-center gap-1.5 text-sm font-semibold text-amber-300" data-locked>
+                            <Lock size={14} /> {o.locked.short}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="block font-semibold">{r.customerName}</span>
+                            <span className="block text-xs text-muted" dir="ltr">
+                              {r.phone}
+                            </span>
+                          </>
+                        )}
                       </td>
                       <td className="hidden max-w-56 truncate p-3 text-muted lg:table-cell">{r.product}</td>
                       <td className="hidden p-3 whitespace-nowrap text-muted md:table-cell">{wilayaName(r.wilayaCode, lang)}</td>

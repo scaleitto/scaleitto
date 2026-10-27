@@ -35,6 +35,10 @@ jobs:
       # Fake Google Sheets script / webhook / Shopify store / YouCan API (apps); local URLs allowed in tests only
       E2E_APPS_URL: http://127.0.0.1:4040
       ALLOW_PRIVATE_FETCH: "1"
+      # Plan payments shown to merchants (no RIB: that method stays hidden)
+      PAYMENT_HOLDER: Scaleitto SARL
+      PAYMENT_CCP: "0012345678 clé 90"
+      PAYMENT_WHATSAPP: "+213 555 00 11 22"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

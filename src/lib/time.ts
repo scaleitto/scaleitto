@@ -30,3 +30,8 @@ export function addDays(day: string, n: number) {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+
+// The first instant of the current Algeria month (monthly quotas follow Algeria's calendar)
+export function algeriaMonthStart(now = new Date()) {
+  return new Date(`${algeriaParts(now).day.slice(0, 8)}01T00:00:00+01:00`);
+}

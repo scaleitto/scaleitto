@@ -7,6 +7,8 @@ import { getShippingRates } from "@/features/storefront/queries";
 import { checkOrderAllowed, type BlockReason } from "./protection";
 import { linePrice, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
+import { overOrderLimit } from "@/features/plans/locked";
+import { getEffectiveLimits } from "@/server/limits";
 import type { OrderInput } from "./validators";
 import type { OrderTracking } from "@/server/db/schema";
 
@@ -37,6 +39,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
 
   const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
   const orderId = newId();
+  const orderLimit = (await getEffectiveLimits(shop.id)).maxOrdersPerMonth;
+  let locked = false;
 
   try {
     const number = await db.transaction(async (tx) => {
@@ -58,6 +62,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
       await tx.select({ id: schema.shops.id }).from(schema.shops).where(eq(schema.shops.id, shop.id)).for("update");
       const [last] = await tx.select({ number: schema.orders.number }).from(schema.orders).where(eq(schema.orders.shopId, shop.id)).orderBy(desc(schema.orders.number)).limit(1);
       const number = last ? last.number + 1 : FIRST_ORDER_NUMBER;
+      // Over the plan's monthly orders: kept (the customer is never turned away) but locked
+      locked = await overOrderLimit(tx, shop.id, orderLimit);
 
       await tx.insert(schema.orders).values({
         id: orderId,
@@ -76,6 +82,7 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         landingPageId: meta.landingPageId ?? null,
         extra: meta.extra?.length ? meta.extra : null,
         tracking: meta.tracking ?? null,
+        locked,
         ip: meta.ip,
         userAgent: meta.userAgent?.slice(0, 255) ?? null,
       });
@@ -96,7 +103,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
       });
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "created", toStatus: "new" });
       // Hand the order to a call center agent (unless the shop assigns by hand)
-      const agent = await pickAgent(tx, shop.id);
+      // (a locked order waits until it is unlocked: nobody can work on it yet)
+      const agent = locked ? null : await pickAgent(tx, shop.id);
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });

@@ -109,6 +109,15 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   YouCan format unverified), `importer.ts` (drafts, photos copied, `products.external_ref` unique so nothing is imported
   twice); the browser imports one product per request. E2E: `tests/e2e/mock-apps.mjs` via E2E_APPS_URL with
   ALLOW_PRIVATE_FETCH=1 (tests only, never in production).
+- Plans (`src/features/plans/`, owner only): effective limits = plan (back to the free plan after `shops.plan_expires_at`)
+  overridden by an active contract (`src/server/limits.ts`; monthly quotas use the Algeria month, `algeriaMonthStart`).
+  Over `maxOrdersPerMonth` an order is still accepted but `orders.locked`: no customer details leave the server
+  (`getOrder`/`listOrders` mask, search skips them), `canTouchOrder` refuses changes, no agent assignment, no app sync.
+  `releaseLockedOrders` (orders pages, approval) unlocks past months and whatever the current limit now allows.
+  Upgrades: `plan_requests` (CCP/RIB transfer with a receipt upload, or WhatsApp; payment details from PAYMENT_HOLDER /
+  PAYMENT_CCP / PAYMENT_RIB / PAYMENT_WHATSAPP), approved on `/[lang]/admin/plan-requests` (platform admin) →
+  `approvePlanRequest` (plan + paid period). Dashboard banner (`planNotice`): locked orders, or a monthly quota past the
+  contract's alert threshold (default 80%). Lists shared with browser code live in `src/lib/enums.ts`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -133,6 +142,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import).
-Next: Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans).
+Next: Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

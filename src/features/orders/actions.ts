@@ -129,7 +129,7 @@ export async function assignOrder(lang: string, orderId: string, userId: string 
     const [res] = await db
       .update(schema.orders)
       .set({ assignedTo: userId, assignedAt: userId ? new Date() : null })
-      .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
+      .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId), eq(schema.orders.locked, false)));
     if (!res.affectedRows) return { ok: false, error: "notFound" };
     await db.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "assign", note: name });
     scheduleOrderSync(shop.id, orderId);
