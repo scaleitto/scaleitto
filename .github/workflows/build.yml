@@ -27,6 +27,9 @@ jobs:
       PLATFORM_ADMIN_EMAIL: admin@scaleitto.com
       # Fake delivery company server started by the e2e tests
       E2E_CARRIER_URL: http://127.0.0.1:4010
+      # Fake OpenAI server started by the e2e tests (landing pages AI)
+      OPENAI_BASE_URL: http://127.0.0.1:4020/v1
+      OPENAI_API_KEY: sk-test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

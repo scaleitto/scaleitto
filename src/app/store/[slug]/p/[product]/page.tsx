@@ -65,7 +65,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
           rates={rates}
           wilayas={wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}` }))}
-          action={submitOrder.bind(null, shop.slug, product.id)}
+          action={submitOrder.bind(null, shop.slug, product.id, null, false)}
           saveLead={saveLead.bind(null, shop.slug, product.id)}
         />
         {product.description && <div className="whitespace-pre-line rounded-[var(--s-radius)] bg-s-surface p-5 leading-relaxed text-s-muted shadow-[var(--s-shadow)]">{product.description}</div>}

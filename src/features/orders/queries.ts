@@ -64,7 +64,7 @@ export async function getOrder(viewer: OrderViewer, id: string) {
   const shopId = viewer.shopId;
   const [order] = await db.select().from(schema.orders).where(and(visibleOrders(viewer), eq(schema.orders.id, id)));
   if (!order) return null;
-  const [items, events, history, [blocked], [assignee]] = await Promise.all([
+  const [items, events, history, [blocked], [assignee], [landing]] = await Promise.all([
     db.select().from(schema.orderItems).where(and(eq(schema.orderItems.shopId, shopId), eq(schema.orderItems.orderId, id))),
     db
       .select({ event: schema.orderEvents, userName: schema.users.name })
@@ -80,6 +80,9 @@ export async function getOrder(viewer: OrderViewer, id: string) {
       .groupBy(schema.orders.status),
     db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, order.phone))),
     order.assignedTo ? db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, order.assignedTo)) : Promise.resolve([]),
+    order.landingPageId
+      ? db.select({ title: schema.landingPages.title }).from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, order.landingPageId)))
+      : Promise.resolve([]),
   ]);
   const byStatus = Object.fromEntries(history.map((h) => [h.status, h.n])) as Partial<Record<OrderStatus, number>>;
   const phoneStats = {
@@ -87,7 +90,10 @@ export async function getOrder(viewer: OrderViewer, id: string) {
     delivered: byStatus.delivered ?? 0,
     failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0),
   };
-  return { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null };
+  return { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null,
+    landingTitle: (landing as { title: string } | undefined)?.title ?? null,
+    extra: Array.isArray(order.extra) ? (order.extra as { label: string; value: string }[]) : [],
+  };
 }
 
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;

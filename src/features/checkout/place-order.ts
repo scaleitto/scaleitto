@@ -17,7 +17,7 @@ const FIRST_ORDER_NUMBER = 1001;
 class OutOfStock extends Error {}
 
 // Creates a cash-on-delivery order for one product. Used by the product page (and later landing pages).
-export async function placeOrder(shop: StoreShop, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null }): Promise<PlaceOrderResult> {
+export async function placeOrder(shop: StoreShop, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[] }): Promise<PlaceOrderResult> {
   const [product] = await db
     .select()
     .from(schema.products)
@@ -72,6 +72,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         shippingPrice: shipping,
         total: line.total + shipping,
         customerNote: input.note || null,
+        landingPageId: meta.landingPageId ?? null,
+        extra: meta.extra?.length ? meta.extra : null,
         ip: meta.ip,
         userAgent: meta.userAgent?.slice(0, 255) ?? null,
       });

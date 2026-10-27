@@ -43,6 +43,13 @@
       "when": 1793087868756,
       "tag": "0005_call_centers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793089370133,
+      "tag": "0006_landing_pages",
+      "breakpoints": true
     }
   ]
 }

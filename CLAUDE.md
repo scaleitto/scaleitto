@@ -73,9 +73,22 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   from `ActivityPing`, max one minute per minute) into `member_activity`; `metrics.ts` computes performance
   (confirmations, rates, response time, attendance/punctuality/coverage via `schedule.ts`). Times: `src/lib/time.ts`
   (Africa/Algiers); `formatDate`/`formatTime` always render Algeria time.
+- Landing pages (`src/features/landing/`): `landing_pages.sections` (typed in `types.ts`, always read through
+  `sanitizeSections`) and `.form` (`FormSettings`, read through `resolveForm`: title/button texts, layout, address
+  hidden/optional/required — home delivery only —, note, delivery both/home/office, custom fields `custom_<id>` saved in
+  `orders.extra`, thank-you message, sticky button). `blocks.tsx` draws the sections for the public page
+  (`/store/<slug>/lp/<page>`) and the editor preview (`LandingEditor.tsx`); the form is the shared `CheckoutForm`, validated
+  again in `checkout/actions.ts`. Embeddable form: `/embed/<slug>/<page>` (own root layout, `HeightReporter` posts its
+  height to the parent). Visits: `/api/lp/view` once per browser session.
+- AI pages: `src/server/ai/openai.ts` (Responses API in background mode — start, then the browser polls `checkAiLanding`
+  every 3 s; model chain OPENAI_MODEL → gpt-6.1-sol → gpt-6.1-luna → gpt-6-luna; rejected params retried without them;
+  `checkAiConnection` for the dashboard test card). Prompt + schema + post-processing in `ai-prompt.ts` (never invents
+  facts, never writes reviews/countdowns; unknown images dropped; form placed after hero/badges). Generations are rows in
+  `ai_generations` (claimed pending → saving so a page is created once). E2E uses `tests/e2e/mock-openai.mjs`
+  (OPENAI_BASE_URL=http://127.0.0.1:4020/v1, OPENAI_API_KEY=sk-test).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
-- `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
-  fetch of a user URL must go through `safe-fetch.ts`.
+- `src/later/` — v1 tracking helpers kept for the Pixels section. Any server-side fetch of a user URL must go
+  through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
   `/api/health` shows version, DB, migrations and env status.
 
@@ -98,7 +111,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers).
-Next: Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form).
+Next: Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

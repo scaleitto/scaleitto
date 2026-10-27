@@ -188,6 +188,10 @@ export const orders = mysqlTable(
     shippingPrice: int("shipping_price").notNull(),
     total: int("total").notNull(),
     customerNote: varchar("customer_note", { length: 500 }),
+    // Landing page the order came from (null: the store's product page)
+    landingPageId: id("landing_page_id"),
+    // Answers to the landing page's custom form fields: [{ label, value }]
+    extra: json("extra").$type<{ label: string; value: string }[] | null>(),
     // Call center agent in charge of confirming the order
     assignedTo: id("assigned_to"),
     assignedAt: timestamp("assigned_at"),
@@ -225,6 +229,54 @@ export const orderItems = mysqlTable(
     stockTracked: boolean("stock_tracked").notNull().default(false),
   },
   (t) => [index("order_items_order_idx").on(t.orderId)],
+);
+
+// ─── Landing pages ────────────────────────────────────────
+
+// Sections and form settings are typed in src/features/landing/types.ts and always sanitized before saving.
+export const landingPages = mysqlTable(
+  "landing_pages",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id").notNull(),
+    slug: varchar("slug", { length: 120 }).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
+    // Language of the page's copy: ar, dz (Darija), fr, en
+    language: varchar("language", { length: 5 }).notNull().default("ar"),
+    // null → the shop's color
+    color: varchar("color", { length: 9 }),
+    sections: json("sections").notNull(),
+    form: json("form").notNull(),
+    views: int("views").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [uniqueIndex("landing_shop_slug_uq").on(t.shopId, t.slug)],
+);
+
+// AI landing page generations: one row per request sent to OpenAI (also counts the monthly AI limit).
+export const aiGenerations = mysqlTable(
+  "ai_generations",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id").notNull(),
+    // OpenAI background response id
+    responseId: varchar("response_id", { length: 120 }),
+    model: varchar("model", { length: 80 }),
+    status: mysqlEnum("status", ["pending", "saving", "done", "failed"]).notNull().default("pending"),
+    // What to build when the text is ready (product to use or create, language, color…)
+    brief: json("brief").notNull(),
+    landingPageId: id("landing_page_id"),
+    error: text("error"),
+    inputTokens: int("input_tokens"),
+    outputTokens: int("output_tokens"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [index("ai_generations_shop_created_idx").on(t.shopId, t.createdAt)],
 );
 
 // Order history: creation, status changes, notes and edits, with who did it.

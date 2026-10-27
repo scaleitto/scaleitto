@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -55,4 +55,16 @@ const FILE = /^[0-9a-f-]{36}\.(jpg|png|webp|gif)$/i;
 export function uploadPath(shopId: string, file: string) {
   if (!UUID.test(shopId) || !FILE.test(file)) return null;
   return path.join(/* turbopackIgnore: true */ uploadsDir(), shopId, file);
+}
+
+// The bytes of one of our uploads from its path ("/uploads/<shop>/<file>"), or null.
+export async function readUpload(urlPath: string): Promise<{ buf: Buffer; mime: string } | null> {
+  const m = urlPath.match(/^\/uploads\/([0-9a-f-]{36})\/([0-9a-f-]{36}\.(jpg|png|webp|gif))$/i);
+  const p = m ? uploadPath(m[1], m[2]) : null;
+  if (!p) return null;
+  try {
+    return { buf: await readFile(/* turbopackIgnore: true */ p), mime: mimeForExt(m![3].toLowerCase()) };
+  } catch {
+    return null;
+  }
 }

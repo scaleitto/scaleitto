@@ -9,6 +9,7 @@ import { fmt, formatPrice } from "@/lib/format";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
 import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
+import { defaultForm, type FormSettings } from "@/features/landing/types";
 
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
 type LeadInput = { name?: string; phone?: string; wilaya?: number | null; variantId?: string; quantity?: number };
@@ -25,6 +26,8 @@ export function CheckoutForm({
   wilayas,
   action,
   saveLead,
+  settings = defaultForm,
+  embedded = false,
 }: {
   t: StoreText;
   currency: string;
@@ -34,6 +37,10 @@ export function CheckoutForm({
   wilayas: { code: number; name: string }[];
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   saveLead: (input: LeadInput) => Promise<void>;
+  // Landing page form customization (the store's product page uses the defaults)
+  settings?: FormSettings;
+  // Inside an iframe on another site: no sticky button
+  embedded?: boolean;
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -48,7 +55,8 @@ export function CheckoutForm({
   );
   const [quantity, setQuantity] = useState(1);
   const [wilaya, setWilaya] = useState<number | null>(null);
-  const [deliveryType, setDeliveryType] = useState<"home" | "office">("home");
+  const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
+  const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes[0]);
   const formRef = useRef<HTMLFormElement>(null);
   const lastLead = useRef("");
   const [formVisible, setFormVisible] = useState(true);
@@ -75,7 +83,7 @@ export function CheckoutForm({
     !product.trackStock ||
     variants.some((v) => v.values[option] === value && v.stock > 0 && product.options.every((o) => o.name === option || v.values[o.name] === selected[o.name]));
 
-  const quantityChoices = product.offers.length ? [1, ...product.offers.map((o) => o.quantity).sort((a, b) => a - b)] : [];
+  const quantityChoices = settings.showOffers && product.offers.length ? [1, ...product.offers.map((o) => o.quantity).sort((a, b) => a - b)] : [];
   const maxQuantity = Math.min(MAX_QUANTITY, available);
 
   // Abandoned cart: remember the visitor as soon as a valid phone is typed.
@@ -96,8 +104,8 @@ export function CheckoutForm({
     <>
       <form ref={formRef} id="order-form" onSubmit={onSubmit} noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
         <div>
-          <h2 className="text-xl font-extrabold">{t.form.title}</h2>
-          <p className="mt-1 text-sm text-s-muted">{t.form.subtitle}</p>
+          <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
+          <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
         </div>
 
         <input type="hidden" name="variantId" value={variant?.id ?? ""} />
@@ -175,7 +183,7 @@ export function CheckoutForm({
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`grid gap-4 ${settings.layout === "compact" ? "sm:grid-cols-2" : ""}`}>
           <div>
             <label htmlFor="name" className={label}>
               {t.form.name}
@@ -205,7 +213,7 @@ export function CheckoutForm({
                 // Switch to the other delivery type when the chosen one is not delivered there.
                 if (code && shippingPrice(rates, code, deliveryType) === null) {
                   const other = deliveryType === "home" ? "office" : "home";
-                  if (shippingPrice(rates, code, other) !== null) setDeliveryType(other);
+                  if (allowedTypes.includes(other as never) && shippingPrice(rates, code, other) !== null) setDeliveryType(other);
                 }
               }}
               onBlur={rememberLead}
@@ -226,12 +234,33 @@ export function CheckoutForm({
             <input id="commune" name="commune" placeholder={t.form.communePlaceholder} className={field} />
             {err("commune") && <p className="mt-1 text-sm text-red-600">{err("commune")}</p>}
           </div>
+          {settings.custom.map((c) => (
+            <div key={c.id}>
+              <label htmlFor={`custom_${c.id}`} className={label}>
+                {c.label}
+                {!c.required && <span className="font-normal"> ({t.form.optional})</span>}
+              </label>
+              {c.type === "select" ? (
+                <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={field} defaultValue="">
+                  <option value="">{t.form.choose}</option>
+                  {c.options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input id={`custom_${c.id}`} name={`custom_${c.id}`} maxLength={200} className={field} />
+              )}
+              {err(`custom_${c.id}`) && <p className="mt-1 text-sm text-red-600">{err(`custom_${c.id}`)}</p>}
+            </div>
+          ))}
         </div>
 
         <fieldset>
           <legend className={label}>{t.form.deliveryType}</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(["home", "office"] as const).map((type) => {
+          <div className={`grid gap-2 ${allowedTypes.length > 1 ? "sm:grid-cols-2" : ""}`}>
+            {allowedTypes.map((type) => {
               const price = wilaya ? shippingPrice(rates, wilaya, type) : undefined;
               const unavailable = price === null;
               return (
@@ -250,22 +279,25 @@ export function CheckoutForm({
           </div>
         </fieldset>
 
-        {deliveryType === "home" && (
+        {deliveryType === "home" && settings.address !== "hidden" && (
           <div>
             <label htmlFor="address" className={label}>
-              {t.form.address}
+              {settings.address === "required" ? t.form.addressRequired : t.form.address}
             </label>
             <input id="address" name="address" autoComplete="street-address" placeholder={t.form.addressPlaceholder} className={field} />
+            {err("address") && <p className="mt-1 text-sm text-red-600">{err("address")}</p>}
           </div>
         )}
-        <div>
-          <label htmlFor="note" className={label}>
-            {t.form.note}
-          </label>
-          <textarea id="note" name="note" rows={2} maxLength={500} className={field} />
-        </div>
+        {settings.note && (
+          <div>
+            <label htmlFor="note" className={label}>
+              {t.form.note}
+            </label>
+            <textarea id="note" name="note" rows={2} maxLength={500} className={field} />
+          </div>
+        )}
 
-        <dl className="space-y-2 rounded-[var(--s-radius-btn)] bg-s-bg p-4 text-sm" data-testid="summary">
+        <dl className={`space-y-2 rounded-[var(--s-radius-btn)] bg-s-bg p-4 text-sm ${settings.showSummary ? "" : "hidden"}`} data-testid="summary">
           <div className="flex justify-between">
             <dt className="text-s-muted">
               {t.summary.product} {quantity > 1 && `(×${quantity})`}
@@ -298,14 +330,14 @@ export function CheckoutForm({
           className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
-          {soldOut ? t.outOfStock : pending ? t.form.sending : `${t.form.submit} · ${formatPrice(total, currency)}`}
+          {soldOut ? t.outOfStock : pending ? t.form.sending : `${settings.buttonText || t.form.submit} · ${formatPrice(total, currency)}`}
         </button>
         {product.trackStock && !soldOut && available <= 5 && <p className="text-center text-sm font-semibold text-amber-700">{fmt(t.inStockLow, { n: available })}</p>}
       </form>
 
       {/* Mobile: a sticky button that brings the form into view */}
-      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-white shadow-xl md:hidden`}>
-        <ShoppingBag size={18} /> {t.form.title}
+      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible || embedded || !settings.stickyButton ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-white shadow-xl md:hidden`}>
+        <ShoppingBag size={18} /> {settings.buttonText || t.form.title}
       </a>
     </>
   );

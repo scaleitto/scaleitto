@@ -10,6 +10,7 @@ import { safeAction } from "@/server/errors";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { asLocale } from "@/i18n";
 import { sectionHref } from "@/lib/permissions";
+import { nextFreeSlug } from "@/lib/format";
 import type { ActionState } from "@/lib/action";
 import { productSchema, type ProductInput } from "./validators";
 import { combinations, variantTitle } from "./variants";
@@ -28,9 +29,7 @@ async function uniqueSlug(tx: Tx, shopId: string, base: string, exceptId?: strin
       .filter((r) => r.id !== exceptId)
       .map((r) => r.slug),
   );
-  let slug = base;
-  for (let i = 2; taken.has(slug); i++) slug = `${base}-${i}`;
-  return slug;
+  return nextFreeSlug(base, taken);
 }
 
 // Variants are rebuilt from the options on the server; the form only supplies price/SKU/stock per title.

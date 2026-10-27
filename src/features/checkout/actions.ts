@@ -13,6 +13,7 @@ import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
+import { defaultForm, resolveForm } from "@/features/landing/types";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
 
@@ -21,19 +22,45 @@ async function requestMeta() {
   return { ip: (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null, userAgent: h.get("user-agent") };
 }
 
-// The customer's order form. Errors are keys of the storefront strings.
-export async function submitOrder(slug: string, productId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+// The settings of a published landing page form, or null.
+async function landingForm(shopId: string, landingPageId: string, productId: string) {
+  const [page] = await db
+    .select({ form: schema.landingPages.form })
+    .from(schema.landingPages)
+    .where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, landingPageId), eq(schema.landingPages.productId, productId), eq(schema.landingPages.status, "published")));
+  return page ? resolveForm(page.form) : null;
+}
+
+// The customer's order form (store product page, landing page or embedded form).
+// Errors are keys of the storefront strings.
+export async function submitOrder(slug: string, productId: string, landingPageId: string | null, embedded: boolean, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const shop = await getShopBySlug(slug);
   if (!shop) return { ok: false, error: "unavailable" };
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : defaultForm;
+    if (!settings) return { ok: false, error: "unavailable" };
+
+    // What the landing page's form asks on top of the standard fields
+    const fieldErrors: Record<string, string> = parsed.success ? {} : fieldErrorsFrom(parsed.error);
+    const deliveryType = String(formData.get("deliveryType") ?? "");
+    if (settings.delivery !== "both" && deliveryType !== settings.delivery) fieldErrors.deliveryType = "deliveryType";
+    if (settings.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";
+    const extra: { label: string; value: string }[] = [];
+    for (const c of settings.custom) {
+      const value = String(formData.get(`custom_${c.id}`) ?? "").trim().slice(0, 200);
+      if (c.type === "select" && value && !c.options.includes(value)) fieldErrors[`custom_${c.id}`] = "invalid";
+      else if (c.required && !value) fieldErrors[`custom_${c.id}`] = "custom";
+      else if (value) extra.push({ label: c.label, value });
+    }
+    if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
+    const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
-    if (parsed.data.website) return { ok: false, error: "unexpected" };
-    const placed = await placeOrder(shop, productId, parsed.data, await requestMeta());
+    if (input.website) return { ok: false, error: "unexpected" };
+    const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), landingPageId, extra });
     return placed.ok ? { ok: true, message: placed.orderId } : { ok: false, error: placed.error };
   });
-  if (result.ok && result.message) redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}`);
+  if (result.ok && result.message) redirect(embedded ? `/embed/${shop.slug}/thanks?o=${result.message}` : `${await storeBase(shop.slug)}/thanks?o=${result.message}`);
   return result;
 }
 

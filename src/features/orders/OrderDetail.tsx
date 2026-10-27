@@ -129,6 +129,25 @@ export function OrderDetail({
               </Alert>
             )}
           </Card>
+          {(order.extra.length > 0 || order.landingTitle) && (
+            <Card className="space-y-3" data-testid="order-extra">
+              <h2 className="font-semibold">{o.extraFields}</h2>
+              <dl className="space-y-1.5 text-sm">
+                {order.landingTitle && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted">{o.fromLanding}</dt>
+                    <dd className="font-semibold">{order.landingTitle}</dd>
+                  </div>
+                )}
+                {order.extra.map((x, i) => (
+                  <div key={i} className="flex justify-between gap-3">
+                    <dt className="text-muted">{x.label}</dt>
+                    <dd className="font-semibold">{x.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">

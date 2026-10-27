@@ -35,3 +35,10 @@ export function slugify(input: string) {
 export function fmt(template: string, vars: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(vars[key] ?? `{${key}}`));
 }
+
+// "shoes" taken → "shoes-2", then "shoes-3"…
+export function nextFreeSlug(base: string, taken: Set<string>) {
+  let slug = base;
+  for (let i = 2; taken.has(slug); i++) slug = `${base}-${i}`;
+  return slug;
+}

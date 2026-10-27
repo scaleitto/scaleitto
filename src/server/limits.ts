@@ -43,6 +43,13 @@ const counters: Partial<Record<LimitKey, (shopId: string) => Promise<number>>> =
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     return (await db.select({ n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), gte(schema.orders.createdAt, monthStart))))[0].n;
   },
+  maxLandingPages: async (shopId) => (await db.select({ n: count() }).from(schema.landingPages).where(eq(schema.landingPages.shopId, shopId)))[0].n,
+  // Every request sent to the AI this month (failed ones included: they used the AI too)
+  maxAiPerMonth: async (shopId) => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return (await db.select({ n: count() }).from(schema.aiGenerations).where(and(eq(schema.aiGenerations.shopId, shopId), gte(schema.aiGenerations.createdAt, monthStart))))[0].n;
+  },
   // Deactivated members do not count
   maxStaff: async (shopId) => (await db.select({ n: count() }).from(schema.shopMembers).where(and(eq(schema.shopMembers.shopId, shopId), eq(schema.shopMembers.active, true))))[0].n,
 };

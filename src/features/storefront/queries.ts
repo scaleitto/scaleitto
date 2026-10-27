@@ -50,5 +50,26 @@ export async function getOrderSummary(shopId: string, orderId: string) {
   const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
   if (!order) return null;
   const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
-  return { ...order, items };
+  // Landing page orders show the page's own thank-you message, in the page's language
+  const [landing] = order.landingPageId
+    ? await db.select({ language: schema.landingPages.language, form: schema.landingPages.form }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId))
+    : [];
+  return { ...order, items, landing: landing ?? null };
+}
+
+// A published landing page by its link, with its product (and the product's variants).
+export async function getStoreLanding(shopId: string, slug: string) {
+  const [page] = await db
+    .select()
+    .from(schema.landingPages)
+    .where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.slug, slug), eq(schema.landingPages.status, "published")));
+  if (!page) return null;
+  const [product] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, page.productId), eq(schema.products.status, "active")));
+  if (!product) return null;
+  const variants = await db
+    .select()
+    .from(schema.productVariants)
+    .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
+    .orderBy(asc(schema.productVariants.position));
+  return { page, product: { ...product, variants } };
 }

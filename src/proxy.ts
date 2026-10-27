@@ -32,7 +32,7 @@ export function proxy(req: NextRequest) {
   }
 
   const first = pathname.split("/")[1];
-  if (first === "store" || first === "api" || first === "uploads" || (locales as readonly string[]).includes(first)) {
+  if (first === "store" || first === "embed" || first === "api" || first === "uploads" || (locales as readonly string[]).includes(first)) {
     return NextResponse.next();
   }
 
