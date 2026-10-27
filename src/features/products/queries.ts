@@ -2,10 +2,10 @@ import "server-only";
 import { and, asc, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { ProductStatus } from "./types";
+import { escapeLike } from "@/lib/validation";
 
 export const PAGE_SIZE = 20;
 
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export async function listProducts(shopId: string, { q = "", status, page = 1 }: { q?: string; status?: ProductStatus; page?: number }) {
   const p = schema.products;

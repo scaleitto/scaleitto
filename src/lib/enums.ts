@@ -14,3 +14,6 @@ export type PaymentMethod = (typeof paymentMethods)[number];
 // Policy pages a store can show in its footer
 export const policyKinds = ["shipping", "returns", "privacy", "terms"] as const;
 export type PolicyKind = (typeof policyKinds)[number];
+
+// Plan features the admin can tick. Only custom_domain is enforced so far; the others describe the plan.
+export const planFeatures = ["custom_domain", "landing_pages", "ai", "pixels", "google_sheets", "abandoned_cart", "delivery_integrations", "analytics", "variants", "upsell", "api"] as const;

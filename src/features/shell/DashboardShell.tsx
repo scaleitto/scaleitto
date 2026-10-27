@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   Blocks,
+  Building2,
+  ClipboardCheck,
+  Gauge,
+  ServerCog,
   ChartColumn,
   CircleUser,
   DollarSign,
@@ -29,7 +33,10 @@ import type { SectionKey } from "@/lib/permissions";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { ActivityPing } from "./ActivityPing";
 
-const icons: Record<SectionKey, LucideIcon> = {
+// Merchant sections and the platform admin's pages
+export type ShellKey = SectionKey | "adminOverview" | "adminShops" | "adminRequests" | "adminPlans" | "adminSystem";
+
+const icons: Record<ShellKey, LucideIcon> = {
   overview: House,
   products: Package,
   orders: ShoppingCart,
@@ -44,29 +51,41 @@ const icons: Record<SectionKey, LucideIcon> = {
   plans: DollarSign,
   settings: Settings,
   profile: CircleUser,
+  adminOverview: Gauge,
+  adminShops: Building2,
+  adminRequests: ClipboardCheck,
+  adminPlans: DollarSign,
+  adminSystem: ServerCog,
 };
 
-export type NavItem = { key: SectionKey; href: string; label: string };
+export type NavItem = { key: ShellKey; href: string; label: string };
 
 export function DashboardShell({
   lang,
   brand,
   shopName,
   userName,
-  storeUrl,
+  topLink,
+  adminLink,
   items,
   labels,
   logout,
+  ping = true,
   children,
 }: {
   lang: Locale;
   brand: string;
   shopName: string;
   userName: string;
-  storeUrl: string;
+  // The link at the top (the store, or the merchant dashboard from the admin)
+  topLink: { href: string; label: string; external?: boolean };
+  // Shown to the platform admin only
+  adminLink?: { href: string; label: string };
   items: NavItem[];
-  labels: { viewStore: string; logout: string; menu: string };
+  labels: { logout: string; menu: string };
   logout: () => Promise<void>;
+  // Working-time heartbeat (shop members only)
+  ping?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -106,7 +125,7 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen md:flex">
-      <ActivityPing />
+      {ping && <ActivityPing />}
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-e border-line bg-panel md:block">{sidebar}</aside>
 
@@ -129,11 +148,16 @@ export function DashboardShell({
             <button className="rounded-lg p-2 text-muted hover:bg-panel-2 hover:text-fg md:hidden" onClick={() => setOpen(true)} aria-label={labels.menu}>
               <Menu size={20} />
             </button>
-            <a href={storeUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-fg">
-              <ExternalLink size={15} /> {labels.viewStore}
+            <a href={topLink.href} target={topLink.external ? "_blank" : undefined} rel={topLink.external ? "noreferrer" : undefined} className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-fg">
+              <ExternalLink size={15} /> {topLink.label}
             </a>
           </div>
           <div className="flex items-center gap-3">
+            {adminLink && (
+              <Link href={adminLink.href} className="hidden items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-accent hover:bg-panel-2 sm:flex" data-testid="admin-link">
+                <Gauge size={15} /> {adminLink.label}
+              </Link>
+            )}
             <LanguageSwitcher current={lang} />
             <span className="hidden text-sm text-muted sm:inline">{userName}</span>
             <form action={logout}>

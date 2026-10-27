@@ -3,10 +3,10 @@ import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } f
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
 import { visibleOrders, type OrderViewer } from "./access";
+import { escapeLike } from "@/lib/validation";
 
 export const PAGE_SIZE = 25;
 
-const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 // assignee: a member id, or "none" for orders nobody is in charge of
 export async function listOrders(viewer: OrderViewer, { q = "", status, page = 1, assignee }: { q?: string; status?: OrderStatus; page?: number; assignee?: string }) {

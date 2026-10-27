@@ -10,3 +10,6 @@ export function fieldErrorsFrom(error: ZodError): Record<string, string> {
   }
   return out;
 }
+
+// Text typed in a search box, safe inside SQL LIKE '%…%'
+export const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);

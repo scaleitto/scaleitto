@@ -8,6 +8,7 @@ import { Badge, Card, EmptyState, PageHeader, buttonClass } from "@/ui";
 import { listLandingPages } from "@/features/landing/queries";
 import { PageActions } from "@/features/landing/PageActions";
 import { AiTestCard } from "@/features/landing/AiTestCard";
+import { testAi } from "@/features/landing/ai-actions";
 
 export default async function LandingPagesPage({ params }: PageProps<"/[lang]/dashboard/landing-pages">) {
   const lang = asLocale((await params).lang);
@@ -86,7 +87,7 @@ export default async function LandingPagesPage({ params }: PageProps<"/[lang]/da
       )}
       {role !== "agent" && (
         <div className="mt-6">
-          <AiTestCard lang={lang} t={lp.ai} />
+          <AiTestCard test={testAi.bind(null, lang)} t={lp.ai} />
         </div>
       )}
     </>

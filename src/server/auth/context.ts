@@ -42,6 +42,8 @@ export async function requireShop(locale: string): Promise<ShopContext> {
     await db.delete(schema.sessions).where(eq(schema.sessions.userId, user.id));
     redirect(`/${locale}/login?disabled=1`);
   }
+  // Suspended by the platform: no dashboard and no actions, only an explanation
+  if (m.shop.status !== "active") redirect(`/${locale}/suspended`);
   return { user, shop: m.shop, role: m.role };
 }
 
@@ -58,7 +60,7 @@ export async function getShopContext(): Promise<ShopContext | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   const m = await membershipOf(user.id);
-  return m?.active ? { user, shop: m.shop, role: m.role } : null;
+  return m?.active && m.shop.status === "active" ? { user, shop: m.shop, role: m.role } : null;
 }
 
 export async function requirePlatformAdmin(locale: string) {

@@ -6,7 +6,7 @@ import { Badge, Card, PageHeader } from "@/ui";
 import { adminPlanRequests } from "@/features/plans/queries";
 import { DecideRequest } from "@/features/plans/AdminRequests";
 
-// Platform admin: plan upgrade requests (the full admin area comes later)
+// Platform admin: plan upgrade requests
 export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/admin/plan-requests">) {
   const lang = asLocale((await params).lang);
   await requirePlatformAdmin(lang);
@@ -15,7 +15,7 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
   const a = t.admin;
   const rows = await adminPlanRequests();
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-8">
+    <>
       <PageHeader title={a.title} />
       <Card className="overflow-x-auto p-0">
         {rows.length === 0 ? (
@@ -73,6 +73,6 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
           </table>
         )}
       </Card>
-    </div>
+    </>
   );
 }

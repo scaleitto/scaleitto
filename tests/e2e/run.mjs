@@ -14,12 +14,13 @@ import phase9 from "./phase9.mjs";
 import phase10 from "./phase10.mjs";
 import phase11 from "./phase11.mjs";
 import phase12 from "./phase12.mjs";
+import phase13 from "./phase13.mjs";
 import { startMockCarriers } from "./mock-carriers.mjs";
 import { startMockOpenAi } from "./mock-openai.mjs";
 import { startMockPixels } from "./mock-pixels.mjs";
 import { startMockApps } from "./mock-apps.mjs";
 
-const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12 };
+const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12, phase13 };
 const only = process.argv[2];
 
 // The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)
@@ -33,8 +34,8 @@ const ai = process.env.OPENAI_BASE_URL?.startsWith("http://127.0.0.1") ? await s
 
 const { chromium } = playwright();
 const browser = await chromium.launch();
-const errorCount = async () => (await db.query("SELECT COUNT(*) AS n FROM error_logs"))[0][0].n;
-const before = await errorCount();
+// Errors logged since the tests started (by time, so the admin's "clear the log" does not hide or break anything)
+const [[{ startedAt }]] = await db.query("SELECT NOW() AS startedAt");
 
 console.log(`E2E against ${BASE}`);
 for (const [name, run] of Object.entries(phases)) {
@@ -44,7 +45,7 @@ for (const [name, run] of Object.entries(phases)) {
 }
 
 await step("no server errors were logged during the tests", async () => {
-  const [rows] = await db.query("SELECT path, message FROM error_logs ORDER BY created_at DESC LIMIT ?", [(await errorCount()) - before]);
+  const [rows] = await db.query("SELECT path, message FROM error_logs WHERE created_at >= ? AND message NOT LIKE 'e2e-sample%' ORDER BY created_at DESC LIMIT 20", [startedAt]);
   expect(rows.length === 0, `no new errors (got: ${rows.map((r) => `${r.path}: ${r.message}`).join(" | ")})`);
 });
 

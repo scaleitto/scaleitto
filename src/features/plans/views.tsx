@@ -41,13 +41,22 @@ export function CurrentPlan({ data, lang, t }: { data: Overview; lang: string; t
           </Badge>
         )}
       </div>
+      <UsageMeters meters={data.meters} threshold={data.threshold} t={t} />
+    </Card>
+  );
+}
+
+// Used / limit bars (the merchant's Plans page and the platform admin's shop page)
+export function UsageMeters({ meters, threshold, t }: { meters: Overview["meters"]; threshold: number; t: Dictionary }) {
+  const p = t.plans;
+  return (
       <div className="space-y-3" data-testid="usage">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{p.usage}</h2>
-          <span className="text-xs text-muted">{fmt(p.threshold, { n: data.threshold })}</span>
+          <span className="text-xs text-muted">{fmt(p.threshold, { n: threshold })}</span>
         </div>
-        {data.meters.map((m) => {
-          const tone = m.limit === -1 ? "bg-accent" : m.percent >= 100 ? "bg-danger" : m.percent >= data.threshold ? "bg-amber-400" : "bg-accent";
+        {meters.map((m) => {
+          const tone = m.limit === -1 ? "bg-accent" : m.percent >= 100 ? "bg-danger" : m.percent >= threshold ? "bg-amber-400" : "bg-accent";
           return (
             <div key={m.key} data-meter={m.key} data-percent={m.percent}>
               <div className="mb-1 flex justify-between text-sm">
@@ -66,7 +75,6 @@ export function CurrentPlan({ data, lang, t }: { data: Overview; lang: string; t
           <Lock size={13} className="mt-0.5 shrink-0" /> {p.lockedNote}
         </p>
       </div>
-    </Card>
   );
 }
 

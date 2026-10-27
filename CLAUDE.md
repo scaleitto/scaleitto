@@ -125,6 +125,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `checkDomain` verifies (E2E_DNS_URL = fake resolver in tests). `proxy.ts` rewrites any non-platform host to
   `/store/<host>/…`; `getShopBySlug` resolves a dotted key by verified domain + plan. `storeUrl(shop)` prefers the domain.
   `/api/domains/check?domain=` answers 200 only for served domains (on-demand TLS "ask" URL on a VPS).
+- Platform admin (`/[lang]/admin`, `requirePlatformAdmin` in the layout AND every page/action; the account whose email is
+  PLATFORM_ADMIN_EMAIL at sign-up): overview, stores (search, plan + paid period, contracts that override plan limits,
+  suspend → storefront 404 and members sent to `/[lang]/suspended` by `requireShop`), plan requests, plans editor (codes
+  fixed; `starter` = free fallback; only the `custom_domain` feature is enforced), system (version, migrations, which
+  server settings are set, AI check, error log). Data in `src/features/admin/queries.ts`, forms in `AdminForms.tsx`.
+  The shell (`DashboardShell`) serves both areas; the platform admin sees an admin link in the merchant header.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -133,7 +139,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 ## Testing (required before pushing every section)
 - `npm test` — unit tests in `tests/unit/` (node test runner via tsx).
 - `npm run test:e2e` — Playwright flows in `tests/e2e/phaseN.mjs` against a running server (E2E_URL, default
-  localhost:3000) with the DB from `.env`; also fails if any new row appears in `error_logs`.
+  localhost:3000) with the DB from `.env`; also fails if any error is logged in `error_logs` during the run.
 - Each new section adds its own `tests/e2e/phaseN.mjs` and registers it in `tests/e2e/run.mjs`.
 - CI (`.github/workflows/build.yml`) runs lint, typecheck, unit tests, build and the e2e tests on MariaDB, then
   publishes the deploy artifact.
@@ -149,6 +155,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain).
-Next: platform admin (shops, plans, contracts, requests, error logs), then the remaining AI features.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin).
+Next: the remaining AI features (to agree with the owner), then real-account checks of the integrations.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

@@ -5,10 +5,9 @@ import { CircleCheck, CircleX, LoaderCircle, Stethoscope } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { AiCheckStep } from "@/server/ai/openai";
 import { Button, Card } from "@/ui";
-import { testAi } from "./ai-actions";
 
 // Shows every step of the AI path with OpenAI's exact answer, so a problem on the live server is visible.
-export function AiTestCard({ lang, t }: { lang: string; t: Dictionary["landingPages"]["ai"] }) {
+export function AiTestCard({ test, t }: { test: () => Promise<AiCheckStep[]>; t: Dictionary["landingPages"]["ai"] }) {
   const [steps, setSteps] = useState<AiCheckStep[] | null>(null);
   const [pending, startTransition] = useTransition();
   const allOk = steps?.length && steps.every((s) => s.ok);
@@ -19,7 +18,7 @@ export function AiTestCard({ lang, t }: { lang: string; t: Dictionary["landingPa
           <h2 className="font-semibold">{t.test}</h2>
           <p className="mt-0.5 text-xs text-muted">{t.testHint}</p>
         </div>
-        <Button variant="secondary" disabled={pending} onClick={() => startTransition(async () => setSteps(await testAi(lang)))}>
+        <Button variant="secondary" disabled={pending} onClick={() => startTransition(async () => setSteps(await test()))}>
           {pending ? <LoaderCircle size={15} className="animate-spin" /> : <Stethoscope size={15} />} {pending ? t.testing : t.test}
         </Button>
       </div>
