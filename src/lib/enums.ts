@@ -10,3 +10,7 @@ export type PurchaseTrigger = (typeof purchaseTriggers)[number];
 
 export const paymentMethods = ["ccp", "rib", "whatsapp"] as const;
 export type PaymentMethod = (typeof paymentMethods)[number];
+
+// Policy pages a store can show in its footer
+export const policyKinds = ["shipping", "returns", "privacy", "terms"] as const;
+export type PolicyKind = (typeof policyKinds)[number];

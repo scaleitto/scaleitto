@@ -22,7 +22,7 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/[
       t={getDictionary(lang)}
       viewer={viewerOf(ctx)}
       members={ctx.role === "agent" ? [] : await assignableMembers(shop.id)}
-      storeHref={storeUrl(shop.slug)}
+      storeHref={storeUrl(shop)}
       q={one(sp.q)}
       status={isOrderStatus(status) ? status : undefined}
       assignee={ctx.role === "agent" ? undefined : one(sp.assignee) || undefined}

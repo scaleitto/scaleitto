@@ -21,7 +21,7 @@ export default async function EditProductPage({ params }: PageProps<"/[lang]/das
       action={saveProduct.bind(null, lang, product.id)}
       values={{ ...product, description: product.description ?? "", sku: product.sku ?? "" }}
       backHref={sectionHref(lang, "products")}
-      viewHref={product.status === "active" ? `${storeUrl(shop.slug)}/p/${encodeURIComponent(product.slug)}` : undefined}
+      viewHref={product.status === "active" ? `${storeUrl(shop)}/p/${encodeURIComponent(product.slug)}` : undefined}
       isNew={false}
     />
   );

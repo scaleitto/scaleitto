@@ -30,8 +30,8 @@ async function load(params: PageProps<"/store/[slug]/p/[product]">["params"]) {
 }
 
 export async function generateMetadata({ params }: PageProps<"/store/[slug]/p/[product]">): Promise<Metadata> {
-  const { shop, product } = await load(params);
-  return { title: `${product.name} | ${shop.name}`, description: product.description?.slice(0, 160), openGraph: { images: product.images.slice(0, 1) } };
+  const { product } = await load(params);
+  return { title: product.name, description: product.description?.slice(0, 160), openGraph: { images: product.images.slice(0, 1) } };
 }
 
 export default async function ProductPage({ params }: PageProps<"/store/[slug]/p/[product]">) {

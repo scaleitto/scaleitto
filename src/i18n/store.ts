@@ -68,6 +68,8 @@ const ar = {
   },
   notFound: "الصفحة غير موجودة",
   poweredBy: "يعمل بواسطة Scaleitto",
+  policies: { shipping: "سياسة الشحن", returns: "الاستبدال والإرجاع", privacy: "سياسة الخصوصية", terms: "الشروط والأحكام" },
+  backToStore: "العودة إلى المتجر",
   errors: {
     checkFields: "تحقق من المعلومات المحددة بالأحمر",
     name: "اكتب اسمك الكامل",
@@ -158,6 +160,8 @@ const fr: StoreText = {
   },
   notFound: "Page introuvable",
   poweredBy: "Propulsé par Scaleitto",
+  policies: { shipping: "Livraison", returns: "Échanges et retours", privacy: "Confidentialité", terms: "Conditions générales" },
+  backToStore: "Retour à la boutique",
   errors: {
     checkFields: "Vérifiez les informations en rouge",
     name: "Entrez votre nom complet",
@@ -246,6 +250,8 @@ const en: StoreText = {
   },
   notFound: "Page not found",
   poweredBy: "Powered by Scaleitto",
+  policies: { shipping: "Shipping policy", returns: "Exchanges & returns", privacy: "Privacy policy", terms: "Terms & conditions" },
+  backToStore: "Back to the store",
   errors: {
     checkFields: "Check the details marked in red",
     name: "Enter your full name",

@@ -3,6 +3,18 @@ import { locales, defaultLocale, isLocale } from "@/i18n/config";
 
 const RESERVED_SUBDOMAINS = new Set(["www", "app", "admin", "api"]);
 
+// The platform's own addresses (dashboard, /store/<slug> links): APP_URL, ROOT_DOMAIN, local and IP hosts.
+function isPlatformHost(host: string, rootDomain: string) {
+  const app = (() => {
+    try {
+      return new URL(process.env.APP_URL ?? "").hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  return host === app || host === rootDomain || (rootDomain !== "" && host.endsWith(`.${rootDomain}`)) || host === "localhost" || /^[\d.]+$/.test(host) || host.includes(":") || !host.includes(".");
+}
+
 function preferredLocale(req: NextRequest) {
   const fromCookie = req.cookies.get("sc_locale")?.value;
   if (isLocale(fromCookie)) return fromCookie;
@@ -32,6 +44,19 @@ export function proxy(req: NextRequest) {
   }
 
   const first = pathname.split("/")[1];
+
+  // Any other host is a merchant's own domain: its store is served at the root (the shop is found by
+  // its verified domain in getShopBySlug). Shared paths (api, uploads, embed) stay as they are.
+  if (host && !isPlatformHost(host, rootDomain)) {
+    if (first === "api" || first === "uploads" || first === "embed") return NextResponse.next();
+    const domain = host.replace(/^www\./, "");
+    const url = req.nextUrl.clone();
+    url.pathname = `/store/${domain}${pathname === "/" ? "" : pathname}`;
+    const headers = new Headers(req.headers);
+    headers.set("x-store-subdomain", domain);
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
+
   if (first === "store" || first === "embed" || first === "api" || first === "uploads" || (locales as readonly string[]).includes(first)) {
     return NextResponse.next();
   }

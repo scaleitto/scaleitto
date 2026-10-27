@@ -3,9 +3,9 @@ import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mys
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 // Value lists shared with browser code live in a plain module (no database code in client bundles)
-import { limitKeys, paymentMethods, pixelPlatforms, purchaseTriggers, type LimitKey } from "../../lib/enums";
-export { limitKeys, paymentMethods, pixelPlatforms, purchaseTriggers };
-export type { LimitKey, PaymentMethod, PixelPlatform, PurchaseTrigger } from "../../lib/enums";
+import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type PolicyKind } from "../../lib/enums";
+export { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
+export type { LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
 
 const id = (name = "id") => varchar(name, { length: 36 });
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
@@ -71,10 +71,22 @@ export const shops = mysqlTable(
     design: json("design"),
     // How new orders reach the call center: manual, to the least busy agent, or to the least busy agent on shift
     assignMode: mysqlEnum("assign_mode", ["manual", "balanced", "on_shift"]).notNull().default("balanced"),
+    // Search engines and link previews (src/features/settings/types.ts)
+    seo: json("seo").$type<ShopSeo | null>(),
+    // Policy pages shown in the store footer (plain text)
+    policies: json("policies").$type<ShopPolicies | null>(),
+    // The merchant's own domain (lower case, without www). Served once its DNS is verified.
+    customDomain: varchar("custom_domain", { length: 191 }),
+    // Value of the TXT record _scaleitto.<domain> proving the merchant owns it
+    domainToken: varchar("domain_token", { length: 64 }),
+    domainVerifiedAt: datetime("domain_verified_at"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("shops_slug_uq").on(t.slug)],
+  (t) => [uniqueIndex("shops_slug_uq").on(t.slug), uniqueIndex("shops_domain_uq").on(t.customDomain)],
 );
+
+export type ShopSeo = { title?: string; description?: string };
+export type ShopPolicies = Partial<Record<PolicyKind, string>>;
 
 export const memberRoles = ["owner", "manager", "agent"] as const;
 export type MemberRole = (typeof memberRoles)[number];

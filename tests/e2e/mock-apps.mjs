@@ -3,11 +3,14 @@
 // /hook         — a webhook receiver
 // /shop/…       — a Shopify store (/products.json, product images)
 // /youcan/…     — the YouCan API (token "good-yc")
+// /dns          — a DNS resolver for custom domains (E2E_DNS_URL); records set with setDns()
 import { createServer } from "node:http";
 import { pngBuffer } from "./helpers.mjs";
 
 export const sheet = { token: null, headers: null, rows: new Map() }; // order number → row
 export const hooks = [];
+const dns = new Map(); // "TXT _scaleitto.x.test" → ["…"]
+export const setDns = (name, type, values) => dns.set(`${type} ${name}`, values);
 let results = new Map();
 let counter = 0;
 
@@ -66,6 +69,7 @@ export function startMockApps(port) {
       return res.end();
     }
     if (path === "/sheets/echo") return json(res, 200, results.get(Number(url.searchParams.get("id"))) ?? { ok: false });
+    if (path === "/dns") return json(res, 200, dns.get(`${url.searchParams.get("type")} ${url.searchParams.get("name")}`) ?? []);
     if (path === "/hook") {
       hooks.push({ headers: req.headers, raw, body: JSON.parse(raw) });
       return json(res, 200, { received: true });

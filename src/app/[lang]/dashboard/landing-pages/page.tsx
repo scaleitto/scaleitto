@@ -16,7 +16,7 @@ export default async function LandingPagesPage({ params }: PageProps<"/[lang]/da
   const { shop, role } = await requireSection(lang, "landingPages");
   const pages = await listLandingPages(shop.id);
   const base = sectionHref(lang, "landingPages");
-  const store = storeUrl(shop.slug);
+  const store = storeUrl(shop);
   const text = { landingPages: lp, errors: t.errors, common: t.common };
 
   return (

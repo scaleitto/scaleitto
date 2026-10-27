@@ -33,7 +33,7 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
       storeTexts={{ ar: getStoreText("ar"), fr: getStoreText("fr"), en: getStoreText("en") }}
       themeKey={resolveDesign(shop.design).theme}
       shopColor={shop.primaryColor}
-      pageUrl={`${storeUrl(shop.slug)}/lp/${encodeURIComponent(page.slug)}`}
+      pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
       embedUrl={`${appUrl}/embed/${shop.slug}/${encodeURIComponent(page.slug)}`}
       backHref={sectionHref(lang, "landingPages")}
       t={{ landingPages: t.landingPages, media: t.media, errors: t.errors, common: t.common }}

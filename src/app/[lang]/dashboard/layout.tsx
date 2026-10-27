@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
       brand={t.brand}
       shopName={shop.name}
       userName={user.name}
-      storeUrl={storeUrl(shop.slug)}
+      storeUrl={storeUrl(shop)}
       items={sectionsFor(role).map((s) => ({ key: s.key, href: sectionHref(lang, s.key), label: t.nav[s.key] }))}
       labels={{ viewStore: t.nav.viewStore, logout: t.nav.logout, menu: t.nav.menu }}
       logout={logout.bind(null, lang)}

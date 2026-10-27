@@ -4,16 +4,27 @@ import { headers } from "next/headers";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { RateMap } from "@/features/checkout/pricing";
+import { planAllowsDomain } from "@/features/settings/domain";
 
-// Active shop by its link. cache() → one query per request even if layout and page both ask.
-export const getShopBySlug = cache(async (slug: string) => {
-  const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.slug, slug.toLowerCase()));
+// Active shop by its link, or by its own domain (proxy.ts rewrites <domain>/… to /store/<domain>/…).
+// cache() → one query per request even if layout and page both ask.
+export const getShopBySlug = cache(async (slugOrDomain: string) => {
+  const key = decodeURIComponent(slugOrDomain).toLowerCase();
+  if (key.includes(".")) return getShopByDomain(key);
+  const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.slug, key));
   return shop && shop.status === "active" ? shop : null;
 });
 
+// A domain serves a store only once verified, and while the shop's plan includes custom domains.
+async function getShopByDomain(domain: string) {
+  const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.customDomain, domain));
+  if (!shop || shop.status !== "active" || !shop.domainVerifiedAt) return null;
+  return (await planAllowsDomain(shop.id)) ? shop : null;
+}
+
 export type StoreShop = NonNullable<Awaited<ReturnType<typeof getShopBySlug>>>;
 
-// On <slug>.scaleitto.com links start at "/", on /store/<slug> they need the prefix.
+// On <slug>.scaleitto.com or the shop's own domain links start at "/", on /store/<slug> they need the prefix.
 export async function storeBase(slug: string) {
   return (await headers()).get("x-store-subdomain") ? "" : `/store/${slug}`;
 }

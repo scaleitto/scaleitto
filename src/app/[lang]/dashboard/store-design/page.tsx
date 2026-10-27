@@ -22,7 +22,7 @@ export default async function StoreDesignPage({ params }: PageProps<"/[lang]/das
         t={{ design: t.design, media: t.media, errors: t.errors, common: t.common }}
         initial={{ primaryColor: shop.primaryColor, logoUrl: shop.logoUrl, design: resolveDesign(shop.design) }}
         preview={{ shopName: shop.name, phone: shop.phone, locale: storeLocale, storeText: getStoreText(storeLocale), currency: currencyLabel(storeLocale), products }}
-        storeHref={storeUrl(shop.slug)}
+        storeHref={storeUrl(shop)}
         action={saveDesign.bind(null, lang)}
       />
     </>

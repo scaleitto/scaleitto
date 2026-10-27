@@ -118,6 +118,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   PAYMENT_CCP / PAYMENT_RIB / PAYMENT_WHATSAPP), approved on `/[lang]/admin/plan-requests` (platform admin) →
   `approvePlanRequest` (plan + paid period). Dashboard banner (`planNotice`): locked orders, or a monthly quota past the
   contract's alert threshold (default 80%). Lists shared with browser code live in `src/lib/enums.ts`.
+- Settings (`src/features/settings/`): store details (name, phone, store language, link — `shopSlugSchema` shared with
+  sign-up), SEO (`shops.seo` → store layout metadata, title template "%s | shop"), policy pages (`shops.policies`,
+  `/store/<slug>/policies/<kind>`, footer links). Custom domain (paid plans with the `custom_domain` feature): the merchant
+  adds TXT `_scaleitto.<domain>` = `scaleitto-verify=<token>` and a CNAME www → DOMAIN_CNAME_TARGET (or A → SERVER_IP);
+  `checkDomain` verifies (E2E_DNS_URL = fake resolver in tests). `proxy.ts` rewrites any non-platform host to
+  `/store/<host>/…`; `getShopBySlug` resolves a dotted key by verified domain + plan. `storeUrl(shop)` prefers the domain.
+  `/api/domains/check?domain=` answers 200 only for served domains (on-demand TLS "ask" URL on a VPS).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -142,6 +149,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans).
-Next: Settings (custom domain), platform admin, AI last.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain).
+Next: platform admin (shops, plans, contracts, requests, error logs), then the remaining AI features.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

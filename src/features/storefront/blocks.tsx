@@ -8,6 +8,7 @@ import type { StoreText } from "@/i18n/store";
 import { formatPrice } from "@/lib/format";
 import type { StoreDesign } from "@/features/design/types";
 import { themeStyle, type Theme } from "@/features/themes/themes";
+import type { PolicyKind } from "@/lib/enums";
 
 export function StoreFrame({ locale, color, theme, children, className = "" }: { locale: Locale; color: string; theme: Theme; children: ReactNode; className?: string }) {
   return (
@@ -144,7 +145,7 @@ export function ProductGrid({
   );
 }
 
-export function StoreFooter({ name, about, socials, t }: { name: string; about: string; socials: StoreDesign["socials"]; t: StoreText }) {
+export function StoreFooter({ name, about, socials, policies = [], t }: { name: string; about: string; socials: StoreDesign["socials"]; policies?: { kind: PolicyKind; href: string }[]; t: StoreText }) {
   const links = [
     { href: socials.facebook, label: "Facebook" },
     { href: socials.instagram, label: "Instagram" },
@@ -168,6 +169,15 @@ export function StoreFooter({ name, about, socials, t }: { name: string; about: 
               ))}
             </div>
           </div>
+        )}
+        {policies.length > 0 && (
+          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm" data-testid="policy-links">
+            {policies.map((p) => (
+              <a key={p.kind} href={p.href} className="text-s-muted hover:text-brand hover:underline">
+                {t.policies[p.kind]}
+              </a>
+            ))}
+          </nav>
         )}
         <p className="text-xs text-s-muted">
           © {name} · {t.poweredBy}

@@ -26,10 +26,10 @@ async function load(params: PageProps<"/store/[slug]/lp/[page]">["params"]) {
 }
 
 export async function generateMetadata({ params }: PageProps<"/store/[slug]/lp/[page]">): Promise<Metadata> {
-  const { shop, page, product } = await load(params);
+  const { page, product } = await load(params);
   const hero = sanitizeSections(page.sections).find((s) => s.type === "hero");
   const title = hero && "title" in hero && hero.title ? hero.title : product.name;
-  return { title: `${title} | ${shop.name}`, description: product.description?.slice(0, 160), openGraph: { title, images: product.images.slice(0, 1) } };
+  return { title, description: product.description?.slice(0, 160), openGraph: { title, images: product.images.slice(0, 1) } };
 }
 
 export default async function LandingPage({ params }: PageProps<"/store/[slug]/lp/[page]">) {

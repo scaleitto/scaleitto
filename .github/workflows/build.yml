@@ -39,6 +39,9 @@ jobs:
       PAYMENT_HOLDER: Scaleitto SARL
       PAYMENT_CCP: "0012345678 clé 90"
       PAYMENT_WHATSAPP: "+213 555 00 11 22"
+      # Custom domains: where merchants point them, and a fake DNS resolver for the tests
+      DOMAIN_CNAME_TARGET: stores.scaleitto.test
+      E2E_DNS_URL: http://127.0.0.1:4040
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

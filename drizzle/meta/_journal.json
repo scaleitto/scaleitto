@@ -71,6 +71,13 @@
       "when": 1793106901772,
       "tag": "0009_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793108573535,
+      "tag": "0010_settings",
+      "breakpoints": true
     }
   ]
 }
