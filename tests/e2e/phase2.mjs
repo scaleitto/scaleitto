@@ -143,6 +143,8 @@ export default async function phase2(browser) {
 
   await step("a call center agent can open and update orders", async () => {
     const agent = await createSession({ shopId, role: "agent", email: `agent-p2-${Date.now()}@test.dz` });
+    // Agents only see the orders assigned to them
+    await db.query("UPDATE orders SET assigned_to = ?, assigned_at = NOW() WHERE id = ?", [agent.userId, orderId]);
     const ctx = await browser.newContext();
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, varchar, int, text, boolean, timestamp, json, mysqlEnum, uniqueIndex, index, primaryKey, date } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mysqlEnum, uniqueIndex, index, primaryKey, date } from "drizzle-orm/mysql-core";
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 const id = (name = "id") => varchar(name, { length: 36 });
@@ -64,6 +64,8 @@ export const shops = mysqlTable(
     primaryColor: varchar("primary_color", { length: 9 }).notNull().default("#10b981"),
     // Storefront look (src/features/design/types.ts → StoreDesign); null → defaults
     design: json("design"),
+    // How new orders reach the call center: manual, to the least busy agent, or to the least busy agent on shift
+    assignMode: mysqlEnum("assign_mode", ["manual", "balanced", "on_shift"]).notNull().default("balanced"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shops_slug_uq").on(t.slug)],
@@ -72,12 +74,18 @@ export const shops = mysqlTable(
 export const memberRoles = ["owner", "manager", "agent"] as const;
 export type MemberRole = (typeof memberRoles)[number];
 
+// Work schedule of a team member, in Algeria time: weekdays (0 = Sunday … 6 = Saturday) and hours "HH:MM".
+export type WorkSchedule = { days: number[]; start: string; end: string };
+
 export const shopMembers = mysqlTable(
   "shop_members",
   {
     shopId: id("shop_id").notNull(),
     userId: id("user_id").notNull(),
     role: mysqlEnum("role", memberRoles).notNull(),
+    // A deactivated member cannot sign in to the shop and gets no orders
+    active: boolean("active").notNull().default(true),
+    schedule: json("schedule").$type<WorkSchedule | null>(),
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.shopId, t.userId] }), index("members_user_idx").on(t.userId)],
@@ -180,6 +188,9 @@ export const orders = mysqlTable(
     shippingPrice: int("shipping_price").notNull(),
     total: int("total").notNull(),
     customerNote: varchar("customer_note", { length: 500 }),
+    // Call center agent in charge of confirming the order
+    assignedTo: id("assigned_to"),
+    assignedAt: timestamp("assigned_at"),
     ip: varchar("ip", { length: 45 }),
     userAgent: varchar("user_agent", { length: 255 }),
     createdAt: createdAt(),
@@ -190,6 +201,7 @@ export const orders = mysqlTable(
     index("orders_shop_created_idx").on(t.shopId, t.createdAt),
     index("orders_shop_status_idx").on(t.shopId, t.status),
     index("orders_shop_phone_idx").on(t.shopId, t.phone),
+    index("orders_shop_assigned_idx").on(t.shopId, t.assignedTo, t.status),
   ],
 );
 
@@ -223,7 +235,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),
@@ -323,6 +335,24 @@ export const blockedPhones = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.shopId, t.phone] })],
+);
+
+// Time each member spends working in the dashboard, per Algeria day (filled by a heartbeat
+// every minute while the dashboard is open and used).
+export const memberActivity = mysqlTable(
+  "member_activity",
+  {
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    // datetime, not timestamp: older MySQL/MariaDB auto-update the first timestamp column of a table
+    firstSeen: datetime("first_seen").notNull(),
+    lastSeen: datetime("last_seen").notNull(),
+    activeMinutes: int("active_minutes").notNull().default(0),
+    // Minutes counted inside the member's scheduled hours
+    shiftMinutes: int("shift_minutes").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.shopId, t.userId, t.day] })],
 );
 
 // ─── Operations ───────────────────────────────────────────

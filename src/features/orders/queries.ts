@@ -1,16 +1,20 @@
 import "server-only";
-import { and, asc, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
+import { visibleOrders, type OrderViewer } from "./access";
 
 export const PAGE_SIZE = 25;
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-export async function listOrders(shopId: string, { q = "", status, page = 1 }: { q?: string; status?: OrderStatus; page?: number }) {
+// assignee: a member id, or "none" for orders nobody is in charge of
+export async function listOrders(viewer: OrderViewer, { q = "", status, page = 1, assignee }: { q?: string; status?: OrderStatus; page?: number; assignee?: string }) {
   const o = schema.orders;
-  const filters: (SQL | undefined)[] = [eq(o.shopId, shopId)];
+  const filters: (SQL | undefined)[] = [visibleOrders(viewer)];
   if (status) filters.push(eq(o.status, status));
+  if (assignee === "none") filters.push(isNull(o.assignedTo));
+  else if (assignee) filters.push(eq(o.assignedTo, assignee));
   const term = q.trim();
   if (term) {
     const digits = term.replace(/[^\d]/g, "");
@@ -35,11 +39,13 @@ export async function listOrders(shopId: string, { q = "", status, page = 1 }: {
         wilayaCode: o.wilayaCode,
         total: o.total,
         createdAt: o.createdAt,
+        assigneeName: schema.users.name,
         // First product of the order, for the list
         // (written as plain SQL: inside a select Drizzle drops table names, which made the columns ambiguous)
         product: sql<string | null>`(select concat(oi.name, ' ×', oi.quantity) from order_items oi where oi.order_id = orders.id limit 1)`,
       })
       .from(o)
+      .leftJoin(schema.users, eq(schema.users.id, o.assignedTo))
       .where(where)
       .orderBy(desc(o.createdAt), desc(o.number))
       .limit(PAGE_SIZE)
@@ -49,15 +55,16 @@ export async function listOrders(shopId: string, { q = "", status, page = 1 }: {
   return { rows, total };
 }
 
-export async function statusCounts(shopId: string) {
-  const rows = await db.select({ status: schema.orders.status, n: count() }).from(schema.orders).where(eq(schema.orders.shopId, shopId)).groupBy(schema.orders.status);
+export async function statusCounts(viewer: OrderViewer) {
+  const rows = await db.select({ status: schema.orders.status, n: count() }).from(schema.orders).where(visibleOrders(viewer)).groupBy(schema.orders.status);
   return Object.fromEntries(rows.map((r) => [r.status, r.n])) as Partial<Record<OrderStatus, number>>;
 }
 
-export async function getOrder(shopId: string, id: string) {
-  const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, id)));
+export async function getOrder(viewer: OrderViewer, id: string) {
+  const shopId = viewer.shopId;
+  const [order] = await db.select().from(schema.orders).where(and(visibleOrders(viewer), eq(schema.orders.id, id)));
   if (!order) return null;
-  const [items, events, history, [blocked]] = await Promise.all([
+  const [items, events, history, [blocked], [assignee]] = await Promise.all([
     db.select().from(schema.orderItems).where(and(eq(schema.orderItems.shopId, shopId), eq(schema.orderItems.orderId, id))),
     db
       .select({ event: schema.orderEvents, userName: schema.users.name })
@@ -72,6 +79,7 @@ export async function getOrder(shopId: string, id: string) {
       .where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.phone, order.phone)))
       .groupBy(schema.orders.status),
     db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, order.phone))),
+    order.assignedTo ? db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, order.assignedTo)) : Promise.resolve([]),
   ]);
   const byStatus = Object.fromEntries(history.map((h) => [h.status, h.n])) as Partial<Record<OrderStatus, number>>;
   const phoneStats = {
@@ -79,7 +87,7 @@ export async function getOrder(shopId: string, id: string) {
     delivered: byStatus.delivered ?? 0,
     failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0),
   };
-  return { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0 };
+  return { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null };
 }
 
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;

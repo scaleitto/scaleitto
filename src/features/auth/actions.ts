@@ -59,7 +59,8 @@ export async function login(lang: string, _prev: ActionState, formData: FormData
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, parsed.data.email));
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) return { ok: false, error: "invalidCredentials" };
-    const [member] = await db.select({ role: schema.shopMembers.role }).from(schema.shopMembers).where(eq(schema.shopMembers.userId, user.id)).limit(1);
+    const [member] = await db.select({ role: schema.shopMembers.role, active: schema.shopMembers.active }).from(schema.shopMembers).where(eq(schema.shopMembers.userId, user.id)).limit(1);
+    if (member && !member.active) return { ok: false, error: "accountDisabled" };
     await createSession(user.id);
     target = member ? sectionHref(locale, homeSection(member.role).key) : `/${locale}/register`;
     return { ok: true };

@@ -6,7 +6,7 @@ import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import { Alert, Badge, Card, PageHeader } from "@/ui";
 import { addOrderNote, updateOrderCustomer } from "./actions";
-import { CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
+import { AssignCard, CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
 import { isOrderStatus, statusTone } from "./statuses";
 import { ShipmentCard } from "@/features/delivery/ShipmentCard";
@@ -21,6 +21,7 @@ export function OrderDetail({
   shipment,
   accounts,
   canManageDelivery,
+  members,
 }: {
   lang: string;
   t: Dictionary;
@@ -28,6 +29,8 @@ export function OrderDetail({
   shipment: typeof schema.shipments.$inferSelect | null;
   accounts: CarrierAccountRow[];
   canManageDelivery: boolean;
+  // Team members the order can be given to (managers only; empty for agents)
+  members: { userId: string; name: string }[];
 }) {
   const o = t.orders;
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
@@ -129,6 +132,7 @@ export function OrderDetail({
         </div>
 
         <div className="space-y-6">
+          <AssignCard lang={lang} orderId={order.id} assignedTo={order.assignedTo} assigneeName={order.assigneeName} members={members} t={text} />
           <Card className="space-y-3" data-testid="phone-history">
             <h2 className="font-semibold">{o.phoneHistory}</h2>
             {order.phoneStats.orders <= 1 ? (
@@ -151,11 +155,17 @@ export function OrderDetail({
                 <li key={event.id} className="relative">
                   <span className="absolute -start-[1.3rem] top-1.5 size-2 rounded-full bg-accent" />
                   <p className="font-medium">
-                    {event.type === "status" ? fmt(o.events.status, { from: statusLabel(event.fromStatus), to: statusLabel(event.toStatus) }) : o.events[event.type]}
+                    {event.type === "status"
+                      ? fmt(o.events.status, { from: statusLabel(event.fromStatus), to: statusLabel(event.toStatus) })
+                      : event.type === "assign"
+                        ? event.note
+                          ? fmt(o.events.assign, { name: event.note })
+                          : o.events.unassign
+                        : o.events[event.type]}
                   </p>
-                  {event.note && <p className="mt-0.5 whitespace-pre-line text-fg/90">{event.note}</p>}
+                  {event.note && event.type !== "assign" && <p className="mt-0.5 whitespace-pre-line text-fg/90">{event.note}</p>}
                   <p className="text-xs text-muted">
-                    <bdi>{userName ?? o.byCustomer}</bdi> · <bdi>{formatDate(event.createdAt, lang)}</bdi>
+                    <bdi>{userName ?? (event.type === "assign" ? o.bySystem : o.byCustomer)}</bdi> · <bdi>{formatDate(event.createdAt, lang)}</bdi>
                   </p>
                 </li>
               ))}

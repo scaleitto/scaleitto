@@ -23,7 +23,7 @@ export async function requireUser(locale: string): Promise<CurrentUser> {
 
 async function membershipOf(userId: string) {
   const [row] = await db
-    .select({ shop: schema.shops, role: schema.shopMembers.role })
+    .select({ shop: schema.shops, role: schema.shopMembers.role, active: schema.shopMembers.active })
     .from(schema.shopMembers)
     .innerJoin(schema.shops, eq(schema.shops.id, schema.shopMembers.shopId))
     .where(eq(schema.shopMembers.userId, userId))
@@ -37,6 +37,11 @@ export async function requireShop(locale: string): Promise<ShopContext> {
   const user = await requireUser(locale);
   const m = await membershipOf(user.id);
   if (!m) redirect(`/${locale}/register`);
+  if (!m.active) {
+    // Deactivated by the shop: sign out everywhere and explain on the login page
+    await db.delete(schema.sessions).where(eq(schema.sessions.userId, user.id));
+    redirect(`/${locale}/login?disabled=1`);
+  }
   return { user, shop: m.shop, role: m.role };
 }
 
@@ -53,7 +58,7 @@ export async function getShopContext(): Promise<ShopContext | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   const m = await membershipOf(user.id);
-  return m ? { user, shop: m.shop, role: m.role } : null;
+  return m?.active ? { user, shop: m.shop, role: m.role } : null;
 }
 
 export async function requirePlatformAdmin(locale: string) {

@@ -6,7 +6,7 @@ import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { changeOrderStatus, setPhoneBlocked } from "./actions";
+import { assignOrder, changeOrderStatus, setPhoneBlocked } from "./actions";
 import { orderStatuses, type OrderStatus } from "./statuses";
 
 export type OrderText = Pick<Dictionary, "orders" | "errors" | "common">;
@@ -219,5 +219,36 @@ export function NoteForm({ t, action }: { t: OrderText; action: FormAction }) {
         {t.orders.addNote}
       </SubmitButton>
     </form>
+  );
+}
+
+// Who handles the order. Managers pick a member; agents just see it.
+export function AssignCard({ lang, orderId, assignedTo, assigneeName, members, t }: { lang: string; orderId: string; assignedTo: string | null; assigneeName: string | null; members: { userId: string; name: string }[]; t: OrderText }) {
+  const { pending, error, run } = useButtonAction(t);
+  return (
+    <Card className="space-y-3" data-testid="assign">
+      <h2 className="font-semibold">{t.orders.assignee}</h2>
+      {members.length ? (
+        <Select
+          aria-label={t.orders.assignee}
+          value={assignedTo ?? ""}
+          disabled={pending}
+          onChange={(e) => {
+            const value = e.target.value || null;
+            run(() => assignOrder(lang, orderId, value));
+          }}
+        >
+          <option value="">{t.orders.unassigned}</option>
+          {members.map((m) => (
+            <option key={m.userId} value={m.userId}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+      ) : (
+        <p className="text-sm">{assigneeName ?? t.orders.unassigned}</p>
+      )}
+      {error && <Alert>{error}</Alert>}
+    </Card>
   );
 }

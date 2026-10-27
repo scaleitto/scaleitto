@@ -27,6 +27,7 @@ import {
 import type { Locale } from "@/i18n/config";
 import type { SectionKey } from "@/lib/permissions";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
+import { ActivityPing } from "./ActivityPing";
 
 const icons: Record<SectionKey, LucideIcon> = {
   overview: House,
@@ -105,6 +106,7 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen md:flex">
+      <ActivityPing />
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-e border-line bg-panel md:block">{sidebar}</aside>
 

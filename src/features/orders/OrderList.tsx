@@ -7,6 +7,7 @@ import { wilayaName } from "@/lib/wilayas";
 import { Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
 import { PAGE_SIZE, listOrders, statusCounts } from "./queries";
 import { orderStatuses, statusTone, type OrderStatus } from "./statuses";
+import type { OrderViewer } from "./access";
 
 // Orders / Abandoned carts switch shown on both pages.
 export function OrdersTabs({ lang, t, current }: { lang: string; t: Dictionary; current: "orders" | "abandoned" }) {
@@ -31,14 +32,35 @@ export function OrdersTabs({ lang, t, current }: { lang: string; t: Dictionary; 
   );
 }
 
-export async function OrderList({ lang, t, shopId, storeHref, q, status, page }: { lang: string; t: Dictionary; shopId: string; storeHref: string; q: string; status?: OrderStatus; page: number }) {
+export async function OrderList({
+  lang,
+  t,
+  viewer,
+  members,
+  storeHref,
+  q,
+  status,
+  assignee,
+  page,
+}: {
+  lang: string;
+  t: Dictionary;
+  viewer: OrderViewer;
+  // Team members to filter by (managers only; empty for agents)
+  members: { userId: string; name: string }[];
+  storeHref: string;
+  q: string;
+  status?: OrderStatus;
+  assignee?: string;
+  page: number;
+}) {
   const o = t.orders;
   const base = sectionHref(lang, "orders");
-  const [{ rows, total }, counts] = await Promise.all([listOrders(shopId, { q, status, page }), statusCounts(shopId)]);
+  const [{ rows, total }, counts] = await Promise.all([listOrders(viewer, { q, status, page, assignee }), statusCounts(viewer)]);
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
   const href = (patch: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries({ q, status, page, ...patch })) if (v && !(k === "page" && v === 1)) params.set(k, String(v));
+    for (const [k, v] of Object.entries({ q, status, assignee, page, ...patch })) if (v && !(k === "page" && v === 1)) params.set(k, String(v));
     const s = params.toString();
     return s ? `${base}?${s}` : base;
   };
@@ -79,10 +101,28 @@ export async function OrderList({ lang, t, shopId, storeHref, q, status, page }:
                 );
               })}
             </nav>
-            <form action={base} className="relative sm:w-80">
+            <form action={base} className="flex flex-wrap gap-2">
               {status && <input type="hidden" name="status" value={status} />}
-              <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input type="search" name="q" defaultValue={q} placeholder={o.search} aria-label={o.search} className={`${inputClass} ps-9`} />
+              <div className="relative w-full sm:w-80">
+                <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input type="search" name="q" defaultValue={q} placeholder={o.search} aria-label={o.search} className={`${inputClass} ps-9`} />
+              </div>
+              {members.length > 0 && (
+                <>
+                  <select name="assignee" defaultValue={assignee ?? ""} aria-label={o.columns.assignee} className={inputClass.replace("w-full", "w-auto")}>
+                    <option value="">{o.allAgents}</option>
+                    <option value="none">{o.unassigned}</option>
+                    {members.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className={buttonClass("secondary")}>
+                    {o.filter}
+                  </button>
+                </>
+              )}
             </form>
           </div>
 
@@ -97,6 +137,7 @@ export async function OrderList({ lang, t, shopId, storeHref, q, status, page }:
                     <th className="p-3 text-start font-medium">{o.columns.customer}</th>
                     <th className="hidden p-3 text-start font-medium lg:table-cell">{o.columns.product}</th>
                     <th className="hidden p-3 text-start font-medium md:table-cell">{o.columns.wilaya}</th>
+                    {members.length > 0 && <th className="hidden p-3 text-start font-medium xl:table-cell">{o.columns.assignee}</th>}
                     <th className="p-3 text-start font-medium">{o.columns.total}</th>
                     <th className="p-3 text-start font-medium">{o.columns.status}</th>
                     <th className="hidden p-3 text-start font-medium sm:table-cell">{o.columns.date}</th>
@@ -119,6 +160,7 @@ export async function OrderList({ lang, t, shopId, storeHref, q, status, page }:
                       </td>
                       <td className="hidden max-w-56 truncate p-3 text-muted lg:table-cell">{r.product}</td>
                       <td className="hidden p-3 whitespace-nowrap text-muted md:table-cell">{wilayaName(r.wilayaCode, lang)}</td>
+                      {members.length > 0 && <td className="hidden p-3 whitespace-nowrap text-muted xl:table-cell">{r.assigneeName ?? "—"}</td>}
                       <td className="p-3 font-semibold whitespace-nowrap">{formatPrice(r.total, t.common.currency)}</td>
                       <td className="p-3">
                         <Badge tone={statusTone[r.status]}>{o.statuses[r.status]}</Badge>

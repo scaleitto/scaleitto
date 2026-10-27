@@ -12,6 +12,7 @@ import { wilayas } from "@/lib/wilayas";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { applyOrderStatus } from "@/features/orders/transition";
+import { canTouchOrder, viewerOf } from "@/features/orders/access";
 import { carrierClient, CarrierError, type ParcelInput } from "./platforms";
 import type { Credentials } from "./platforms/types";
 import { findCarrier, normalizeEcotrackUrl, platformFields } from "./carriers";
@@ -130,7 +131,9 @@ const frenchWilaya = (code: number) => wilayas.find((w) => w.code === code)?.fr 
 // Sends a confirmed order to a connected delivery company and marks it as shipping.
 export async function sendToCarrier(lang: string, orderId: string, accountId: string): Promise<ActionState> {
   return safeAction("delivery/send", async () => {
-    const { shop, user } = await requireSection(asLocale(lang), "orders");
+    const ctx = await requireSection(asLocale(lang), "orders");
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
     if (!order) return { ok: false, error: "notFound" };
     if (order.status !== "confirmed") return { ok: false, error: "confirmFirst" };
@@ -192,7 +195,9 @@ const manualSchema = z.object({
 // For companies without an integration: the tracking number is typed by hand.
 export async function addManualShipment(lang: string, orderId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("delivery/manual", async () => {
-    const { shop, user } = await requireSection(asLocale(lang), "orders");
+    const ctx = await requireSection(asLocale(lang), "orders");
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     const parsed = manualSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const found = await db.$count(schema.orders, and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
@@ -210,7 +215,9 @@ export async function addManualShipment(lang: string, orderId: string, _prev: Ac
 // Asks the delivery company where the parcel is; a delivered/returned parcel closes the order.
 export async function refreshTracking(lang: string, orderId: string): Promise<ActionState> {
   return safeAction("delivery/track", async () => {
-    const { shop, user } = await requireSection(asLocale(lang), "orders");
+    const ctx = await requireSection(asLocale(lang), "orders");
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     const [shipment] = await db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
     if (!shipment?.carrierAccountId) return { ok: false, error: "notFound" };
     const [account] = await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, shipment.carrierAccountId)));
@@ -235,7 +242,9 @@ export async function refreshTracking(lang: string, orderId: string): Promise<Ac
 // Removes the parcel from the order here (a mistake, or cancelled at the company); the order goes back to confirmed.
 export async function removeShipment(lang: string, orderId: string): Promise<ActionState> {
   return safeAction("delivery/remove", async () => {
-    const { shop, user } = await requireSection(asLocale(lang), "orders");
+    const ctx = await requireSection(asLocale(lang), "orders");
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     await db.transaction(async (tx) => {
       await tx.delete(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
       const [order] = await tx.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));

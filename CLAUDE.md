@@ -64,6 +64,15 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-line`…), `rounded-[var(--s-radius)]`,
   `rounded-[var(--s-radius-btn)]` and `shadow-[var(--s-shadow)]` — never fixed slate/white colors, or dark themes
   break. Fonts for all themes are declared once in `src/app/fonts.ts`. The chosen theme is `design.theme`.
+- Call centers (`src/features/team/`): members are added by owners/managers (one account = one shop; `maxStaff`
+  counts active members), with role, work schedule (`WorkSchedule`, Algeria time) and active flag (deactivating
+  deletes their sessions and releases their open orders). New orders are assigned in `place-order.ts` via
+  `assign.ts → pickAgent` (shops.assign_mode: manual / balanced / on_shift). Agents only see and change orders
+  assigned to them: every order query/action goes through `src/features/orders/access.ts` (`visibleOrders`,
+  `canTouchOrder`) — keep it that way for new order features. Working time comes from `/api/activity` (heartbeat
+  from `ActivityPing`, max one minute per minute) into `member_activity`; `metrics.ts` computes performance
+  (confirmations, rates, response time, attendance/punctuality/coverage via `schedule.ts`). Times: `src/lib/time.ts`
+  (Africa/Algiers); `formatDate`/`formatTime` always render Algeria time.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
@@ -89,7 +98,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store).
-Next: Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers).
+Next: Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

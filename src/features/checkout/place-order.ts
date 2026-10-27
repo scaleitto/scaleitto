@@ -6,6 +6,7 @@ import type { StoreShop } from "@/features/storefront/queries";
 import { getShippingRates } from "@/features/storefront/queries";
 import { checkOrderAllowed, type BlockReason } from "./protection";
 import { linePrice, shippingPrice } from "./pricing";
+import { pickAgent } from "@/features/team/assign";
 import type { OrderInput } from "./validators";
 
 export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping";
@@ -90,6 +91,12 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         stockTracked: product.trackStock,
       });
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "created", toStatus: "new" });
+      // Hand the order to a call center agent (unless the shop assigns by hand)
+      const agent = await pickAgent(tx, shop.id);
+      if (agent) {
+        await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
+        await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });
+      }
       // This visitor is no longer an abandoned cart.
       await tx
         .update(schema.leads)

@@ -36,6 +36,13 @@
       "when": 1793086506604,
       "tag": "0004_store_design",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793087868756,
+      "tag": "0005_call_centers",
+      "breakpoints": true
     }
   ]
 }

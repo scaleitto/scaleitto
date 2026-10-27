@@ -181,6 +181,8 @@ export default async function phase3(browser) {
 
   await step("call center agents use shipments but cannot open the delivery settings", async () => {
     const agent = await createSession({ shopId, role: "agent", email: `agent-p3-${Date.now()}@test.dz` });
+    // Agents only see the orders assigned to them
+    await db.query("UPDATE orders SET assigned_to = ?, assigned_at = NOW() WHERE id = ?", [agent.userId, orderId]);
     const ctx = await browser.newContext();
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();

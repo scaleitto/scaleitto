@@ -3,10 +3,13 @@ import { requireSection } from "@/server/auth/context";
 import { storeUrl } from "@/lib/urls";
 import { OrderList } from "@/features/orders/OrderList";
 import { isOrderStatus } from "@/features/orders/statuses";
+import { viewerOf } from "@/features/orders/access";
+import { assignableMembers } from "@/features/team/queries";
 
 export default async function OrdersPage({ params, searchParams }: PageProps<"/[lang]/dashboard/orders">) {
   const lang = asLocale((await params).lang);
-  const { shop } = await requireSection(lang, "orders");
+  const ctx = await requireSection(lang, "orders");
+  const { shop } = ctx;
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const status = one(sp.status);
@@ -14,10 +17,12 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/[
     <OrderList
       lang={lang}
       t={getDictionary(lang)}
-      shopId={shop.id}
+      viewer={viewerOf(ctx)}
+      members={ctx.role === "agent" ? [] : await assignableMembers(shop.id)}
       storeHref={storeUrl(shop.slug)}
       q={one(sp.q)}
       status={isOrderStatus(status) ? status : undefined}
+      assignee={ctx.role === "agent" ? undefined : one(sp.assignee) || undefined}
       page={Math.max(1, Number(one(sp.page)) || 1)}
     />
   );
