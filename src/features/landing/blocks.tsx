@@ -10,23 +10,30 @@ const h2 = "text-2xl font-extrabold leading-snug sm:text-3xl";
 
 function OrderButton({ label }: { label: string }) {
   return (
-    <a href="#order-form" className="inline-flex items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-8 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110">
+    <a href="#order-form" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-8 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 sm:w-auto">
       <ShoppingBag size={20} /> {label}
     </a>
   );
 }
 
-function Section({ section, t, price }: { section: LandingSection; t: StoreText; price?: ReactNode }) {
+// Photos keep their own shape (never cropped), on the theme's surface
+function Photo({ src, alt = "", className = "" }: { src: string; alt?: string; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={alt} loading="lazy" className={`mx-auto h-auto max-h-[80vh] w-full object-contain ${className}`} />;
+}
+
+function Section({ section, t, price, flip = false }: { section: LandingSection; t: StoreText; price?: ReactNode; flip?: boolean }) {
   const l = t.landing;
   switch (section.type) {
     case "hero":
       return (
-        <section className="grid items-center gap-6 md:grid-cols-2" data-section="hero">
+        <section className="grid items-center gap-5 md:grid-cols-2 md:gap-8" data-section="hero">
           {section.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={section.image} alt="" className={`aspect-square w-full object-cover ${card}`} />
+            <div className={`overflow-hidden ${card}`}>
+              <Photo src={section.image} />
+            </div>
           )}
-          <div className={`space-y-4 ${section.image ? "" : "text-center md:col-span-2"}`}>
+          <div className={`space-y-4 text-center md:text-start ${section.image ? "" : "md:col-span-2 md:text-center"}`}>
             {section.badge && <span className="inline-block rounded-full bg-red-600 px-3 py-1 text-sm font-bold text-white">{section.badge}</span>}
             <h1 className="text-3xl leading-tight font-extrabold sm:text-4xl">{section.title}</h1>
             {section.subtitle && <p className="text-lg text-s-muted">{section.subtitle}</p>}
@@ -45,6 +52,39 @@ function Section({ section, t, price }: { section: LandingSection; t: StoreText;
           ))}
         </ul>
       );
+    case "imageText":
+      return (
+        <section className="grid items-center gap-5 md:grid-cols-2 md:gap-10" data-section="imageText">
+          {section.image && (
+            <div className={`overflow-hidden ${card} ${flip ? "md:order-2" : ""}`}>
+              <Photo src={section.image} />
+            </div>
+          )}
+          <div className={`space-y-3 ${section.image ? "" : "mx-auto max-w-3xl text-center md:col-span-2"}`}>
+            {section.title && <h2 className={h2}>{section.title}</h2>}
+            {section.body && <p className="text-lg leading-relaxed whitespace-pre-line text-s-muted">{section.body}</p>}
+          </div>
+        </section>
+      );
+    case "benefits":
+      return (
+        <section className="space-y-5" data-section="benefits">
+          {section.title && <h2 className={`${h2} text-center`}>{section.title}</h2>}
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {section.items.map((item) => (
+              <li key={item.title} className={`flex gap-4 p-5 ${card}`}>
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand/10 text-2xl" aria-hidden>
+                  {item.icon}
+                </span>
+                <span className="space-y-1">
+                  <span className="block font-bold">{item.title}</span>
+                  {item.text && <span className="block text-sm leading-relaxed text-s-muted">{item.text}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      );
     case "text":
       return (
         <section className="mx-auto max-w-3xl space-y-3 text-center" data-section="text">
@@ -55,8 +95,9 @@ function Section({ section, t, price }: { section: LandingSection; t: StoreText;
     case "image":
       return (
         <figure className="mx-auto max-w-3xl" data-section="image">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={section.url} alt={section.caption ?? ""} className={`w-full object-cover ${card}`} />
+          <div className={`overflow-hidden ${card}`}>
+            <Photo src={section.url} alt={section.caption ?? ""} />
+          </div>
           {section.caption && <figcaption className="mt-2 text-center text-sm text-s-muted">{section.caption}</figcaption>}
         </figure>
       );
@@ -67,7 +108,7 @@ function Section({ section, t, price }: { section: LandingSection; t: StoreText;
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {section.images.map((src) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={src} src={src} alt="" className={`aspect-square w-full object-cover ${card}`} />
+              <img key={src} src={src} alt="" loading="lazy" className={`aspect-square w-full object-contain p-1 ${card}`} />
             ))}
           </div>
         </section>
@@ -173,9 +214,12 @@ export function LandingSections({ sections, form, t, price }: { sections: Landin
   const formAt = visible.findIndex((s) => s.type === "form");
   const insertAt = formAt >= 0 ? formAt : visible.findIndex((s) => s.type === "hero") + 1;
   const out: ReactNode[] = [];
+  let imageTexts = 0;
   visible.forEach((s, i) => {
     if (i === insertAt && formAt < 0) out.push(<FormSlot key="form-slot">{form}</FormSlot>);
-    out.push(s.type === "form" ? <FormSlot key={s.id}>{form}</FormSlot> : <Section key={s.id} section={s} t={t} price={s.type === "hero" ? price : undefined} />);
+    // Image + text blocks alternate sides on large screens
+    const flip = s.type === "imageText" && imageTexts++ % 2 === 1;
+    out.push(s.type === "form" ? <FormSlot key={s.id}>{form}</FormSlot> : <Section key={s.id} section={s} t={t} price={s.type === "hero" ? price : undefined} flip={flip} />);
   });
   if (insertAt >= visible.length && formAt < 0) out.push(<FormSlot key="form-slot">{form}</FormSlot>);
   return <div className="space-y-10 sm:space-y-14">{out}</div>;

@@ -1,18 +1,54 @@
 "use client";
 
-import { Plus, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { LoaderCircle, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { Field, Input, Textarea } from "@/ui";
 import { ImageManager } from "@/ui/ImageManager";
 import type { LandingSection } from "./types";
+import { startImageEnhance } from "@/features/ai/actions";
+import { useAiTask } from "@/features/ai/useAiTask";
+import { imageStyles as styleKeys } from "@/lib/enums";
 
 export type EditorText = Pick<Dictionary, "landingPages" | "media" | "errors" | "common">;
 
 const lines = (v: string) => v.split("\n").map((x) => x.trimStart());
 const addButton = "inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline";
 
+// Rework the chosen photo with the AI (same product, new background), then use the new one
+function EnhanceImage({ lang, src, onDone, t }: { lang: string; src: string; onDone: (url: string) => void; t: EditorText }) {
+  const f = t.landingPages.editor.fields;
+  const [style, setStyle] = useState<(typeof styleKeys)[number]>("studio");
+  const task = useAiTask<{ url: string }>(lang, t.errors as Record<string, string>);
+  return (
+    <div className="space-y-1.5 rounded-lg bg-panel-2 p-2" data-testid="enhance-image">
+      <div className="flex flex-wrap items-center gap-2">
+        <select aria-label={f.enhance} value={style} onChange={(e) => setStyle(e.target.value as typeof style)} className="rounded-md border border-line bg-bg px-2 py-1 text-xs">
+          {styleKeys.map((k) => (
+            <option key={k} value={k}>
+              {f.styles[k]}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={task.working}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline disabled:opacity-60"
+          onClick={async () => {
+            const result = await task.run(() => startImageEnhance(lang, src, style));
+            if (result) onDone(result.url);
+          }}
+        >
+          {task.working ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />} {task.working ? f.enhancing : f.enhance}
+        </button>
+      </div>
+      {task.error && <p className="text-xs text-danger">{task.error}</p>}
+    </div>
+  );
+}
+
 // One image: pick one of the product's photos or upload a new one.
-function ImagePicker({ value, onChange, productImages, t }: { value?: string; onChange: (v: string | undefined) => void; productImages: string[]; t: EditorText }) {
+function ImagePicker({ lang, value, onChange, productImages, t }: { lang: string; value?: string; onChange: (v: string | undefined) => void; productImages: string[]; t: EditorText }) {
   const f = t.landingPages.editor.fields;
   return (
     <div className="space-y-2">
@@ -36,12 +72,13 @@ function ImagePicker({ value, onChange, productImages, t }: { value?: string; on
         </div>
       )}
       <ImageManager t={t.media} value={value ? [value] : []} onChange={(imgs) => onChange(imgs[0])} max={1} />
+      {value?.startsWith("/uploads/") && <EnhanceImage key={value} lang={lang} src={value} onDone={onChange} t={t} />}
     </div>
   );
 }
 
 // The fields of one section. `set` merges changes into the section.
-export function SectionFields({ section, set, productImages, t }: { section: LandingSection; set: (patch: Partial<LandingSection>) => void; productImages: string[]; t: EditorText }) {
+export function SectionFields({ lang, section, set, productImages, t }: { lang: string; section: LandingSection; set: (patch: Partial<LandingSection>) => void; productImages: string[]; t: EditorText }) {
   const ed = t.landingPages.editor;
   const f = ed.fields;
   const p = (patch: Record<string, unknown>) => set(patch as Partial<LandingSection>);
@@ -59,7 +96,7 @@ export function SectionFields({ section, set, productImages, t }: { section: Lan
             <Input value={section.badge ?? ""} maxLength={40} onChange={(e) => p({ badge: e.target.value })} />
           </Field>
           <Field label={f.image}>
-            <ImagePicker value={section.image} onChange={(image) => p({ image })} productImages={productImages} t={t} />
+            <ImagePicker lang={lang} value={section.image} onChange={(image) => p({ image })} productImages={productImages} t={t} />
           </Field>
         </div>
       );
@@ -83,10 +120,48 @@ export function SectionFields({ section, set, productImages, t }: { section: Lan
           </Field>
         </div>
       );
+    case "imageText":
+      return (
+        <div className="space-y-3">
+          {titleField(section.title)}
+          <Field label={f.body}>
+            <Textarea rows={4} maxLength={2000} value={section.body} onChange={(e) => p({ body: e.target.value })} />
+          </Field>
+          <Field label={f.image}>
+            <ImagePicker lang={lang} value={section.image} onChange={(image) => p({ image })} productImages={productImages} t={t} />
+          </Field>
+        </div>
+      );
+    case "benefits":
+      return (
+        <div className="space-y-3">
+          {titleField(section.title)}
+          {section.items.map((item, i) => {
+            const update = (patch: Partial<typeof item>) => p({ items: section.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+            return (
+              <div key={i} className="space-y-2 rounded-lg border border-line p-3">
+                <div className="flex gap-2">
+                  <Input aria-label={f.icon} placeholder="✨" className="w-16 text-center" value={item.icon} maxLength={8} onChange={(e) => update({ icon: e.target.value })} />
+                  <Input aria-label={f.benefitTitle} placeholder={f.benefitTitle} value={item.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
+                  <button type="button" aria-label={ed.remove} className="rounded-lg p-2 text-muted hover:text-danger" onClick={() => p({ items: section.items.filter((_, j) => j !== i) })}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <Textarea aria-label={f.benefitText} placeholder={f.benefitText} rows={2} maxLength={400} value={item.text} onChange={(e) => update({ text: e.target.value })} />
+              </div>
+            );
+          })}
+          {section.items.length < 9 && (
+            <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { icon: "✨", title: "", text: "" }] })}>
+              <Plus size={15} /> {f.addBenefit}
+            </button>
+          )}
+        </div>
+      );
     case "image":
       return (
         <div className="space-y-3">
-          <ImagePicker value={section.url || undefined} onChange={(url) => p({ url: url ?? "" })} productImages={productImages} t={t} />
+          <ImagePicker lang={lang} value={section.url || undefined} onChange={(url) => p({ url: url ?? "" })} productImages={productImages} t={t} />
           <Field label={f.caption}>
             <Input value={section.caption ?? ""} maxLength={200} onChange={(e) => p({ caption: e.target.value })} />
           </Field>

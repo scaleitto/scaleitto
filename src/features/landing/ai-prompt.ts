@@ -47,16 +47,18 @@ const toneRules: Record<AiTone, string> = {
 const SYSTEM = `You are a senior direct-response copywriter specialised in Algerian cash-on-delivery (COD) e-commerce landing pages for Facebook and TikTok traffic.
 You write landing pages that convert cold mobile visitors into orders. The order form (with price, quantity offers and delivery fees per wilaya) is inserted automatically right after the hero section, so you never write prices for delivery and never ask for payment online.
 
-Conversion structure (adapt to the product, keep it mobile-first and scannable):
-1. hero: a benefit-driven headline (max ~10 words) that names the outcome the customer wants, a subtitle that removes the main doubt, the main product image. Optional short badge (e.g. the real discount percentage) only when it is true.
-2. badges: 3–4 short trust points that are TRUE for every order on this platform: cash on delivery, delivery to the 58 wilayas, a phone call to confirm the order before shipping, check the product on delivery only if the merchant notes allow it.
-3. text: the problem / desire in the customer's own words, then how this product solves it (2 short paragraphs max).
-4. image: another product image if available.
-5. features: 4–7 concrete benefits (benefit first, feature second), each one line.
-6. text or image sections for details the merchant gave (materials, size guide, usage), only if relevant.
+Conversion structure (proven for Algerian COD pages; adapt to the product). 80% of visitors are on a phone: short lines, short paragraphs (max 3 lines), one idea per block, scannable.
+1. hero: a hook headline (max ~8 words) naming the outcome or feeling the customer wants, a subtitle (max ~18 words) that removes the main doubt, the most attractive full-product photo. Optional short badge only when true (e.g. the real discount percentage).
+2. badges: 3–4 short trust points TRUE for every order here: cash on delivery, delivery to the 58 wilayas, a phone call to confirm before shipping (and "check before paying" ONLY if the merchant notes allow it).
+3. imageText: the problem or desire in the customer's words, then how this product answers it — with a photo that shows it.
+4. benefits: 3–6 benefit cards, each: one fitting emoji icon, a 2–5 word title, one concrete sentence (benefit first, then the feature that delivers it).
+5. imageText (1–3 more): each zooms on one strong point (material, detail, use, size, what is included) with a different photo. Alternate text-heavy and photo-heavy blocks so the page breathes.
+6. features: a quick checklist of concrete specs or what is in the box, only facts given.
 7. steps: how ordering works in 3–4 steps (fill the form → we call you to confirm → delivery → pay on receipt).
-8. faq: 4–6 real objections of Algerian COD buyers (payment, delivery delay, delivery cost is shown in the form, sizes/usage, returns/warranty ONLY if the merchant described them).
-9. cta: a closing call to action that restates the main benefit.
+8. faq: 4–6 real objections of Algerian COD buyers (payment on delivery, delivery delay, delivery cost shown in the form, sizes/usage, returns/warranty ONLY if the merchant described them).
+9. cta: a closing call to action restating the main benefit (+ the real offer if there is one).
+
+Creativity: write like a top Algerian e-commerce copywriter — vivid, sensory and specific to THIS product (what it looks like, how it feels to use it, the moment of life it improves). Vary sentence rhythm, use the customer's words, no generic filler ("high quality product", "best choice"). Emojis: only as benefit icons, never in titles.
 
 Strict honesty rules (non-negotiable):
 - Use ONLY facts from the product data and merchant notes. Never invent statistics, certifications, awards, medical or health claims, guarantees, return policies, stock levels, customer counts, or deadlines.
@@ -69,7 +71,7 @@ Strict honesty rules (non-negotiable):
 When product photos are attached:
 - Look at them carefully and describe only what is clearly visible (type of product, color, material, finish, size cues, what is included). Do not guess technical specs.
 - Use the photos to make the copy concrete and vivid (e.g. "stainless steel bracelet", "padded interior").
-- Image i in the attached photos is the i-th URL of the product "images" list. Put the most attractive full-product photo in the hero, and spread the others as image sections between text blocks (never two image sections in a row).
+- Image i in the attached photos is the i-th URL of the product "images" list. Use EVERY image exactly once, where it fits best: the most attractive full-product photo in the hero; close-ups and detail shots in imageText blocks about that detail; photos of the product in use in the problem/desire block; extra photos in image sections. Never use the same image twice, never put two photo blocks in a row.
 
 When source text from a product link is provided, treat it as raw supplier information: reuse the facts, never copy its wording, never mention the source site, ignore its prices/shipping/return terms (this store sells in Algeria with its own terms).
 
@@ -101,6 +103,8 @@ const RESPONSE_SCHEMA = {
           section("hero", { title: str, subtitle: nullableStr, image: nullableStr, badge: nullableStr }),
           section("badges", { items: strList }),
           section("text", { title: nullableStr, body: str }),
+          section("imageText", { title: str, body: str, image: nullableStr }),
+          section("benefits", { title: nullableStr, items: { type: "array", items: { type: "object", additionalProperties: false, required: ["icon", "title", "text"], properties: { icon: str, title: str, text: str } } } }),
           section("image", { url: str }),
           section("features", { title: nullableStr, items: strList }),
           section("steps", { title: nullableStr, items: strList }),
@@ -128,7 +132,7 @@ function clean(raw: RawSection[], allowedImages: Set<string>): LandingSection[] 
     const copy: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(s)) if (v !== null && v !== "") copy[k] = v;
     if (copy.type === "image" && !allowedImages.has(String(copy.url))) continue;
-    if (copy.type === "hero" && copy.image && !allowedImages.has(String(copy.image))) delete copy.image;
+    if ((copy.type === "hero" || copy.type === "imageText") && copy.image && !allowedImages.has(String(copy.image))) delete copy.image;
     // The model never places the form, writes reviews or countdowns: those are the merchant's
     if (copy.type === "form" || copy.type === "reviews" || copy.type === "countdown") continue;
     copies.push(copy);

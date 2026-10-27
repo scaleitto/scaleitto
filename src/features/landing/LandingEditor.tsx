@@ -31,6 +31,10 @@ function newSection(type: SectionType, t: StoreText): LandingSection {
       return { id, type, items: t.landing.defaults.badges };
     case "text":
       return { id, type, body: "" };
+    case "imageText":
+      return { id, type, title: "", body: "" };
+    case "benefits":
+      return { id, type, items: [{ icon: "✨", title: "", text: "" }] };
     case "image":
       return { id, type, url: "" };
     case "gallery":
@@ -61,7 +65,10 @@ function summary(s: LandingSection) {
     case "cta":
       return s.title;
     case "text":
+    case "imageText":
       return s.title || s.body;
+    case "benefits":
+      return s.items.map((x) => x.title).join(" · ");
     case "badges":
     case "features":
     case "steps":
@@ -224,7 +231,7 @@ export function LandingEditor({
                   </div>
                   {open === s.id && (
                     <div className="border-t border-line p-4">
-                      <SectionFields section={s} set={(patch) => update(s.id, patch)} productImages={product.images} t={t} />
+                      <SectionFields lang={lang} section={s} set={(patch) => update(s.id, patch)} productImages={product.images} t={t} />
                     </div>
                   )}
                 </div>

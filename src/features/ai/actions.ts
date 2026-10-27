@@ -9,7 +9,7 @@ import { asLocale } from "@/i18n";
 import { pageLanguages } from "@/features/landing/types";
 import { resolveMessages } from "@/features/messages/templates";
 import { callGuideRequest, descriptionRequest, messagesRequest } from "./prompts";
-import { pollTask, startTask, type TaskStart, type TaskState } from "./tasks";
+import { imageStyles, pollTask, startImageTask, startTask, type TaskStart, type TaskState } from "./tasks";
 
 const language = z.enum(pageLanguages);
 
@@ -62,4 +62,12 @@ export async function startDescriptionAi(lang: string, input: z.input<typeof des
 export async function checkAiTask(lang: string, taskId: string): Promise<TaskState> {
   const { shop } = await requireShop(asLocale(lang));
   return pollTask(shop.id, taskId);
+}
+
+// One of the shop's photos reworked by the AI (landing page editor and wizard)
+export async function startImageEnhance(lang: string, source: string, style: string): Promise<TaskStart> {
+  const { shop, user } = await requireSection(asLocale(lang), "landingPages");
+  const parsed = z.enum(imageStyles).safeParse(style);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  return startImageTask(shop.id, user.id, source, parsed.data);
 }

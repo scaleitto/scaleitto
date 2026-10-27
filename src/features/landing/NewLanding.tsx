@@ -9,14 +9,16 @@ import { fmt } from "@/lib/format";
 import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
-import { checkAiLanding, startAiLanding, type AiStartInput } from "./ai-actions";
+import { checkAiLanding, startAiLanding, type AiCheckResult, type AiStartInput } from "./ai-actions";
 import { pageLanguages } from "./types";
+import { imageStyles as imageStyleKeys } from "@/lib/enums";
 
 export type NewLandingText = Pick<Dictionary, "landingPages" | "media" | "errors" | "common">;
 type Product = { id: string; name: string };
 type Source = "product" | "photos" | "link";
 
 const POLL_MS = 3000;
+
 const GIVE_UP_MS = 10 * 60_000;
 const toNumber = (v: string) => (v.replace(/\D/g, "") ? Number(v.replace(/\D/g, "")) : null);
 
@@ -35,6 +37,11 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
   const [tone, setTone] = useState<AiStartInput["tone"]>("persuasive");
   const [audience, setAudience] = useState("");
   const [notes, setNotes] = useState("");
+  const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
+  const [enhance, setEnhance] = useState(true);
+  const [style, setStyle] = useState<(typeof imageStyleKeys)[number]>("studio");
+  const [enhanceCount, setEnhanceCount] = useState(1);
+  const [imagesStep, setImagesStep] = useState(false);
   const [phase, setPhase] = useState<"form" | "working">("form");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -51,7 +58,8 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
       while (!stopped) {
         await new Promise((r) => setTimeout(r, POLL_MS));
         if (stopped) return;
-        const r = await checkAiLanding(lang, generationId).catch(() => ({ state: "pending" as const }));
+        const r: AiCheckResult = await checkAiLanding(lang, generationId).catch((): AiCheckResult => ({ state: "pending" }));
+        if (r.state === "pending" && r.step === "images") setImagesStep(true);
         if (r.state === "done") {
           router.push(`${editorBase}/${r.pageId}`);
           return;
@@ -75,6 +83,7 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
     setError(null);
     setFieldErrors({});
     setPhase("working");
+    setImagesStep(false);
     setElapsed(0);
     startedAt.current = Date.now();
     const r = await startAiLanding(lang, {
@@ -89,6 +98,8 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
       audience,
       language,
       tone,
+      extraPhotos: source === "photos" ? [] : extraPhotos,
+      enhance: enhance ? { style, count: enhanceCount } : null,
     }).catch(() => ({ ok: false as const, error: "unexpected" }));
     if (r.ok) setGenerationId(r.generationId);
     else {
@@ -99,7 +110,9 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
   }
 
   if (phase === "working") {
-    const step = elapsed < 15 ? 0 : elapsed < 40 ? 1 : elapsed < 70 ? 2 : 3;
+    // The last step is the photo work when it was asked for
+    const steps = enhance ? [...ai.steps, ai.stepImages] : ai.steps;
+    const step = imagesStep ? steps.length - 1 : Math.min(elapsed < 15 ? 0 : elapsed < 40 ? 1 : elapsed < 70 ? 2 : 3, enhance ? steps.length - 2 : steps.length - 1);
     return (
       <Card className="flex flex-col items-center gap-5 py-12 text-center" data-testid="ai-working">
         <div className="relative">
@@ -111,7 +124,7 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
           <p className="mt-1 text-sm text-muted">{ai.workingHint}</p>
         </div>
         <ol className="space-y-2 text-start text-sm">
-          {ai.steps.map((label, i) => (
+          {steps.map((label, i) => (
             <li key={label} className={`flex items-center gap-2 ${i < step ? "text-accent" : i === step ? "text-fg" : "text-muted/60"}`}>
               {i < step ? <Check size={16} /> : i === step ? <LoaderCircle size={16} className="animate-spin" /> : <span className="size-4" />}
               {label}
@@ -196,6 +209,41 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
           </div>
         </div>
       )}
+
+      {source !== "photos" && (
+        <Field label={ai.extraPhotos} hint={ai.extraPhotosHint}>
+          <ImageManager t={t.media} value={extraPhotos} onChange={setExtraPhotos} max={8} />
+        </Field>
+      )}
+
+      <div className="space-y-3 rounded-lg border border-line p-4" data-testid="ai-enhance">
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={enhance} onChange={(ev) => setEnhance(ev.target.checked)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
+          <span>
+            <span className="font-semibold">{ai.enhance}</span>
+            <span className="block text-xs text-muted">{ai.enhanceHint}</span>
+          </span>
+        </label>
+        {enhance && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={ai.enhanceStyle} htmlFor="ai-style">
+              <Select id="ai-style" value={style} onChange={(ev) => setStyle(ev.target.value as typeof style)}>
+                {imageStyleKeys.map((k) => (
+                  <option key={k} value={k}>
+                    {t.landingPages.editor.fields.styles[k]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={ai.enhanceCount} htmlFor="ai-enhance-count">
+              <Select id="ai-enhance-count" value={enhanceCount} onChange={(ev) => setEnhanceCount(Number(ev.target.value))}>
+                <option value={1}>{ai.enhanceOne}</option>
+                <option value={2}>{ai.enhanceTwo}</option>
+              </Select>
+            </Field>
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t.landingPages.language} htmlFor="ai-language">

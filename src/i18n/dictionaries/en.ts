@@ -490,6 +490,15 @@ const en: Dictionary = {
     },
     create: "Create page",
     ai: {
+      extraPhotos: "More photos (optional)",
+      extraPhotosHint: "Other photos of the product (details, in use, packaging…): the AI places them in different sections of the page.",
+      enhance: "Enhance the photos with AI",
+      enhanceHint: "Exactly the same product, with a professional background and lighting that build trust. Each photo counts as one AI use.",
+      enhanceStyle: "Photo style",
+      enhanceCount: "Number of photos",
+      enhanceOne: "Main photo only",
+      enhanceTwo: "Main photo + one more",
+      stepImages: "Enhancing the photos",
       source: "Where should the information come from?",
       sources: {
         product: "Existing product",
@@ -554,6 +563,7 @@ const en: Dictionary = {
       show: "Show",
       remove: "Remove",
       types: {
+        imageText: "Image & text", benefits: "Benefit cards",
         hero: "Main banner",
         badges: "Trust badges",
         text: "Text",
@@ -569,6 +579,7 @@ const en: Dictionary = {
         form: "Order form",
       },
       fields: {
+        icon: "Icon (emoji)", benefitTitle: "Title", benefitText: "Explanation", addBenefit: "Add a card", enhance: "Enhance the photo with AI", enhancing: "Enhancing the photo…", styles: { studio: "Studio (clean background)", lifestyle: "In use (real scene)", premium: "Premium (high-end lighting)" },
         title: "Title",
         subtitle: "Subtitle",
         badge: "Badge (e.g. -25%)",

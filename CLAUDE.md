@@ -139,6 +139,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (defaults in dz/ar/fr/en, `{placeholders}`, `shops.messages` holds only changed texts), `MessageCard` on the order page
   (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message"),
   `MessagesEditor` on Call Centers → settings.
+- AI landing pages v2 (Phase 15): extra photos in the wizard (vision sees up to 10; every image used once), sections
+  `imageText` (photo + text, sides alternate) and `benefits` (icon cards). Photos are never cropped (`Photo` in
+  `landing/blocks.tsx`: `object-contain`, natural height; galleries too). Image rework = `startImageTask` (image_generation
+  tool via `startBackgroundImage`/`pollBackgroundImage`, styles in `enums.ts` `imageStyles`, counted in `maxAiPerMonth`):
+  during generation for the first 1–2 `/uploads/` photos (the generation's `result` holds `{imageTasks, applied}`;
+  `finishImages` swaps the new URLs into the page and puts them first in the product images; failures keep the original),
+  and from the editor's image picker (`EnhanceImage`). E2E: `phase15.mjs`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -163,6 +170,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions).
-Next: Phase 15 — AI landing pages: enhanced product images, more section types, mobile-first conversion layout; then real-account checks of the integrations.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
+Next: real-account checks of the integrations (carriers, pixels, Sheets, OpenAI images).
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

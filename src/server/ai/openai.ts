@@ -132,12 +132,12 @@ type ResponseObject = {
   model?: string;
   error?: ApiError | null;
   incomplete_details?: { reason?: string } | null;
-  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
+  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[]; result?: string | null; status?: string }[];
   usage?: { input_tokens?: number; output_tokens?: number };
 };
 
-// One short status check of a background generation.
-export async function pollBackgroundJson<T>(responseId: string): Promise<BackgroundResult<T>> {
+// One short status check of a background request (text or image).
+async function pollBackground(responseId: string): Promise<{ state: "pending" } | { state: "failed"; error: string } | { state: "completed"; r: ResponseObject }> {
   const { res, json } = await call(`/responses/${encodeURIComponent(responseId)}`, { timeoutMs: 20_000 });
   if (!res.ok) {
     // Temporary network/server problems: keep waiting; a missing id is final.
@@ -150,6 +150,13 @@ export async function pollBackgroundJson<T>(responseId: string): Promise<Backgro
   if (r.status !== "completed") {
     return { state: "failed", error: r.error?.message ?? (r.incomplete_details?.reason ? `Incomplete: ${r.incomplete_details.reason}` : `Status: ${r.status}`) };
   }
+  return { state: "completed", r };
+}
+
+export async function pollBackgroundJson<T>(responseId: string): Promise<BackgroundResult<T>> {
+  const polled = await pollBackground(responseId);
+  if (polled.state !== "completed") return polled;
+  const r = polled.r;
   const parts = (r.output ?? []).filter((o) => o.type === "message").flatMap((o) => o.content ?? []);
   const refusal = parts.find((p) => p.type === "refusal");
   if (refusal) return { state: "failed", error: `Refused: ${refusal.refusal}` };
@@ -210,4 +217,51 @@ export async function checkAiConnection(): Promise<AiCheckStep[]> {
     steps.push({ step: "background", ok: false, detail: err instanceof Error ? err.message : String(err) });
   }
   return steps;
+}
+
+// ─── Images ───────────────────────────────────────────────
+
+export type ImageRequest = { prompt: string; /** data: URL of the photo to rework */ image?: string; size?: "1024x1024" | "1024x1536" | "1536x1024" };
+export type ImageResult = { state: "pending" } | { state: "failed"; error: string } | { state: "done"; base64: string; model: string };
+
+// Starts a background image generation (Responses API + image_generation tool), e.g. a product photo on a new
+// background. Like startBackgroundJson: models in order, and an option the model rejects is retried without it.
+export async function startBackgroundImage(req: ImageRequest): Promise<{ responseId: string; model: string }> {
+  const models = modelChain();
+  for (const [m, model] of models.entries()) {
+    const attempt = { fidelity: Boolean(req.image), quality: true, format: true };
+    for (let tries = 0; tries < 4; tries++) {
+      const tool: Record<string, unknown> = { type: "image_generation", size: req.size ?? "1024x1024" };
+      if (attempt.quality) tool.quality = "high";
+      if (attempt.fidelity) tool.input_fidelity = "high";
+      if (attempt.format) tool.output_format = "webp";
+      const body = {
+        model,
+        background: true,
+        store: true,
+        input: [{ role: "user", content: [{ type: "input_text", text: req.prompt }, ...(req.image ? [{ type: "input_image", image_url: req.image }] : [])] }],
+        tools: [tool],
+        tool_choice: { type: "image_generation" },
+      };
+      const { res, json } = await call("/responses", { method: "POST", body });
+      if (res.ok && typeof json?.id === "string") return { responseId: json.id, model };
+      const error = json?.error ?? undefined;
+      const message = error?.message ?? `OpenAI HTTP ${res.status}`;
+      const rejected = `${error?.param ?? ""} ${message}`;
+      if ((isModelMissing(res.status, error) || (res.status === 400 && /image_generation|background/i.test(rejected) && !/fidelity|quality|format/i.test(rejected))) && m < models.length - 1) break;
+      if (res.status === 400 && attempt.fidelity && /fidelity/i.test(rejected)) attempt.fidelity = false;
+      else if (res.status === 400 && attempt.format && /format/i.test(rejected)) attempt.format = false;
+      else if (res.status === 400 && attempt.quality && /quality/i.test(rejected)) attempt.quality = false;
+      else throw new AiRequestError(message, res.status);
+      console.warn(`[ai] ${model} rejected an image option, retrying: ${message}`);
+    }
+  }
+  throw new AiRequestError("No configured model accepted the image request");
+}
+
+export async function pollBackgroundImage(responseId: string): Promise<ImageResult> {
+  const polled = await pollBackground(responseId);
+  if (polled.state !== "completed") return polled;
+  const image = (polled.r.output ?? []).find((o) => o.type === "image_generation_call" && o.result);
+  return image?.result ? { state: "done", base64: image.result, model: polled.r.model ?? "" } : { state: "failed", error: "No image in the answer" };
 }

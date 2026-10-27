@@ -197,6 +197,8 @@ export default async function phase7(browser) {
     await owner.setInputFiles("[data-testid=ai-wizard] [data-testid=image-input]", [{ name: "watch.png", mimeType: "image/png", buffer: pngBuffer([20, 90, 200]) }]);
     await owner.waitForSelector("[data-testid=ai-wizard] img");
     await owner.fill("#ai-price", "2500");
+    // Photo enhancement is tested in phase 15; here the page keeps the uploaded photo
+    await owner.locator("[data-testid=ai-enhance] input[type=checkbox]").uncheck();
     await owner.locator("[data-testid=ai-wizard] button", { hasText: "إنشاء الصفحة بالذكاء الاصطناعي" }).click();
     await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     const [[product]] = await db.query("SELECT * FROM products WHERE shop_id = ? AND name = 'ساعة ذكية AI'", [shopId]);

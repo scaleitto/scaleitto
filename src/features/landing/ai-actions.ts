@@ -14,7 +14,8 @@ import { nextFreeSlug, slugify } from "@/lib/format";
 import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import { aiTones, buildLandingRequest, finishLandingPage, type LandingAiOutput } from "./ai-prompt";
 import { insertLandingPage } from "./store";
-import { isSafeImage, pageLanguages } from "./types";
+import { isSafeImage, pageLanguages, sanitizeSections } from "./types";
+import { imageStyles, pollTask, startImageTask, type ImageStyle } from "@/features/ai/tasks";
 
 // Everything needed to build the page once the text is ready (stored on the generation).
 type Brief = {
@@ -23,15 +24,22 @@ type Brief = {
   language: string;
   color: string | null;
   images: string[];
+  // Rework the page's main photo(s) once the text is ready
+  enhance?: { style: ImageStyle; count: number } | null;
 };
+// Image reworks started after the page was built, then swapped into it
+type ImageJobs = { imageTasks?: { taskId: string; source: string }[]; applied?: boolean };
 
 export type AiStartResult = { ok: true; generationId: string } | { ok: false; error: string; message?: string; fieldErrors?: Record<string, string> };
-export type AiCheckResult = { state: "pending" } | { state: "done"; pageId: string } | { state: "failed"; error: string; message?: string };
+export type AiCheckResult = { state: "pending"; step?: "images" } | { state: "done"; pageId: string } | { state: "failed"; error: string; message?: string };
 
 const startSchema = z.object({
   source: z.enum(["product", "photos", "link"]),
   productId: z.string().max(36).optional(),
   photos: z.array(z.string()).max(8).optional(),
+  // More photos for the page, whatever the source (the AI places them in different sections)
+  extraPhotos: z.array(z.string()).max(8).optional(),
+  enhance: z.object({ style: z.enum(imageStyles), count: z.number().int().min(1).max(2) }).nullable().optional(),
   url: z.string().trim().max(1000).optional(),
   name: z.string().trim().max(200).optional(),
   price: z.number().int().min(0).max(100_000_000).nullable().optional(),
@@ -59,15 +67,18 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
     let product: { name: string; description: string | null; price: number; compareAtPrice: number | null; images: string[]; options: ProductOption[]; offers: QuantityOffer[] };
     let brief: Brief;
     let sourceText: string | undefined;
+    const ownPhoto = (src: string) => src.startsWith(`/uploads/${shop.id}/`) && isSafeImage(src);
+    const extras = (d.extraPhotos ?? []).filter(ownPhoto);
     if (d.source === "product") {
       const [p] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, d.productId ?? "")));
       if (!p) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
-      product = p;
-      brief = { productId: p.id, newProduct: null, language: d.language, color: null, images: p.images };
+      const images = [...new Set([...p.images, ...extras])].slice(0, 12);
+      product = { ...p, images };
+      brief = { productId: p.id, newProduct: null, language: d.language, color: null, images, enhance: d.enhance ?? null };
     } else {
       if (d.price == null) return { ok: false, error: "checkFields", fieldErrors: { price: "price" } };
       if (!(await canAdd(shop.id, "maxProducts"))) return { ok: false, error: "limitProducts" };
-      let images = (d.photos ?? []).filter((src) => src.startsWith(`/uploads/${shop.id}/`) && isSafeImage(src));
+      let images = [...new Set([...(d.photos ?? []).filter(ownPhoto), ...extras])];
       let name = d.name ?? "";
       if (d.source === "photos" && !images.length) return { ok: false, error: "checkFields", fieldErrors: { photos: "required" } };
       if (d.source === "link") {
@@ -82,7 +93,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
         }
       }
       product = { name: name || "—", description: null, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images, options: [], offers: [] };
-      brief = { productId: null, newProduct: { name, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images }, language: d.language, color: null, images };
+      brief = { productId: null, newProduct: { name, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images }, language: d.language, color: null, images, enhance: d.enhance ?? null };
     }
 
     const request = buildLandingRequest({
@@ -92,7 +103,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
       audience: d.audience,
       notes: d.notes,
       sourceText,
-      visionImages: await visionImages(product.images),
+      visionImages: await visionImages(product.images, 10),
       writeProduct: d.source !== "product",
     });
     const started = await startBackgroundJson(request);
@@ -115,7 +126,7 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
     const g = schema.aiGenerations;
     const [gen] = await db.select().from(g).where(and(eq(g.shopId, shop.id), eq(g.id, generationId)));
     if (!gen) return { state: "failed", error: "notFound" };
-    if (gen.status === "done" && gen.landingPageId) return { state: "done", pageId: gen.landingPageId };
+    if (gen.status === "done" && gen.landingPageId) return finishImages(shop.id, gen.landingPageId, gen.id, gen.result as ImageJobs | null);
     if (gen.status === "failed") return { state: "failed", error: "aiFailed", message: gen.error ?? undefined };
     if (gen.status === "saving") {
       if (Date.now() - new Date(gen.updatedAt).getTime() < SAVING_TIMEOUT_MS) return { state: "pending" };
@@ -158,12 +169,49 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
       });
     }
     const pageId = await insertLandingPage(shop.id, { productId: productId!, title: page.title, language: brief.language, color: brief.color, sections: page.sections });
-    await db.update(g).set({ status: "done", landingPageId: pageId, inputTokens: result.inputTokens, outputTokens: result.outputTokens, model: result.model || gen.model }).where(eq(g.id, gen.id));
-    return { state: "done", pageId };
+    // Photos to rework: the hero's, then the next ones in page order (our uploads only)
+    const imageTasks: NonNullable<ImageJobs["imageTasks"]> = [];
+    if (brief.enhance) {
+      const sources = [...new Set(page.sections.flatMap((s) => (s.type === "hero" || s.type === "imageText" ? [s.image] : s.type === "image" ? [s.url] : [])))].filter(
+        (src): src is string => Boolean(src) && src!.startsWith(`/uploads/${shop.id}/`),
+      );
+      for (const source of sources.slice(0, brief.enhance.count)) {
+        const started = await startImageTask(shop.id, gen.userId, source, brief.enhance.style);
+        if (started.ok) imageTasks.push({ taskId: started.taskId, source });
+      }
+    }
+    await db
+      .update(g)
+      .set({ status: "done", landingPageId: pageId, result: { imageTasks, applied: imageTasks.length === 0 }, inputTokens: result.inputTokens, outputTokens: result.outputTokens, model: result.model || gen.model })
+      .where(eq(g.id, gen.id));
+    return imageTasks.length ? { state: "pending", step: "images" } : { state: "done", pageId };
   } catch (err) {
     await logError("landing/ai-check", err);
     return { state: "failed", error: "unexpected" };
   }
+}
+
+// Once the page exists: waits for its photo reworks, then puts the new photos in the page (and the product)
+async function finishImages(shopId: string, pageId: string, generationId: string, jobs: ImageJobs | null): Promise<AiCheckResult> {
+  if (!jobs?.imageTasks?.length || jobs.applied) return { state: "done", pageId };
+  const states = await Promise.all(jobs.imageTasks.map(async (j) => ({ ...j, state: await pollTask(shopId, j.taskId) })));
+  if (states.some((s) => s.state.state === "pending")) return { state: "pending", step: "images" };
+  // Failed reworks keep the original photo
+  const swaps = new Map(states.flatMap((s) => (s.state.state === "done" ? [[s.source, (s.state.result as { url: string }).url] as const] : [])));
+  if (swaps.size) {
+    const [page] = await db.select().from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, pageId)));
+    if (page) {
+      const swap = (src?: string) => (src ? (swaps.get(src) ?? src) : src);
+      const sections = sanitizeSections(page.sections).map((s) =>
+        s.type === "hero" || s.type === "imageText" ? { ...s, image: swap(s.image) } : s.type === "image" ? { ...s, url: swap(s.url)! } : s.type === "gallery" ? { ...s, images: s.images.map((x) => swap(x)!) } : s,
+      );
+      await db.update(schema.landingPages).set({ sections }).where(eq(schema.landingPages.id, page.id));
+      const [product] = await db.select({ images: schema.products.images }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, page.productId)));
+      if (product) await db.update(schema.products).set({ images: [...new Set([...swaps.values(), ...product.images])].slice(0, 10) }).where(eq(schema.products.id, page.productId));
+    }
+  }
+  await db.update(schema.aiGenerations).set({ result: { ...jobs, applied: true } }).where(eq(schema.aiGenerations.id, generationId));
+  return { state: "done", pageId };
 }
 
 // "Test the AI connection" button: every step of the real path, with OpenAI's own messages.

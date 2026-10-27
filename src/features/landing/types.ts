@@ -2,7 +2,7 @@
 // Everything coming from the editor or the AI goes through sanitizeSections / resolveForm,
 // so a page can never contain unknown section types, script URLs or broken data.
 
-export const sectionTypes = ["hero", "badges", "text", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
+export const sectionTypes = ["hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
 export type SectionType = (typeof sectionTypes)[number];
 
 type Base = { id: string; hidden?: boolean };
@@ -11,6 +11,10 @@ export type LandingSection = Base &
     | { type: "hero"; title: string; subtitle?: string; image?: string; badge?: string }
     | { type: "badges"; items: string[] }
     | { type: "text"; title?: string; body: string }
+    // A photo beside a short title + paragraph (sides alternate down the page)
+    | { type: "imageText"; title: string; body: string; image?: string }
+    // Benefit cards: emoji icon, short title, one sentence
+    | { type: "benefits"; title?: string; items: { icon: string; title: string; text: string }[] }
     | { type: "image"; url: string; caption?: string }
     | { type: "gallery"; title?: string; images: string[] }
     | { type: "features"; title?: string; items: string[] }
@@ -103,6 +107,24 @@ export function sanitizeSections(input: unknown): LandingSection[] {
       case "text": {
         const body = str(s.body, 3000);
         if (body) section = { ...base, type: "text", title: opt(s.title, 200), body };
+        break;
+      }
+      case "imageText": {
+        const title = str(s.title, 200);
+        const body = str(s.body, 2000);
+        if (title || body) section = { ...base, type: "imageText", title, body, image: image(s.image) };
+        break;
+      }
+      case "benefits": {
+        const items = (Array.isArray(s.items) ? s.items : [])
+          .map((x) => {
+            const r = (x ?? {}) as Record<string, unknown>;
+            // One emoji (or a couple of characters) as the card's icon
+            return { icon: [...str(r.icon, 16)].slice(0, 2).join("") || "✓", title: str(r.title, 120), text: str(r.text, 400) };
+          })
+          .filter((x) => x.title)
+          .slice(0, 9);
+        if (items.length) section = { ...base, type: "benefits", title: opt(s.title, 200), items };
         break;
       }
       case "image":

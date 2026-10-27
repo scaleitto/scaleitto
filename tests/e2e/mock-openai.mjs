@@ -1,6 +1,7 @@
 // A fake OpenAI Responses API for the end-to-end tests (background mode: create, then poll).
 // The app is pointed at it with OPENAI_BASE_URL=http://127.0.0.1:4020/v1 and OPENAI_API_KEY=sk-test.
 import { createServer } from "node:http";
+import { pngBuffer } from "./helpers.mjs";
 
 const jobs = new Map(); // id → { polls, body }
 export const requests = [];
@@ -23,6 +24,8 @@ function landingAnswer(body) {
     sections: [
       { type: "hero", title: "عنوان من الذكاء الاصطناعي", subtitle: "جملة قصيرة", image: images[0] ?? null, badge: null },
       { type: "badges", items: ["الدفع عند الاستلام", "توصيل 58 ولاية"] },
+      { type: "imageText", title: "تفاصيل تفرق", body: "صورة قريبة تبين الجودة.", image: images[1] ?? null },
+      { type: "benefits", title: "علاش تختارها", items: [{ icon: "💧", title: "مقاومة للماء", text: "استعملها في كل يوم." }, { icon: "🔋", title: "بطارية طويلة", text: "أيام بلا شحن." }] },
       { type: "features", title: null, items: ["ميزة أولى", "ميزة ثانية"] },
       { type: "image", url: "https://evil.example/not-allowed.png" },
       { type: "faq", title: null, items: [{ q: "كيف أطلب؟", a: "املأ الاستمارة." }] },
@@ -72,6 +75,10 @@ export function startMockOpenAi(port) {
       if (!job) return send(res, 404, { error: { message: "not found" } });
       // The first poll is still running, like a real background request
       if (job.polls++ === 0) return send(res, 200, { id: m[1], status: "in_progress" });
+      // An image request (image_generation tool) gets a generated picture
+      if (job.body.tools?.some((t) => t.type === "image_generation")) {
+        return send(res, 200, { id: m[1], status: "completed", model: job.body.model, output: [{ type: "image_generation_call", status: "completed", result: pngBuffer([40, 160, 90], 96).toString("base64") }] });
+      }
       const answer = (answers[job.body.text?.format?.name] ?? landingAnswer)(job.body);
       return send(res, 200, {
         id: m[1],
