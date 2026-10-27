@@ -55,6 +55,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   only place that changes an order status: stock + history). E2E tests use `tests/e2e/mock-carriers.mjs` via
   E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ), not
   official docs: verify with a real merchant account before relying on a platform.
+- Store Design (`src/features/design/`): `shops.design` JSON read through `resolveDesign()` (defaults for missing keys —
+  add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
+  `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
+  look there, not in pages).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - `src/later/` — v1 helpers kept for upcoming sections (safe-fetch, product-import, tracking). Any server-side
   fetch of a user URL must go through `safe-fetch.ts`.
@@ -80,7 +84,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery).
-Next: Store Design, Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design).
+Next: Theme Store, Call Centers, Landing Pages, Analytics, Pixels, Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

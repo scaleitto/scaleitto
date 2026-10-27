@@ -29,6 +29,13 @@
       "when": 1793046643651,
       "tag": "0003_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1793086506604,
+      "tag": "0004_store_design",
+      "breakpoints": true
     }
   ]
 }

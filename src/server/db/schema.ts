@@ -62,6 +62,8 @@ export const shops = mysqlTable(
     phone: varchar("phone", { length: 30 }),
     logoUrl: varchar("logo_url", { length: 500 }),
     primaryColor: varchar("primary_color", { length: 9 }).notNull().default("#10b981"),
+    // Storefront look (src/features/design/types.ts → StoreDesign); null → defaults
+    design: json("design"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shops_slug_uq").on(t.slug)],
