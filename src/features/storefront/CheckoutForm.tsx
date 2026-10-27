@@ -9,6 +9,7 @@ import { fmt, formatPrice } from "@/lib/format";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
 import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
+import { useCheckoutStarted } from "@/features/pixels/PixelScope";
 import { defaultForm, type FormSettings } from "@/features/landing/types";
 
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
@@ -58,6 +59,7 @@ export function CheckoutForm({
   const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
   const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes[0]);
   const formRef = useRef<HTMLFormElement>(null);
+  const checkoutStarted = useCheckoutStarted();
   const lastLead = useRef("");
   const [formVisible, setFormVisible] = useState(true);
 
@@ -102,7 +104,7 @@ export function CheckoutForm({
 
   return (
     <>
-      <form ref={formRef} id="order-form" onSubmit={onSubmit} noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
+      <form ref={formRef} id="order-form" onSubmit={onSubmit} onFocusCapture={checkoutStarted} noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
         <div>
           <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
           <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>

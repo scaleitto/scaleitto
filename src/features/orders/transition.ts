@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { newId } from "@/server/auth/context";
 import { holdsStock, type OrderStatus } from "./statuses";
+import { scheduleOrderEvents } from "@/features/pixels/server";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -37,5 +38,7 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
   }
   await tx.update(schema.orders).set({ status }).where(eq(schema.orders.id, orderId));
   await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId, userId, type: "status", fromStatus: order.status, toStatus: status, note: note ?? null });
+  // Pixels that count the purchase at confirmation or delivery (sent after the response, once the transaction is committed)
+  if (status === "confirmed" || status === "delivered") scheduleOrderEvents(shopId, orderId, status);
   return true;
 }

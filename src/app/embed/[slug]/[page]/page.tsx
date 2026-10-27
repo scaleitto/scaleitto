@@ -8,6 +8,8 @@ import { StoreFrame } from "@/features/storefront/blocks";
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { resolveDesign } from "@/features/design/types";
 import { findTheme } from "@/features/themes/themes";
+import { PixelScope } from "@/features/pixels/PixelScope";
+import { pagePixels } from "@/features/pixels/queries";
 
 // The order form of a landing page alone, for <iframe> embedding on other sites.
 export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[page]">) {
@@ -19,6 +21,7 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
   const { page, product } = landing;
   return (
     <StoreFrame locale={shopLocale(shop)} color={page.color ?? shop.primaryColor} theme={findTheme(resolveDesign(shop.design).theme)} className="bg-transparent p-1">
+      <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
       <PublicLanding
         page={page}
         product={{ price: product.price, compareAtPrice: product.compareAtPrice, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
@@ -31,6 +34,7 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
         <LandingView pageId={page.id} />
         <HeightReporter frameId={page.id} />
       </PublicLanding>
+      </PixelScope>
     </StoreFrame>
   );
 }

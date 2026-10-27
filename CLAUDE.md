@@ -91,9 +91,17 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (pure, unit-tested: confirmation = confirmed ÷ (confirmed + cancelled), delivery = delivered ÷ (delivered + returned),
   delivered sales, estimated profit from products' cost price, daily/hourly series, products, wilayas, sources),
   `views.tsx` (server components; CSS-only chart tooltips; charts stay left-to-right). Rate changes are shown in points.
+- Pixels (`src/features/pixels/`): `pixels` rows (meta / tiktok / ga4 / gtm; tag IDs checked by `ids.ts` because they go
+  into inline scripts; optional encrypted server secret + test code; `purchaseOn` placed/confirmed/delivered; `productIds`
+  null = whole store). Browser: `PixelScope` on every storefront page (pages pass `pagePixels(shop, productIds)`) loads only
+  that page's pixels and sends events with `track.ts` (Meta trackSingle, TikTok instance, GA4 send_to, GTM dataLayer);
+  `CheckoutForm` fires InitiateCheckout via `useCheckoutStarted`; thank-you pages fire Purchase (event id = order id) or
+  Lead for pixels waiting for confirmation/delivery. Server: `server.ts` (Conversions API, Events API, Measurement Protocol)
+  via `scheduleOrderEvents` → `after()`: on placement (`checkout/actions.ts`, ad cookies saved in `orders.tracking`) and on
+  confirmed/delivered (`applyOrderStatus`). `pixel_events` = log + unique (pixel, order, event) so nothing is sent twice.
+  E2E uses `tests/e2e/mock-pixels.mjs` via E2E_PIXEL_URL (never set it in production).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
-- `src/later/` — v1 tracking helpers kept for the Pixels section. Any server-side fetch of a user URL must go
-  through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
+- Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
   `/api/health` shows version, DB, migrations and env status.
 
@@ -116,7 +124,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics).
-Next: Pixels, Apps (Google Sheets, Ecomanager,
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events).
+Next: Apps (Google Sheets, Ecomanager,
 YouCan/Shopify import), Plans (limits/contracts/thresholds), Settings (custom domain), platform admin, AI last.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

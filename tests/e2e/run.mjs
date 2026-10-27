@@ -10,15 +10,19 @@ import phase5 from "./phase5.mjs";
 import phase6 from "./phase6.mjs";
 import phase7 from "./phase7.mjs";
 import phase8 from "./phase8.mjs";
+import phase9 from "./phase9.mjs";
 import { startMockCarriers } from "./mock-carriers.mjs";
 import { startMockOpenAi } from "./mock-openai.mjs";
+import { startMockPixels } from "./mock-pixels.mjs";
 
-const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8 };
+const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9 };
 const only = process.argv[2];
 
 // The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)
 const mock = process.env.E2E_CARRIER_URL ? await startMockCarriers(Number(new URL(process.env.E2E_CARRIER_URL).port)) : null;
 // The fake OpenAI server, only when the app is pointed at a local one
+// The fake Meta / TikTok / Google server for server-side pixel events
+const pixelMock = process.env.E2E_PIXEL_URL ? await startMockPixels(Number(new URL(process.env.E2E_PIXEL_URL).port)) : null;
 const ai = process.env.OPENAI_BASE_URL?.startsWith("http://127.0.0.1") ? await startMockOpenAi(Number(new URL(process.env.OPENAI_BASE_URL).port)) : null;
 
 const { chromium } = playwright();
@@ -41,6 +45,7 @@ await step("no server errors were logged during the tests", async () => {
 await browser.close();
 mock?.close();
 ai?.close();
+pixelMock?.close();
 await db.end();
 console.log(failed() ? `\n✗ ${failed()} failing step(s)` : "\n✓ all steps passed");
 process.exit(failed() ? 1 : 0);

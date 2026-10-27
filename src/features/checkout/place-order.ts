@@ -8,6 +8,7 @@ import { checkOrderAllowed, type BlockReason } from "./protection";
 import { linePrice, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
 import type { OrderInput } from "./validators";
+import type { OrderTracking } from "@/server/db/schema";
 
 export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping";
 export type PlaceOrderResult = { ok: true; orderId: string; number: number } | { ok: false; error: CheckoutError };
@@ -17,7 +18,7 @@ const FIRST_ORDER_NUMBER = 1001;
 class OutOfStock extends Error {}
 
 // Creates a cash-on-delivery order for one product. Used by the product page (and later landing pages).
-export async function placeOrder(shop: StoreShop, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[] }): Promise<PlaceOrderResult> {
+export async function placeOrder(shop: StoreShop, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null }): Promise<PlaceOrderResult> {
   const [product] = await db
     .select()
     .from(schema.products)
@@ -74,6 +75,7 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         customerNote: input.note || null,
         landingPageId: meta.landingPageId ?? null,
         extra: meta.extra?.length ? meta.extra : null,
+        tracking: meta.tracking ?? null,
         ip: meta.ip,
         userAgent: meta.userAgent?.slice(0, 255) ?? null,
       });

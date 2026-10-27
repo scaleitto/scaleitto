@@ -30,6 +30,8 @@ jobs:
       # Fake OpenAI server started by the e2e tests (landing pages AI)
       OPENAI_BASE_URL: http://127.0.0.1:4020/v1
       OPENAI_API_KEY: sk-test
+      # Fake Meta / TikTok / Google server started by the e2e tests (server-side pixel events)
+      E2E_PIXEL_URL: http://127.0.0.1:4030
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -4,6 +4,8 @@ import { getOrderSummary, getShopBySlug, storeBase } from "@/features/storefront
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { ThankYou } from "@/features/storefront/ThankYou";
 import { getStoreText } from "@/i18n/store";
+import { PixelScope } from "@/features/pixels/PixelScope";
+import { orderPixels } from "@/features/pixels/queries";
 
 export default async function ThanksPage({ params, searchParams }: PageProps<"/store/[slug]/thanks">) {
   const shop = await getShopBySlug((await params).slug);
@@ -14,6 +16,7 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   const locale = shopLocale(shop);
   return (
     <ThankYou order={order} locale={locale}>
+      <PixelScope {...await orderPixels(shop.id, order)} />
       <Link href={(await storeBase(shop.slug)) || "/"} className="inline-block font-semibold text-brand hover:underline">
         {getStoreText(locale).thanks.back}
       </Link>

@@ -9,6 +9,8 @@ import { saveLead, submitOrder } from "@/features/checkout/actions";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
 import { formatPrice } from "@/lib/format";
+import { PixelScope } from "@/features/pixels/PixelScope";
+import { pagePixels } from "@/features/pixels/queries";
 
 const decode = (s: string) => {
   try {
@@ -37,12 +39,13 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
   const locale = shopLocale(shop);
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
-  const rates = await getShippingRates(shop.id);
+  const [rates, pixels] = await Promise.all([getShippingRates(shop.id), pagePixels(shop.id, [product.id])]);
 
   return (
     <div className="grid gap-6 pb-20 md:grid-cols-2 md:gap-10 md:pb-0">
       <Gallery images={product.images} alt={product.name} />
       <div className="space-y-5">
+        <PixelScope pixels={pixels} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
         <div className="space-y-2">
           <h1 className="text-2xl font-extrabold leading-snug">{product.name}</h1>
           <p className="flex flex-wrap items-baseline gap-3">
@@ -68,6 +71,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           action={submitOrder.bind(null, shop.slug, product.id, null, false)}
           saveLead={saveLead.bind(null, shop.slug, product.id)}
         />
+        </PixelScope>
         {product.description && <div className="whitespace-pre-line rounded-[var(--s-radius)] bg-s-surface p-5 leading-relaxed text-s-muted shadow-[var(--s-shadow)]">{product.description}</div>}
       </div>
     </div>

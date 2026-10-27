@@ -192,6 +192,8 @@ export const orders = mysqlTable(
     landingPageId: id("landing_page_id"),
     // Answers to the landing page's custom form fields: [{ label, value }]
     extra: json("extra").$type<{ label: string; value: string }[] | null>(),
+    // Ad-click identifiers captured when the order was placed (for server-side pixel events)
+    tracking: json("tracking").$type<OrderTracking | null>(),
     // Call center agent in charge of confirming the order
     assignedTo: id("assigned_to"),
     assignedAt: timestamp("assigned_at"),
@@ -423,4 +425,52 @@ export const errorLogs = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [index("errors_created_idx").on(t.createdAt)],
+);
+
+// ─── Pixels ───────────────────────────────────────────────
+
+export type OrderTracking = { url?: string; fbp?: string; fbc?: string; ttp?: string; ttclid?: string; gaClientId?: string };
+export const pixelPlatforms = ["meta", "tiktok", "ga4", "gtm"] as const;
+export type PixelPlatform = (typeof pixelPlatforms)[number];
+// When the "purchase" is reported: as soon as the customer orders, or only once the call center confirms / the parcel is delivered
+export const purchaseTriggers = ["placed", "confirmed", "delivered"] as const;
+export type PurchaseTrigger = (typeof purchaseTriggers)[number];
+
+// One ad platform tag of a shop. Several per platform are allowed (e.g. one Meta pixel per product).
+export const pixels = mysqlTable(
+  "pixels",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    platform: mysqlEnum("platform", pixelPlatforms).notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    // Pixel ID / Measurement ID / container ID (validated per platform: it ends up in an inline script)
+    tagId: varchar("tag_id", { length: 40 }).notNull(),
+    // Encrypted server-side secret: Conversions API token, Events API token or GA4 API secret
+    secret: text("secret"),
+    // Meta / TikTok test event code: server events then show in the platform's "Test events" tab
+    testCode: varchar("test_code", { length: 40 }),
+    purchaseOn: mysqlEnum("purchase_on", purchaseTriggers).notNull().default("placed"),
+    // null: every page and order; otherwise only these products (their pages, landing pages and orders)
+    productIds: json("product_ids").$type<string[] | null>(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [index("pixels_shop_idx").on(t.shopId)],
+);
+
+// Server-side events sent for orders: one row per pixel, order and event (never sent twice), kept as a log.
+export const pixelEvents = mysqlTable(
+  "pixel_events",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    pixelId: id("pixel_id").notNull(),
+    orderId: id("order_id"),
+    event: varchar("event", { length: 40 }).notNull(),
+    status: mysqlEnum("status", ["sending", "sent", "failed"]).notNull(),
+    detail: varchar("detail", { length: 500 }),
+    createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (t) => [uniqueIndex("pixel_events_once_uq").on(t.pixelId, t.orderId, t.event), index("pixel_events_shop_idx").on(t.shopId, t.createdAt)],
 );

@@ -5,6 +5,8 @@ import { saveLead, submitOrder } from "@/features/checkout/actions";
 import { PublicLanding } from "@/features/landing/PublicLanding";
 import { LandingView } from "@/features/landing/LandingView";
 import { sanitizeSections } from "@/features/landing/types";
+import { PixelScope } from "@/features/pixels/PixelScope";
+import { pagePixels } from "@/features/pixels/queries";
 
 const decode = (s: string) => {
   try {
@@ -33,6 +35,7 @@ export async function generateMetadata({ params }: PageProps<"/store/[slug]/lp/[
 export default async function LandingPage({ params }: PageProps<"/store/[slug]/lp/[page]">) {
   const { shop, page, product } = await load(params);
   return (
+    <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
     <PublicLanding
       page={page}
       product={{ price: product.price, compareAtPrice: product.compareAtPrice, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
@@ -43,5 +46,6 @@ export default async function LandingPage({ params }: PageProps<"/store/[slug]/l
     >
       <LandingView pageId={page.id} />
     </PublicLanding>
+    </PixelScope>
   );
 }

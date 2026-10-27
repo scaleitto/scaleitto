@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/server/db";
@@ -16,10 +16,20 @@ import { MAX_QUANTITY } from "./pricing";
 import { defaultForm, resolveForm } from "@/features/landing/types";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
+import { scheduleOrderEvents } from "@/features/pixels/server";
+import type { OrderTracking } from "@/server/db/schema";
 
 async function requestMeta() {
   const h = await headers();
   return { ip: (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null, userAgent: h.get("user-agent") };
+}
+
+// Ad-click cookies set by the pixels on the store's domain (sent again from the server with the purchase)
+async function adTracking(): Promise<OrderTracking> {
+  const c = await cookies();
+  const get = (name: string) => c.get(name)?.value?.slice(0, 500) || undefined;
+  const ga = get("_ga")?.match(/^GA\d\.\d\.(\d+\.\d+)$/)?.[1];
+  return { url: (await headers()).get("referer")?.slice(0, 500) || undefined, fbp: get("_fbp"), fbc: get("_fbc"), ttp: get("_ttp"), ttclid: get("sc_ttclid"), gaClientId: ga };
 }
 
 // The settings of a published landing page form, or null.
@@ -57,8 +67,10 @@ export async function submitOrder(slug: string, productId: string, landingPageId
     const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
     if (input.website) return { ok: false, error: "unexpected" };
-    const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), landingPageId, extra });
-    return placed.ok ? { ok: true, message: placed.orderId } : { ok: false, error: placed.error };
+    const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), landingPageId, extra, tracking: await adTracking() });
+    if (!placed.ok) return { ok: false, error: placed.error };
+    scheduleOrderEvents(shop.id, placed.orderId, "placed");
+    return { ok: true, message: placed.orderId };
   });
   if (result.ok && result.message) redirect(embedded ? `/embed/${shop.slug}/thanks?o=${result.message}` : `${await storeBase(shop.slug)}/thanks?o=${result.message}`);
   return result;

@@ -50,6 +50,13 @@
       "when": 1793089370133,
       "tag": "0006_landing_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1793102353637,
+      "tag": "0007_pixels",
+      "breakpoints": true
     }
   ]
 }

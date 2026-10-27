@@ -6,6 +6,8 @@ import { StoreFrame } from "@/features/storefront/blocks";
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { resolveDesign } from "@/features/design/types";
 import { findTheme } from "@/features/themes/themes";
+import { PixelScope } from "@/features/pixels/PixelScope";
+import { orderPixels } from "@/features/pixels/queries";
 
 export default async function EmbedThanks({ params, searchParams }: PageProps<"/embed/[slug]/thanks">) {
   const shop = await getShopBySlug((await params).slug);
@@ -16,6 +18,7 @@ export default async function EmbedThanks({ params, searchParams }: PageProps<"/
   return (
     <StoreFrame locale={shopLocale(shop)} color={shop.primaryColor} theme={findTheme(resolveDesign(shop.design).theme)} className="bg-transparent p-1">
       <ThankYou order={order} locale={shopLocale(shop)} />
+      <PixelScope {...await orderPixels(shop.id, order)} />
       <HeightReporter frameId={order.landingPageId ?? "form"} />
     </StoreFrame>
   );
