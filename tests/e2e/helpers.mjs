@@ -30,6 +30,8 @@ export async function step(name, fn) {
   } catch (err) {
     failures++;
     console.log(`  ✗ ${name}\n    ${String(err.message).split("\n")[0]}`);
+    // On GitHub Actions also as an annotation (readable from the API without the full log)
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=e2e::${name} — ${String(err.message).split("\n")[0].replace(/[\r\n]/g, " ")}`);
   }
 }
 export const failed = () => failures;
