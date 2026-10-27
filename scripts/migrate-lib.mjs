@@ -35,6 +35,9 @@ export async function runMigrations(connection, root, log = console.log) {
   const [[{ locked }]] = await connection.query("SELECT GET_LOCK('scaleitto_migrate', 60) AS locked");
   if (locked !== 1) throw new Error("Could not get the migration lock");
   try {
+    // cPanel can create databases in latin1, which cannot hold Arabic text: new tables follow the
+    // database default, so set it first (existing tables are converted after the migrations).
+    await connection.query("ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     await connection.query(
       "CREATE TABLE IF NOT EXISTS _migrations (name VARCHAR(191) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     );
@@ -50,6 +53,8 @@ export async function runMigrations(connection, root, log = console.log) {
       await connection.query("INSERT INTO _migrations (name) VALUES (?)", [tag]);
       log(`✓ applied ${tag}`);
     }
+
+    await convertToUtf8mb4(connection, log);
 
     for (const p of defaultPlans) {
       const [rows] = await connection.query("SELECT id, limits FROM plans WHERE code = ?", [p.code]);
@@ -73,5 +78,23 @@ export async function runMigrations(connection, root, log = console.log) {
     }
   } finally {
     await connection.query("SELECT RELEASE_LOCK('scaleitto_migrate')");
+  }
+}
+
+// Tables created before the database default was utf8mb4 (e.g. a latin1 cPanel database) are converted
+// once, so Arabic names, addresses and slugs are stored and compared correctly.
+async function convertToUtf8mb4(connection, log) {
+  const [tables] = await connection.query(
+    "SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' AND TABLE_COLLATION NOT LIKE 'utf8mb4%'",
+  );
+  if (!tables.length) return;
+  await connection.query("SET FOREIGN_KEY_CHECKS = 0");
+  try {
+    for (const { name } of tables) {
+      await connection.query(`ALTER TABLE \`${name}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+      log(`✓ ${name} converted to utf8mb4`);
+    }
+  } finally {
+    await connection.query("SET FOREIGN_KEY_CHECKS = 1");
   }
 }

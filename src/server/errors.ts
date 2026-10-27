@@ -6,11 +6,13 @@ import type { ActionState } from "@/lib/action";
 
 // Saves a handled error so the platform admin can read it (admin → System → Errors).
 export async function logError(where: string, err: unknown) {
-  const e = err as { message?: string; stack?: string };
+  const e = err as { message?: string; stack?: string; cause?: { message?: string; code?: string } };
   console.error(`[${where}]`, err);
+  // Database errors arrive wrapped ("Failed query: …"): the driver's own reason (in the cause) goes first
+  const cause = e?.cause?.message ? `${e.cause.code ? `${e.cause.code} ` : ""}${e.cause.message}\n` : "";
   await db
     .insert(schema.errorLogs)
-    .values({ id: randomUUID(), message: String(e?.message ?? err).slice(0, 2000), stack: e?.stack?.slice(0, 6000) ?? null, path: where.slice(0, 500), routeType: "action" })
+    .values({ id: randomUUID(), message: `${cause}${String(e?.message ?? err)}`.slice(0, 2000), stack: e?.stack?.slice(0, 6000) ?? null, path: where.slice(0, 500), routeType: "action" })
     .catch(() => {});
 }
 

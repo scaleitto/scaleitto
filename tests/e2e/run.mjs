@@ -46,6 +46,11 @@ for (const [name, run] of Object.entries(phases)) {
   await run(browser);
 }
 
+await step("every table stores Arabic text (utf8mb4, even when the database started as latin1)", async () => {
+  const [rows] = await db.query("SELECT TABLE_NAME AS name, TABLE_COLLATION AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' AND TABLE_COLLATION NOT LIKE 'utf8mb4%'");
+  expect(rows.length === 0, `tables not in utf8mb4: ${rows.map((r) => `${r.name} (${r.c})`).join(", ")}`);
+});
+
 await step("no server errors were logged during the tests", async () => {
   const [rows] = await db.query("SELECT path, message FROM error_logs WHERE created_at >= ? AND message NOT LIKE 'e2e-sample%' ORDER BY created_at DESC LIMIT 20", [startedAt]);
   expect(rows.length === 0, `no new errors (got: ${rows.map((r) => `${r.path}: ${r.message}`).join(" | ")})`);

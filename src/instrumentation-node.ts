@@ -25,7 +25,7 @@ const MAX_ERROR_LOGS = 300;
 
 export async function logRequestError(error: unknown, request: { path: string; method: string }, context: { routeType: string }) {
   if (!process.env.DATABASE_URL) return;
-  const e = error as { message?: string; stack?: string; digest?: string };
+  const e = error as { message?: string; stack?: string; digest?: string; cause?: { message?: string; code?: string } };
   // Redirects and not-found are normal control flow, not errors.
   if (typeof e?.digest === "string" && /^NEXT_(REDIRECT|HTTP_ERROR)/.test(e.digest)) return;
   let connection: mysql.Connection | undefined;
@@ -35,7 +35,7 @@ export async function logRequestError(error: unknown, request: { path: string; m
       "INSERT INTO error_logs (id, digest, message, stack, path, method, route_type) VALUES (UUID(), ?, ?, ?, ?, ?, ?)",
       [
         e?.digest?.slice(0, 64) ?? null,
-        String(e?.message ?? error).slice(0, 2000),
+        `${e?.cause?.message ? `${e.cause.code ? `${e.cause.code} ` : ""}${e.cause.message}\n` : ""}${String(e?.message ?? error)}`.slice(0, 2000),
         e?.stack?.slice(0, 6000) ?? null,
         request.path.slice(0, 500),
         request.method.slice(0, 10),

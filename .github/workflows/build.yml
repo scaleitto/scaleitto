@@ -61,6 +61,8 @@ jobs:
           cp .env.example .next/standalone/.env.example
       - name: End-to-end tests against the deploy folder
         run: |
+          # Start from a latin1 database, as cPanel can create them: the app must convert it at startup
+          mysql -h 127.0.0.1 -uroot -proot -e "ALTER DATABASE scaleitto CHARACTER SET latin1 COLLATE latin1_swedish_ci"
           npx playwright install --with-deps chromium
           (cd .next/standalone && PORT=3000 node server.js > ../../server.log 2>&1 &)
           for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
