@@ -138,10 +138,16 @@ export const products = mysqlTable(
     options: json("options").$type<ProductOption[]>().notNull(),
     offers: json("offers").$type<QuantityOffer[]>().notNull(),
     status: mysqlEnum("status", productStatuses).notNull().default("active"),
+    // Where an imported product came from ("shopify:<store>:<id>", "youcan:<id>"), so it is never imported twice
+    externalRef: varchar("external_ref", { length: 191 }),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
-  (t) => [uniqueIndex("products_shop_slug_uq").on(t.shopId, t.slug), index("products_shop_created_idx").on(t.shopId, t.createdAt)],
+  (t) => [
+    uniqueIndex("products_shop_slug_uq").on(t.shopId, t.slug),
+    index("products_shop_created_idx").on(t.shopId, t.createdAt),
+    uniqueIndex("products_shop_external_uq").on(t.shopId, t.externalRef),
+  ],
 );
 
 // One row per combination of option values, e.g. { Size: "L", Color: "Black" }
@@ -473,4 +479,43 @@ export const pixelEvents = mysqlTable(
     createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },
   (t) => [uniqueIndex("pixel_events_once_uq").on(t.pixelId, t.orderId, t.event), index("pixel_events_shop_idx").on(t.shopId, t.createdAt)],
+);
+
+// ─── Apps ─────────────────────────────────────────────────
+
+// Apps that receive every order and its changes
+export const appKeys = ["google_sheets", "webhook"] as const;
+export type AppKey = (typeof appKeys)[number];
+
+// One connected app per shop and kind. The URL is the merchant's Apps Script / webhook endpoint;
+// the secret (token or signing key) is encrypted.
+export const shopApps = mysqlTable(
+  "shop_apps",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    app: mysqlEnum("app", appKeys).notNull(),
+    url: varchar("url", { length: 500 }).notNull(),
+    secret: text("secret").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("shop_apps_shop_app_uq").on(t.shopId, t.app)],
+);
+
+// What was sent to the apps (last ones shown on the dashboard)
+export const appEvents = mysqlTable(
+  "app_events",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    app: mysqlEnum("app", appKeys).notNull(),
+    orderId: id("order_id"),
+    // "order" (one order), "backfill" (many), "test"
+    kind: varchar("kind", { length: 20 }).notNull(),
+    ok: boolean("ok").notNull(),
+    detail: varchar("detail", { length: 500 }),
+    createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (t) => [index("app_events_shop_idx").on(t.shopId, t.createdAt)],
 );

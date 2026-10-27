@@ -68,3 +68,34 @@ export async function safeFetch(
   }
   throw new SafeFetchError("Too many redirects");
 }
+
+// POSTs JSON to a merchant's URL (Apps Script, webhook) with the same checks on every hop.
+// Like browsers, a 301/302/303 answer is followed with a GET (Google Apps Script returns its result that way).
+export async function safePostJson(
+  input: string,
+  body: string,
+  { headers = {}, timeoutMs = 15_000, maxBytes = 256 * 1024 }: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number } = {},
+): Promise<{ status: number; contentType: string; text: string }> {
+  let url = new URL(input);
+  const signal = AbortSignal.timeout(timeoutMs);
+  let method: "POST" | "GET" = "POST";
+  for (let hop = 0; hop < 5; hop++) {
+    await assertPublic(url);
+    const res = await fetch(url, {
+      method,
+      redirect: "manual",
+      signal,
+      headers: method === "POST" ? { "Content-Type": "application/json", "User-Agent": "Scaleitto", ...headers } : { "User-Agent": "Scaleitto" },
+      body: method === "POST" ? body : undefined,
+    });
+    if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+      url = new URL(res.headers.get("location")!, url);
+      if (res.status !== 307 && res.status !== 308) method = "GET";
+      continue;
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > maxBytes) throw new SafeFetchError("Response too large");
+    return { status: res.status, contentType: res.headers.get("content-type") ?? "", text: buf.toString("utf8") };
+  }
+  throw new SafeFetchError("Too many redirects");
+}

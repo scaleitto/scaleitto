@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, like, notInArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { db, schema } from "@/server/db";
@@ -10,27 +10,12 @@ import { safeAction } from "@/server/errors";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { asLocale } from "@/i18n";
 import { sectionHref } from "@/lib/permissions";
-import { nextFreeSlug } from "@/lib/format";
 import type { ActionState } from "@/lib/action";
 import { productSchema, type ProductInput } from "./validators";
 import { combinations, variantTitle } from "./variants";
+import { uniqueSlug } from "./slug";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-// The product's link must be unique in its shop: shoes, shoes-2, shoes-3…
-async function uniqueSlug(tx: Tx, shopId: string, base: string, exceptId?: string) {
-  const taken = new Set(
-    (
-      await tx
-        .select({ slug: schema.products.slug, id: schema.products.id })
-        .from(schema.products)
-        .where(and(eq(schema.products.shopId, shopId), like(schema.products.slug, `${base}%`)))
-    )
-      .filter((r) => r.id !== exceptId)
-      .map((r) => r.slug),
-  );
-  return nextFreeSlug(base, taken);
-}
 
 // Variants are rebuilt from the options on the server; the form only supplies price/SKU/stock per title.
 // Existing rows keep their id (orders will point to them).

@@ -17,6 +17,7 @@ import { defaultForm, resolveForm } from "@/features/landing/types";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
+import { scheduleOrderSync } from "@/features/apps/sync";
 import type { OrderTracking } from "@/server/db/schema";
 
 async function requestMeta() {
@@ -70,6 +71,7 @@ export async function submitOrder(slug: string, productId: string, landingPageId
     const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), landingPageId, extra, tracking: await adTracking() });
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
+    scheduleOrderSync(shop.id, placed.orderId, "order.created");
     return { ok: true, message: placed.orderId };
   });
   if (result.ok && result.message) redirect(embedded ? `/embed/${shop.slug}/thanks?o=${result.message}` : `${await storeBase(shop.slug)}/thanks?o=${result.message}`);

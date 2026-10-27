@@ -15,6 +15,7 @@ import { deliveryTypes } from "@/server/db/schema";
 import { isOrderStatus } from "./statuses";
 import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
+import { scheduleOrderSync } from "@/features/apps/sync";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "orders");
 
@@ -73,6 +74,7 @@ export async function updateOrderCustomer(lang: string, orderId: string, _prev: 
         .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "edit" });
     });
+    scheduleOrderSync(shop.id, orderId);
     refresh();
     return { ok: true };
   });
@@ -130,6 +132,7 @@ export async function assignOrder(lang: string, orderId: string, userId: string 
       .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
     if (!res.affectedRows) return { ok: false, error: "notFound" };
     await db.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "assign", note: name });
+    scheduleOrderSync(shop.id, orderId);
     refresh();
     return { ok: true };
   });
