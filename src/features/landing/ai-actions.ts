@@ -6,7 +6,7 @@ import { db, schema } from "@/server/db";
 import { newId, requireSection } from "@/server/auth/context";
 import { logError } from "@/server/errors";
 import { canAdd } from "@/server/limits";
-import { readUpload } from "@/server/storage";
+import { visionImages } from "@/server/ai/vision";
 import { downloadImages, importProductFromUrl } from "@/server/product-import";
 import { AiRequestError, aiConfigured, checkAiConnection, pollBackgroundJson, startBackgroundJson, type AiCheckStep } from "@/server/ai/openai";
 import { asLocale } from "@/i18n";
@@ -42,18 +42,6 @@ const startSchema = z.object({
   tone: z.enum(aiTones),
 });
 export type AiStartInput = z.input<typeof startSchema>;
-
-// Photos the model looks at: our own uploads are sent as data, links as links.
-async function visionImages(images: string[]) {
-  const out: string[] = [];
-  for (const src of images.slice(0, 6)) {
-    if (src.startsWith("/uploads/")) {
-      const file = await readUpload(src);
-      if (file) out.push(`data:${file.mime};base64,${file.buf.toString("base64")}`);
-    } else if (/^https:\/\//.test(src)) out.push(src);
-  }
-  return out;
-}
 
 const guard = (lang: string) => requireSection(asLocale(lang), "landingPages");
 

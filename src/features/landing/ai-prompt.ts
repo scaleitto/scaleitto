@@ -30,7 +30,7 @@ export type LandingBrief = {
   writeProduct?: boolean;
 };
 
-const languageRules: Record<AiLanguage, string> = {
+export const languageRules: Record<AiLanguage, string> = {
   ar: "Write in clear, modern Standard Arabic that Algerian shoppers read easily. Short sentences.",
   dz: "Write in Algerian Darija using Arabic script, the way Algerians write in Facebook/TikTok ads (natural, warm, everyday words; French loanwords are fine when Algerians commonly use them). Keep it easy to read.",
   fr: "Write in natural French as used in Algerian e-commerce. Short sentences.",

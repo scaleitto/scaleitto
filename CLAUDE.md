@@ -131,6 +131,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   fixed; `starter` = free fallback; only the `custom_domain` feature is enforced), system (version, migrations, which
   server settings are set, AI check, error log). Data in `src/features/admin/queries.ts`, forms in `AdminForms.tsx`.
   The shell (`DashboardShell`) serves both areas; the platform admin sees an admin link in the merchant header.
+- Call-center AI (`src/features/ai/`): small AI tasks share `tasks.ts` (`startTask` → background request + an
+  `ai_generations` row with `kind`, counted in `maxAiPerMonth`; `pollTask` → clean, save, return `result`) and the browser
+  hook `useAiTask`. Prompts/schemas in `prompts.ts` (same honesty rules as landing pages): `call_guide` (saved on
+  `products.call_guide`, shown on the order page by `CallGuideCard`), `messages` (rewrites the customer messages, returned
+  to the editor), `description` (fills the product form). Customer messages (`src/features/messages/`): `templates.ts`
+  (defaults in dz/ar/fr/en, `{placeholders}`, `shops.messages` holds only changed texts), `MessageCard` on the order page
+  (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message"),
+  `MessagesEditor` on Call Centers → settings.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -155,6 +163,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin).
-Next: the remaining AI features (to agree with the owner), then real-account checks of the integrations.
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions).
+Next: Phase 15 — AI landing pages: enhanced product images, more section types, mobile-first conversion layout; then real-account checks of the integrations.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

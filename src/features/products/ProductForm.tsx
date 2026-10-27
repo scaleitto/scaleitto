@@ -13,6 +13,8 @@ import { ImageManager } from "@/ui/ImageManager";
 import { combinations, variantTitle } from "./variants";
 import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS } from "./constants";
 import type { ProductStatus } from "./types";
+import { DescriptionButton } from "@/features/ai/DescriptionButton";
+import type { PageLanguage } from "@/features/landing/types";
 
 export type ProductFormValues = {
   name: string;
@@ -31,13 +33,13 @@ export type ProductFormValues = {
   variants: { title: string; sku: string | null; price: number | null; stock: number }[];
 };
 
-export type ProductFormText = Pick<Dictionary, "products" | "media" | "errors" | "common">;
+export type ProductFormText = Pick<Dictionary, "products" | "media" | "errors" | "common" | "assistant">;
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 type VariantData = { sku: string; price: number | null; stock: number };
 
 const toNumber = (v: string) => (v.trim() === "" ? null : Number(v.replace(/\s/g, "")));
 
-export function ProductForm({ t, action, values, backHref, viewHref, isNew }: { t: ProductFormText; action: Action; values: ProductFormValues; backHref: string; viewHref?: string; isNew: boolean }) {
+export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }: { t: ProductFormText; action: Action; values: ProductFormValues; backHref: string; viewHref?: string; isNew: boolean; ai: { lang: string; language: PageLanguage } }) {
   const p = t.products;
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(action);
@@ -119,8 +121,9 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew }: { 
               <Input id="name" name="name" defaultValue={values.name} maxLength={200} />
             </Field>
             <Field label={p.description} htmlFor="description" hint={p.descriptionHint} error={err("description")}>
-              <Textarea id="description" name="description" defaultValue={values.description} rows={6} />
+              <Textarea id="description" name="description" defaultValue={values.description} rows={6} dir="auto" />
             </Field>
+            <DescriptionButton lang={ai.lang} language={ai.language} images={images} t={t} />
           </Card>
 
           <Card className="space-y-4">

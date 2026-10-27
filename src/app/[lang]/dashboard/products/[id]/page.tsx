@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
+import { storeLanguage } from "@/features/landing/types";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { saveProduct } from "@/features/products/actions";
@@ -23,6 +24,7 @@ export default async function EditProductPage({ params }: PageProps<"/[lang]/das
       backHref={sectionHref(lang, "products")}
       viewHref={product.status === "active" ? `${storeUrl(shop)}/p/${encodeURIComponent(product.slug)}` : undefined}
       isNew={false}
+      ai={{ lang, language: storeLanguage(shop.defaultLocale) }}
     />
   );
 }

@@ -78,6 +78,13 @@
       "when": 1793108573535,
       "tag": "0010_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1793112086454,
+      "tag": "0011_ai_tools",
+      "breakpoints": true
     }
   ]
 }

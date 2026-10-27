@@ -21,5 +21,5 @@ export default async function OrderPage({ params }: PageProps<"/[lang]/dashboard
     role === "agent" ? Promise.resolve([]) : assignableMembers(shop.id),
   ]);
   if (!order) notFound();
-  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} />;
+  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} shop={{ name: shop.name, phone: shop.phone, messages: shop.messages }} />;
 }

@@ -204,3 +204,6 @@ export function resolveForm(input: unknown): FormSettings {
 export const pageLanguages = ["ar", "dz", "fr", "en"] as const;
 export type PageLanguage = (typeof pageLanguages)[number];
 export const interfaceLocale = (lang: PageLanguage) => (lang === "dz" ? "ar" : lang);
+
+// The AI writes for customers in the store's language (ar / fr / en)
+export const storeLanguage = (locale: string): PageLanguage => (locale === "fr" || locale === "en" ? locale : "ar");

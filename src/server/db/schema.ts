@@ -71,6 +71,8 @@ export const shops = mysqlTable(
     design: json("design"),
     // How new orders reach the call center: manual, to the least busy agent, or to the least busy agent on shift
     assignMode: mysqlEnum("assign_mode", ["manual", "balanced", "on_shift"]).notNull().default("balanced"),
+    // Messages agents send to customers (WhatsApp / SMS), see src/features/messages/templates.ts
+    messages: json("messages"),
     // Search engines and link previews (src/features/settings/types.ts)
     seo: json("seo").$type<ShopSeo | null>(),
     // Policy pages shown in the store footer (plain text)
@@ -155,6 +157,8 @@ export const products = mysqlTable(
     options: json("options").$type<ProductOption[]>().notNull(),
     offers: json("offers").$type<QuantityOffer[]>().notNull(),
     status: mysqlEnum("status", productStatuses).notNull().default("active"),
+    // AI call guide for the call center (src/features/ai/call-guide.ts → CallGuide)
+    callGuide: json("call_guide"),
     // Where an imported product came from ("shopify:<store>:<id>", "youcan:<id>"), so it is never imported twice
     externalRef: varchar("external_ref", { length: 191 }),
     createdAt: createdAt(),
@@ -292,6 +296,8 @@ export const aiGenerations = mysqlTable(
     id: id().primaryKey(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id").notNull(),
+    // landing (a landing page) or a small task: call_guide, messages, description, image (src/features/ai/tasks.ts)
+    kind: varchar("kind", { length: 30 }).notNull().default("landing"),
     // OpenAI background response id
     responseId: varchar("response_id", { length: 120 }),
     model: varchar("model", { length: 80 }),
@@ -299,6 +305,8 @@ export const aiGenerations = mysqlTable(
     // What to build when the text is ready (product to use or create, language, color…)
     brief: json("brief").notNull(),
     landingPageId: id("landing_page_id"),
+    // What a finished task produced (returned to the browser)
+    result: json("result"),
     error: text("error"),
     inputTokens: int("input_tokens"),
     outputTokens: int("output_tokens"),
@@ -316,7 +324,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),

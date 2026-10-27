@@ -4,6 +4,7 @@ import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
 import { visibleOrders, type OrderViewer } from "./access";
 import { escapeLike } from "@/lib/validation";
+import type { CallGuide } from "@/features/ai/prompts";
 
 export const PAGE_SIZE = 25;
 
@@ -85,6 +86,11 @@ export async function getOrder(viewer: OrderViewer, id: string) {
       ? db.select({ title: schema.landingPages.title }).from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, order.landingPageId)))
       : Promise.resolve([]),
   ]);
+  // The ordered products' call guides (for the call center)
+  const productIds = [...new Set(items.map((i) => i.productId).filter((v): v is string => Boolean(v)))];
+  const guides = productIds.length
+    ? await db.select({ id: schema.products.id, name: schema.products.name, callGuide: schema.products.callGuide }).from(schema.products).where(and(eq(schema.products.shopId, shopId), inArray(schema.products.id, productIds)))
+    : [];
   const byStatus = Object.fromEntries(history.map((h) => [h.status, h.n])) as Partial<Record<OrderStatus, number>>;
   const phoneStats = {
     orders: history.reduce((sum, h) => sum + h.n, 0),
@@ -94,6 +100,7 @@ export async function getOrder(viewer: OrderViewer, id: string) {
   const detail = { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null,
     landingTitle: (landing as { title: string } | undefined)?.title ?? null,
     extra: Array.isArray(order.extra) ? (order.extra as { label: string; value: string }[]) : [],
+    guides: guides.map((g) => ({ product: { id: g.id, name: g.name }, guide: (g.callGuide as CallGuide | null) ?? null })),
   };
   // Locked (over the plan's limit): nothing that identifies the customer leaves the server
   if (order.locked) {

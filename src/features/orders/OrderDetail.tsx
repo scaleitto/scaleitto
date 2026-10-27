@@ -13,6 +13,9 @@ import { ShipmentCard } from "@/features/delivery/ShipmentCard";
 import { findCarrier } from "@/features/delivery/carriers";
 import type { CarrierAccountRow } from "@/features/delivery/queries";
 import type { schema } from "@/server/db";
+import { MessageCard } from "@/features/messages/MessageCard";
+import { resolveMessages, suggestedKind, type MessageVars } from "@/features/messages/templates";
+import { CallGuideCard } from "@/features/ai/CallGuideCard";
 
 export function OrderDetail({
   lang,
@@ -22,6 +25,7 @@ export function OrderDetail({
   accounts,
   canManageDelivery,
   members,
+  shop,
 }: {
   lang: string;
   t: Dictionary;
@@ -31,11 +35,25 @@ export function OrderDetail({
   canManageDelivery: boolean;
   // Team members the order can be given to (managers only; empty for agents)
   members: { userId: string; name: string }[];
+  shop: { name: string; phone: string | null; messages: unknown };
 }) {
   const o = t.orders;
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
   const cur = t.common.currency;
   const statusLabel = (s: string | null) => (s && isOrderStatus(s) ? o.statuses[s] : (s ?? ""));
+  // Customer messages in the shop's chosen language, filled with this order
+  const messages = resolveMessages(shop.messages);
+  const arabic = messages.language === "ar" || messages.language === "dz";
+  const messageVars: MessageVars = {
+    name: order.customerName,
+    order: String(order.number),
+    product: order.items.map((i) => `${i.name}${i.variantTitle ? ` (${i.variantTitle})` : ""}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join("، "),
+    total: formatPrice(order.total, arabic ? "د.ج" : "DA"),
+    wilaya: wilayaName(order.wilayaCode, arabic ? "ar" : "fr").replace(/^\d+ - /, ""),
+    store: shop.name,
+    storePhone: shop.phone ?? "",
+    tracking: shipment?.trackingNumber ?? "",
+  };
 
   return (
     <>
@@ -161,9 +179,11 @@ export function OrderDetail({
               </dl>
             </Card>
           )}
+          {!order.locked && order.guides.map((g) => <CallGuideCard key={g.product.id} lang={lang} product={g.product} guide={g.guide} t={{ assistant: t.assistant, errors: t.errors, landingPages: t.landingPages }} />)}
         </div>
 
         <div className="space-y-6">
+          {!order.locked && <MessageCard lang={lang} orderId={order.id} phone={order.phone} texts={messages.texts} vars={messageVars} initialKind={suggestedKind(order.status)} t={t.assistant} />}
           {!order.locked && <AssignCard lang={lang} orderId={order.id} assignedTo={order.assignedTo} assigneeName={order.assigneeName} members={members} t={text} />}
           {!order.locked && <Card className="space-y-3" data-testid="phone-history">
             <h2 className="font-semibold">{o.phoneHistory}</h2>
