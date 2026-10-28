@@ -234,7 +234,11 @@ export async function startBackgroundImage(req: ImageRequest): Promise<{ respons
       const tool: Record<string, unknown> = { type: "image_generation", size: req.size ?? "1024x1024" };
       if (attempt.quality) tool.quality = "high";
       if (attempt.fidelity) tool.input_fidelity = "high";
-      if (attempt.format) tool.output_format = "webp";
+      if (attempt.format) {
+        // Light images for fast pages (a high-quality webp is several times bigger at no visible gain on a phone)
+        tool.output_format = "webp";
+        tool.output_compression = 80;
+      }
       const body = {
         model,
         background: true,

@@ -44,7 +44,10 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
 
   return (
     <div className="grid gap-6 pb-20 md:grid-cols-2 md:gap-10 md:pb-0">
-      <Gallery images={product.images} alt={product.name} />
+      {/* On large screens the photos stay in view while the visitor fills the form */}
+      <div className="md:sticky md:top-24 md:self-start">
+        <Gallery images={product.images} alt={product.name} />
+      </div>
       <div className="space-y-5">
         <PixelScope pixels={pixels} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
         <div className="space-y-2">

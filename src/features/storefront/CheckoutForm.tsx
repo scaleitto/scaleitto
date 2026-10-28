@@ -15,7 +15,7 @@ import { defaultForm, type FormSettings } from "@/features/landing/types";
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
 type LeadInput = { name?: string; phone?: string; wilaya?: number | null; variantId?: string; quantity?: number };
 
-const field = "w-full rounded-[var(--s-radius-btn)] border border-s-line bg-s-surface px-3.5 py-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
+const field = "w-full rounded-[var(--s-radius-btn)] border border-s-edge bg-s-surface px-3.5 py-3 text-base outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
 const label = "mb-1.5 block text-sm font-semibold text-s-muted";
 
 export function CheckoutForm({
@@ -130,7 +130,7 @@ export function CheckoutForm({
                     disabled={!ok}
                     onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
                     className={`min-w-12 rounded-[var(--s-radius-btn)] border-2 px-4 py-2 text-sm font-bold transition ${
-                      active ? "border-brand bg-brand text-white" : "border-s-line bg-s-surface hover:border-brand"
+                      active ? "border-brand bg-brand text-white" : "border-s-edge bg-s-surface hover:border-brand"
                     } disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`}
                   >
                     {value}
@@ -152,7 +152,7 @@ export function CheckoutForm({
                 return (
                   <label
                     key={q}
-                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-line"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-edge"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
                   >
                     <span className="flex items-center gap-3">
                       <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 accent-[var(--brand)]" />
@@ -171,7 +171,7 @@ export function CheckoutForm({
         ) : (
           <div>
             <span className={label}>{t.form.quantity}</span>
-            <div className="inline-flex items-center rounded-[var(--s-radius-btn)] border border-s-line">
+            <div className="inline-flex items-center rounded-[var(--s-radius-btn)] border border-s-edge">
               <button type="button" aria-label="-" className="p-3 disabled:opacity-30" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
                 <Minus size={16} />
               </button>
@@ -268,7 +268,7 @@ export function CheckoutForm({
               return (
                 <label
                   key={type}
-                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-s-line"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
+                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-s-edge"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
                 >
                   <span className="flex items-center gap-2 font-semibold">
                     <input type="radio" name="deliveryType" value={type} checked={deliveryType === type} disabled={unavailable} onChange={() => setDeliveryType(type)} className="size-4 accent-[var(--brand)]" />
@@ -312,7 +312,7 @@ export function CheckoutForm({
               {!hasRates ? t.summary.free : shipping === undefined ? t.summary.chooseWilayaFirst : shipping === null ? t.summary.notDelivered : shipping === 0 ? t.summary.free : formatPrice(shipping, currency)}
             </dd>
           </div>
-          <div className="flex justify-between border-t border-s-line pt-2 text-base">
+          <div className="flex justify-between border-t border-s-edge pt-2 text-base">
             <dt className="font-bold">{t.summary.total}</dt>
             <dd className="font-extrabold text-brand" data-testid="total">
               {formatPrice(total, currency)}

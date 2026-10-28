@@ -8,10 +8,10 @@ import { fmt } from "@/lib/format";
 import { Alert, Badge, Button, Card, Field, Input, buttonClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import type { AppKey } from "@/server/db/schema";
-import { backfillAction, disconnectApp, saveAppUrl, setAppActive, startApp, testAppAction } from "./actions";
+import { backfillAction, disconnectApp, saveAppUrl, sendQueueNow, setAppActive, startApp, testAppAction } from "./actions";
 
 export type AppsText = Pick<Dictionary, "apps" | "errors" | "common">;
-export type AppView = { app: AppKey; url: string; active: boolean; secret: string; sheetUrl: string | null; lastError: string | null; script: string | null } | null;
+export type AppView = { app: AppKey; url: string; active: boolean; secret: string; sheetUrl: string | null; lastError: string | null; waiting: number; queueError: string | null; script: string | null } | null;
 
 function CopyBox({ value, label, rows = 3, t, testId }: { value: string; label: string; rows?: number; t: AppsText; testId?: string }) {
   const [copied, setCopied] = useState(false);
@@ -98,6 +98,21 @@ function ConnectedControls({ lang, view, extra, t }: { lang: string; view: NonNu
   return (
     <div className="space-y-3">
       {result && <Alert variant={result.ok ? "success" : "error"}>{result.text}</Alert>}
+      {view.waiting > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-sm" data-testid="app-queue" data-waiting={view.waiting}>
+          <span className="me-auto">
+            <span className="font-semibold">{fmt(t.apps.queue.waiting, { n: view.waiting })}</span>
+            {view.queueError && (
+              <span className="block text-xs break-all text-muted" dir="auto">
+                {view.queueError}
+              </span>
+            )}
+          </span>
+          <Button variant="secondary" className="py-1.5 text-xs" disabled={pending} onClick={() => run(() => sendQueueNow(lang), (r) => fmt(t.apps.queue.sent, { n: (r.message ?? "0/0").split("/")[0], left: (r.message ?? "0/0").split("/")[1] }))}>
+            <Send size={14} /> {t.apps.queue.sendNow}
+          </Button>
+        </div>
+      )}
       {!result && view.lastError && (
         <div data-testid="last-error">
           <Alert>

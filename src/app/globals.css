@@ -7,6 +7,9 @@
   --color-panel: #ffffff;
   --color-panel-2: #f0f3f1;
   --color-line: #dce3df;
+  /* Form fields: a tinted fill and a firmer edge so they stand out on white cards */
+  --color-field: #f5f8f6;
+  --color-field-line: #c6d1cb;
   --color-fg: #14201a;
   --color-muted: #64716a;
   --color-accent: #16a34a;
@@ -15,12 +18,13 @@
   --color-warning: #b45309;
   --color-info: #0369a1;
   --color-brand: var(--brand, #22c55e);
-  /* Storefront theme tokens (set per store by src/features/themes/themes.ts) */
+  /* Storefront theme tokens (set per store by src/features/themes/themes.ts). The line color is "s-edge":
+     "border-s-line" would also be read as Tailwind's border-inline-start + the dashboard line color. */
   --color-s-bg: var(--s-bg, #f8fafc);
   --color-s-surface: var(--s-surface, #ffffff);
   --color-s-text: var(--s-text, #0f172a);
   --color-s-muted: var(--s-muted, #64748b);
-  --color-s-line: var(--s-line, #e2e8f0);
+  --color-s-edge: var(--s-line, #e2e8f0);
   --color-s-card-border: var(--s-card-border, #e2e8f0);
 }
 
@@ -30,6 +34,13 @@
 
 body {
   @apply antialiased;
+}
+
+/* Native checkboxes, radios and ranges in the dashboard's green */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--color-accent);
 }
 
 /* Landing pages: the scrolling band of selling points (content is doubled, so -50% loops seamlessly) */
@@ -49,8 +60,19 @@ body {
 [dir="rtl"] .marquee-track {
   animation-name: marquee-rtl;
 }
+/* Homepage: the order notifications arrive once on the phone */
+@keyframes notify-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+.notify-in {
+  animation: notify-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 @media (prefers-reduced-motion: reduce) {
-  .marquee-track {
+  .marquee-track,
+  .notify-in {
     animation: none;
   }
 }

@@ -7,6 +7,7 @@ import { appliedMigrations, recentErrors } from "@/features/admin/queries";
 import { adminTestAi } from "@/features/admin/actions";
 import { ClearErrorsButton } from "@/features/admin/AdminForms";
 import { AiTestCard } from "@/features/landing/AiTestCard";
+import { cronKey } from "@/server/crypto";
 
 // Every server setting the platform reads (values are never shown, only whether they are set)
 const ENV_KEYS = [
@@ -64,6 +65,13 @@ export default async function AdminSystem({ params }: PageProps<"/[lang]/admin/s
       <div className="mb-6">
         <AiTestCard test={adminTestAi.bind(null, lang)} t={t.landingPages.ai} />
       </div>
+      <Card className="mb-6 space-y-2 text-sm" data-testid="cron">
+        <h2 className="font-semibold">{sy.cron}</h2>
+        <p className="text-muted">{sy.cronHint}</p>
+        <code className="block rounded-lg border border-line bg-panel-2 p-3 text-xs break-all select-all" dir="ltr">
+          {`curl -fsS "${(process.env.APP_URL ?? "").replace(/\/$/, "")}/api/cron/apps?key=${cronKey()}" > /dev/null`}
+        </code>
+      </Card>
       <Card className="space-y-3" data-testid="error-log">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">

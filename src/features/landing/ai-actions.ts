@@ -58,7 +58,7 @@ const startSchema = z.object({
   pageStyle: z.enum(["sections", "images"]).optional().default("sections"),
   poster: z
     .object({
-      count: z.union([z.literal(6), z.literal(8), z.literal(10)]),
+      count: z.union([z.literal(2), z.literal(4), z.literal(6), z.literal(8), z.literal(10)]),
       people: z.enum(posterPeople),
       audience: z.enum(posterAudiences),
       color: z.string().regex(/^#[0-9a-f]{6}$/i).nullable(),
@@ -77,7 +77,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
     const parsed = startSchema.safeParse(input);
     if (!parsed.success) return { ok: false, error: "checkFields" };
     const d = parsed.data;
-    const poster: PosterOptions | null = d.pageStyle === "images" ? (d.poster ?? { count: posterCounts[1], people: "hands", audience: "neutral", color: null }) : null;
+    const poster: PosterOptions | null = d.pageStyle === "images" ? (d.poster ?? { count: posterCounts[2], people: "hands", audience: "neutral", color: null }) : null;
     // The plan + one image per section all count in the monthly AI quota
     if (!(await canAdd(shop.id, "maxAiPerMonth", 1 + (poster?.count ?? 0)))) return { ok: false, error: "limitAi" };
     if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
@@ -107,7 +107,8 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
           name = name || imported.title;
           sourceText = `${imported.title}\n${imported.description}`;
         } catch (err) {
-          return { ok: false, error: "importFailed", message: err instanceof Error ? err.message : String(err) };
+          const message = err instanceof Error ? err.message : String(err);
+          return message === "BLOCKED" ? { ok: false, error: "importBlocked" } : { ok: false, error: "importFailed", message };
         }
       }
       product = { name: name || "—", description: null, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images, options: [], offers: [] };

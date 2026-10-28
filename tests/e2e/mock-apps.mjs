@@ -57,6 +57,8 @@ export function startMockApps(port) {
     if (path === "/sheets/exec" && req.method === "POST") {
       const body = JSON.parse(raw);
       let result;
+      // Tests set sheet.down to make Google answer with an error (the order must wait in the queue)
+      if (sheet.down) return json(res, 503, { error: "Service unavailable" });
       if (sheet.token && body.token !== sheet.token) result = { ok: false, error: "wrong token" };
       else {
         sheet.headers = body.headers;
@@ -74,6 +76,16 @@ export function startMockApps(port) {
     if (path === "/hook") {
       hooks.push({ headers: req.headers, raw, body: JSON.parse(raw) });
       return json(res, 200, { received: true });
+    }
+    // A product page that redirects to itself until its cookie comes back (like AliExpress), then shows
+    // its data as JSON in a script
+    if (path === "/aliexpress/item/1005.html") {
+      if (!(req.headers.cookie ?? "").includes("ae_ok=1")) {
+        res.writeHead(302, { Location: `${base}/aliexpress/item/1005.html?from=redirect`, "Set-Cookie": "ae_ok=1; Path=/" });
+        return res.end();
+      }
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(`<html><head><title>AliExpress</title></head><body><script>window.runParams={"subject":"Lampe anti moustique - AliExpress","imagePathList":["${base}/shop/img/robe.png"]};</script></body></html>`);
     }
     if (path === "/products.json") return json(res, 200, url.searchParams.get("page") === "1" ? shopify(base) : { products: [] });
     if (path === "/shop/img/robe.png") {

@@ -22,7 +22,7 @@ type Poster = NonNullable<AiStartInput["poster"]>;
 
 const POLL_MS = 3000;
 const GIVE_UP_MS = 12 * 60_000;
-const counts = [6, 8, 10] as const;
+const counts = [2, 4, 6, 8, 10] as const;
 const peopleKeys = ["none", "hands", "people"] as const;
 const audienceKeys = ["neutral", "women", "men", "kids", "family"] as const;
 const toNumber = (v: string) => (v.replace(/\D/g, "") ? Number(v.replace(/\D/g, "")) : null);

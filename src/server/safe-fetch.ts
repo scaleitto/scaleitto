@@ -1,6 +1,7 @@
 import "server-only";
 import { lookup } from "node:dns/promises";
 import net from "node:net";
+import { cookieHeader, mergeCookies } from "@/lib/product-page";
 
 // Fetching URLs typed by merchants must never reach the server's own network
 // (localhost, cPanel services, cloud metadata…): every hop is checked.
@@ -35,7 +36,9 @@ export async function safeFetch(
 ): Promise<{ url: string; status: number; contentType: string; body: Buffer }> {
   let url = new URL(input);
   const signal = AbortSignal.timeout(timeoutMs);
-  for (let hop = 0; hop < 5; hop++) {
+  // Cookies set along the redirects are sent back, like a browser (some sites loop until they get them)
+  const jar = new Map<string, string>();
+  for (let hop = 0; hop < 10; hop++) {
     await assertPublic(url);
     const res = await fetch(url, {
       redirect: "manual",
@@ -44,8 +47,10 @@ export async function safeFetch(
         Accept: accept,
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
         "Accept-Language": "fr,ar;q=0.9,en;q=0.8",
+        ...(jar.size ? { Cookie: cookieHeader(jar) } : {}),
       },
     });
+    mergeCookies(jar, res.headers.getSetCookie?.() ?? []);
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       url = new URL(res.headers.get("location")!, url);
       continue;

@@ -75,7 +75,7 @@ export async function updateOrderCustomer(lang: string, orderId: string, _prev: 
         .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "edit" });
     });
-    scheduleOrderSync(shop.id, orderId);
+    await scheduleOrderSync(shop.id, orderId);
     refresh();
     return { ok: true };
   });
@@ -138,7 +138,7 @@ async function assignMany(lang: string, orderIds: string[], userId: string | nul
     .set({ assignedTo: userId, assignedAt: userId ? new Date() : null })
     .where(and(eq(o.shopId, shop.id), inArray(o.id, rows.map((r) => r.id))));
   await db.insert(schema.orderEvents).values(rows.map((r) => ({ id: newId(), orderId: r.id, shopId: shop.id, userId: user.id, type: "assign" as const, note: name })));
-  for (const r of rows) scheduleOrderSync(shop.id, r.id);
+  for (const r of rows) await scheduleOrderSync(shop.id, r.id);
   refresh();
   return { ok: true, assigned: rows.length };
 }

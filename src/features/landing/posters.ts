@@ -6,7 +6,7 @@ import { newSectionId, posterKinds, sanitizeSections, type PageLanguage, type Po
 // Image pages (Wibi style): the AI first plans the page (texts, colors, one scene per section), then designs
 // one vertical marketing image per section with its text written inside, from the product's own photos.
 
-export const posterCounts = [6, 8, 10] as const;
+export const posterCounts = [2, 4, 6, 8, 10] as const;
 export const posterPeople = ["none", "hands", "people"] as const;
 export const posterAudiences = ["neutral", "women", "men", "kids", "family"] as const;
 export type PosterOptions = { count: (typeof posterCounts)[number]; people: (typeof posterPeople)[number]; audience: (typeof posterAudiences)[number]; color: string | null };

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac } from "node:crypto";
 import { after } from "next/server";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { newId } from "@/server/auth/context";
 import { decryptJson } from "@/server/crypto";
@@ -136,32 +136,107 @@ async function shopLocaleOf(shopId: string) {
   return shop && isLocale(shop.locale) ? shop.locale : "ar";
 }
 
-// Sends one order (new or changed) to every active app of the shop.
-export async function syncOrder(shopId: string, orderId: string, event: "order.created" | "order.updated") {
+type SyncEvent = "order.created" | "order.updated";
+
+// Sends one order (new or changed) to every active app of the shop. Returns the first failure, or null
+// when every app accepted it (or there is nothing to send).
+export async function syncOrder(shopId: string, orderId: string, event: SyncEvent): Promise<string | null> {
   try {
     const apps = await db.select().from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.active, true)));
-    if (!apps.length) return;
+    if (!apps.length) return null;
     const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
     // A locked order (over the plan's limit) is sent once it is unlocked
-    if (!order || order.locked) return;
+    if (!order || order.locked) return null;
     const [full] = await loadOrders(shopId, [order]);
     const locale = await shopLocaleOf(shopId);
+    let failure: string | null = null;
     for (const app of apps) {
       const payload = app.app === "google_sheets" ? { headers: sheetHeaders(locale), rows: [sheetRow(full, locale)] } : { order: orderPayload(full) };
-      await log(shopId, app.app, "order", orderId, await post(app, payload, event));
+      const r = await post(app, payload, event);
+      await log(shopId, app.app, "order", orderId, r);
+      if (!r.ok) failure ??= r.detail;
     }
+    return failure;
   } catch (err) {
     await logError("apps/sync", err);
+    return err instanceof Error ? err.message : String(err);
   }
 }
 
-// After the response, so customers and agents never wait for an app.
-export function scheduleOrderSync(shopId: string, orderId: string, event: "order.created" | "order.updated" = "order.updated") {
-  try {
-    after(() => syncOrder(shopId, orderId, event));
-  } catch {
-    void syncOrder(shopId, orderId, event);
+// Minutes to wait before the next try (then the order is dropped from the queue; the failures stay in the log)
+const RETRY_MINUTES = [1, 2, 5, 10, 30, 60, 120, 240, 480, 720];
+
+// Puts an order in the queue (once: a newer change only makes it due now). Nothing when the shop has no app.
+async function queueOrderSync(shopId: string, orderId: string, event: SyncEvent) {
+  const [app] = await db.select({ id: schema.shopApps.id }).from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.active, true))).limit(1);
+  if (!app) return false;
+  const q = schema.appQueue;
+  await db
+    .insert(q)
+    .values({ id: newId(), shopId, orderId, event })
+    .onDuplicateKeyUpdate({ set: { nextAt: sql`CURRENT_TIMESTAMP(3)`, attempts: 0, event: sql.raw("IF(`event` = 'order.created', `event`, VALUES(`event`))") } });
+  return true;
+}
+
+// Sends what is due in the queue (one shop, or every shop for the cron URL), within a time budget.
+export async function processQueue(shopId: string | null, { limit = 20, budgetMs = 20_000, now = false } = {}) {
+  const q = schema.appQueue;
+  const started = Date.now();
+  // "Send now" from the dashboard: the shop's waiting orders are due at once, whatever their retry time
+  if (now && shopId) await db.update(q).set({ nextAt: sql`CURRENT_TIMESTAMP(3)` }).where(eq(q.shopId, shopId));
+  const due = await db
+    .select()
+    .from(q)
+    .where(and(lte(q.nextAt, sql`CURRENT_TIMESTAMP(3)`), shopId ? eq(q.shopId, shopId) : undefined))
+    .orderBy(asc(q.createdAt))
+    .limit(limit);
+  let sent = 0;
+  let failed = 0;
+  for (const row of due) {
+    if (Date.now() - started > budgetMs) break;
+    // Claimed for 3 minutes, so two processes never send the same order at once
+    const [claim] = await db.update(q).set({ nextAt: sql`CURRENT_TIMESTAMP(3) + INTERVAL 3 MINUTE` }).where(and(eq(q.id, row.id), lte(q.nextAt, sql`CURRENT_TIMESTAMP(3)`)));
+    if (!claim.affectedRows) continue;
+    const failure = await syncOrder(row.shopId, row.orderId, row.event as SyncEvent);
+    if (!failure) {
+      sent++;
+      await db.delete(q).where(eq(q.id, row.id));
+    } else {
+      failed++;
+      const attempts = row.attempts + 1;
+      if (attempts >= RETRY_MINUTES.length) await db.delete(q).where(eq(q.id, row.id));
+      else await db.update(q).set({ attempts, lastError: failure.slice(0, 500), nextAt: sql`CURRENT_TIMESTAMP(3) + INTERVAL ${RETRY_MINUTES[attempts - 1]} MINUTE` }).where(eq(q.id, row.id));
+    }
   }
+  const [{ n: left }] = await db.select({ n: count() }).from(q).where(shopId ? eq(q.shopId, shopId) : undefined);
+  return { sent, failed, left };
+}
+
+// Queued now (so it is never lost), sent right after the response (customers and agents never wait for an
+// app); what could not be sent is retried by the next orders, the dashboard's "send now" or the cron URL.
+export async function scheduleOrderSync(shopId: string, orderId: string, event: SyncEvent = "order.updated") {
+  try {
+    if (!(await queueOrderSync(shopId, orderId, event))) return;
+  } catch (err) {
+    await logError("apps/queue", err);
+    return;
+  }
+  const run = () => processQueue(shopId).catch((err) => logError("apps/queue-run", err));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
+// What the dashboard shows: orders waiting and the reason of the oldest failure
+export async function queueStatus(shopId: string) {
+  const q = schema.appQueue;
+  const [[{ n }], [oldest]] = await Promise.all([
+    db.select({ n: count() }).from(q).where(eq(q.shopId, shopId)),
+    db.select({ lastError: q.lastError, attempts: q.attempts }).from(q).where(eq(q.shopId, shopId)).orderBy(asc(q.createdAt)).limit(1),
+  ]);
+  return { waiting: n, lastError: oldest?.lastError ?? null };
 }
 
 export const BACKFILL_DAYS = 30;

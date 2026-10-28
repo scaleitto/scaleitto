@@ -66,14 +66,14 @@ export function StoreHeader({
         </a>
       )}
       {phone && (
-        <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-s-line px-3 py-1.5 text-sm font-semibold text-s-text hover:border-brand hover:text-brand">
+        <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-s-edge px-3 py-1.5 text-sm font-semibold text-s-text hover:border-brand hover:text-brand">
           <Phone size={14} /> <span className="hidden sm:inline">{phone}</span>
         </a>
       )}
     </div>
   );
   return (
-    <header className="sticky top-0 z-20 border-b border-s-line bg-s-surface/90 backdrop-blur-md" data-testid="store-header">
+    <header className="sticky top-0 z-20 border-b border-s-edge bg-s-surface/90 backdrop-blur-md" data-testid="store-header">
       <div className={`mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 ${center ? "justify-between sm:grid sm:grid-cols-3" : "justify-between"}`}>
         {center && t && (
           <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted sm:flex">
@@ -139,7 +139,7 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
   // Merchant photos keep their shape: no cropping in the split and minimal heroes
   const photo = hero.image ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={hero.image} alt="" className="h-auto max-h-[70vh] w-full rounded-[var(--s-radius)] object-contain shadow-[var(--s-shadow)]" />
+    <img src={hero.image} alt="" fetchPriority="high" className="h-auto max-h-[70vh] w-full rounded-[var(--s-radius)] object-contain shadow-[var(--s-shadow)]" />
   ) : null;
 
   if (variant === "split")
@@ -162,7 +162,7 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
     <section className={`relative overflow-hidden bg-gradient-to-br from-brand to-brand/70 text-white ${full ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0 sm:rounded-[var(--s-radius)]" : "rounded-[var(--s-radius)]"}`} data-testid="hero" data-variant={variant}>
       {hero.image && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={hero.image} alt="" className="absolute inset-0 size-full object-cover" />
+        <img src={hero.image} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover" />
       )}
       <div className={`relative flex flex-col justify-end p-6 sm:p-12 ${full ? "min-h-[26rem] sm:min-h-[32rem]" : "min-h-72 sm:min-h-80"} ${hero.image ? "bg-gradient-to-t from-black/75 via-black/35 to-black/5" : ""}`}>
         {text(true, full)}
@@ -194,12 +194,32 @@ export function TrustBadges({ t }: { t: StoreText }) {
   );
 }
 
+// How cash-on-delivery ordering works, in three real steps
+export function OrderSteps({ t }: { t: StoreText }) {
+  return (
+    <section className="space-y-5" data-testid="order-steps">
+      <h2 className="text-center text-2xl font-extrabold tracking-tight">{t.howTo}</h2>
+      <ol className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+        {t.steps.map((step, i) => (
+          <li key={step.title} className="flex items-center gap-4 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-4 shadow-[var(--s-shadow)] sm:flex-col sm:p-6 sm:text-center">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-lg font-extrabold text-white">{i + 1}</span>
+            <span className="min-w-0 space-y-1">
+              <span className="block font-bold">{step.title}</span>
+              <span className="block text-sm text-s-muted">{step.hint}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export type GridProduct = { id: string; slug: string; name: string; price: number; compareAtPrice: number | null; images: string[] };
 
 function ProductCard({ p, href, currency, t, layout }: { p: GridProduct; href: string; currency: string; t: StoreText; layout: Pick<Theme["layout"], "image" | "cards"> }) {
   const off = discountOf(p.price, p.compareAtPrice);
   const minimal = layout.cards === "minimal";
-  const box = minimal ? "" : `overflow-hidden rounded-[var(--s-radius)] bg-s-surface ${layout.cards === "outline" ? "border border-s-line" : "border border-s-card-border shadow-[var(--s-shadow)]"}`;
+  const box = minimal ? "" : `overflow-hidden rounded-[var(--s-radius)] bg-s-surface ${layout.cards === "outline" ? "border border-s-edge" : "border border-s-card-border shadow-[var(--s-shadow)]"}`;
   return (
     <Link href={href} className={`group flex h-full flex-col transition hover:-translate-y-0.5 ${box}`} data-card={layout.cards}>
       <div className={`relative flex items-center justify-center overflow-hidden bg-s-bg ${minimal ? "rounded-[var(--s-radius)]" : ""} ${layout.image === "portrait" ? "aspect-[4/5]" : "aspect-square"}`}>
@@ -296,7 +316,7 @@ export function StoreFooter({
     { href: socials.whatsapp ? whatsappHref(socials.whatsapp) : "", label: "WhatsApp" },
   ].filter((l) => l.href);
   return (
-    <footer className="mt-10 border-t border-s-line bg-s-surface" data-testid="store-footer">
+    <footer className="mt-10 border-t border-s-edge bg-s-surface" data-testid="store-footer">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
         <div className="space-y-3">
           <p className="text-lg font-extrabold">{name}</p>
@@ -325,7 +345,7 @@ export function StoreFooter({
                 <p className="text-xs font-semibold text-s-muted">{t.followUs}</p>
                 <div className="flex flex-wrap gap-2">
                   {links.map((l) => (
-                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-s-line px-3.5 py-1.5 text-sm font-semibold text-s-muted hover:border-brand hover:text-brand">
+                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-s-edge px-3.5 py-1.5 text-sm font-semibold text-s-muted hover:border-brand hover:text-brand">
                       {l.label === "WhatsApp" && <MessageCircle size={14} />}
                       {l.label}
                     </a>
@@ -336,7 +356,7 @@ export function StoreFooter({
           </div>
         )}
       </div>
-      <p className="border-t border-s-line px-4 py-4 text-center text-xs text-s-muted">
+      <p className="border-t border-s-edge px-4 py-4 text-center text-xs text-s-muted">
         © {name} · {t.poweredBy}
       </p>
     </footer>

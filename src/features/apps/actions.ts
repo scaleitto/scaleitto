@@ -12,7 +12,7 @@ import { canAdd } from "@/server/limits";
 import { asLocale } from "@/i18n";
 import type { ActionState } from "@/lib/action";
 import type { AppKey } from "@/server/db/schema";
-import { OLD_SCRIPT, backfillSheet, testApp } from "./sync";
+import { OLD_SCRIPT, backfillSheet, processQueue, testApp } from "./sync";
 import { createImportedProduct, fetchShopify, fetchYoucan, ImportError } from "./importer";
 import type { CatalogProduct } from "./catalog";
 
@@ -154,5 +154,15 @@ export async function importCatalogProduct(lang: string, product: CatalogProduct
     const result = await createImportedProduct(shop.id, parsed.data);
     if (result === "created") refresh();
     return { ok: true, message: result };
+  });
+}
+
+// "Send now": the orders waiting for the apps, sent while the merchant waits (a short time budget)
+export async function sendQueueNow(lang: string): Promise<ActionState> {
+  return safeAction("apps/queue-now", async () => {
+    const shop = await shopOf(lang);
+    const r = await processQueue(shop.id, { limit: 30, budgetMs: 25_000, now: true });
+    refresh();
+    return { ok: true, message: `${r.sent}/${r.left}` };
   });
 }

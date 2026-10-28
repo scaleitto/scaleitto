@@ -42,6 +42,6 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
   // Pixels that count the purchase at confirmation or delivery (sent after the response, once the transaction is committed)
   if (status === "confirmed" || status === "delivered") scheduleOrderEvents(shopId, orderId, status);
   // Google Sheets / webhook get the new status
-  scheduleOrderSync(shopId, orderId);
+  await scheduleOrderSync(shopId, orderId);
   return true;
 }

@@ -23,7 +23,18 @@ export function Button({ variant = "primary", className, ...props }: ComponentPr
 }
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cx("rounded-xl border border-line bg-panel p-5 shadow-[0_1px_2px_rgba(16,24,40,.05),0_6px_16px_-8px_rgba(16,24,40,.10)]", className)} {...props} />;
+  // A card's own title (its first h2) reads as the heading of the block
+  return (
+    <div
+      className={cx(
+        "rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgba(16,24,40,.05),0_6px_16px_-8px_rgba(16,24,40,.10)] [&>h2:first-child]:text-base [&>h2:first-child]:font-bold [&>h2:first-child]:text-fg",
+        // A page may give its own padding (p-0 for tables)
+        !/(^|\s)p-\d/.test(className ?? "") && "p-5",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
@@ -42,7 +53,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-fg shadow-sm shadow-black/[0.02] placeholder:text-muted/70 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
+  "w-full rounded-lg border border-field-line bg-field px-3 py-2.5 text-sm text-fg shadow-[inset_0_1px_2px_rgba(16,24,40,.04)] placeholder:text-muted/60 outline-none transition hover:border-muted/50 focus:border-accent focus:bg-panel focus:ring-[3px] focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cx(inputClass, className)} {...props} />;
@@ -59,7 +70,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
 export function Field({ label, htmlFor, hint, error, children }: { label: string; htmlFor?: string; hint?: string; error?: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-fg">
+      <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-fg">
         {label}
       </label>
       {children}
@@ -72,7 +83,7 @@ export function Alert({ variant = "error", children }: { variant?: "error" | "su
   const styles = {
     error: "border-danger/30 bg-danger/10 text-danger",
     success: "border-accent/30 bg-accent/10 text-accent",
-    info: "border-line bg-panel-2 text-fg",
+    info: "border-info/20 bg-info/[0.06] text-fg",
   };
   return (
     <div role={variant === "error" ? "alert" : "status"} className={cx("rounded-lg border px-3 py-2 text-sm", styles[variant])}>

@@ -63,7 +63,7 @@ export async function spreadOrders(shopId: string, byUserId: string, orderIds: s
     given.set(agent.userId, (given.get(agent.userId) ?? 0) + 1);
     await db.update(o).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(and(eq(o.shopId, shopId), eq(o.id, order.id)));
     await db.insert(schema.orderEvents).values({ id: newId(), orderId: order.id, shopId, userId: byUserId, type: "assign", note: agent.name });
-    scheduleOrderSync(shopId, order.id);
+    await scheduleOrderSync(shopId, order.id);
   }
   return {
     assigned: orders.length,

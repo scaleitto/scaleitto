@@ -24,3 +24,9 @@ export function decryptJson<T>(payload: string): T {
   decipher.setAuthTag(Buffer.from(tag, "base64"));
   return JSON.parse(Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]).toString("utf8")) as T;
 }
+
+// The key of the cron URL that sends late orders to the apps (/api/cron/apps?key=…): derived from the
+// same secret, so it changes with it and is never stored.
+export function cronKey() {
+  return createHash("sha256").update(`scaleitto-cron:${process.env.APP_SECRET || process.env.DATABASE_URL || ""}`).digest("hex").slice(0, 32);
+}

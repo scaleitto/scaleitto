@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CircleCheck, Link2, Star, Trash2, Truck } from "lucide-react";
+import { CircleCheck, Link2, Star, Trash2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
@@ -130,7 +130,7 @@ export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; 
             <Card key={c.key} className="p-4" data-carrier={c.key}>
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2 font-semibold">
-                  <Truck size={16} className="shrink-0 text-muted" />
+                  <CarrierMark name={c.name} />
                   <span className="truncate">{c.name}</span>
                 </span>
                 {!c.platform ? (
@@ -159,5 +159,18 @@ export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; 
         })}
       </div>
     </div>
+  );
+}
+
+// Initials on a color picked from the name, so each company is recognisable at a glance
+const markColors = ["#16a34a", "#0369a1", "#b45309", "#7c3aed", "#be123c", "#0f766e", "#4d7c0f", "#1d4ed8"];
+function CarrierMark({ name }: { name: string }) {
+  const words = name.replace(/\(.*\)/, "").trim().split(/\s+/);
+  const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase();
+  const color = markColors[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % markColors.length];
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold text-white" style={{ background: color }} aria-hidden>
+      {initials}
+    </span>
   );
 }

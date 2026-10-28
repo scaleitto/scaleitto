@@ -35,7 +35,7 @@ export async function releaseLockedOrders(shopId: string) {
   }
   for (const id of ids) {
     await db.update(o).set({ locked: false }).where(and(eq(o.shopId, shopId), eq(o.id, id)));
-    scheduleOrderSync(shopId, id, "order.created");
+    await scheduleOrderSync(shopId, id, "order.created");
   }
   return ids.length;
 }

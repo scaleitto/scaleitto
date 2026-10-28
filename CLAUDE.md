@@ -65,7 +65,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   look there, not in pages).
 - Themes (`src/features/themes/themes.ts`): each theme = tokens (font, surfaces, radii, card style) + layout
   switches (header start/center, hero split/full/card/minimal, columns, image shape, product cards elevated/outline/minimal). `themeStyle()` sets CSS variables on `StoreFrame`; storefront
-  code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-line`…), `rounded-[var(--s-radius)]`,
+  code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-edge` — not `border-s-line`, Tailwind reads that as border-inline-start —…), `rounded-[var(--s-radius)]`,
   `rounded-[var(--s-radius-btn)]` and `shadow-[var(--s-shadow)]` — never fixed slate/white colors, or dark themes
   break. Fonts for all themes are declared once in `src/app/fonts.ts`. The chosen theme is `design.theme`.
 - Call centers (`src/features/team/`): members are added by owners/managers (one account = one shop; `maxStaff`
@@ -168,6 +168,16 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `startPosterImage`; restore; own upload). `LandingSections` draws image pages as one 520px column (`isImagePage`).
   Wizard (`NewLanding.tsx`): AI / manual toggle, page style (images / sections), options, confirmation with the AI cost
   (plan + one per image) against the month's remaining quota; manual image pages use `starterImageSections`.
+- Owner feedback round 2 (phase18.mjs): product links go through `src/lib/product-page.ts` (canonical URL — AliExpress
+  `/item/<id>.html` —, AliExpress JSON data, anti-bot page → `importBlocked`) and `safeFetch` keeps cookies across redirects.
+  Apps sync is a durable outbox: `app_queue` (one row per shop+order) filled by `scheduleOrderSync`, sent by `processQueue`
+  right after the response, by "send now" (`sendQueueNow`, makes the shop's rows due) and by the cron URL
+  `/api/cron/apps?key=<cronKey()>` (shown on admin → system; add it in cPanel → Cron Jobs every 5 minutes); retries back off
+  (`RETRY_MINUTES`) then drop. Image pages: 2/4/6/8/10 images (`posterCounts`); A/B variants were dropped by the owner.
+  Performance: only Cairo is preloaded (theme fonts `preload: false`), the first poster / hero / product photo load eagerly
+  with `fetchPriority="high"`, AI images are webp with `output_compression` 80. Dashboard fields use the `field` /
+  `field-line` tokens (tinted fill on white cards). The public homepage is `src/features/marketing/Home.tsx` (not tied to
+  one country). Store home shows `OrderSteps` with the trust badges.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

@@ -45,7 +45,7 @@ export function ThankYou({ order, locale: storeLocale, children }: { order: Orde
           <span className="text-s-muted">{t.summary.shipping}</span>
           <span className="font-semibold">{order.shippingPrice === 0 ? t.summary.free : formatPrice(order.shippingPrice, cur)}</span>
         </p>
-        <p className="flex justify-between border-t border-s-line pt-3 text-lg">
+        <p className="flex justify-between border-t border-s-edge pt-3 text-lg">
           <span className="font-bold">{t.summary.total}</span>
           <span className="font-extrabold text-brand">{formatPrice(order.total, cur)}</span>
         </p>

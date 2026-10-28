@@ -50,7 +50,7 @@ export const findTheme = (key: unknown) => themes.find((t) => t.key === key) ?? 
 
 const shadows = { border: "none", shadow: "0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.18)", flat: "none" };
 
-// CSS variables read by the storefront (see globals.css: s-bg, s-surface, s-text, s-muted, s-line).
+// CSS variables read by the storefront (see globals.css: s-bg, s-surface, s-text, s-muted, s-edge).
 export function themeStyle(theme: Theme, color: string): CSSProperties {
   return {
     ["--brand" as string]: color,

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { dir, isLocale, locales } from "@/i18n/config";
 import "../globals.css";
 
-export const metadata: Metadata = { title: "Scaleitto", description: "Algerian e-commerce platform" };
+export const metadata: Metadata = { title: "Scaleitto", description: "Store, AI landing pages, cash-on-delivery orders, call center and delivery in one platform" };
 
 // Almost every page reads the session or the database, so pages render per request.
 export const instant = false;

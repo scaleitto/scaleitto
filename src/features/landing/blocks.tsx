@@ -40,12 +40,21 @@ function Marquee({ items }: { items: string[] }) {
 
 // A designed marketing image (text inside it). Without its image yet: nothing on the public page,
 // a placeholder in the editor.
-function Poster({ section, editing }: { section: Extract<LandingSection, { type: "poster" }>; editing: boolean }) {
+function Poster({ section, editing, first }: { section: Extract<LandingSection, { type: "poster" }>; editing: boolean; first?: boolean }) {
   if (section.image)
     return (
       <figure data-section="poster" data-kind={section.kind}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={section.image} alt={[section.headline, section.subtitle].filter(Boolean).join(" — ")} loading="lazy" className="block h-auto w-full" />
+        <img
+          src={section.image}
+          alt={[section.headline, section.subtitle].filter(Boolean).join(" — ")}
+          width={1024}
+          height={1536}
+          // The first image is what visitors see first: load it right away, the others when scrolled to
+          loading={first ? "eager" : "lazy"}
+          fetchPriority={first ? "high" : undefined}
+          className="block h-auto w-full"
+        />
       </figure>
     );
   if (!editing) return null;
@@ -256,6 +265,7 @@ export function LandingSections({ sections, form, t, price, editing = false }: {
   // Image pages (Wibi style): one narrow column of full-width images, like a phone screen on every device
   if (visible.some((s) => s.type === "poster")) {
     const formAt = visible.findIndex((s) => s.type === "form");
+    const firstPoster = visible.find((s) => s.type === "poster" && s.image)?.id;
     const items = visible.map((s) =>
       s.type === "form" ? (
         <div key={s.id} className="scroll-mt-4 bg-s-surface p-4" data-section="form">
@@ -265,6 +275,8 @@ export function LandingSections({ sections, form, t, price, editing = false }: {
         s.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={s.id} src={s.url} alt={s.caption ?? ""} loading="lazy" className="block h-auto w-full" data-section="image" />
+        ) : s.type === "poster" ? (
+          <Poster key={s.id} section={s} editing={editing} first={s.id === firstPoster} />
         ) : (
           <Section key={s.id} section={s} t={t} editing={editing} />
         )

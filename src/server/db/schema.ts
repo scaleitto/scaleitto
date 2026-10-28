@@ -546,6 +546,23 @@ export const appEvents = mysqlTable(
   (t) => [index("app_events_shop_idx").on(t.shopId, t.createdAt)],
 );
 
+// Orders waiting to be sent to the shop's apps (one row per order). Sending is retried with growing delays,
+// so an app that is down, slow or a send that never ran (server restarted, hosting cut it) still arrives.
+export const appQueue = mysqlTable(
+  "app_queue",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    orderId: id("order_id").notNull(),
+    event: varchar("event", { length: 20 }).notNull(),
+    attempts: int("attempts").notNull().default(0),
+    nextAt: datetime("next_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    lastError: varchar("last_error", { length: 500 }),
+    createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (t) => [uniqueIndex("app_queue_order_uq").on(t.shopId, t.orderId), index("app_queue_due_idx").on(t.nextAt)],
+);
+
 // ─── Plan upgrades ────────────────────────────────────────
 
 export const planRequestStatuses = ["pending", "approved", "rejected", "cancelled"] as const;

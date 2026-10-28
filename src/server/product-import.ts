@@ -1,6 +1,7 @@
 import "server-only";
 import { safeFetch, SafeFetchError } from "./safe-fetch";
 import { decodeEntities, htmlToText } from "@/lib/html";
+import { canonicalProductUrl, isAliExpress, isBlockedPage, parseAliExpress } from "@/lib/product-page";
 
 export type ImportedProduct = {
   title: string;
@@ -82,29 +83,33 @@ async function tryShopify(url: URL): Promise<ImportedProduct | null> {
 }
 
 export async function importProductFromUrl(input: string): Promise<ImportedProduct> {
-  const url = new URL(input.trim());
+  // Tracking parameters and regional subdomains removed (AliExpress loops on them)
+  const url = canonicalProductUrl(input);
   const shopify = await tryShopify(url);
   if (shopify) return shopify;
 
-  const res = await safeFetch(url.toString(), { accept: "text/html,application/xhtml+xml", timeoutMs: 12_000 });
+  const res = await safeFetch(url.toString(), { accept: "text/html,application/xhtml+xml", timeoutMs: 15_000, maxBytes: 6 * 1024 * 1024 });
   if (res.status >= 400) throw new SafeFetchError(`The page answered HTTP ${res.status}`);
   const html = res.body.toString("utf8");
+  if (isBlockedPage(res.url, html)) throw new SafeFetchError("BLOCKED");
+  const ae = isAliExpress(url) || /aliexpress/i.test(res.url) ? parseAliExpress(html) : null;
 
   const ld = findLdProduct(html);
   const title =
+    ae?.title ||
     (ld?.name ? String(ld.name) : "") || metaContent(html, "og:title")[0] || decodeEntities(html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? "").trim();
   const description = htmlToText(
     (ld?.description ? String(ld.description) : "") || metaContent(html, "og:description")[0] || metaContent(html, "description")[0] || "",
   );
   const { price, currency } = ld ? ldPrice(ld.offers) : { price: null, currency: null };
   const metaPrice = Number(metaContent(html, "product:price:amount")[0]);
-  const images = absolutize([...ldImages(ld?.image), ...metaContent(html, "og:image")], res.url);
+  const images = absolutize([...(ae?.images ?? []), ...ldImages(ld?.image), ...metaContent(html, "og:image")], res.url);
 
   if (!title) throw new SafeFetchError("No product information found on this page");
   return {
     title: title.slice(0, 200),
     description,
-    price: price ?? (Number.isFinite(metaPrice) && metaPrice > 0 ? Math.round(metaPrice) : null),
+    price: price ?? ae?.price ?? (Number.isFinite(metaPrice) && metaPrice > 0 ? Math.round(metaPrice) : null),
     currency: currency ?? metaContent(html, "product:price:currency")[0] ?? null,
     images,
     sourceUrl: res.url,
