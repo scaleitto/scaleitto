@@ -1,8 +1,10 @@
 // A fake Meta / TikTok / Google Analytics server for the end-to-end tests (server-side events).
-// The app is pointed at it with E2E_PIXEL_URL. Valid secrets: "good-token" (Meta, TikTok), "good-secret" (GA4).
+// The app is pointed at it with E2E_PIXEL_URL. Valid secrets: "good-token" (Meta, TikTok), "good-secret" (GA4),
+// "wa-good" (WhatsApp Business API, sent as a Bearer token).
 import { createServer } from "node:http";
 
 export const received = []; // { platform, path, body, headers }
+export const whatsapp = []; // messages sent through the WhatsApp Business API: { path, body }
 
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -17,6 +19,14 @@ export function startMockPixels(port) {
     const body = raw ? JSON.parse(raw) : null;
     const path = url.pathname;
 
+    // WhatsApp Business API (Bearer token "wa-good"); a text to 0699999999 is outside the 24-hour window
+    if (path.startsWith("/meta/") && req.headers.authorization) {
+      if (req.headers.authorization !== "Bearer wa-good") return send(res, 401, { error: { message: "Invalid OAuth access token.", code: 190 } });
+      if (req.method === "GET") return send(res, 200, { display_phone_number: "+213 555 00 00 00", verified_name: "Boutique Test", id: path.split("/")[3] });
+      if (body.type === "text" && body.to === "213699999999") return send(res, 400, { error: { message: "Re-engagement message", code: 131047 } });
+      whatsapp.push({ path, body });
+      return send(res, 200, { messaging_product: "whatsapp", contacts: [{ input: body.to, wa_id: body.to }], messages: [{ id: `wamid.${whatsapp.length}` }] });
+    }
     if (path.startsWith("/meta/")) {
       const good = url.searchParams.get("access_token") === "good-token";
       if (req.method === "GET") return good ? send(res, 200, { name: "Pixel test", id: path.split("/")[3] }) : send(res, 400, { error: { message: "Invalid OAuth access token." } });

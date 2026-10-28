@@ -40,7 +40,7 @@ function CopyBox({ value, label, rows = 3, t, testId }: { value: string; label: 
 // What a successful test says: where the test row is for the sheet, the server's answer for a webhook
 const testOkText = (app: AppKey, detail: string | undefined, t: AppsText) => (app === "google_sheets" ? fmt(t.apps.sheets.testOk, { sheet: detail ?? "Orders" }) : fmt(t.apps.testOk, { detail: detail ?? "" }));
 
-function useRunner(t: AppsText) {
+export function useRunner(t: AppsText) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const e = t.errors as Record<string, string>;

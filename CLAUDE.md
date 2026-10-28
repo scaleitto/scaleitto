@@ -57,8 +57,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   only place that changes an order status: stock + history). E2E tests use `tests/e2e/mock-carriers.mjs` via
   E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ, dz-delivery for
   ZR's new platform), not official docs: verify with a real merchant account before relying on a platform. Courier status words
-  → `delivery/status.ts` (ZR states pass through `readableState`). Meta Conversions API version: `META_VERSION` in
-  `pixels/server.ts` (Meta retires versions ~2 years after the next one: move it forward yearly).
+  → `delivery/status.ts` (ZR states pass through `readableState`). Meta Graph API version: `META_VERSION` in
+  `src/server/meta.ts` (pixels + WhatsApp; Meta retires versions ~2 years after the next one: move it forward yearly).
 - Store Design (`src/features/design/`): `shops.design` JSON read through `resolveDesign()` (defaults for missing keys —
   add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
   `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
@@ -191,6 +191,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   last step (`finishPosterPage` / `finishLandingPage` push it at the end; sticky button + every poster image links to
   `#order-form`). Posters never contain buttons (no `cta` field any more) and the hero never repeats payment/delivery (the
   band does); poster kinds add `objections` and `trust`. The language switcher is a dropdown (`ui/LanguageSwitcher.tsx`).
+- WhatsApp Business API (phase19.mjs): `shop_whatsapp` (phone number ID, encrypted token, a Meta-approved template per
+  message situation with its `{{n}}` params mapped to our placeholders) — its own table, never in `shop_apps`/the order sync.
+  `messages/whatsapp.ts` (`testWhatsapp`, `sendWhatsapp`: template with `buildMessageVars` values, else plain text — Meta only
+  delivers text inside the 24-hour window), actions in `messages/actions.ts` (save/test/disconnect for owners/managers on Apps,
+  `sendWhatsappMessage` for anyone who can touch the order → order event "message"). `WhatsappCard` on Apps; `MessageCard`
+  shows "Send now" when connected and keeps the wa.me / SMS links. E2E: mock-pixels answers Bearer "wa-good".
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

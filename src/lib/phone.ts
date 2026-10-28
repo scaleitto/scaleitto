@@ -9,3 +9,6 @@ export function normalizePhone(raw: string) {
 export function isValidDzPhone(phone: string) {
   return /^0[5-7]\d{8}$/.test(phone);
 }
+
+// 0555 12 34 56 → 213555123456 (international form without +, as WhatsApp and Meta want it)
+export const intlPhone = (raw: string) => `213${normalizePhone(raw).replace(/^0/, "")}`;

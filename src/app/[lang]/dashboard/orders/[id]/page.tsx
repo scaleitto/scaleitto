@@ -1,3 +1,4 @@
+import { whatsappConfig } from "@/features/messages/whatsapp";
 import { notFound } from "next/navigation";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
@@ -14,12 +15,13 @@ export default async function OrderPage({ params }: PageProps<"/[lang]/dashboard
   const ctx = await requireSection(lang, "orders");
   const { shop, role } = ctx;
   await releaseLockedOrders(shop.id);
-  const [order, shipment, accounts, members] = await Promise.all([
+  const [order, shipment, accounts, members, whatsapp] = await Promise.all([
     getOrder(viewerOf(ctx), id),
     getShipment(shop.id, id),
     listCarrierAccounts(shop.id),
     role === "agent" ? Promise.resolve([]) : assignableMembers(shop.id),
+    whatsappConfig(shop.id),
   ]);
   if (!order) notFound();
-  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} shop={{ name: shop.name, phone: shop.phone, messages: shop.messages }} />;
+  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} shop={{ name: shop.name, phone: shop.phone, messages: shop.messages }} whatsappApi={Boolean(whatsapp?.active)} />;
 }

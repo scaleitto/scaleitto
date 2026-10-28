@@ -7,6 +7,8 @@ import { newId } from "@/server/auth/context";
 import { decryptJson } from "@/server/crypto";
 import { logError } from "@/server/errors";
 import type { OrderTracking, PurchaseTrigger } from "@/server/db/schema";
+import { metaGraph } from "@/server/meta";
+import { intlPhone } from "@/lib/phone";
 import { serverPlatforms } from "./ids";
 
 // Server-side purchase events: Meta Conversions API, TikTok Events API, GA4 Measurement Protocol.
@@ -15,16 +17,12 @@ import { serverPlatforms } from "./ids";
 const hosts = () => {
   const fake = process.env.E2E_PIXEL_URL;
   return {
-    meta: fake ? `${fake}/meta` : "https://graph.facebook.com",
     tiktok: fake ? `${fake}/tiktok` : "https://business-api.tiktok.com",
     ga4: fake ? `${fake}/ga4` : "https://www.google-analytics.com",
   };
 };
-const META_VERSION = "v25.0"; // Meta retires a version about two years after the next one ships: move it forward yearly
 const CURRENCY = "DZD";
 const sha = (v: string) => createHash("sha256").update(v.trim().toLowerCase()).digest("hex");
-// 0555123456 → 213555123456
-const intlPhone = (phone: string) => `213${phone.replace(/^0/, "")}`;
 
 type Pixel = typeof schema.pixels.$inferSelect;
 type OrderData = {
@@ -85,7 +83,7 @@ async function sendMeta(pixel: Pixel, secret: string, order: OrderData): Promise
       num_items: order.items.reduce((s, i) => s + i.quantity, 0),
     },
   };
-  const r = await post(`${hosts().meta}/${META_VERSION}/${pixel.tagId}/events?access_token=${encodeURIComponent(secret)}`, { data: [event], ...(pixel.testCode ? { test_event_code: pixel.testCode } : {}) });
+  const r = await post(`${metaGraph()}/${pixel.tagId}/events?access_token=${encodeURIComponent(secret)}`, { data: [event], ...(pixel.testCode ? { test_event_code: pixel.testCode } : {}) });
   const error = (r.json?.error as { message?: string } | undefined)?.message;
   return r.ok && !error ? { ok: true, detail: `events_received: ${String(r.json?.events_received ?? "?")}` } : { ok: false, detail: error ?? `HTTP ${r.status} ${r.text}` };
 }
@@ -216,7 +214,7 @@ export async function testPixel(pixel: Pixel): Promise<Result & { needsTestCode?
   let result: Result & { needsTestCode?: boolean };
   if ((pixel.platform === "meta" || pixel.platform === "tiktok") && !pixel.testCode) {
     if (pixel.platform === "tiktok") return { ok: false, detail: "test code", needsTestCode: true };
-    const res = await fetch(`${hosts().meta}/${META_VERSION}/${pixel.tagId}?fields=name&access_token=${encodeURIComponent(secret)}`, { signal: AbortSignal.timeout(8000) }).catch((err: unknown) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(err) } }) }));
+    const res = await fetch(`${metaGraph()}/${pixel.tagId}?fields=name&access_token=${encodeURIComponent(secret)}`, { signal: AbortSignal.timeout(8000) }).catch((err: unknown) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(err) } }) }));
     const json = (await res.json().catch(() => null)) as { name?: string; error?: { message?: string } } | null;
     result = res.ok && !json?.error ? { ok: true, detail: `Pixel: ${json?.name ?? pixel.tagId}` } : { ok: false, detail: json?.error?.message ?? `HTTP ${res.status}` };
   } else {

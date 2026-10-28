@@ -514,6 +514,19 @@ export const pixelEvents = mysqlTable(
 // ─── Apps ─────────────────────────────────────────────────
 
 // Apps that receive every order and its changes
+// WhatsApp Business API (Meta Cloud API) for customer messages sent straight from the order page.
+// One per shop; the access token is encrypted. A situation with a template uses it (Meta requires approved
+// templates for messages the store starts); others are sent as text (delivered only inside the 24-hour window).
+export type WhatsAppTemplate = { name: string; language: string; params: string[] };
+export const shopWhatsapp = mysqlTable("shop_whatsapp", {
+  shopId: id("shop_id").primaryKey(),
+  phoneNumberId: varchar("phone_number_id", { length: 40 }).notNull(),
+  token: text("token").notNull(),
+  templates: json("templates").$type<Partial<Record<string, WhatsAppTemplate>>>().notNull(),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
 export const appKeys = ["google_sheets", "webhook"] as const;
 export type AppKey = (typeof appKeys)[number];
 

@@ -1,6 +1,8 @@
 // Messages agents send to customers by WhatsApp or SMS (from their own phone, one click).
 // Pure module: defaults per language, the shop's saved texts, placeholder filling, links.
-import { normalizePhone } from "@/lib/phone";
+import { intlPhone, normalizePhone } from "@/lib/phone";
+import { formatPrice } from "@/lib/format";
+import { wilayaName } from "@/lib/wilayas";
 
 export const messageKinds = ["confirm", "noAnswer", "unreachable", "postponed", "shipped", "delivery"] as const;
 export type MessageKind = (typeof messageKinds)[number];
@@ -78,5 +80,25 @@ export function suggestedKind(status: string): MessageKind {
 }
 
 // 0555 12 34 56 → 213555123456 (WhatsApp wants the international number without +)
-export const whatsappLink = (phone: string, text: string) => `https://wa.me/213${normalizePhone(phone).replace(/^0/, "")}?text=${encodeURIComponent(text)}`;
+export const whatsappLink = (phone: string, text: string) => `https://wa.me/${intlPhone(phone)}?text=${encodeURIComponent(text)}`;
 export const smsLink = (phone: string, text: string) => `sms:${normalizePhone(phone)}?body=${encodeURIComponent(text)}`;
+
+// An order's values for the {placeholders}, in the shop's message language (order page and direct WhatsApp sending)
+export function buildMessageVars(
+  order: { customerName: string; number: number; total: number; wilayaCode: number; items: { name: string; variantTitle: string | null; quantity: number }[] },
+  shop: { name: string; phone: string | null },
+  tracking: string | null,
+  language: MessageLanguage,
+): MessageVars {
+  const arabic = language === "ar" || language === "dz";
+  return {
+    name: order.customerName,
+    order: String(order.number),
+    product: order.items.map((i) => `${i.name}${i.variantTitle ? ` (${i.variantTitle})` : ""}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join("، "),
+    total: formatPrice(order.total, arabic ? "د.ج" : "DA"),
+    wilaya: wilayaName(order.wilayaCode, arabic ? "ar" : "fr").replace(/^\d+ - /, ""),
+    store: shop.name,
+    storePhone: shop.phone ?? "",
+    tracking: tracking ?? "",
+  };
+}
