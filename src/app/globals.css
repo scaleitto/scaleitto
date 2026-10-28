@@ -31,3 +31,26 @@
 body {
   @apply antialiased;
 }
+
+/* Landing pages: the scrolling band of selling points (content is doubled, so -50% loops seamlessly) */
+@keyframes marquee-ltr {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes marquee-rtl {
+  to {
+    transform: translateX(50%);
+  }
+}
+.marquee-track {
+  animation: marquee-ltr 22s linear infinite;
+}
+[dir="rtl"] .marquee-track {
+  animation-name: marquee-rtl;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}

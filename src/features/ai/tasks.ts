@@ -15,7 +15,7 @@ import { cleanCallGuide, cleanDescription, cleanMessages } from "./prompts";
 // plan's monthly AI quota), then the browser checks every few seconds; when the text is ready it is
 // cleaned, saved where it belongs (e.g. the product's call guide) and returned.
 export type TaskKind = "call_guide" | "messages" | "description" | "image";
-export type TaskBrief = { language: PageLanguage; productId?: string } | { source: string; style: ImageStyle };
+export type TaskBrief = { language: PageLanguage; productId?: string } | { source: string; style: ImageStyle } | { poster: true; references: string[] };
 export { imageStyles, type ImageStyle };
 export type TaskStart = { ok: true; taskId: string } | { ok: false; error: string; message?: string };
 export type TaskState = { state: "pending" } | { state: "done"; result: unknown } | { state: "failed"; error: string; message?: string };
@@ -54,13 +54,32 @@ export async function startImageTask(shopId: string, userId: string, source: str
     if (!(await canAdd(shopId, "maxAiPerMonth"))) return { ok: false, error: "limitAi" };
     const [image] = await visionImages([source], 1);
     if (!image) return { ok: false, error: "notFound" };
-    const started = await startBackgroundImage({ prompt: `${IMAGE_RULES}\n${STYLE_RULES[style]}`, image, size: "1024x1024" });
+    const started = await startBackgroundImage({ prompt: `${IMAGE_RULES}\n${STYLE_RULES[style]}`, images: [image], size: "1024x1024" });
     const taskId = newId();
     await db.insert(schema.aiGenerations).values({ id: taskId, shopId, userId, kind: "image", responseId: started.responseId, model: started.model, brief: { source, style } });
     return { ok: true, taskId };
   } catch (err) {
     if (err instanceof AiRequestError) return { ok: false, error: "aiFailed", message: err.message };
     await logError("ai/start-image", err);
+    return { ok: false, error: "unexpected" };
+  }
+}
+
+// Designs one image of an image landing page (text inside), from the shop's own photos as references.
+// `references`: our uploads only (the product photos, and possibly the section's current image).
+export async function startPosterTask(shopId: string, userId: string, prompt: string, references: string[]): Promise<TaskStart> {
+  try {
+    if (!aiConfigured()) return { ok: false, error: "aiNotConfigured" };
+    const own = references.filter((r) => r.startsWith(`/uploads/${shopId}/`)).slice(0, 4);
+    if (!(await canAdd(shopId, "maxAiPerMonth"))) return { ok: false, error: "limitAi" };
+    const images = await visionImages(own, 4);
+    const started = await startBackgroundImage({ prompt, images, size: "1024x1536" });
+    const taskId = newId();
+    await db.insert(schema.aiGenerations).values({ id: taskId, shopId, userId, kind: "image", responseId: started.responseId, model: started.model, brief: { poster: true, references: own } });
+    return { ok: true, taskId };
+  } catch (err) {
+    if (err instanceof AiRequestError) return { ok: false, error: "aiFailed", message: err.message };
+    await logError("ai/start-poster", err);
     return { ok: false, error: "unexpected" };
   }
 }

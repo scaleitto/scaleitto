@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { LoaderCircle, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { LoaderCircle, Plus, RotateCcw, Sparkles, Star, Trash2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import { Field, Input, Textarea } from "@/ui";
+import { Button, Field, Input, Select, Textarea } from "@/ui";
 import { ImageManager } from "@/ui/ImageManager";
-import type { LandingSection } from "./types";
-import { startImageEnhance } from "@/features/ai/actions";
+import { MAX_POSTER_HISTORY, posterKinds, type LandingSection } from "./types";
+import { startImageEnhance, startPosterImage } from "@/features/ai/actions";
 import { useAiTask } from "@/features/ai/useAiTask";
 import { imageStyles as styleKeys } from "@/lib/enums";
 
@@ -77,14 +77,143 @@ function ImagePicker({ lang, value, onChange, productImages, t }: { lang: string
   );
 }
 
+type Poster = Extract<LandingSection, { type: "poster" }>;
+
+// A designed marketing image: its texts, the AI regeneration panel (background, instructions, own prompt,
+// reference) and the previous versions to restore. A merchant can also upload their own designed image.
+function PosterFields({ lang, pageId, section, set, t }: { lang: string; pageId: string; section: Poster; set: (patch: Partial<Poster>) => void; t: EditorText }) {
+  const pt = t.landingPages.editor.poster;
+  const task = useAiTask<{ url: string }>(lang, t.errors as Record<string, string>);
+  const [open, setOpen] = useState(!section.image);
+  const [background, setBackground] = useState("");
+  const [extra, setExtra] = useState("");
+  const [useCustom, setUseCustom] = useState(false);
+  const [custom, setCustom] = useState("");
+  const [reference, setReference] = useState<"current" | "product">(section.image ? "current" : "product");
+  // A new image keeps the old ones (newest first) so they can be restored
+  const replace = (image: string) => set({ image, previous: [section.image, ...section.previous].filter(Boolean).slice(0, MAX_POSTER_HISTORY) });
+  return (
+    <div className="space-y-3" data-testid="poster-fields">
+      {section.image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={section.image} alt="" className="mx-auto max-h-72 rounded-lg border border-line" />
+      )}
+      <Field label={pt.kind}>
+        <Select value={section.kind} onChange={(e) => set({ kind: e.target.value as Poster["kind"] })} aria-label={pt.kind}>
+          {posterKinds.map((k) => (
+            <option key={k} value={k}>
+              {pt.kinds[k]}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <p className="text-xs text-muted">{pt.textsHint}</p>
+      <Field label={pt.headline}>
+        <Input value={section.headline} maxLength={160} onChange={(e) => set({ headline: e.target.value })} aria-label={pt.headline} />
+      </Field>
+      <Field label={pt.subtitle}>
+        <Input value={section.subtitle ?? ""} maxLength={240} onChange={(e) => set({ subtitle: e.target.value })} aria-label={pt.subtitle} />
+      </Field>
+      <Field label={pt.bullets}>
+        <Textarea rows={3} value={section.bullets.join("\n")} onChange={(e) => set({ bullets: lines(e.target.value).slice(0, 5) })} aria-label={pt.bullets} />
+      </Field>
+      <Field label={pt.cta}>
+        <Input value={section.cta ?? ""} maxLength={60} onChange={(e) => set({ cta: e.target.value })} aria-label={pt.cta} />
+      </Field>
+
+      <div className="space-y-3 rounded-xl border border-accent/30 bg-accent/5 p-3" data-testid="poster-regenerate">
+        <button type="button" className="flex w-full items-center gap-2 text-sm font-bold text-accent" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <Sparkles size={16} /> {pt.regenerate}
+        </button>
+        {open && (
+          <>
+            <Field label={pt.reference}>
+              <Select value={reference} onChange={(e) => setReference(e.target.value as typeof reference)} aria-label={pt.reference} disabled={!section.image}>
+                <option value="current">{pt.refCurrent}</option>
+                <option value="product">{pt.refProduct}</option>
+              </Select>
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={useCustom} onChange={(e) => setUseCustom(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
+              {pt.useCustom}
+            </label>
+            {useCustom ? (
+              <Field label={pt.custom}>
+                <Textarea rows={5} maxLength={4000} value={custom} onChange={(e) => setCustom(e.target.value)} aria-label={pt.custom} />
+              </Field>
+            ) : (
+              <>
+                <Field label={pt.background}>
+                  <Input value={background} maxLength={600} placeholder={pt.backgroundPlaceholder} onChange={(e) => setBackground(e.target.value)} aria-label={pt.background} />
+                </Field>
+                <Field label={pt.extra}>
+                  <Textarea rows={2} maxLength={1000} value={extra} placeholder={pt.extraPlaceholder} onChange={(e) => setExtra(e.target.value)} aria-label={pt.extra} />
+                </Field>
+              </>
+            )}
+            <p className="text-xs text-muted">{pt.cost}</p>
+            <Button
+              disabled={task.working || !section.headline.trim() || (useCustom && !custom.trim())}
+              onClick={async () => {
+                const result = await task.run(() =>
+                  startPosterImage(lang, {
+                    pageId,
+                    kind: section.kind,
+                    headline: section.headline,
+                    subtitle: section.subtitle,
+                    bullets: section.bullets,
+                    cta: section.cta,
+                    scene: section.scene,
+                    background,
+                    extra,
+                    custom: useCustom ? custom : undefined,
+                    current: reference === "current" && section.image ? section.image : undefined,
+                  }),
+                );
+                if (result) replace(result.url);
+              }}
+              data-testid="poster-generate"
+            >
+              {task.working ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />} {task.working ? pt.generating : pt.generate}
+            </Button>
+            {task.error && <p className="text-xs text-danger">{task.error}</p>}
+          </>
+        )}
+      </div>
+
+      {section.previous.length > 0 && (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"
+          onClick={() => set({ image: section.previous[0], previous: [section.image, ...section.previous.slice(1)].filter(Boolean).slice(0, MAX_POSTER_HISTORY) })}
+          data-testid="poster-restore"
+        >
+          <RotateCcw size={15} /> {pt.restore}
+        </button>
+      )}
+      <Field label={pt.upload}>
+        <ImageManager t={t.media} value={[]} onChange={(imgs) => imgs[0] && replace(imgs[0])} max={1} />
+      </Field>
+    </div>
+  );
+}
+
 // The fields of one section. `set` merges changes into the section.
-export function SectionFields({ lang, section, set, productImages, t }: { lang: string; section: LandingSection; set: (patch: Partial<LandingSection>) => void; productImages: string[]; t: EditorText }) {
+export function SectionFields({ lang, pageId, section, set, productImages, t }: { lang: string; pageId: string; section: LandingSection; set: (patch: Partial<LandingSection>) => void; productImages: string[]; t: EditorText }) {
   const ed = t.landingPages.editor;
   const f = ed.fields;
   const p = (patch: Record<string, unknown>) => set(patch as Partial<LandingSection>);
   const titleField = (value: string | undefined, label = f.title) => <Field label={label}><Input value={value ?? ""} maxLength={200} onChange={(e) => p({ title: e.target.value })} /></Field>;
 
   switch (section.type) {
+    case "poster":
+      return <PosterFields lang={lang} pageId={pageId} section={section} set={(patch) => p(patch)} t={t} />;
+    case "marquee":
+      return (
+        <Field label={f.items}>
+          <Textarea rows={4} value={section.items.join("\n")} onChange={(e) => p({ items: lines(e.target.value).slice(0, 6) })} />
+        </Field>
+      );
     case "hero":
       return (
         <div className="space-y-3">

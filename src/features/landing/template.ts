@@ -19,3 +19,21 @@ export function starterSections(product: ProductInfo, language: PageLanguage): L
   sections.push({ id: newSectionId(), type: "steps", items: t.defaults.steps }, { id: newSectionId(), type: "cta", title: t.defaults.cta });
   return sections;
 }
+
+// An image page (Wibi style) made by hand: the band of selling points, then images to design (with the AI
+// in the editor) or to replace with the merchant's own designed images, and the form after the first one.
+export function starterImageSections(product: ProductInfo, language: PageLanguage): LandingSection[] {
+  const t = getStoreText(interfaceLocale(language)).landing;
+  const poster = (kind: Extract<LandingSection, { type: "poster" }>["kind"], headline: string): LandingSection => ({ id: newSectionId(), type: "poster", image: "", kind, headline, bullets: [], previous: [] });
+  return [
+    { id: newSectionId(), type: "marquee", items: t.defaults.badges },
+    poster("hero", product.name),
+    { id: newSectionId(), type: "form" },
+    poster("problem", t.defaults.posters.problem),
+    poster("solution", t.defaults.posters.solution),
+    poster("benefits", t.defaults.posters.benefits),
+    poster("features", t.defaults.posters.features),
+    poster("howto", t.defaults.posters.howto),
+    poster("offer", t.defaults.posters.offer),
+  ];
+}

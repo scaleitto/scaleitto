@@ -15,7 +15,10 @@ import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import { aiTones, buildLandingRequest, finishLandingPage, type LandingAiOutput } from "./ai-prompt";
 import { insertLandingPage } from "./store";
 import { isSafeImage, pageLanguages, sanitizeSections } from "./types";
-import { imageStyles, pollTask, startImageTask, type ImageStyle } from "@/features/ai/tasks";
+import { imageStyles, pollTask, startImageTask, startPosterTask, type ImageStyle } from "@/features/ai/tasks";
+import { currencyLabel } from "@/i18n/store";
+import { buildPosterPlanRequest, finishPosterPage, posterAudiences, posterCounts, posterPeople, posterPrompt, type PosterOptions, type PosterPlan } from "./posters";
+import { interfaceLocale, type PageLanguage } from "./types";
 
 // Everything needed to build the page once the text is ready (stored on the generation).
 type Brief = {
@@ -26,12 +29,16 @@ type Brief = {
   images: string[];
   // Rework the page's main photo(s) once the text is ready
   enhance?: { style: ImageStyle; count: number } | null;
+  // "images" = a Wibi-style page of designed images (one per section), "sections" = text and photo blocks
+  pageStyle?: "sections" | "images";
+  poster?: PosterOptions;
 };
 // Image reworks started after the page was built, then swapped into it
-type ImageJobs = { imageTasks?: { taskId: string; source: string }[]; applied?: boolean };
+// (photo reworks carry `source`; designed section images carry `sectionId`)
+type ImageJobs = { imageTasks?: { taskId: string; source?: string; sectionId?: string }[]; applied?: boolean };
 
 export type AiStartResult = { ok: true; generationId: string } | { ok: false; error: string; message?: string; fieldErrors?: Record<string, string> };
-export type AiCheckResult = { state: "pending"; step?: "images" } | { state: "done"; pageId: string } | { state: "failed"; error: string; message?: string };
+export type AiCheckResult = { state: "pending"; step?: "images"; done?: number; total?: number } | { state: "done"; pageId: string } | { state: "failed"; error: string; message?: string };
 
 const startSchema = z.object({
   source: z.enum(["product", "photos", "link"]),
@@ -48,6 +55,15 @@ const startSchema = z.object({
   audience: z.string().trim().max(300).optional().default(""),
   language: z.enum(pageLanguages),
   tone: z.enum(aiTones),
+  pageStyle: z.enum(["sections", "images"]).optional().default("sections"),
+  poster: z
+    .object({
+      count: z.union([z.literal(6), z.literal(8), z.literal(10)]),
+      people: z.enum(posterPeople),
+      audience: z.enum(posterAudiences),
+      color: z.string().regex(/^#[0-9a-f]{6}$/i).nullable(),
+    })
+    .optional(),
 });
 export type AiStartInput = z.input<typeof startSchema>;
 
@@ -61,7 +77,9 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
     const parsed = startSchema.safeParse(input);
     if (!parsed.success) return { ok: false, error: "checkFields" };
     const d = parsed.data;
-    if (!(await canAdd(shop.id, "maxAiPerMonth"))) return { ok: false, error: "limitAi" };
+    const poster: PosterOptions | null = d.pageStyle === "images" ? (d.poster ?? { count: posterCounts[1], people: "hands", audience: "neutral", color: null }) : null;
+    // The plan + one image per section all count in the monthly AI quota
+    if (!(await canAdd(shop.id, "maxAiPerMonth", 1 + (poster?.count ?? 0)))) return { ok: false, error: "limitAi" };
     if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
 
     let product: { name: string; description: string | null; price: number; compareAtPrice: number | null; images: string[]; options: ProductOption[]; offers: QuantityOffer[] };
@@ -74,7 +92,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
       if (!p) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
       const images = [...new Set([...p.images, ...extras])].slice(0, 12);
       product = { ...p, images };
-      brief = { productId: p.id, newProduct: null, language: d.language, color: null, images, enhance: d.enhance ?? null };
+      brief = { productId: p.id, newProduct: null, language: d.language, color: null, images, enhance: poster ? null : (d.enhance ?? null), pageStyle: d.pageStyle, poster: poster ?? undefined };
     } else {
       if (d.price == null) return { ok: false, error: "checkFields", fieldErrors: { price: "price" } };
       if (!(await canAdd(shop.id, "maxProducts"))) return { ok: false, error: "limitProducts" };
@@ -93,17 +111,20 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
         }
       }
       product = { name: name || "—", description: null, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images, options: [], offers: [] };
-      brief = { productId: null, newProduct: { name, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images }, language: d.language, color: null, images, enhance: d.enhance ?? null };
+      brief = { productId: null, newProduct: { name, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images }, language: d.language, color: null, images, enhance: poster ? null : (d.enhance ?? null), pageStyle: d.pageStyle, poster: poster ?? undefined };
     }
 
-    const request = buildLandingRequest({
+    const vision = await visionImages(product.images, 10);
+    const request = poster
+      ? buildPosterPlanRequest({ product, language: d.language, options: poster, notes: d.notes, sourceText, visionImages: vision, writeProduct: d.source !== "product" })
+      : buildLandingRequest({
       product,
       language: d.language,
       tone: d.tone,
       audience: d.audience,
       notes: d.notes,
       sourceText,
-      visionImages: await visionImages(product.images, 10),
+      visionImages: vision,
       writeProduct: d.source !== "product",
     });
     const started = await startBackgroundJson(request);
@@ -134,7 +155,7 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
       return { state: "failed", error: "aiFailed", message: "Saving was interrupted" };
     }
 
-    const result = await pollBackgroundJson<LandingAiOutput>(gen.responseId ?? "");
+    const result = await pollBackgroundJson<LandingAiOutput & PosterPlan>(gen.responseId ?? "");
     if (result.state === "pending") return { state: "pending" };
     if (result.state === "failed") {
       await db.update(g).set({ status: "failed", error: result.error.slice(0, 2000) }).where(eq(g.id, gen.id));
@@ -146,7 +167,8 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
     if (!claim.affectedRows) return { state: "pending" };
 
     const brief = gen.brief as Brief;
-    const page = finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images);
+    const imagePage = brief.pageStyle === "images" && brief.poster ? finishPosterPage(result.data, brief.newProduct?.name || "Page", brief.poster) : null;
+    const page = imagePage ?? finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images);
     let productId = brief.productId;
     if (!productId && brief.newProduct) {
       const np = brief.newProduct;
@@ -168,9 +190,20 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
         offers: [],
       });
     }
-    const pageId = await insertLandingPage(shop.id, { productId: productId!, title: page.title, language: brief.language, color: brief.color, sections: page.sections });
+    const pageId = await insertLandingPage(shop.id, { productId: productId!, title: page.title, language: brief.language, color: imagePage ? imagePage.palette.primary : brief.color, sections: page.sections });
     // Photos to rework: the hero's, then the next ones in page order (our uploads only)
     const imageTasks: NonNullable<ImageJobs["imageTasks"]> = [];
+    if (imagePage) {
+      // One designed image per section, all started now (they are made in parallel)
+      const [product] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId!)));
+      const language = brief.language as PageLanguage;
+      for (const s of page.sections) {
+        if (s.type !== "poster") continue;
+        const prompt = posterPrompt(s, { productName: product?.name ?? page.title, language, price: product?.price ?? 0, compareAtPrice: product?.compareAtPrice ?? null, currency: currencyLabel(interfaceLocale(language)) });
+        const started = await startPosterTask(shop.id, gen.userId, prompt, brief.images.slice(0, 3));
+        if (started.ok) imageTasks.push({ taskId: started.taskId, sectionId: s.id });
+      }
+    }
     if (brief.enhance) {
       const sources = [...new Set(page.sections.flatMap((s) => (s.type === "hero" || s.type === "imageText" ? [s.image] : s.type === "image" ? [s.url] : [])))].filter(
         (src): src is string => Boolean(src) && src!.startsWith(`/uploads/${shop.id}/`),
@@ -184,7 +217,7 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
       .update(g)
       .set({ status: "done", landingPageId: pageId, result: { imageTasks, applied: imageTasks.length === 0 }, inputTokens: result.inputTokens, outputTokens: result.outputTokens, model: result.model || gen.model })
       .where(eq(g.id, gen.id));
-    return imageTasks.length ? { state: "pending", step: "images" } : { state: "done", pageId };
+    return imageTasks.length ? { state: "pending", step: "images", done: 0, total: imageTasks.length } : { state: "done", pageId };
   } catch (err) {
     await logError("landing/ai-check", err);
     return { state: "failed", error: "unexpected" };
@@ -195,9 +228,20 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
 async function finishImages(shopId: string, pageId: string, generationId: string, jobs: ImageJobs | null): Promise<AiCheckResult> {
   if (!jobs?.imageTasks?.length || jobs.applied) return { state: "done", pageId };
   const states = await Promise.all(jobs.imageTasks.map(async (j) => ({ ...j, state: await pollTask(shopId, j.taskId) })));
-  if (states.some((s) => s.state.state === "pending")) return { state: "pending", step: "images" };
+  const pending = states.filter((s) => s.state.state === "pending").length;
+  if (pending) return { state: "pending", step: "images", done: states.length - pending, total: states.length };
+  const urlOf = (s: (typeof states)[number]) => (s.state.state === "done" ? (s.state.result as { url: string }).url : null);
+  // Designed section images go into their sections (a failed one stays empty: the merchant regenerates it)
+  const designed = new Map(states.flatMap((s) => (s.sectionId && urlOf(s) ? [[s.sectionId, urlOf(s)!] as const] : [])));
+  if (designed.size) {
+    const [page] = await db.select().from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, pageId)));
+    if (page) {
+      const sections = sanitizeSections(page.sections).map((s) => (s.type === "poster" && designed.has(s.id) ? { ...s, image: designed.get(s.id)! } : s));
+      await db.update(schema.landingPages).set({ sections }).where(eq(schema.landingPages.id, page.id));
+    }
+  }
   // Failed reworks keep the original photo
-  const swaps = new Map(states.flatMap((s) => (s.state.state === "done" ? [[s.source, (s.state.result as { url: string }).url] as const] : [])));
+  const swaps = new Map(states.flatMap((s) => (s.source && urlOf(s) ? [[s.source, urlOf(s)!] as const] : [])));
   if (swaps.size) {
     const [page] = await db.select().from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, pageId)));
     if (page) {

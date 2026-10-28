@@ -14,13 +14,14 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { pageLanguages, resolveForm, sanitizeSections } from "./types";
 import { freeSlug, insertLandingPage, shopProduct } from "./store";
-import { starterSections } from "./template";
+import { starterImageSections, starterSections } from "./template";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "landingPages");
 
 const createSchema = z.object({
   productId: z.string().min(1, "e:required").max(36),
   language: z.enum(pageLanguages),
+  pageStyle: z.enum(["sections", "images"]).optional().default("sections"),
 });
 
 // A new page by hand: starts from a ready template filled with the product's data.
@@ -34,7 +35,7 @@ export async function createLandingPage(lang: string, _prev: ActionState, formDa
     const product = await shopProduct(shop.id, parsed.data.productId);
     if (!product) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
     if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
-    pageId = await insertLandingPage(shop.id, { productId: product.id, title: product.name, language: parsed.data.language, sections: starterSections(product, parsed.data.language) });
+    pageId = await insertLandingPage(shop.id, { productId: product.id, title: product.name, language: parsed.data.language, sections: (parsed.data.pageStyle === "images" ? starterImageSections : starterSections)(product, parsed.data.language) });
     return { ok: true };
   });
   if (pageId) redirect(`${sectionHref(locale, "landingPages")}/${pageId}`);

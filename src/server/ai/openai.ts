@@ -221,7 +221,7 @@ export async function checkAiConnection(): Promise<AiCheckStep[]> {
 
 // ─── Images ───────────────────────────────────────────────
 
-export type ImageRequest = { prompt: string; /** data: URL of the photo to rework */ image?: string; size?: "1024x1024" | "1024x1536" | "1536x1024" };
+export type ImageRequest = { prompt: string; /** data: URLs of the photos to work from (the product as it really is) */ images?: string[]; size?: "1024x1024" | "1024x1536" | "1536x1024" };
 export type ImageResult = { state: "pending" } | { state: "failed"; error: string } | { state: "done"; base64: string; model: string };
 
 // Starts a background image generation (Responses API + image_generation tool), e.g. a product photo on a new
@@ -229,7 +229,7 @@ export type ImageResult = { state: "pending" } | { state: "failed"; error: strin
 export async function startBackgroundImage(req: ImageRequest): Promise<{ responseId: string; model: string }> {
   const models = modelChain();
   for (const [m, model] of models.entries()) {
-    const attempt = { fidelity: Boolean(req.image), quality: true, format: true };
+    const attempt = { fidelity: Boolean(req.images?.length), quality: true, format: true };
     for (let tries = 0; tries < 4; tries++) {
       const tool: Record<string, unknown> = { type: "image_generation", size: req.size ?? "1024x1024" };
       if (attempt.quality) tool.quality = "high";
@@ -239,7 +239,7 @@ export async function startBackgroundImage(req: ImageRequest): Promise<{ respons
         model,
         background: true,
         store: true,
-        input: [{ role: "user", content: [{ type: "input_text", text: req.prompt }, ...(req.image ? [{ type: "input_image", image_url: req.image }] : [])] }],
+        input: [{ role: "user", content: [{ type: "input_text", text: req.prompt }, ...(req.images ?? []).map((image_url) => ({ type: "input_image", image_url }))] }],
         tools: [tool],
         tool_choice: { type: "image_generation" },
       };

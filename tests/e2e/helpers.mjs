@@ -92,3 +92,16 @@ export function pngBuffer(rgb = [220, 40, 60], size = 64) {
 }
 
 export const playwright = () => require("playwright");
+
+// The landing page wizard: manual / AI mode, page style ("images" Wibi style or "sections"), then generate
+// (the AI asks to confirm the settings and their cost first).
+export async function wizardMode(page, mode) {
+  await page.locator("[data-testid=mode] button").nth(mode === "manual" ? 1 : 0).click();
+}
+export async function wizardStyle(page, style) {
+  await page.locator("[data-testid=page-style] button").nth(style === "images" ? 0 : 1).click();
+}
+export async function wizardGenerate(page) {
+  await page.click("[data-testid=ai-next]");
+  await page.locator("[data-testid=ai-confirm] button").last().click();
+}

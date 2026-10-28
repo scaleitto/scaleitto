@@ -2,7 +2,7 @@
 // page and its customizable order form, the embeddable form, AI generation (fake OpenAI server),
 // the AI connection test, plan limits, roles and tenant isolation.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, pngBuffer, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, pngBuffer, step, wizardGenerate, wizardMode, wizardStyle } from "./helpers.mjs";
 
 export default async function phase7(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -28,6 +28,8 @@ export default async function phase7(browser) {
     await owner.waitForSelector("text=لا توجد صفحات هبوط بعد");
     await owner.locator("a", { hasText: "صفحة جديدة" }).first().click();
     await owner.waitForSelector("[data-testid=ai-wizard]");
+    await wizardMode(owner, "manual");
+    await wizardStyle(owner, "sections");
     await Promise.all([owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), owner.locator("[data-testid=manual-create] button[type=submit]").click()]);
     pageId = owner.url().split("/").pop();
     const [[row]] = await db.query("SELECT * FROM landing_pages WHERE id = ? AND shop_id = ?", [pageId, shopId]);
@@ -177,7 +179,8 @@ export default async function phase7(browser) {
 
   await step("AI page from an existing product: waits, then opens the generated page", async () => {
     await owner.goto(`${section}/new`);
-    await owner.locator("[data-testid=ai-wizard] button", { hasText: "إنشاء الصفحة بالذكاء الاصطناعي" }).click();
+    await wizardStyle(owner, "sections");
+    await wizardGenerate(owner);
     await owner.waitForSelector("[data-testid=ai-working]");
     await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     const id = owner.url().split("/").pop();
@@ -193,13 +196,14 @@ export default async function phase7(browser) {
 
   await step("AI page from photos creates the product too", async () => {
     await owner.goto(`${section}/new`);
-    await owner.locator("[data-testid=ai-wizard] button", { hasText: "صور المنتج" }).click();
+    await wizardStyle(owner, "sections");
+    await owner.locator("[data-testid=source] button", { hasText: "صور المنتج" }).click();
     await owner.setInputFiles("[data-testid=ai-wizard] [data-testid=image-input]", [{ name: "watch.png", mimeType: "image/png", buffer: pngBuffer([20, 90, 200]) }]);
     await owner.waitForSelector("[data-testid=ai-wizard] img");
     await owner.fill("#ai-price", "2500");
     // Photo enhancement is tested in phase 15; here the page keeps the uploaded photo
     await owner.locator("[data-testid=ai-enhance] input[type=checkbox]").uncheck();
-    await owner.locator("[data-testid=ai-wizard] button", { hasText: "إنشاء الصفحة بالذكاء الاصطناعي" }).click();
+    await wizardGenerate(owner);
     await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     const [[product]] = await db.query("SELECT * FROM products WHERE shop_id = ? AND name = 'ساعة ذكية AI'", [shopId]);
     const images = typeof product?.images === "string" ? JSON.parse(product.images) : product?.images;
@@ -212,11 +216,16 @@ export default async function phase7(browser) {
   await step("plan limits: pages and AI generations", async () => {
     await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 3, maxAiPerMonth: 2 }), contractId]);
     await owner.goto(`${section}/new`);
+    await wizardMode(owner, "manual");
     await owner.locator("[data-testid=manual-create] button[type=submit]").click();
     await owner.waitForSelector("text=وصلت إلى الحد الأقصى لصفحات الهبوط في باقتك");
     await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 20, maxAiPerMonth: 2 }), contractId]);
-    await owner.locator("[data-testid=ai-wizard] button", { hasText: "إنشاء الصفحة بالذكاء الاصطناعي" }).click();
-    await owner.waitForSelector("text=وصلت إلى الحد الشهري لاستعمال الذكاء الاصطناعي في باقتك");
+    // The confirmation shows the cost and refuses when the month's AI quota is used up
+    await owner.goto(`${section}/new`);
+    await wizardStyle(owner, "sections");
+    await owner.click("[data-testid=ai-next]");
+    await owner.locator("[data-testid=ai-cost]").getByText("حصتك المتبقية لا تكفي").waitFor();
+    expect(await owner.locator("[data-testid=ai-confirm] button").last().isDisabled(), "confirm disabled without quota");
   });
 
   await step("call center agents cannot open landing pages", async () => {

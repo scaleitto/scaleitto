@@ -2,7 +2,7 @@
 // background, same product), the editor's "enhance image" button, new sections (image + text, benefits),
 // a mobile-first public page whose photos are never cropped, and the AI quota for image work.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, pngBuffer, step } from "./helpers.mjs";
+import { BASE, createShop, db, expect, pngBuffer, step, wizardGenerate, wizardStyle } from "./helpers.mjs";
 
 const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
 
@@ -19,7 +19,8 @@ export default async function phase15(browser) {
   await step("AI page from two photos, both reworked: the page and the product use the new images", async () => {
     await owner.goto(`${section}/new`);
     const wizard = owner.locator("[data-testid=ai-wizard]");
-    await wizard.locator("button", { hasText: "صور المنتج" }).click();
+    await wizardStyle(owner, "sections");
+    await wizard.locator("[data-testid=source] button", { hasText: "صور المنتج" }).click();
     await owner.setInputFiles("[data-testid=ai-wizard] [data-testid=image-input]", [
       { name: "front.png", mimeType: "image/png", buffer: pngBuffer([20, 90, 200]) },
       { name: "side.png", mimeType: "image/png", buffer: pngBuffer([200, 90, 20]) },
@@ -30,7 +31,7 @@ export default async function phase15(browser) {
     expect(await owner.locator("[data-testid=ai-enhance] input[type=checkbox]").isChecked(), "enhancement on by default");
     await owner.selectOption("#ai-style", "studio");
     await owner.selectOption("#ai-enhance-count", "2");
-    await wizard.locator("button", { hasText: "إنشاء الصفحة بالذكاء الاصطناعي" }).click();
+    await wizardGenerate(owner);
     await owner.locator("[data-testid=ai-working]").getByText("تحسين الصور").waitFor();
     await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 60_000 });
     pageId = owner.url().split("/").pop();

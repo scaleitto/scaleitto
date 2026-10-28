@@ -37,6 +37,20 @@ function landingAnswer(body) {
 // Small tasks (call guide, customer messages, product description) answer by their schema name
 const answers = {
   check: () => ({ ok: true }),
+  // Image landing pages: the plan (texts, colors, one scene per section), as many sections as asked
+  image_landing_page: (body) => {
+    const text = body.input?.[0]?.content?.find((c) => c.type === "input_text")?.text ?? "";
+    const n = Number(text.match(/Number of sections: (\d+)/)?.[1] ?? 6);
+    const kinds = ["hero", "problem", "solution", "benefits", "features", "howto", "details", "beforeAfter", "offer", "cta"];
+    return {
+      title: "صفحة صور",
+      product_name: text.includes("This is a new product") ? "مصباح ضد البعوض" : null,
+      product_description: text.includes("This is a new product") ? "مصباح يقتل البعوض بهدوء." : null,
+      palette: { background: "#0b1a3a", primary: "#2563eb", accent: "#facc15" },
+      marquee: ["دفع عند التسليم", "توصيل سريع", "نتصل بك للتأكيد"],
+      sections: Array.from({ length: n }, (_, i) => ({ kind: i === n - 1 ? "offer" : kinds[i % 8], headline: `عنوان القسم ${i + 1}`, subtitle: i === 0 ? "نص فرعي قصير" : null, bullets: ["نقطة أولى", "نقطة ثانية"], cta: i === n - 1 ? "اطلب الآن" : null, scene: "A bedroom at night, product on a table" })),
+    };
+  },
   call_guide: () => ({
     pitch: "السلام عليكم، معاك المتجر. نعيطلك على الطلبية تاعك.",
     keyPoints: ["الدفع عند الاستلام", "توصيل لـ 58 ولاية"],

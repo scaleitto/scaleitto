@@ -1,6 +1,6 @@
 // Landing page sections. Plain components shared by the public page and the editor preview.
 import type { ReactNode } from "react";
-import { BadgeCheck, Check, ChevronDown, ShoppingBag, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, ChevronDown, ImageIcon, LoaderCircle, ShoppingBag, Star } from "lucide-react";
 import type { StoreText } from "@/i18n/store";
 import { Countdown } from "./Countdown";
 import { youtubeEmbed, type LandingSection } from "./types";
@@ -22,9 +22,49 @@ function Photo({ src, alt = "", className = "" }: { src: string; alt?: string; c
   return <img src={src} alt={alt} loading="lazy" className={`mx-auto h-auto max-h-[80vh] w-full object-contain ${className}`} />;
 }
 
-function Section({ section, t, price, flip = false }: { section: LandingSection; t: StoreText; price?: ReactNode; flip?: boolean }) {
+// The band of selling points at the top of image pages (doubled for a seamless loop)
+function Marquee({ items }: { items: string[] }) {
+  const row = [...items, ...items, ...items];
+  return (
+    <div className="overflow-hidden bg-brand py-2.5 text-sm font-bold text-white" data-section="marquee">
+      <div className="marquee-track flex w-max gap-8">
+        {[...row, ...row].map((item, i) => (
+          <span key={i} className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+            {item} <ArrowLeft size={14} className="ltr:rotate-180" />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A designed marketing image (text inside it). Without its image yet: nothing on the public page,
+// a placeholder in the editor.
+function Poster({ section, editing }: { section: Extract<LandingSection, { type: "poster" }>; editing: boolean }) {
+  if (section.image)
+    return (
+      <figure data-section="poster" data-kind={section.kind}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={section.image} alt={[section.headline, section.subtitle].filter(Boolean).join(" — ")} loading="lazy" className="block h-auto w-full" />
+      </figure>
+    );
+  if (!editing) return null;
+  return (
+    <div className="flex aspect-[2/3] flex-col items-center justify-center gap-3 bg-gradient-to-b from-brand/80 to-brand p-8 text-center text-white" data-section="poster" data-pending>
+      {section.scene ? <LoaderCircle size={30} className="animate-spin opacity-80" /> : <ImageIcon size={30} className="opacity-80" />}
+      <p className="text-2xl leading-snug font-extrabold">{section.headline}</p>
+      {section.subtitle && <p className="text-sm opacity-90">{section.subtitle}</p>}
+    </div>
+  );
+}
+
+function Section({ section, t, price, flip = false, editing = false }: { section: LandingSection; t: StoreText; price?: ReactNode; flip?: boolean; editing?: boolean }) {
   const l = t.landing;
   switch (section.type) {
+    case "poster":
+      return <Poster section={section} editing={editing} />;
+    case "marquee":
+      return <Marquee items={section.items} />;
     case "hero":
       return (
         <section className="grid items-center gap-5 md:grid-cols-2 md:gap-8" data-section="hero">
@@ -207,10 +247,48 @@ function Section({ section, t, price, flip = false }: { section: LandingSection;
   }
 }
 
+export const isImagePage = (sections: LandingSection[]) => sections.some((s) => s.type === "poster" && !s.hidden);
+
 // The whole page: visible sections in order, with the order form where the "form" section is
 // (or right after the hero when there is none).
-export function LandingSections({ sections, form, t, price }: { sections: LandingSection[]; form: ReactNode; t: StoreText; price?: ReactNode }) {
+export function LandingSections({ sections, form, t, price, editing = false }: { sections: LandingSection[]; form: ReactNode; t: StoreText; price?: ReactNode; editing?: boolean }) {
   const visible = sections.filter((s) => !s.hidden);
+  // Image pages (Wibi style): one narrow column of full-width images, like a phone screen on every device
+  if (visible.some((s) => s.type === "poster")) {
+    const formAt = visible.findIndex((s) => s.type === "form");
+    const items = visible.map((s) =>
+      s.type === "form" ? (
+        <div key={s.id} className="scroll-mt-4 bg-s-surface p-4" data-section="form">
+          {form}
+        </div>
+      ) : s.type === "poster" || s.type === "marquee" || s.type === "image" ? (
+        s.type === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={s.id} src={s.url} alt={s.caption ?? ""} loading="lazy" className="block h-auto w-full" data-section="image" />
+        ) : (
+          <Section key={s.id} section={s} t={t} editing={editing} />
+        )
+      ) : (
+        <div key={s.id} className="p-4">
+          <Section section={s} t={t} price={s.type === "hero" ? price : undefined} editing={editing} />
+        </div>
+      ),
+    );
+    // No form section: right after the first image
+    if (formAt < 0) {
+      const first = visible.findIndex((s) => s.type === "poster");
+      items.splice(first + 1, 0, (
+        <div key="form-slot" className="scroll-mt-4 bg-s-surface p-4" data-section="form">
+          {form}
+        </div>
+      ));
+    }
+    return (
+      <div className="mx-auto w-full max-w-[520px] overflow-hidden sm:rounded-[var(--s-radius)] sm:shadow-[var(--s-shadow)]" data-layout="images">
+        {items}
+      </div>
+    );
+  }
   const formAt = visible.findIndex((s) => s.type === "form");
   const insertAt = formAt >= 0 ? formAt : visible.findIndex((s) => s.type === "hero") + 1;
   const out: ReactNode[] = [];

@@ -157,6 +157,17 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (`orders/BulkAssign.tsx`: row checkboxes `data-bulk-order`, assign / unassign / share between agents). Google Sheets script
   v2 (`SCRIPT_VERSION`): uses the first empty tab renamed "Orders", answers its version; "Test" writes a visible TEST row and
   asks for the new script when the copy is older. The database is converted to utf8mb4 at startup (`migrate-lib.mjs`).
+- Image landing pages (Wibi style, phase17.mjs): sections `poster` (a designed image with its text inside; texts, kind,
+  scene + look kept to regenerate, `previous` = images to restore; empty image = hidden on the public page, placeholder in
+  the editor) and `marquee` (scrolling band, CSS in globals.css). `landing/posters.ts`: plan prompt/schema
+  (`buildPosterPlanRequest`, kinds hero/problem/solution/benefits/features/howto/beforeAfter/details/offer/cta, honesty
+  rules, short texts), `finishPosterPage` (band, images, form after the first one), `posterPrompt` (exact quoted texts,
+  same product from the reference photos, 1024x1536). `startPosterTask` (ai/tasks.ts, references = our uploads) per section,
+  started when the plan is ready; `finishImages` puts each image in its section (`sectionId`) and reports done/total.
+  Editor: `PosterFields` (texts, regenerate panel: background, instructions, own full prompt, current image as reference →
+  `startPosterImage`; restore; own upload). `LandingSections` draws image pages as one 520px column (`isImagePage`).
+  Wizard (`NewLanding.tsx`): AI / manual toggle, page style (images / sections), options, confirmation with the AI cost
+  (plan + one per image) against the month's remaining quota; manual image pages use `starterImageSections`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
@@ -182,6 +193,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 
 ## Roadmap (from the owner's feature list)
 v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
-Next: real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
+Next: the owner tests image landing pages with a real OpenAI key (image quality / Arabic text), A/B variants of a page; real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
 against public docs/clients; ZR Express new platform added.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

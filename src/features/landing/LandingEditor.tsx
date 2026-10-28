@@ -11,7 +11,7 @@ import { StoreFrame } from "@/features/storefront/blocks";
 import { CheckoutForm } from "@/features/storefront/CheckoutForm";
 import { findTheme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
-import { LandingSections } from "./blocks";
+import { LandingSections, isImagePage } from "./blocks";
 import { PriceTag } from "./PriceTag";
 import { FormEditor } from "./FormEditor";
 import { SectionFields, type EditorText } from "./SectionFields";
@@ -25,6 +25,10 @@ type Initial = { title: string; slug: string; language: PageLanguage; color: str
 function newSection(type: SectionType, t: StoreText): LandingSection {
   const id = newSectionId();
   switch (type) {
+    case "poster":
+      return { id, type, image: "", kind: "details", headline: "", bullets: [], previous: [] };
+    case "marquee":
+      return { id, type, items: t.landing.defaults.badges };
     case "hero":
       return { id, type, title: "" };
     case "badges":
@@ -61,6 +65,10 @@ function newSection(type: SectionType, t: StoreText): LandingSection {
 // A one-line reminder of what a section contains, shown on its collapsed card.
 function summary(s: LandingSection) {
   switch (s.type) {
+    case "poster":
+      return `${s.image ? "🖼" : "⏳"} ${s.headline}`;
+    case "marquee":
+      return s.items.join(" · ");
     case "hero":
     case "cta":
       return s.title;
@@ -231,7 +239,7 @@ export function LandingEditor({
                   </div>
                   {open === s.id && (
                     <div className="border-t border-line p-4">
-                      <SectionFields lang={lang} section={s} set={(patch) => update(s.id, patch)} productImages={product.images} t={t} />
+                      <SectionFields lang={lang} pageId={pageId} section={s} set={(patch) => update(s.id, patch)} productImages={product.images} t={t} />
                     </div>
                   )}
                 </div>
@@ -380,8 +388,9 @@ export function LandingEditor({
             <div className={`mx-auto max-h-[80vh] overflow-y-auto rounded-lg bg-white shadow-xl ${device === "mobile" ? "max-w-[390px]" : ""}`} data-testid="landing-preview">
               <div inert className="select-none">
               <StoreFrame locale={locale} color={color} theme={findTheme(themeKey)}>
-                <div lang={locale} dir={dir(locale)} className="p-4">
+                <div lang={locale} dir={dir(locale)} className={isImagePage(sections) ? "" : "p-4"}>
                   <LandingSections
+                    editing
                     sections={sanitizeSections(sections)}
                     t={storeText}
                     price={<PriceTag price={product.price} compareAtPrice={product.compareAtPrice} currency={currencyLabel(locale)} />}

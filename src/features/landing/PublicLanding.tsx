@@ -5,7 +5,7 @@ import { wilayas } from "@/lib/wilayas";
 import type { RateMap } from "@/features/checkout/pricing";
 import { CheckoutForm } from "@/features/storefront/CheckoutForm";
 import type { ActionState } from "@/lib/action";
-import { LandingSections } from "./blocks";
+import { LandingSections, isImagePage } from "./blocks";
 import { PriceTag } from "./PriceTag";
 import { interfaceLocale, resolveForm, sanitizeSections, type PageLanguage, pageLanguages } from "./types";
 
@@ -52,9 +52,11 @@ export function PublicLanding({
       embedded={embedded}
     />
   );
+  const sections = sanitizeSections(page.sections);
   return (
-    <div lang={locale} dir={dir(locale)} style={page.color ? { ["--brand" as string]: page.color } : undefined} className="pb-20 md:pb-0">
-      {embedded ? form : <LandingSections sections={sanitizeSections(page.sections)} form={form} t={t} price={<PriceTag price={product.price} compareAtPrice={product.compareAtPrice} currency={currency} />} />}
+    // Image pages reach the screen edges on phones
+    <div lang={locale} dir={dir(locale)} style={page.color ? { ["--brand" as string]: page.color } : undefined} className={`pb-20 md:pb-0 ${!embedded && isImagePage(sections) ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0" : ""}`}>
+      {embedded ? form : <LandingSections sections={sections} form={form} t={t} price={<PriceTag price={product.price} compareAtPrice={product.compareAtPrice} currency={currency} />} />}
       {children}
     </div>
   );

@@ -2,12 +2,21 @@
 // Everything coming from the editor or the AI goes through sanitizeSections / resolveForm,
 // so a page can never contain unknown section types, script URLs or broken data.
 
-export const sectionTypes = ["hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
+export const sectionTypes = ["poster", "marquee", "hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
+// What a poster section is about (the AI designs one marketing image per section)
+export const posterKinds = ["hero", "problem", "solution", "benefits", "features", "howto", "beforeAfter", "details", "offer", "cta"] as const;
+export type PosterKind = (typeof posterKinds)[number];
+export const MAX_POSTER_HISTORY = 3;
 export type SectionType = (typeof sectionTypes)[number];
 
 type Base = { id: string; hidden?: boolean };
 export type LandingSection = Base &
   (
+    // A full-width marketing image with its text designed into it (AI-made or the merchant's own).
+    // The texts are kept so the image can be regenerated; previous = earlier images (newest first) to restore.
+    | { type: "poster"; image: string; kind: PosterKind; headline: string; subtitle?: string; bullets: string[]; cta?: string; scene?: string; previous: string[] }
+    // A thin scrolling band of short selling points ("Cash on delivery → Fast delivery → …")
+    | { type: "marquee"; items: string[] }
     | { type: "hero"; title: string; subtitle?: string; image?: string; badge?: string }
     | { type: "badges"; items: string[] }
     | { type: "text"; title?: string; body: string }
@@ -94,6 +103,30 @@ export function sanitizeSections(input: unknown): LandingSection[] {
     const base = { id, ...(s.hidden === true ? { hidden: true } : {}) };
     let section: LandingSection | null = null;
     switch (s.type) {
+      case "poster": {
+        // An empty image is a section still being designed (or waiting for the merchant's upload)
+        const img = image(s.image) ?? "";
+        const headline = str(s.headline, 160);
+        if (img || headline)
+          section = {
+            ...base,
+            type: "poster",
+            image: img,
+            kind: oneOf(s.kind, posterKinds, "details"),
+            headline,
+            subtitle: opt(s.subtitle, 240),
+            bullets: list(s.bullets, 5, 80),
+            cta: opt(s.cta, 60),
+            scene: opt(s.scene, 600),
+            previous: (Array.isArray(s.previous) ? s.previous : []).filter(isSafeImage).slice(0, MAX_POSTER_HISTORY),
+          };
+        break;
+      }
+      case "marquee": {
+        const items = list(s.items, 6, 50);
+        if (items.length) section = { ...base, type: "marquee", items };
+        break;
+      }
       case "hero": {
         const title = str(s.title, 200);
         if (title || image(s.image)) section = { ...base, type: "hero", title, subtitle: opt(s.subtitle, 400), image: image(s.image), badge: opt(s.badge, 40) };
@@ -188,7 +221,9 @@ export function sanitizeSections(input: unknown): LandingSection[] {
   return out;
 }
 
-const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+function oneOf<T extends string>(v: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(v as T) ? (v as T) : fallback;
+}
 const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
 
 // Saved/untrusted form settings → complete, valid settings.
