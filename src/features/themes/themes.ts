@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { readableOn, textOn } from "@/lib/contrast";
 
 // Store themes: ready-made looks the merchant picks in the Theme Store. A theme only sets design tokens
 // (font, surfaces, shapes) and a few layout switches; the storefront blocks read them, so every
@@ -51,9 +52,18 @@ export const findTheme = (key: unknown) => themes.find((t) => t.key === key) ?? 
 const shadows = { border: "none", shadow: "0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.18)", flat: "none" };
 
 // CSS variables read by the storefront (see globals.css: s-bg, s-surface, s-text, s-muted, s-edge).
-export function themeStyle(theme: Theme, color: string): CSSProperties {
+// The merchant's color, readable text on it (buttons) and the color made readable as text on the theme's cards
+export function brandVars(color: string, theme: Theme): CSSProperties {
   return {
     ["--brand" as string]: color,
+    ["--brand-fg" as string]: textOn(color),
+    ["--brand-ink" as string]: readableOn(color, theme.surface.card, theme.surface.text),
+  };
+}
+
+export function themeStyle(theme: Theme, color: string): CSSProperties {
+  return {
+    ...brandVars(color, theme),
     ["--s-bg" as string]: theme.surface.bg,
     ["--s-surface" as string]: theme.surface.card,
     ["--s-text" as string]: theme.surface.text,

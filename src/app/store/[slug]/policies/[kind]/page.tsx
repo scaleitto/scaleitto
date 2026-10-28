@@ -28,7 +28,7 @@ export default async function PolicyPage({ params }: PageProps<"/store/[slug]/po
     <article className="mx-auto max-w-3xl space-y-5 rounded-[var(--s-radius)] bg-s-surface p-6 shadow-[var(--s-shadow)] sm:p-10" data-testid="policy-page">
       <h1 className="text-2xl font-extrabold">{t.policies[kind]}</h1>
       <div className="leading-loose whitespace-pre-line text-s-muted" dir="auto">{text}</div>
-      <Link href={(await storeBase(shop.slug)) || "/"} className="inline-block font-semibold text-brand hover:underline">
+      <Link href={(await storeBase(shop.slug)) || "/"} className="inline-block font-semibold text-brand-ink hover:underline">
         {t.backToStore}
       </Link>
     </article>

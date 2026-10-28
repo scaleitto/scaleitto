@@ -38,7 +38,7 @@ function newSection(type: SectionType, t: StoreText): LandingSection {
     case "imageText":
       return { id, type, title: "", body: "" };
     case "benefits":
-      return { id, type, items: [{ icon: "✨", title: "", text: "" }] };
+      return { id, type, items: [{ icon: "sparkles", title: "", text: "" }] };
     case "image":
       return { id, type, url: "" };
     case "gallery":

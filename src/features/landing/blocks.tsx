@@ -4,13 +4,14 @@ import { ArrowLeft, BadgeCheck, Check, ChevronDown, ImageIcon, LoaderCircle, Sho
 import type { StoreText } from "@/i18n/store";
 import { Countdown } from "./Countdown";
 import { youtubeEmbed, type LandingSection } from "./types";
+import { benefitIcons } from "./icons";
 
 const card = "rounded-[var(--s-radius)] border border-s-card-border bg-s-surface shadow-[var(--s-shadow)]";
 const h2 = "text-2xl font-extrabold leading-snug sm:text-3xl";
 
 function OrderButton({ label }: { label: string }) {
   return (
-    <a href="#order-form" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-8 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 sm:w-auto">
+    <a href="#order-form" className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-8 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 sm:w-auto">
       <ShoppingBag size={20} /> {label}
     </a>
   );
@@ -26,7 +27,7 @@ function Photo({ src, alt = "", className = "" }: { src: string; alt?: string; c
 function Marquee({ items }: { items: string[] }) {
   const row = [...items, ...items, ...items];
   return (
-    <div className="overflow-hidden bg-brand py-2.5 text-sm font-bold text-white" data-section="marquee">
+    <div className="overflow-hidden bg-brand py-2.5 text-sm font-bold text-brand-fg" data-section="marquee">
       <div className="marquee-track flex w-max gap-8">
         {[...row, ...row].map((item, i) => (
           <span key={i} className="flex shrink-0 items-center gap-2 whitespace-nowrap">
@@ -96,7 +97,7 @@ function Section({ section, t, price, flip = false, editing = false }: { section
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-section="badges">
           {section.items.map((item) => (
             <li key={item} className={`flex items-center gap-2 p-3 text-sm font-semibold ${card}`}>
-              <BadgeCheck size={18} className="shrink-0 text-brand" /> {item}
+              <BadgeCheck size={18} className="shrink-0 text-brand-ink" /> {item}
             </li>
           ))}
         </ul>
@@ -122,8 +123,8 @@ function Section({ section, t, price, flip = false, editing = false }: { section
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {section.items.map((item) => (
               <li key={item.title} className={`flex gap-4 p-5 ${card}`}>
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand/10 text-2xl" aria-hidden>
-                  {item.icon}
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand/10 text-2xl text-brand-ink" aria-hidden>
+                  <BenefitIcon name={item.icon} />
                 </span>
                 <span className="space-y-1">
                   <span className="block font-bold">{item.title}</span>
@@ -169,7 +170,7 @@ function Section({ section, t, price, flip = false, editing = false }: { section
           <ul className="grid gap-3 sm:grid-cols-2">
             {section.items.map((item) => (
               <li key={item} className="flex items-start gap-3 text-base">
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg">
                   <Check size={14} strokeWidth={3} />
                 </span>
                 {item}
@@ -185,7 +186,7 @@ function Section({ section, t, price, flip = false, editing = false }: { section
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {section.items.map((item, i) => (
               <li key={item} className={`flex items-start gap-3 p-4 ${card}`}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand font-extrabold text-white">{i + 1}</span>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand font-extrabold text-brand-fg">{i + 1}</span>
                 <span className="pt-1 font-semibold">{item}</span>
               </li>
             ))}
@@ -238,7 +239,7 @@ function Section({ section, t, price, flip = false, editing = false }: { section
     }
     case "countdown":
       return (
-        <section className="space-y-3 rounded-[var(--s-radius)] bg-brand p-6 text-center text-white" data-section="countdown">
+        <section className="space-y-3 rounded-[var(--s-radius)] bg-brand p-6 text-center text-brand-fg" data-section="countdown">
           <p className="text-lg font-bold">{section.title || l.countdown}</p>
           <Countdown endsAt={section.endsAt} t={l} />
         </section>
@@ -254,6 +255,12 @@ function Section({ section, t, price, flip = false, editing = false }: { section
     default:
       return null;
   }
+}
+
+// A benefit card's icon: an SVG from the curated set, or the emoji of an older page
+export function BenefitIcon({ name, size = 22 }: { name: string; size?: number }) {
+  const Icon = benefitIcons[name];
+  return Icon ? <Icon size={size} strokeWidth={2} /> : <>{name}</>;
 }
 
 export const isImagePage = (sections: LandingSection[]) => sections.some((s) => s.type === "poster" && !s.hidden);

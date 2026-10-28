@@ -119,5 +119,19 @@ export default async function phase18(browser) {
     await phone.close();
   });
 
+  await step("storefront contrast and icons: readable text on a light main color, SVG benefit icons", async () => {
+    await db.query("UPDATE shops SET primary_color = '#facc15', design = ? WHERE id = ?", [JSON.stringify({ theme: "classic" }), shopId]);
+    const [[product]] = await db.query("SELECT id FROM products WHERE shop_id = ? LIMIT 1", [shopId]);
+    const sections = [{ id: "h", type: "hero", title: "عنوان" }, { id: "b", type: "benefits", items: [{ icon: "battery", title: "بطارية", text: "أسبوع" }, { icon: "💧", title: "قديم", text: "إيموجي" }] }];
+    await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, status, sections, form) VALUES (?, ?, ?, 'icons', 'icons', 'published', ?, '{}')", [randomUUID(), shopId, product.id, JSON.stringify(sections)]);
+    const visitor = await browser.newPage();
+    await visitor.goto(`${BASE}/store/shop-${tag}/lp/icons`);
+    const cards = visitor.locator("[data-section=benefits] li");
+    expect((await cards.nth(0).locator("svg").count()) === 1 && (await cards.nth(1).innerText()).includes("💧"), "icon names drawn as SVG, older emoji kept");
+    const color = await visitor.locator("button[type=submit]").evaluate((el) => getComputedStyle(el).color);
+    expect(color === "rgb(17, 17, 17)", `dark text on a yellow button (got ${color})`);
+    await visitor.close();
+  });
+
   await context.close();
 }

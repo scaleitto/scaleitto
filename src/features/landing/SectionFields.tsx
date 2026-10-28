@@ -6,6 +6,8 @@ import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { Button, Field, Input, Select, Textarea } from "@/ui";
 import { ImageManager } from "@/ui/ImageManager";
 import { MAX_POSTER_HISTORY, posterKinds, type LandingSection } from "./types";
+import { benefitIconNames } from "./icons";
+import { BenefitIcon } from "./blocks";
 import { startImageEnhance, startPosterImage } from "@/features/ai/actions";
 import { useAiTask } from "@/features/ai/useAiTask";
 import { imageStyles as styleKeys } from "@/lib/enums";
@@ -275,7 +277,7 @@ export function SectionFields({ lang, pageId, section, set, productImages, t }: 
             return (
               <div key={i} className="space-y-2 rounded-lg border border-line p-3">
                 <div className="flex gap-2">
-                  <Input aria-label={f.icon} placeholder="✨" className="w-16 text-center" value={item.icon} maxLength={8} onChange={(e) => update({ icon: e.target.value })} />
+                  <IconPicker value={item.icon} label={f.icon} onChange={(icon) => update({ icon })} />
                   <Input aria-label={f.benefitTitle} placeholder={f.benefitTitle} value={item.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
                   <button type="button" aria-label={ed.remove} className="rounded-lg p-2 text-muted hover:text-danger" onClick={() => p({ items: section.items.filter((_, j) => j !== i) })}>
                     <Trash2 size={15} />
@@ -286,7 +288,7 @@ export function SectionFields({ lang, pageId, section, set, productImages, t }: 
             );
           })}
           {section.items.length < 9 && (
-            <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { icon: "✨", title: "", text: "" }] })}>
+            <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { icon: "sparkles", title: "", text: "" }] })}>
               <Plus size={15} /> {f.addBenefit}
             </button>
           )}
@@ -403,4 +405,33 @@ export function SectionFields({ lang, pageId, section, set, productImages, t }: 
     case "form":
       return <p className="text-sm text-muted">{ed.formHint}</p>;
   }
+}
+
+// The icon of a benefit card: a button showing the current icon, opening a grid of the available ones
+function IconPicker({ value, label, onChange }: { value: string; label: string; onChange: (icon: string) => void }) {
+  return (
+    <details className="relative shrink-0" data-testid="icon-picker">
+      <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-[10px] border border-field-line bg-field text-accent hover:border-muted/50" aria-label={label} title={label}>
+        <BenefitIcon name={value} size={18} />
+      </summary>
+      <div className="absolute start-0 top-11 z-20 grid w-64 grid-cols-6 gap-1 rounded-xl border border-line bg-panel p-2 shadow-lg">
+        {benefitIconNames.map((name) => (
+          <button
+            key={name}
+            type="button"
+            title={name}
+            aria-label={name}
+            aria-pressed={value === name}
+            className={`flex size-9 items-center justify-center rounded-lg ${value === name ? "bg-accent text-accent-fg" : "text-fg hover:bg-panel-2"}`}
+            onClick={(e) => {
+              onChange(name);
+              e.currentTarget.closest("details")?.removeAttribute("open");
+            }}
+          >
+            <BenefitIcon name={name} size={17} />
+          </button>
+        ))}
+      </div>
+    </details>
+  );
 }

@@ -17,7 +17,7 @@ export function ThankYou({ order, locale: storeLocale, children }: { order: Orde
   const message = order.landing ? resolveForm(order.landing.form).thankYou : "";
   return (
     <div lang={locale} dir={dir(locale)} className="mx-auto max-w-lg space-y-5 py-6 text-center">
-      <CircleCheckBig size={64} className="mx-auto text-brand" />
+      <CircleCheckBig size={64} className="mx-auto text-brand-ink" />
       <h1 className="text-2xl font-extrabold">{t.thanks.title}</h1>
       <p className="text-s-muted">{fmt(t.thanks.body, { phone: order.phone })}</p>
       {message && (
@@ -47,7 +47,7 @@ export function ThankYou({ order, locale: storeLocale, children }: { order: Orde
         </p>
         <p className="flex justify-between border-t border-s-edge pt-3 text-lg">
           <span className="font-bold">{t.summary.total}</span>
-          <span className="font-extrabold text-brand">{formatPrice(order.total, cur)}</span>
+          <span className="font-extrabold text-brand-ink">{formatPrice(order.total, cur)}</span>
         </p>
       </div>
       {children}

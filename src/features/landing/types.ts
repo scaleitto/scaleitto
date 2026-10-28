@@ -1,6 +1,7 @@
 // Landing pages: a list of sections + order form settings, stored as JSON on landing_pages.
 // Everything coming from the editor or the AI goes through sanitizeSections / resolveForm,
 // so a page can never contain unknown section types, script URLs or broken data.
+import { isBenefitIcon } from "./icons";
 
 export const sectionTypes = ["poster", "marquee", "hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
 // What a poster section is about (the AI designs one marketing image per section)
@@ -22,7 +23,7 @@ export type LandingSection = Base &
     | { type: "text"; title?: string; body: string }
     // A photo beside a short title + paragraph (sides alternate down the page)
     | { type: "imageText"; title: string; body: string; image?: string }
-    // Benefit cards: emoji icon, short title, one sentence
+    // Benefit cards: an icon name from icons.ts (older pages: an emoji), short title, one sentence
     | { type: "benefits"; title?: string; items: { icon: string; title: string; text: string }[] }
     | { type: "image"; url: string; caption?: string }
     | { type: "gallery"; title?: string; images: string[] }
@@ -153,8 +154,9 @@ export function sanitizeSections(input: unknown): LandingSection[] {
         const items = (Array.isArray(s.items) ? s.items : [])
           .map((x) => {
             const r = (x ?? {}) as Record<string, unknown>;
-            // One emoji (or a couple of characters) as the card's icon
-            return { icon: [...str(r.icon, 16)].slice(0, 2).join("") || "✓", title: str(r.title, 120), text: str(r.text, 400) };
+            // An icon name (icons.ts), or one emoji on older pages
+            const icon = str(r.icon, 16);
+            return { icon: isBenefitIcon(icon) ? icon : [...icon].slice(0, 2).join("") || "check", title: str(r.title, 120), text: str(r.text, 400) };
           })
           .filter((x) => x.title)
           .slice(0, 9);

@@ -17,7 +17,7 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   return (
     <ThankYou order={order} locale={locale}>
       <PixelScope {...await orderPixels(shop.id, order)} />
-      <Link href={(await storeBase(shop.slug)) || "/"} className="inline-block font-semibold text-brand hover:underline">
+      <Link href={(await storeBase(shop.slug)) || "/"} className="inline-block font-semibold text-brand-ink hover:underline">
         {getStoreText(locale).thanks.back}
       </Link>
     </ThankYou>

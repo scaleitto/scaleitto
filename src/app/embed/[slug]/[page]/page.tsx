@@ -29,6 +29,7 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
         rates={await getShippingRates(shop.id)}
         action={submitOrder.bind(null, shop.slug, product.id, page.id, true)}
         saveLead={saveLead.bind(null, shop.slug, product.id)}
+        theme={findTheme(resolveDesign(shop.design).theme)}
         embedded
       >
         <LandingView pageId={page.id} />

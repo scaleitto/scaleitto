@@ -2,6 +2,7 @@ import "server-only";
 import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { newSectionId, sanitizeSections, type LandingSection, type PageLanguage } from "./types";
+import { benefitIconNames } from "./icons";
 import { cleanStrategy, STRATEGY_SCHEMA, strategyInstructions, type RawStrategy } from "./strategy";
 
 // The prompt and output schema of the AI landing page writer (honesty rules included).
@@ -56,14 +57,14 @@ Default structure (proven for Algerian COD pages; follow the persuasion map or t
 1. hero: a hook headline (max ~8 words) naming the outcome or feeling the customer wants, a subtitle (max ~18 words) that removes the main doubt, the most attractive full-product photo. Optional short badge only when true (e.g. the real discount percentage).
 2. badges: 3–4 short trust points TRUE for every order here: cash on delivery, delivery to the 58 wilayas, a phone call to confirm before shipping (and "check before paying" ONLY if the merchant notes allow it).
 3. imageText: the problem or desire in the customer's words, then how this product answers it — with a photo that shows it.
-4. benefits: 3–6 benefit cards, each: one fitting emoji icon, a 2–5 word title, one concrete sentence (benefit first, then the feature that delivers it).
+4. benefits: 3–6 benefit cards, each: the best-fitting icon name from the allowed list, a 2–5 word title, one concrete sentence (benefit first, then the feature that delivers it).
 5. imageText (1–3 more): each zooms on one strong point (material, detail, use, size, what is included) with a different photo. Alternate text-heavy and photo-heavy blocks so the page breathes.
 6. features: a quick checklist of concrete specs or what is in the box, only facts given.
 7. steps: how ordering works in 3–4 steps (fill the form → we call you to confirm → delivery → pay on receipt).
 8. faq: 4–6 real objections of Algerian COD buyers (payment on delivery, delivery delay, delivery cost shown in the form, sizes/usage, returns/warranty ONLY if the merchant described them).
 9. cta: a closing call to action restating the main benefit (+ the real offer if there is one).
 
-Creativity: write like a top Algerian e-commerce copywriter — vivid, sensory and specific to THIS product (what it looks like, how it feels to use it, the moment of life it improves). Vary sentence rhythm, use the customer's words, no generic filler ("high quality product", "best choice"). Emojis: only as benefit icons, never in titles.
+Creativity: write like a top Algerian e-commerce copywriter — vivid, sensory and specific to THIS product (what it looks like, how it feels to use it, the moment of life it improves). Vary sentence rhythm, use the customer's words, no generic filler ("high quality product", "best choice"). No emojis anywhere.
 
 Strict honesty rules (non-negotiable):
 - Use ONLY facts from the product data and merchant notes. Never invent statistics, certifications, awards, medical or health claims, guarantees, return policies, stock levels, customer counts, or deadlines.
@@ -111,7 +112,7 @@ const RESPONSE_SCHEMA = {
           section("badges", { items: strList }),
           section("text", { title: nullableStr, body: str }),
           section("imageText", { title: str, body: str, image: nullableStr }),
-          section("benefits", { title: nullableStr, items: { type: "array", items: { type: "object", additionalProperties: false, required: ["icon", "title", "text"], properties: { icon: str, title: str, text: str } } } }),
+          section("benefits", { title: nullableStr, items: { type: "array", items: { type: "object", additionalProperties: false, required: ["icon", "title", "text"], properties: { icon: { type: "string", enum: benefitIconNames }, title: str, text: str } } } }),
           section("image", { url: str }),
           section("features", { title: nullableStr, items: strList }),
           section("steps", { title: nullableStr, items: strList }),

@@ -53,7 +53,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
         <div className="space-y-2">
           <h1 className="text-2xl leading-snug font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
           <p className="flex flex-wrap items-baseline gap-3">
-            <span className="text-3xl font-extrabold text-brand">{formatPrice(product.price, cur)}</span>
+            <span className="text-3xl font-extrabold text-brand-ink">{formatPrice(product.price, cur)}</span>
             {discountOf(product.price, product.compareAtPrice) > 0 && product.compareAtPrice ? (
               <>
                 <span className="text-lg text-s-muted line-through">{formatPrice(product.compareAtPrice, cur)}</span>
@@ -65,10 +65,10 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           </p>
           <ul className="flex flex-wrap gap-2 text-xs font-semibold text-s-muted">
             <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
-              <BadgeCheck size={14} className="text-brand" /> {t.cod}
+              <BadgeCheck size={14} className="text-brand-ink" /> {t.cod}
             </li>
             <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
-              <Truck size={14} className="text-brand" /> {t.fastDelivery}
+              <Truck size={14} className="text-brand-ink" /> {t.fastDelivery}
             </li>
           </ul>
         </div>

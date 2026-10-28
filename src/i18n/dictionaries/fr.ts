@@ -698,7 +698,7 @@ const fr: Dictionary = {
         textsHint: "Les textes sont écrits dans l'image : gardez-les courts.",
       },
       fields: {
-        icon: "Icône (emoji)", benefitTitle: "Titre", benefitText: "Explication", addBenefit: "Ajouter une carte", enhance: "Améliorer la photo avec l'IA", enhancing: "Amélioration de la photo…", styles: { studio: "Studio (fond net)", lifestyle: "En situation (scène réelle)", premium: "Premium (éclairage haut de gamme)" },
+        icon: "Icône", benefitTitle: "Titre", benefitText: "Explication", addBenefit: "Ajouter une carte", enhance: "Améliorer la photo avec l'IA", enhancing: "Amélioration de la photo…", styles: { studio: "Studio (fond net)", lifestyle: "En situation (scène réelle)", premium: "Premium (éclairage haut de gamme)" },
         title: "Titre",
         subtitle: "Sous-titre",
         badge: "Badge (ex. : -25 %)",

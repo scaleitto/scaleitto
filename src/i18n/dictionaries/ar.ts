@@ -696,7 +696,7 @@ const ar = {
         textsHint: "النصوص تُكتب داخل الصورة: اجعلها قصيرة.",
       },
       fields: {
-        icon: "رمز (إيموجي)", benefitTitle: "العنوان", benefitText: "الشرح", addBenefit: "إضافة بطاقة", enhance: "تحسين الصورة بالذكاء الاصطناعي", enhancing: "جارٍ تحسين الصورة…", styles: { studio: "استوديو (خلفية نظيفة)", lifestyle: "في الاستعمال (مشهد واقعي)", premium: "فاخر (إضاءة راقية)" },
+        icon: "الأيقونة", benefitTitle: "العنوان", benefitText: "الشرح", addBenefit: "إضافة بطاقة", enhance: "تحسين الصورة بالذكاء الاصطناعي", enhancing: "جارٍ تحسين الصورة…", styles: { studio: "استوديو (خلفية نظيفة)", lifestyle: "في الاستعمال (مشهد واقعي)", premium: "فاخر (إضاءة راقية)" },
         title: "العنوان",
         subtitle: "النص الفرعي",
         badge: "شارة (مثال: ‎-25%)",

@@ -24,7 +24,7 @@ export function StoreFrame({ locale, color, theme, children, className = "" }: {
 
 export function AnnouncementBar({ text }: { text: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 bg-brand px-4 py-2 text-center text-sm font-semibold text-white" data-testid="announcement">
+    <div className="flex items-center justify-center gap-2 bg-brand px-4 py-2 text-center text-sm font-semibold text-brand-fg" data-testid="announcement">
       <Megaphone size={15} className="shrink-0" /> {text}
     </div>
   );
@@ -36,7 +36,7 @@ function Logo({ name, logoUrl }: { name: string; logoUrl: string | null }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={logoUrl} alt="" className="size-10 shrink-0 rounded-[calc(var(--s-radius)/2)] object-contain" data-testid="store-logo" />
   ) : (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-[calc(var(--s-radius)/2)] bg-brand text-lg font-extrabold text-white">{name.trim().charAt(0).toUpperCase()}</span>
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-[calc(var(--s-radius)/2)] bg-brand text-lg font-extrabold text-brand-fg">{name.trim().charAt(0).toUpperCase()}</span>
   );
 }
 
@@ -66,7 +66,7 @@ export function StoreHeader({
         </a>
       )}
       {phone && (
-        <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-s-edge px-3 py-1.5 text-sm font-semibold text-s-text hover:border-brand hover:text-brand">
+        <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-s-edge px-3 py-1.5 text-sm font-semibold text-s-text hover:border-brand hover:text-brand-ink">
           <Phone size={14} /> <span className="hidden sm:inline">{phone}</span>
         </a>
       )}
@@ -77,10 +77,10 @@ export function StoreHeader({
       <div className={`mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 ${center ? "justify-between sm:grid sm:grid-cols-3" : "justify-between"}`}>
         {center && t && (
           <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted sm:flex">
-            <Link href={homeHref} className="hover:text-brand">
+            <Link href={homeHref} className="hover:text-brand-ink">
               {t.home}
             </Link>
-            <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand">
+            <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand-ink">
               {t.products}
             </a>
           </nav>
@@ -92,10 +92,10 @@ export function StoreHeader({
         <div className={`flex items-center gap-5 ${center ? "sm:justify-self-end" : ""}`}>
           {!center && t && (
             <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted md:flex">
-              <Link href={homeHref} className="hover:text-brand">
+              <Link href={homeHref} className="hover:text-brand-ink">
                 {t.home}
               </Link>
-              <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand">
+              <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand-ink">
                 {t.products}
               </a>
             </nav>
@@ -111,7 +111,7 @@ function HeroButton({ text, light = false }: { text: string; light?: boolean }) 
   return (
     <a
       href="#products"
-      className={`inline-flex items-center gap-2 rounded-[var(--s-radius-btn)] px-7 py-3.5 text-base font-extrabold shadow-lg transition hover:-translate-y-0.5 ${light ? "bg-white text-brand" : "bg-brand text-white shadow-brand/25"}`}
+      className={`inline-flex items-center gap-2 rounded-[var(--s-radius-btn)] px-7 py-3.5 text-base font-extrabold shadow-lg transition hover:-translate-y-0.5 ${light ? "bg-white text-brand-ink" : "bg-brand text-brand-fg shadow-brand/25"}`}
     >
       <ShoppingBag size={18} /> {text}
     </a>
@@ -122,15 +122,15 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
   const text = (light: boolean, centered: boolean) => (
     <div className={`flex flex-col gap-4 ${centered ? "items-center text-center" : "items-start text-start"}`}>
       {hero.title && <h1 className="max-w-2xl text-3xl leading-tight font-extrabold tracking-tight sm:text-5xl">{hero.title}</h1>}
-      {hero.subtitle && <p className={`max-w-xl text-base sm:text-lg ${light ? "text-white/85" : "text-s-muted"}`}>{hero.subtitle}</p>}
+      {hero.subtitle && <p className={`max-w-xl text-base sm:text-lg ${light ? "opacity-85" : "text-s-muted"}`}>{hero.subtitle}</p>}
       {hero.buttonText && <HeroButton text={hero.buttonText} light={light} />}
       {t && (
-        <p className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold ${centered ? "justify-center" : ""} ${light ? "text-white/85" : "text-s-muted"}`}>
+        <p className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold ${centered ? "justify-center" : ""} ${light ? "opacity-85" : "text-s-muted"}`}>
           <span className="flex items-center gap-1.5">
-            <BadgeCheck size={16} className={light ? "" : "text-brand"} /> {t.cod}
+            <BadgeCheck size={16} className={light ? "" : "text-brand-ink"} /> {t.cod}
           </span>
           <span className="flex items-center gap-1.5">
-            <Truck size={16} className={light ? "" : "text-brand"} /> {t.fastDelivery}
+            <Truck size={16} className={light ? "" : "text-brand-ink"} /> {t.fastDelivery}
           </span>
         </p>
       )}
@@ -159,7 +159,7 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
   // full = across the page, card = rounded banner; both put the text over the photo or the main color
   const full = variant === "full";
   return (
-    <section className={`relative overflow-hidden bg-gradient-to-br from-brand to-brand/70 text-white ${full ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0 sm:rounded-[var(--s-radius)]" : "rounded-[var(--s-radius)]"}`} data-testid="hero" data-variant={variant}>
+    <section className={`relative overflow-hidden bg-gradient-to-br from-brand to-brand/70 ${hero.image ? "text-white" : "text-brand-fg"} ${full ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0 sm:rounded-[var(--s-radius)]" : "rounded-[var(--s-radius)]"}`} data-testid="hero" data-variant={variant}>
       {hero.image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={hero.image} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover" />
@@ -181,7 +181,7 @@ export function TrustBadges({ t }: { t: StoreText }) {
     <ul className="grid grid-cols-3 gap-2 sm:gap-4" data-testid="badges">
       {badges.map(({ icon: Icon, label, hint }) => (
         <li key={label} className="flex flex-col items-center gap-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-3 text-center shadow-[var(--s-shadow)] sm:flex-row sm:gap-3 sm:p-4 sm:text-start">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand sm:size-11">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand-ink sm:size-11">
             <Icon size={20} />
           </span>
           <span className="min-w-0">
@@ -202,7 +202,7 @@ export function OrderSteps({ t }: { t: StoreText }) {
       <ol className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         {t.steps.map((step, i) => (
           <li key={step.title} className="flex items-center gap-4 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-4 shadow-[var(--s-shadow)] sm:flex-col sm:p-6 sm:text-center">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-lg font-extrabold text-white">{i + 1}</span>
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-lg font-extrabold text-brand-fg">{i + 1}</span>
             <span className="min-w-0 space-y-1">
               <span className="block font-bold">{step.title}</span>
               <span className="block text-sm text-s-muted">{step.hint}</span>
@@ -245,11 +245,11 @@ function ProductCard({ p, href, currency, t, layout }: { p: GridProduct; href: s
       <div className={`flex flex-1 flex-col gap-1.5 ${minimal ? "pt-3" : "p-3 sm:p-4"}`}>
         <h3 className="line-clamp-2 text-sm leading-snug font-semibold sm:text-base">{p.name}</h3>
         <p className="mt-auto flex flex-wrap items-baseline gap-x-2">
-          <span className="text-base font-extrabold text-brand sm:text-lg">{formatPrice(p.price, currency)}</span>
+          <span className="text-base font-extrabold text-brand-ink sm:text-lg">{formatPrice(p.price, currency)}</span>
           {off > 0 && p.compareAtPrice ? <span className="text-xs text-s-muted line-through">{formatPrice(p.compareAtPrice, currency)}</span> : null}
         </p>
         {layout.cards === "elevated" && (
-          <span className="mt-1 flex items-center justify-center gap-1.5 rounded-[var(--s-radius-btn)] bg-brand py-2 text-sm font-bold text-white transition group-hover:brightness-110">
+          <span className="mt-1 flex items-center justify-center gap-1.5 rounded-[var(--s-radius-btn)] bg-brand py-2 text-sm font-bold text-brand-fg transition group-hover:brightness-110">
             <ShoppingBag size={15} /> {t.viewProduct}
           </span>
         )}
@@ -326,7 +326,7 @@ export function StoreFooter({
           <nav className="space-y-2 text-sm" data-testid="policy-links">
             <p className="font-bold">{t.links}</p>
             {policies.map((p) => (
-              <a key={p.kind} href={p.href} className="block text-s-muted hover:text-brand hover:underline">
+              <a key={p.kind} href={p.href} className="block text-s-muted hover:text-brand-ink hover:underline">
                 {t.policies[p.kind]}
               </a>
             ))}
@@ -336,7 +336,7 @@ export function StoreFooter({
           <div className="space-y-3 text-sm">
             <p className="font-bold">{t.contact}</p>
             {phone && (
-              <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-2 text-s-muted hover:text-brand">
+              <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-2 text-s-muted hover:text-brand-ink">
                 <Phone size={15} /> {phone}
               </a>
             )}
@@ -345,7 +345,7 @@ export function StoreFooter({
                 <p className="text-xs font-semibold text-s-muted">{t.followUs}</p>
                 <div className="flex flex-wrap gap-2">
                   {links.map((l) => (
-                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-s-edge px-3.5 py-1.5 text-sm font-semibold text-s-muted hover:border-brand hover:text-brand">
+                    <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-s-edge px-3.5 py-1.5 text-sm font-semibold text-s-muted hover:border-brand hover:text-brand-ink">
                       {l.label === "WhatsApp" && <MessageCircle size={14} />}
                       {l.label}
                     </a>

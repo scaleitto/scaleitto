@@ -199,6 +199,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   work. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout only); primary green #047857
   (`accent`), bright #10b981 (`accent-bright`) for indicators only, `warning` = attention orange; sidebar `sidebar` color.
   Tables inside the shell (`[data-shell]`) get their head/rows/tabular numbers from globals.css; selects use `select-chevron`.
+- Storefront/landing rules: `design-system/scaleitto/pages/storefront.md`. On the merchant's color use `text-brand-fg` (never
+  text-white) and for the color as text `text-brand-ink` (set by `brandVars` in themes.ts from `src/lib/contrast.ts`).
+  Benefit icons are Lucide names from `landing/icons.ts` (AI schema enum; older emoji still shown).
 
 ## Testing (required before pushing every section)
 - `npm test` — unit tests in `tests/unit/` (node test runner via tsx).

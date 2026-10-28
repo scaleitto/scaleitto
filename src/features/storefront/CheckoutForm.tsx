@@ -15,7 +15,7 @@ import { defaultForm, type FormSettings } from "@/features/landing/types";
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
 type LeadInput = { name?: string; phone?: string; wilaya?: number | null; variantId?: string; quantity?: number };
 
-const field = "w-full rounded-[var(--s-radius-btn)] border border-s-field-edge bg-s-field px-3.5 py-3 text-base outline-none transition focus:border-brand focus:bg-s-surface focus:ring-2 focus:ring-brand/20";
+const field = "w-full rounded-[var(--s-radius-btn)] border border-s-field-edge bg-s-field px-3.5 py-3 text-base outline-none transition focus:border-brand focus:bg-s-surface focus:ring-2 focus:ring-brand/20 aria-[invalid=true]:border-red-500";
 const label = "mb-1.5 block text-sm font-semibold text-s-muted";
 
 export function CheckoutForm({
@@ -130,7 +130,7 @@ export function CheckoutForm({
                     disabled={!ok}
                     onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
                     className={`min-w-12 rounded-[var(--s-radius-btn)] border-2 px-4 py-2 text-sm font-bold transition ${
-                      active ? "border-brand bg-brand text-white" : "border-s-field-edge bg-s-surface hover:border-brand"
+                      active ? "border-brand bg-brand text-brand-fg" : "border-s-field-edge bg-s-surface hover:border-brand"
                     } disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`}
                   >
                     {value}
@@ -190,14 +190,14 @@ export function CheckoutForm({
             <label htmlFor="name" className={label}>
               {t.form.name}
             </label>
-            <input id="name" name="name" autoComplete="name" placeholder={t.form.namePlaceholder} className={field} onBlur={rememberLead} />
+            <input id="name" aria-invalid={Boolean(err("name"))} name="name" autoComplete="name" placeholder={t.form.namePlaceholder} className={field} onBlur={rememberLead} />
             {err("name") && <p className="mt-1 text-sm text-red-600">{err("name")}</p>}
           </div>
           <div>
             <label htmlFor="phone" className={label}>
               {t.form.phone}
             </label>
-            <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="0555 12 34 56" className={`${field} text-start`} onBlur={rememberLead} />
+            <input id="phone" aria-invalid={Boolean(err("phone"))} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="0555 12 34 56" className={`${field} text-start`} onBlur={rememberLead} />
             {err("phone") && <p className="mt-1 text-sm text-red-600">{err("phone")}</p>}
           </div>
           <div>
@@ -205,9 +205,9 @@ export function CheckoutForm({
               {t.form.wilaya}
             </label>
             <select
-              id="wilaya"
+              id="wilaya" aria-invalid={Boolean(err("wilaya"))}
               name="wilaya"
-              className={field}
+              className={`${field} select-chevron cursor-pointer appearance-none pe-10`}
               value={wilaya ?? ""}
               onChange={(e) => {
                 const code = Number(e.target.value) || null;
@@ -233,7 +233,7 @@ export function CheckoutForm({
             <label htmlFor="commune" className={label}>
               {t.form.commune}
             </label>
-            <input id="commune" name="commune" placeholder={t.form.communePlaceholder} className={field} />
+            <input id="commune" aria-invalid={Boolean(err("commune"))} name="commune" placeholder={t.form.communePlaceholder} className={field} />
             {err("commune") && <p className="mt-1 text-sm text-red-600">{err("commune")}</p>}
           </div>
           {settings.custom.map((c) => (
@@ -243,7 +243,7 @@ export function CheckoutForm({
                 {!c.required && <span className="font-normal"> ({t.form.optional})</span>}
               </label>
               {c.type === "select" ? (
-                <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={field} defaultValue="">
+                <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={`${field} select-chevron cursor-pointer appearance-none pe-10`} defaultValue="">
                   <option value="">{t.form.choose}</option>
                   {c.options.map((o) => (
                     <option key={o} value={o}>
@@ -286,7 +286,7 @@ export function CheckoutForm({
             <label htmlFor="address" className={label}>
               {settings.address === "required" ? t.form.addressRequired : t.form.address}
             </label>
-            <input id="address" name="address" autoComplete="street-address" placeholder={t.form.addressPlaceholder} className={field} />
+            <input id="address" aria-invalid={Boolean(err("address"))} name="address" autoComplete="street-address" placeholder={t.form.addressPlaceholder} className={field} />
             {err("address") && <p className="mt-1 text-sm text-red-600">{err("address")}</p>}
           </div>
         )}
@@ -314,7 +314,7 @@ export function CheckoutForm({
           </div>
           <div className="flex justify-between border-t border-s-edge pt-2 text-base">
             <dt className="font-bold">{t.summary.total}</dt>
-            <dd className="font-extrabold text-brand" data-testid="total">
+            <dd className="font-extrabold text-brand-ink" data-testid="total">
               {formatPrice(total, currency)}
             </dd>
           </div>
@@ -329,7 +329,7 @@ export function CheckoutForm({
         <button
           type="submit"
           disabled={pending || soldOut}
-          className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-white shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
         >
           {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
           {soldOut ? t.outOfStock : pending ? t.form.sending : `${settings.buttonText || t.form.submit} · ${formatPrice(total, currency)}`}
@@ -338,7 +338,7 @@ export function CheckoutForm({
       </form>
 
       {/* Mobile: a sticky button that brings the form into view */}
-      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible || embedded || !settings.stickyButton ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-white shadow-xl md:hidden`}>
+      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible || embedded || !settings.stickyButton ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-brand-fg shadow-xl md:hidden`}>
         <ShoppingBag size={18} /> {settings.buttonText || t.form.title}
       </a>
     </>

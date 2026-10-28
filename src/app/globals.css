@@ -21,6 +21,9 @@
   --color-info: #0369a1;
   --color-sidebar: #0b2a1f;
   --color-brand: var(--brand, #22c55e);
+  /* Set by themeStyle(): text on the merchant's color, and the color made readable as text */
+  --color-brand-fg: var(--brand-fg, #ffffff);
+  --color-brand-ink: var(--brand-ink, var(--brand, #15803d));
   /* Storefront theme tokens (set per store by src/features/themes/themes.ts). The line color is "s-edge":
      "border-s-line" would also be read as Tailwind's border-inline-start + the dashboard line color. */
   --color-s-bg: var(--s-bg, #f8fafc);

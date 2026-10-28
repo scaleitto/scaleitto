@@ -26,7 +26,7 @@ function landingAnswer(body) {
       { type: "hero", title: "عنوان من الذكاء الاصطناعي", subtitle: "جملة قصيرة", image: images[0] ?? null, badge: null },
       { type: "badges", items: ["الدفع عند الاستلام", "توصيل 58 ولاية"] },
       { type: "imageText", title: "تفاصيل تفرق", body: "صورة قريبة تبين الجودة.", image: images[1] ?? null },
-      { type: "benefits", title: "علاش تختارها", items: [{ icon: "💧", title: "مقاومة للماء", text: "استعملها في كل يوم." }, { icon: "🔋", title: "بطارية طويلة", text: "أيام بلا شحن." }] },
+      { type: "benefits", title: "علاش تختارها", items: [{ icon: "droplet", title: "مقاومة للماء", text: "استعملها في كل يوم." }, { icon: "battery", title: "بطارية طويلة", text: "أيام بلا شحن." }] },
       { type: "features", title: null, items: ["ميزة أولى", "ميزة ثانية"] },
       { type: "image", url: "https://evil.example/not-allowed.png" },
       { type: "faq", title: null, items: [{ q: "كيف أطلب؟", a: "املأ الاستمارة." }] },
