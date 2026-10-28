@@ -11,6 +11,7 @@ import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { wilayaName } from "@/lib/wilayas";
 import type { AppKey } from "@/server/db/schema";
+import { SCRIPT_VERSION } from "./apps-script";
 
 // Orders sent to the shop's apps: a Google Sheet (through the merchant's Apps Script) and/or a webhook.
 // Every send is logged in app_events; a failing app never blocks an order.
@@ -100,13 +101,17 @@ async function post(app: App, payload: Record<string, unknown>, event: string): 
   try {
     if (app.app === "google_sheets") {
       const r = await safePostJson(app.url, JSON.stringify({ ...payload, token: secret }), { timeoutMs: 25_000 });
-      let json: { ok?: boolean; error?: string; count?: number } | null = null;
+      let json: { ok?: boolean; error?: string; count?: number; sheet?: string; version?: number } | null = null;
       try {
         json = JSON.parse(r.text);
       } catch {
         // Apps Script answers with an HTML page when the deployment is not public ("Anyone")
       }
-      if (json?.ok) return { ok: true, detail: `OK (${json.count ?? 0})` };
+      if (json?.ok) {
+        // A test with a copy of the script older than the one shown in the dashboard
+        if (event === "test" && (json.version ?? 1) < SCRIPT_VERSION) return { ok: false, detail: OLD_SCRIPT };
+        return { ok: true, detail: event === "test" ? (json.sheet ?? "Orders") : `OK (${json.count ?? 0})` };
+      }
       return { ok: false, detail: json?.error ? `Script: ${json.error}` : `HTTP ${r.status} — ${r.contentType.includes("html") ? "HTML (deploy the script as a web app with access: Anyone)" : r.text.slice(0, 200)}` };
     }
     const body = JSON.stringify({ event, ...payload });
@@ -178,10 +183,15 @@ export async function backfillSheet(app: App): Promise<Result> {
   return r;
 }
 
-// "Test" button: the sheet gets its header row, the webhook a test event.
+export const OLD_SCRIPT = "OLD_SCRIPT";
+
+// "Test" button: the sheet gets its header row and a visible test row (key "TEST", updated by every test),
+// the webhook a test event. For the sheet, the detail is the tab the script writes to.
 export async function testApp(app: App): Promise<Result> {
   const locale = await shopLocaleOf(app.shopId);
-  const r = await post(app, app.app === "google_sheets" ? { headers: sheetHeaders(locale), rows: [] } : { order: null }, "test");
+  const headers = sheetHeaders(locale);
+  const testRow = headers.map((_, i) => (i === 0 ? "TEST" : i === 1 ? getDictionary(locale).apps.sheets.testRow : i === 2 ? new Date().toISOString().slice(0, 16).replace("T", " ") : ""));
+  const r = await post(app, app.app === "google_sheets" ? { headers, rows: [testRow] } : { order: null }, "test");
   await log(app.shopId, app.app, "test", null, r);
   return r;
 }

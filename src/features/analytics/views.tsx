@@ -278,7 +278,7 @@ function Table({ title, head, rows, testId }: { title: string; head: string[]; r
   );
 }
 
-const tone = (v: number | null) => (v == null ? "text-muted" : v >= 70 ? "text-accent" : v >= 50 ? "text-amber-300" : "text-danger");
+const tone = (v: number | null) => (v == null ? "text-muted" : v >= 70 ? "text-accent" : v >= 50 ? "text-warning" : "text-danger");
 
 export function ProductsTable({ data, t }: { data: Analytics; t: Dictionary }) {
   const c = t.analytics.columns;

@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { resolveCname, resolve4, resolveTxt } from "node:dns/promises";
-import { getCurrentPlan } from "@/server/limits";
+import { getCurrentPlan, isPlatformShop } from "@/server/limits";
 export { normalizeDomain } from "./domain-name";
 
 export const DOMAIN_FEATURE = "custom_domain";
@@ -10,6 +10,7 @@ export const newDomainToken = () => randomBytes(16).toString("hex");
 export const txtName = (domain: string) => `_scaleitto.${domain}`;
 
 export async function planAllowsDomain(shopId: string) {
+  if (await isPlatformShop(shopId)) return true;
   return Boolean((await getCurrentPlan(shopId))?.plan.features.includes(DOMAIN_FEATURE));
 }
 

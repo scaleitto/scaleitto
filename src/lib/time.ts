@@ -35,3 +35,8 @@ export function addDays(day: string, n: number) {
 export function algeriaMonthStart(now = new Date()) {
   return new Date(`${algeriaParts(now).day.slice(0, 8)}01T00:00:00+01:00`);
 }
+
+// The first instant of the current Algeria day
+export function algeriaDayStart(now = new Date()) {
+  return new Date(`${algeriaParts(now).day}T00:00:00+01:00`);
+}

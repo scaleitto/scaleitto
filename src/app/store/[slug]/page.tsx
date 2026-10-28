@@ -17,9 +17,9 @@ export default async function StoreHome({ params }: PageProps<"/store/[slug]">) 
   const theme = findTheme(design.theme);
   const [products, base, pixels] = await Promise.all([listStoreProducts(shop.id), storeBase(shop.slug), pagePixels(shop.id)]);
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PixelScope pixels={pixels} />
-      {design.hero.enabled && <Hero hero={design.hero} variant={theme.layout.hero} />}
+      {design.hero.enabled && <Hero hero={design.hero} variant={theme.layout.hero} t={t} />}
       {design.showBadges && <TrustBadges t={t} />}
       <ProductGrid title={design.productsTitle} products={products} base={base} currency={currencyLabel(locale)} t={t} layout={theme.layout} />
     </div>

@@ -19,7 +19,8 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
       brand={t.brand}
       shopName={shop.name}
       userName={user.name}
-      topLink={{ href: storeUrl(shop), label: t.nav.viewStore, external: true }}
+      // Call center agents work on orders only: no link to the store they do not manage
+      topLink={role === "agent" ? undefined : { href: storeUrl(shop), label: t.nav.viewStore, external: true }}
       adminLink={user.isPlatformAdmin ? { href: `/${lang}/admin`, label: t.admin.nav.adminLink } : undefined}
       items={sectionsFor(role).map((s) => ({ key: s.key, href: sectionHref(lang, s.key), label: t.nav[s.key] }))}
       labels={{ logout: t.nav.logout, menu: t.nav.menu }}

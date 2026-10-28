@@ -30,7 +30,7 @@ export default async function AdminOverview({ params }: PageProps<"/[lang]/admin
           const body = (
             <Card className={`h-full space-y-1 p-4 ${tile.alert ? "border-amber-400/50" : ""}`} data-tile={tile.id}>
               <p className="text-xs text-muted">{tile.label}</p>
-              <p className={`text-2xl font-bold tabular-nums ${tile.alert ? "text-amber-300" : ""}`} data-value>
+              <p className={`text-2xl font-bold tabular-nums ${tile.alert ? "text-warning" : ""}`} data-value>
                 {tile.value}
               </p>
               {tile.hint && <p className="text-xs text-muted">{tile.hint}</p>}

@@ -25,9 +25,9 @@ function ThemePreview({ theme, color, shop, preview, t, compact }: { theme: Them
     : [1, 2, 3, 4].map((n) => ({ id: String(n), slug: String(n), name: fmt(t.sampleProduct, { n }), price: 2500 + n * 500, compareAtPrice: n % 2 ? 4000 + n * 500 : null, images: [] }));
   return (
     <StoreFrame locale={preview.locale} color={color} theme={theme}>
-      <StoreHeader name={shop.name} logoUrl={shop.logoUrl} phone={compact ? null : shop.phone} homeHref="#" align={theme.layout.header} />
+      <StoreHeader name={shop.name} logoUrl={shop.logoUrl} phone={compact ? null : shop.phone} homeHref="#" align={theme.layout.header} t={compact ? undefined : preview.storeText} />
       <div className="space-y-6 p-4">
-        <Hero hero={hero} variant={theme.layout.hero} />
+        <Hero hero={hero} variant={theme.layout.hero} t={compact ? undefined : preview.storeText} />
         {!compact && shop.design.showBadges && <TrustBadges t={preview.storeText} />}
         <ProductGrid title={shop.design.productsTitle} products={compact ? products.slice(0, theme.layout.columns) : products} base="#" currency={preview.currency} t={preview.storeText} layout={theme.layout} />
       </div>

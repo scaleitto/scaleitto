@@ -63,7 +63,7 @@ export default async function phase10(browser) {
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
     await owner.click('[data-testid=status-picker] button:has-text("مؤكد")');
     await waitFor(() => sheet.rows.get("1001")?.[sheet.headers.indexOf("الحالة")] === "مؤكد", "row updated to confirmed");
-    expect(sheet.rows.size === 1, "same row, not a new one");
+    expect([...sheet.rows.keys()].filter((k) => k !== "TEST").length === 1, "same row, not a new one");
   });
 
   await step("last 30 days sent on demand; a wrong token shows the script's answer", async () => {

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
-import { getActiveContract, getAllUsage, getCurrentPlan, getEffectiveLimits } from "@/server/limits";
+import { getActiveContract, getAllUsage, getCurrentPlan, getEffectiveLimits, isPlatformShop } from "@/server/limits";
 import { limitKeys, type LimitKey } from "@/server/db/schema";
 import { lockedOrderCount } from "./locked";
 
@@ -11,7 +11,8 @@ const percent = (used: number, limit: number) => (limit === -1 ? 0 : limit === 0
 
 // Everything the Plans page shows
 export async function planOverview(shopId: string) {
-  const [current, contract, limits, usage, plans, requests] = await Promise.all([
+  const [platform, current, contract, limits, usage, plans, requests] = await Promise.all([
+    isPlatformShop(shopId),
     getCurrentPlan(shopId),
     getActiveContract(shopId),
     getEffectiveLimits(shopId),
@@ -27,6 +28,7 @@ export async function planOverview(shopId: string) {
   ]);
   const threshold = contract?.alertThreshold ?? DEFAULT_THRESHOLD;
   return {
+    platform,
     current,
     contract,
     threshold,

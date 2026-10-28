@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -16,6 +16,7 @@ import { isOrderStatus } from "./statuses";
 import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
 import { scheduleOrderSync } from "@/features/apps/sync";
+import { spreadOrders, type Spread } from "@/features/team/distribution";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "orders");
 
@@ -111,29 +112,60 @@ export async function deleteLead(lang: string, leadId: string): Promise<ActionSt
   });
 }
 
-// Gives an order to a team member (or nobody). Managers and owners only.
+// An active member of this shop, by id (null when not found)
+async function activeMemberName(shopId: string, userId: string) {
+  const [member] = await db
+    .select({ name: schema.users.name })
+    .from(schema.shopMembers)
+    .innerJoin(schema.users, eq(schema.users.id, schema.shopMembers.userId))
+    .where(and(eq(schema.shopMembers.shopId, shopId), eq(schema.shopMembers.userId, userId), eq(schema.shopMembers.active, true)));
+  return member?.name ?? null;
+}
+
+// Gives orders to a team member (or nobody). Managers and owners only; locked orders are skipped.
+async function assignMany(lang: string, orderIds: string[], userId: string | null): Promise<ActionState & { assigned?: number }> {
+  const { shop, user, role } = await guard(lang);
+  if (role === "agent") return { ok: false, error: "forbidden" };
+  const ids = z.array(z.string().uuid()).min(1).max(500).safeParse(orderIds);
+  if (!ids.success) return { ok: false, error: "invalid" };
+  const name = userId ? await activeMemberName(shop.id, userId) : null;
+  if (userId && !name) return { ok: false, error: "notFound" };
+  const o = schema.orders;
+  const rows = await db.select({ id: o.id }).from(o).where(and(eq(o.shopId, shop.id), inArray(o.id, ids.data), eq(o.locked, false)));
+  if (!rows.length) return { ok: false, error: "notFound" };
+  await db
+    .update(o)
+    .set({ assignedTo: userId, assignedAt: userId ? new Date() : null })
+    .where(and(eq(o.shopId, shop.id), inArray(o.id, rows.map((r) => r.id))));
+  await db.insert(schema.orderEvents).values(rows.map((r) => ({ id: newId(), orderId: r.id, shopId: shop.id, userId: user.id, type: "assign" as const, note: name })));
+  for (const r of rows) scheduleOrderSync(shop.id, r.id);
+  refresh();
+  return { ok: true, assigned: rows.length };
+}
+
 export async function assignOrder(lang: string, orderId: string, userId: string | null): Promise<ActionState> {
-  return safeAction("orders/assign", async () => {
+  return safeAction("orders/assign", () => assignMany(lang, [orderId], userId));
+}
+
+// The orders list's bulk bar: the selected orders to one member, or to nobody
+export async function assignOrders(lang: string, orderIds: string[], userId: string | null) {
+  return safeAction("orders/assign-many", () => assignMany(lang, orderIds, userId));
+}
+
+// Shares orders between the active agents (fewest open orders first): the selected ones, or (null) every
+// unassigned open order. Returns who got how many, so the manager sees what happened.
+export async function spreadOrdersAction(lang: string, orderIds: string[] | null): Promise<ActionState & { spread?: Spread }> {
+  let spread: Spread | undefined;
+  const state = await safeAction("orders/spread", async () => {
     const { shop, user, role } = await guard(lang);
     if (role === "agent") return { ok: false, error: "forbidden" };
-    let name: string | null = null;
-    if (userId) {
-      const [member] = await db
-        .select({ name: schema.users.name })
-        .from(schema.shopMembers)
-        .innerJoin(schema.users, eq(schema.users.id, schema.shopMembers.userId))
-        .where(and(eq(schema.shopMembers.shopId, shop.id), eq(schema.shopMembers.userId, userId), eq(schema.shopMembers.active, true)));
-      if (!member) return { ok: false, error: "notFound" };
-      name = member.name;
-    }
-    const [res] = await db
-      .update(schema.orders)
-      .set({ assignedTo: userId, assignedAt: userId ? new Date() : null })
-      .where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId), eq(schema.orders.locked, false)));
-    if (!res.affectedRows) return { ok: false, error: "notFound" };
-    await db.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "assign", note: name });
-    scheduleOrderSync(shop.id, orderId);
+    const ids = orderIds === null ? null : z.array(z.string().uuid()).min(1).max(500).safeParse(orderIds);
+    if (ids && !ids.success) return { ok: false, error: "invalid" };
+    const result = await spreadOrders(shop.id, user.id, ids ? ids.data : null);
+    if (result === "noAgents") return { ok: false, error: "noAgents" };
+    spread = result;
     refresh();
     return { ok: true };
   });
+  return { ...state, spread };
 }

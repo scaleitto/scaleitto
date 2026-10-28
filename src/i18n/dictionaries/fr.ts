@@ -53,6 +53,8 @@ const fr: Dictionary = {
     haveAccount: "Déjà un compte ?",
   },
   errors: {
+    sheetsOldScript: "Le code de votre feuille est ancien : copiez le nouveau code ci-dessous dans Apps Script, puis Deploy → Manage deployments → Edit → Version : New version → Deploy",
+    noAgents: "Aucun agent de confirmation actif pour recevoir les commandes",
     unexpected: "Une erreur inattendue s'est produite et a été enregistrée. Réessayez.",
     invalid: "Valeur invalide",
     required: "Ce champ est obligatoire",
@@ -231,6 +233,18 @@ const fr: Dictionary = {
     errors: { type: "Type de fichier non pris en charge", size: "Image trop grande (8 Mo max)", empty: "Fichier vide", auth: "Session expirée, reconnectez-vous", unexpected: "Erreur du serveur", network: "Problème de connexion" },
   },
   orders: {
+    bulk: {
+      selectAll: "Sélectionner toutes les commandes de la page",
+      select: "Sélectionner la commande",
+      hint: "Sélectionnez des commandes dans le tableau puis choisissez à qui les attribuer",
+      selected: "{n} commande(s) sélectionnée(s)",
+      assignTo: "Attribuer à",
+      assign: "Attribuer",
+      unassign: "Retirer l'attribution",
+      spread: "Répartir équitablement entre les agents",
+      assigned: "{n} commande(s) attribuée(s)",
+      spreadDone: "{n} commande(s) réparties :",
+    },
     locked: {
       short: "Commande verrouillée",
       title: "Cette commande est verrouillée",
@@ -383,6 +397,27 @@ const fr: Dictionary = {
     sampleProduct: "Produit {n}",
   },
   team: {
+    distribution: {
+      title: "Répartition des commandes",
+      mode: "Mode de répartition :",
+      change: "Changer le mode",
+      explain: {
+        manual: "Les nouvelles commandes restent sans agent jusqu'à ce que vous les répartissiez : avec le bouton « Répartir maintenant » ici, ou depuis la liste des commandes (sélectionnez puis choisissez l'agent).",
+        balanced: "Chaque nouvelle commande va tout de suite à l'agent qui a le moins de commandes ouvertes (nouvelle, pas de réponse, reportée). À égalité, à celui qui n'en a pas reçu depuis le plus longtemps.",
+        on_shift: "Chaque nouvelle commande va tout de suite à l'agent le moins chargé parmi ceux qui sont en service maintenant. Si personne n'est en service, au moins chargé de tous.",
+      },
+      agent: "Agent",
+      shift: "Service",
+      onShift: "En service",
+      offShift: "Hors service",
+      open: "Ouvertes",
+      today: "Reçues aujourd'hui",
+      last: "Dernière attribution",
+      unassigned: "{n} commande(s) ouverte(s) sans agent",
+      noneUnassigned: "Toutes les commandes ouvertes sont attribuées",
+      spreadNow: "Les répartir maintenant",
+      noAgents: "Aucun agent de confirmation actif. Ajoutez-en dans l'équipe ci-dessous.",
+    },
     tabs: { team: "Équipe", performance: "Performance", activity: "Activité", settings: "Répartition" },
     addMember: "Ajouter un employé",
     addHint: "Créez le compte de l'employé puis donnez-lui l'e-mail et le mot de passe pour se connecter.",
@@ -767,6 +802,8 @@ const fr: Dictionary = {
     copied: "Copié",
     save: "Enregistrer et tester",
     sheets: {
+      testOk: "Une ligne de test (TEST) a été écrite dans l'onglet « {sheet} » de votre feuille. Ouvrez cet onglet en bas pour vérifier ; vous pouvez supprimer la ligne.",
+      testRow: "Test de connexion Scaleitto ✓ — vous pouvez supprimer cette ligne",
       title: "Google Sheets",
       description: "Chaque nouvelle commande devient une ligne de votre feuille, et chaque changement (statut, infos, agent, suivi) met à jour la même ligne automatiquement.",
       steps: [
@@ -830,6 +867,8 @@ const fr: Dictionary = {
     },
   },
   plans: {
+    platformShop: "Boutique de la plateforme — illimitée",
+    platformShopHint: "Boutique de l'administrateur de la plateforme : aucune offre ni limite ne s'applique, toutes les fonctionnalités sont actives.",
     current: "Votre forfait",
     perMonth: "{price} / mois",
     free: "Gratuit",

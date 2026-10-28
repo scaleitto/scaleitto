@@ -14,33 +14,41 @@ export type Theme = {
   radius: number; // px, cards
   buttonRadius: number; // px (999 = pill)
   card: "border" | "shadow" | "flat";
-  layout: { header: "start" | "center"; hero: "card" | "full"; columns: 3 | 4; image: "square" | "portrait" };
+  layout: {
+    header: "start" | "center";
+    // split = text beside the photo, full = photo across the page, card = rounded banner, minimal = big title, photo below
+    hero: "split" | "full" | "card" | "minimal";
+    columns: 3 | 4;
+    image: "square" | "portrait";
+    // elevated = card with an order button, outline = bordered card, minimal = photo and text only
+    cards: "elevated" | "outline" | "minimal";
+  };
 };
 
-const light = { bg: "#f8fafc", card: "#ffffff", text: "#0f172a", muted: "#64748b", line: "#e2e8f0" };
-const white = { bg: "#ffffff", card: "#ffffff", text: "#111827", muted: "#6b7280", line: "#e5e7eb" };
-const dark = { bg: "#0b1120", card: "#151d2e", text: "#f1f5f9", muted: "#94a3b8", line: "#26324a" };
+const light = { bg: "#f6f7f9", card: "#ffffff", text: "#0f172a", muted: "#64748b", line: "#e5e7eb" };
+const white = { bg: "#ffffff", card: "#ffffff", text: "#111827", muted: "#6b7280", line: "#ececec" };
+const dark = { bg: "#0b0f17", card: "#141a24", text: "#f3f4f6", muted: "#9aa3b2", line: "#232b38" };
 
 export const themes: Theme[] = [
-  { key: "classic", name: { ar: "كلاسيك", fr: "Classique", en: "Classic" }, color: "#10b981", font: "cairo", surface: light, radius: 16, buttonRadius: 12, card: "border", layout: { header: "start", hero: "card", columns: 4, image: "square" } },
-  { key: "minimal", name: { ar: "بسيط", fr: "Minimal", en: "Minimal" }, color: "#111827", font: "readex", surface: white, radius: 0, buttonRadius: 0, card: "flat", layout: { header: "center", hero: "full", columns: 4, image: "portrait" } },
-  { key: "bold", name: { ar: "جريء", fr: "Audacieux", en: "Bold" }, color: "#dc2626", font: "changa", surface: light, radius: 20, buttonRadius: 999, card: "shadow", layout: { header: "start", hero: "card", columns: 3, image: "square" } },
-  { key: "elegant", name: { ar: "أنيق", fr: "Élégant", en: "Elegant" }, color: "#b45309", font: "el-messiri", surface: { bg: "#fbf7f0", card: "#fffdf8", text: "#292524", muted: "#78716c", line: "#e7dfd2" }, radius: 6, buttonRadius: 6, card: "border", layout: { header: "center", hero: "full", columns: 3, image: "portrait" } },
-  { key: "night", name: { ar: "ليلي", fr: "Nuit", en: "Night" }, color: "#8b5cf6", font: "cairo", surface: dark, radius: 18, buttonRadius: 12, card: "shadow", layout: { header: "start", hero: "card", columns: 4, image: "square" } },
-  { key: "fresh", name: { ar: "منعش", fr: "Frais", en: "Fresh" }, color: "#0d9488", font: "tajawal", surface: { bg: "#f0fdfa", card: "#ffffff", text: "#134e4a", muted: "#5f7f7b", line: "#ccece6" }, radius: 24, buttonRadius: 999, card: "shadow", layout: { header: "start", hero: "card", columns: 4, image: "square" } },
-  { key: "luxury", name: { ar: "فاخر", fr: "Luxe", en: "Luxury" }, color: "#ca8a04", font: "el-messiri", surface: { bg: "#0c0a09", card: "#1c1917", text: "#f5f5f4", muted: "#a8a29e", line: "#2e2a27" }, radius: 2, buttonRadius: 2, card: "border", layout: { header: "center", hero: "full", columns: 3, image: "portrait" } },
-  { key: "playful", name: { ar: "مرح", fr: "Ludique", en: "Playful" }, color: "#db2777", font: "changa", surface: { bg: "#fff7ed", card: "#ffffff", text: "#431407", muted: "#9a6b55", line: "#fed7aa" }, radius: 28, buttonRadius: 999, card: "shadow", layout: { header: "center", hero: "card", columns: 3, image: "square" } },
-  { key: "tech", name: { ar: "تقني", fr: "Tech", en: "Tech" }, color: "#2563eb", font: "plex", surface: white, radius: 10, buttonRadius: 8, card: "border", layout: { header: "start", hero: "full", columns: 4, image: "square" } },
-  { key: "beauty", name: { ar: "جمال", fr: "Beauté", en: "Beauty" }, color: "#e11d48", font: "almarai", surface: { bg: "#fff1f2", card: "#ffffff", text: "#4c0519", muted: "#9f6b78", line: "#fecdd3" }, radius: 22, buttonRadius: 999, card: "flat", layout: { header: "center", hero: "card", columns: 4, image: "portrait" } },
-  { key: "sport", name: { ar: "رياضي", fr: "Sport", en: "Sport" }, color: "#ea580c", font: "cairo", surface: { bg: "#111827", card: "#1f2937", text: "#f9fafb", muted: "#9ca3af", line: "#374151" }, radius: 4, buttonRadius: 4, card: "flat", layout: { header: "start", hero: "full", columns: 4, image: "square" } },
-  { key: "nature", name: { ar: "طبيعي", fr: "Nature", en: "Nature" }, color: "#15803d", font: "tajawal", surface: { bg: "#f4f7ee", card: "#fbfcf8", text: "#1a2e05", muted: "#5b6b4a", line: "#dbe5cc" }, radius: 14, buttonRadius: 10, card: "flat", layout: { header: "start", hero: "card", columns: 3, image: "portrait" } },
-  { key: "souk", name: { ar: "سوق", fr: "Souk", en: "Souk" }, color: "#c2410c", font: "kufi", surface: { bg: "#faf3e8", card: "#fffaf2", text: "#3b2412", muted: "#8a6a50", line: "#ecdcc4" }, radius: 12, buttonRadius: 12, card: "border", layout: { header: "center", hero: "card", columns: 4, image: "square" } },
+  { key: "classic", name: { ar: "عصري", fr: "Moderne", en: "Modern" }, color: "#16a34a", font: "cairo", surface: light, radius: 18, buttonRadius: 12, card: "shadow", layout: { header: "start", hero: "split", columns: 4, image: "square", cards: "elevated" } },
+  { key: "minimal", name: { ar: "بسيط", fr: "Minimal", en: "Minimal" }, color: "#111827", font: "readex", surface: white, radius: 6, buttonRadius: 6, card: "flat", layout: { header: "center", hero: "minimal", columns: 4, image: "portrait", cards: "minimal" } },
+  { key: "bold", name: { ar: "جريء", fr: "Audacieux", en: "Bold" }, color: "#e11d48", font: "changa", surface: light, radius: 22, buttonRadius: 999, card: "shadow", layout: { header: "start", hero: "full", columns: 3, image: "square", cards: "elevated" } },
+  { key: "elegant", name: { ar: "أنيق", fr: "Élégant", en: "Elegant" }, color: "#a16207", font: "el-messiri", surface: { bg: "#faf6ef", card: "#fffdf9", text: "#292524", muted: "#78716c", line: "#e8dfd0" }, radius: 4, buttonRadius: 4, card: "border", layout: { header: "center", hero: "full", columns: 3, image: "portrait", cards: "minimal" } },
+  { key: "night", name: { ar: "ليلي", fr: "Nuit", en: "Night" }, color: "#8b5cf6", font: "cairo", surface: dark, radius: 18, buttonRadius: 12, card: "border", layout: { header: "start", hero: "split", columns: 4, image: "square", cards: "elevated" } },
+  { key: "fresh", name: { ar: "منعش", fr: "Frais", en: "Fresh" }, color: "#0d9488", font: "tajawal", surface: { bg: "#f2fbf9", card: "#ffffff", text: "#123b37", muted: "#58776f", line: "#d3ece6" }, radius: 24, buttonRadius: 999, card: "shadow", layout: { header: "start", hero: "card", columns: 4, image: "square", cards: "elevated" } },
+  { key: "luxury", name: { ar: "فاخر", fr: "Luxe", en: "Luxury" }, color: "#d4a017", font: "el-messiri", surface: { bg: "#0d0c0b", card: "#171513", text: "#f5f2ec", muted: "#a8a29e", line: "#2c2824" }, radius: 2, buttonRadius: 2, card: "border", layout: { header: "center", hero: "full", columns: 3, image: "portrait", cards: "minimal" } },
+  { key: "playful", name: { ar: "مرح", fr: "Ludique", en: "Playful" }, color: "#db2777", font: "changa", surface: { bg: "#fff7f0", card: "#ffffff", text: "#3f1d0f", muted: "#94695a", line: "#fbdcc5" }, radius: 28, buttonRadius: 999, card: "shadow", layout: { header: "center", hero: "card", columns: 3, image: "square", cards: "elevated" } },
+  { key: "tech", name: { ar: "تقني", fr: "Tech", en: "Tech" }, color: "#2563eb", font: "plex", surface: white, radius: 12, buttonRadius: 8, card: "border", layout: { header: "start", hero: "split", columns: 4, image: "square", cards: "outline" } },
+  { key: "beauty", name: { ar: "جمال", fr: "Beauté", en: "Beauty" }, color: "#e11d63", font: "almarai", surface: { bg: "#fff5f7", card: "#ffffff", text: "#4a0d22", muted: "#9b6b7a", line: "#fbd5df" }, radius: 22, buttonRadius: 999, card: "flat", layout: { header: "center", hero: "minimal", columns: 4, image: "portrait", cards: "minimal" } },
+  { key: "sport", name: { ar: "رياضي", fr: "Sport", en: "Sport" }, color: "#f97316", font: "cairo", surface: { bg: "#0f1115", card: "#191c22", text: "#f9fafb", muted: "#9ca3af", line: "#2a2f38" }, radius: 6, buttonRadius: 6, card: "border", layout: { header: "start", hero: "full", columns: 4, image: "square", cards: "outline" } },
+  { key: "nature", name: { ar: "طبيعي", fr: "Nature", en: "Nature" }, color: "#3f7d20", font: "tajawal", surface: { bg: "#f5f7ef", card: "#fcfdf9", text: "#1c2e0b", muted: "#5d6c4c", line: "#dfe7d0" }, radius: 16, buttonRadius: 10, card: "flat", layout: { header: "start", hero: "split", columns: 3, image: "portrait", cards: "minimal" } },
+  { key: "souk", name: { ar: "سوق", fr: "Souk", en: "Souk" }, color: "#c2410c", font: "kufi", surface: { bg: "#faf4ea", card: "#fffaf3", text: "#3b2412", muted: "#8a6a50", line: "#ecdcc4" }, radius: 12, buttonRadius: 12, card: "border", layout: { header: "center", hero: "card", columns: 4, image: "square", cards: "outline" } },
 ];
 
 export const defaultTheme = themes[0];
 export const findTheme = (key: unknown) => themes.find((t) => t.key === key) ?? defaultTheme;
 
-const shadows = { border: "none", shadow: "0 6px 24px -10px rgba(0,0,0,.25)", flat: "none" };
+const shadows = { border: "none", shadow: "0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.18)", flat: "none" };
 
 // CSS variables read by the storefront (see globals.css: s-bg, s-surface, s-text, s-muted, s-line).
 export function themeStyle(theme: Theme, color: string): CSSProperties {

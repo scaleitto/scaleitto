@@ -19,7 +19,7 @@ export default function DashboardError({ error, retry }: { error: unknown; retry
   const digest = (error as { digest?: string } | null)?.digest;
   return (
     <Card className="flex flex-col items-center gap-3 py-12 text-center">
-      <TriangleAlert size={36} className="text-amber-300" aria-hidden />
+      <TriangleAlert size={36} className="text-warning" aria-hidden />
       <h1 className="text-lg font-semibold">{t.title}</h1>
       <p className="text-sm text-muted">{t.body}</p>
       {digest && (

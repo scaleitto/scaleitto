@@ -37,14 +37,14 @@ export default async function phase5(browser) {
     await page.goto(store);
     expect((await page.locator("[data-testid=store-frame]").getAttribute("data-theme")) === "night", "store uses night");
     expect((await frameStyle(page, "--brand")) === "#8b5cf6", "theme color applied");
-    expect((await frameStyle(page, "--s-bg")) === "#0b1120", "dark background");
+    expect((await frameStyle(page, "--s-bg")) === "#0b0f17", "dark background");
   });
 
   await step("the product page and its order form follow the theme", async () => {
     await page.goto(`${store}/p/watch`);
     expect((await page.locator("[data-testid=store-frame]").getAttribute("data-theme")) === "night", "product page themed");
     const bg = await page.locator("#order-form").evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(bg === "rgb(21, 29, 46)", `order form on the theme's card color (${bg})`);
+    expect(bg === "rgb(20, 26, 36)", `order form on the theme's card color (${bg})`);
   });
 
   await step("keeping my own color when switching theme", async () => {

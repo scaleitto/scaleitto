@@ -160,7 +160,7 @@ export function ProductImport({ lang, t }: { lang: string; t: AppsText }) {
               );
             })}
           </ul>
-          <p className="text-xs text-amber-300">{im.draftNote}</p>
+          <p className="text-xs text-warning">{im.draftNote}</p>
           {progress && (
             <div className="space-y-1.5" data-testid="import-progress">
               <div className="h-2 overflow-hidden rounded-full bg-panel-2">

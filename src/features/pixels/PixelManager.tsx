@@ -86,7 +86,7 @@ function PixelForm({ lang, pixel, products, onDone, t }: { lang: string; pixel: 
                 </option>
               ))}
             </Select>
-            {purchaseOn !== "placed" && (!hasServer || (!pixel?.hasSecret && !secretTyped)) && <p className="mt-1.5 text-xs text-amber-300">{px.purchaseNeedsSecret}</p>}
+            {purchaseOn !== "placed" && (!hasServer || (!pixel?.hasSecret && !secretTyped)) && <p className="mt-1.5 text-xs text-warning">{px.purchaseNeedsSecret}</p>}
           </Field>
           <Field label={px.scope} htmlFor="px-scope" hint={px.scopeHint} error={err("productIds")}>
             <Select id="px-scope" name="scope" value={scope} onChange={(ev) => setScope(ev.target.value)}>

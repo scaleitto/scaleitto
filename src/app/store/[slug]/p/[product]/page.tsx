@@ -9,6 +9,7 @@ import { saveLead, submitOrder } from "@/features/checkout/actions";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
 import { formatPrice } from "@/lib/format";
+import { discountOf } from "@/features/storefront/blocks";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
 
@@ -47,10 +48,17 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
       <div className="space-y-5">
         <PixelScope pixels={pixels} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
         <div className="space-y-2">
-          <h1 className="text-2xl font-extrabold leading-snug">{product.name}</h1>
+          <h1 className="text-2xl leading-snug font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
           <p className="flex flex-wrap items-baseline gap-3">
             <span className="text-3xl font-extrabold text-brand">{formatPrice(product.price, cur)}</span>
-            {product.compareAtPrice ? <span className="text-lg text-s-muted line-through">{formatPrice(product.compareAtPrice, cur)}</span> : null}
+            {discountOf(product.price, product.compareAtPrice) > 0 && product.compareAtPrice ? (
+              <>
+                <span className="text-lg text-s-muted line-through">{formatPrice(product.compareAtPrice, cur)}</span>
+                <span dir="ltr" className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-extrabold text-white">
+                  -{discountOf(product.price, product.compareAtPrice)}%
+                </span>
+              </>
+            ) : null}
           </p>
           <ul className="flex flex-wrap gap-2 text-xs font-semibold text-s-muted">
             <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
@@ -72,7 +80,12 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           saveLead={saveLead.bind(null, shop.slug, product.id)}
         />
         </PixelScope>
-        {product.description && <div className="whitespace-pre-line rounded-[var(--s-radius)] bg-s-surface p-5 leading-relaxed text-s-muted shadow-[var(--s-shadow)]">{product.description}</div>}
+        {product.description && (
+          <section className="space-y-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-5 shadow-[var(--s-shadow)]">
+            <h2 className="font-bold">{t.description}</h2>
+            <div className="leading-relaxed whitespace-pre-line text-s-muted">{product.description}</div>
+          </section>
+        )}
       </div>
     </div>
   );

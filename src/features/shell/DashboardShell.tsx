@@ -78,7 +78,7 @@ export function DashboardShell({
   shopName: string;
   userName: string;
   // The link at the top (the store, or the merchant dashboard from the admin)
-  topLink: { href: string; label: string; external?: boolean };
+  topLink?: { href: string; label: string; external?: boolean };
   // Shown to the platform admin only
   adminLink?: { href: string; label: string };
   items: NavItem[];
@@ -148,9 +148,11 @@ export function DashboardShell({
             <button className="rounded-lg p-2 text-muted hover:bg-panel-2 hover:text-fg md:hidden" onClick={() => setOpen(true)} aria-label={labels.menu}>
               <Menu size={20} />
             </button>
-            <a href={topLink.href} target={topLink.external ? "_blank" : undefined} rel={topLink.external ? "noreferrer" : undefined} className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-fg">
-              <ExternalLink size={15} /> {topLink.label}
-            </a>
+            {topLink && (
+              <a href={topLink.href} target={topLink.external ? "_blank" : undefined} rel={topLink.external ? "noreferrer" : undefined} className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-fg" data-testid="top-link">
+                <ExternalLink size={15} /> {topLink.label}
+              </a>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {adminLink && (

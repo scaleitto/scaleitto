@@ -12,6 +12,23 @@ export const limitValue = (n: number, t: Dictionary) => (n === -1 ? t.common.unl
 export function CurrentPlan({ data, lang, t }: { data: Overview; lang: string; t: Dictionary }) {
   const p = t.plans;
   const current = data.current;
+  if (data.platform)
+    return (
+      <Card className="space-y-4" data-testid="current-plan">
+        <div className="flex flex-wrap items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <Crown size={22} />
+          </span>
+          <div className="me-auto">
+            <p className="text-xl font-bold" data-plan="platform">
+              {p.platformShop}
+            </p>
+            <p className="text-sm text-muted">{p.platformShopHint}</p>
+          </div>
+        </div>
+        <UsageMeters meters={data.meters} threshold={data.threshold} t={t} />
+      </Card>
+    );
   if (!current) return null;
   const price = data.contract?.priceMonthly ?? current.plan.priceMonthly;
   return (
@@ -112,7 +129,7 @@ export function PlanNoticeBanner({ notice, plansHref, t }: { notice: { kind: "lo
   const locked = notice.kind === "locked";
   return (
     <div className={`mb-6 flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm ${locked ? "border-danger/40 bg-danger/10" : "border-amber-400/40 bg-amber-400/10"}`} data-testid="plan-notice" data-kind={notice.kind}>
-      {locked ? <Lock size={18} className="shrink-0 text-danger" /> : <CircleAlert size={18} className="shrink-0 text-amber-300" />}
+      {locked ? <Lock size={18} className="shrink-0 text-danger" /> : <CircleAlert size={18} className="shrink-0 text-warning" />}
       <p className="me-auto">{locked ? fmt(t.orders.locked.banner, { n: notice.n }) : fmt(t.plans.notice.usage, { percent: notice.percent, limit: t.plans.limits[notice.key] })}</p>
       {plansHref && (
         <a href={plansHref} className="font-semibold text-accent hover:underline">

@@ -37,6 +37,9 @@ function CopyBox({ value, label, rows = 3, t, testId }: { value: string; label: 
 }
 
 // Buttons that run an action and show its answer (test, send, on/off, disconnect)
+// What a successful test says: where the test row is for the sheet, the server's answer for a webhook
+const testOkText = (app: AppKey, detail: string | undefined, t: AppsText) => (app === "google_sheets" ? fmt(t.apps.sheets.testOk, { sheet: detail ?? "Orders" }) : fmt(t.apps.testOk, { detail: detail ?? "" }));
+
 function useRunner(t: AppsText) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -55,7 +58,7 @@ function UrlForm({ lang, app, url, label, placeholder, t }: { lang: string; app:
   const { state, pending, onSubmit } = useActionForm(saveAppUrl.bind(null, lang, app));
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-3">
-      <FormMessage state={state} errors={e} success={state.ok ? fmt(t.apps.testOk, { detail: state.message ?? "" }) : undefined} />
+      <FormMessage state={state} errors={e} success={state.ok ? testOkText(app, state.message, t) : undefined} />
       {!state.ok && state.message && <p className="text-xs break-all text-muted" dir="ltr">{state.message}</p>}
       <Field label={label} htmlFor={`${app}-url`} error={fieldError(state, e, "url")}>
         <Input id={`${app}-url`} name="url" dir="ltr" defaultValue={url} placeholder={placeholder} />
@@ -109,7 +112,7 @@ function ConnectedControls({ lang, view, extra, t }: { lang: string; view: NonNu
           />
           {t.apps.active}
         </label>
-        <Button variant="secondary" className="py-1.5 text-xs" disabled={pending} onClick={() => run(() => testAppAction(lang, view.app), (r) => fmt(t.apps.testOk, { detail: r.message ?? "" }))}>
+        <Button variant="secondary" className="py-1.5 text-xs" disabled={pending} onClick={() => run(() => testAppAction(lang, view.app), (r) => testOkText(view.app, r.message, t))}>
           <Send size={14} /> {t.apps.test}
         </Button>
         {view.app === "google_sheets" && (
@@ -156,7 +159,7 @@ export function SheetsCard({ lang, view, t }: { lang: string; view: AppView; t: 
       </ol>
       <div>
         <CopyBox value={view.script} label={s.script} rows={8} t={t} testId="sheets-script" />
-        <p className="mt-1 text-xs text-amber-300">{s.scriptHint}</p>
+        <p className="mt-1 text-xs text-warning">{s.scriptHint}</p>
       </div>
       <UrlForm lang={lang} app="google_sheets" url={view.url} label={s.url} placeholder="https://script.google.com/macros/s/…/exec" t={t} />
     </div>

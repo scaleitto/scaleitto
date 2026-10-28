@@ -41,8 +41,21 @@ export async function getCurrentPlan(shopId: string) {
   return { plan: free ?? row.plan, expiresAt: row.expiresAt, expired: true, previous: row.plan };
 }
 
+// A shop owned by the platform admin (the platform's own store): no plan, no limits, every feature.
+export async function isPlatformShop(shopId: string) {
+  const [row] = await db
+    .select({ admin: schema.users.isPlatformAdmin })
+    .from(schema.shops)
+    .innerJoin(schema.users, eq(schema.users.id, schema.shops.ownerId))
+    .where(eq(schema.shops.id, shopId));
+  return Boolean(row?.admin);
+}
+
+const UNLIMITED = Object.fromEntries(limitKeys.map((k) => [k, -1])) as EffectiveLimits;
+
 // The plan's limits, overridden key by key by the shop's active contract.
 export async function getEffectiveLimits(shopId: string): Promise<EffectiveLimits> {
+  if (await isPlatformShop(shopId)) return { ...UNLIMITED };
   const [current, contract] = await Promise.all([getCurrentPlan(shopId), getActiveContract(shopId)]);
   const row = current?.plan;
   const limits = {} as EffectiveLimits;

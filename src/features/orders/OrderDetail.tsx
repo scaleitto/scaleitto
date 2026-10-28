@@ -71,7 +71,7 @@ export function OrderDetail({
       />
       {order.locked && (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4" data-testid="order-locked">
-          <Lock size={20} className="shrink-0 text-amber-300" />
+          <Lock size={20} className="shrink-0 text-warning" />
           <div className="me-auto">
             <p className="font-semibold">{o.locked.title}</p>
             <p className="text-sm text-muted">{o.locked.body}</p>

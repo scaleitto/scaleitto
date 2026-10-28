@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
-/* Dashboard design tokens (dark theme). Storefronts set their own --brand. */
+/* Dashboard design tokens (light theme, green accent). Storefronts set their own --brand. */
 @theme inline {
   --font-sans: var(--font-cairo), system-ui, sans-serif;
-  --color-bg: #0f151e;
-  --color-panel: #18212d;
-  --color-panel-2: #1f2a38;
-  --color-line: #2a3646;
-  --color-fg: #e6edf5;
-  --color-muted: #8d9aab;
-  --color-accent: #22c55e;
-  --color-accent-fg: #052e14;
-  --color-danger: #f87171;
+  --color-bg: #f5f7f6;
+  --color-panel: #ffffff;
+  --color-panel-2: #f0f3f1;
+  --color-line: #e2e7e4;
+  --color-fg: #14201a;
+  --color-muted: #64716a;
+  --color-accent: #16a34a;
+  --color-accent-fg: #ffffff;
+  --color-danger: #dc2626;
+  --color-warning: #b45309;
+  --color-info: #0369a1;
   --color-brand: var(--brand, #22c55e);
   /* Storefront theme tokens (set per store by src/features/themes/themes.ts) */
   --color-s-bg: var(--s-bg, #f8fafc);

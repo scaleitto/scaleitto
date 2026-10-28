@@ -41,7 +41,7 @@ export function GeneralForm({ lang, values, t }: { lang: string; values: { name:
           </Field>
           <Field label={g.slug} htmlFor="st-slug" error={fieldError(state, e, "slug")}>
             <Input id="st-slug" name="slug" dir="ltr" maxLength={40} value={slug} onChange={(ev) => setSlug(ev.target.value.toLowerCase())} />
-            {slug !== values.slug && <p className="mt-1.5 text-xs text-amber-300">{g.slugWarning}</p>}
+            {slug !== values.slug && <p className="mt-1.5 text-xs text-warning">{g.slugWarning}</p>}
           </Field>
         </div>
         <p className="text-xs text-muted">{g.currency}</p>

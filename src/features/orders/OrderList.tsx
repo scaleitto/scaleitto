@@ -8,6 +8,7 @@ import { Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/
 import { PAGE_SIZE, listOrders, statusCounts } from "./queries";
 import { orderStatuses, statusTone, type OrderStatus } from "./statuses";
 import type { OrderViewer } from "./access";
+import { BulkAssignBar, SelectAllOrders } from "./BulkAssign";
 
 // Orders / Abandoned carts switch shown on both pages.
 export function OrdersTabs({ lang, t, current }: { lang: string; t: Dictionary; current: "orders" | "abandoned" }) {
@@ -46,8 +47,8 @@ export async function OrderList({
   lang: string;
   t: Dictionary;
   viewer: OrderViewer;
-  // Team members to filter by (managers only; empty for agents)
-  members: { userId: string; name: string }[];
+  // Team members to filter by and assign to (managers only; empty for agents)
+  members: { userId: string; name: string; role: string }[];
   storeHref: string;
   q: string;
   status?: OrderStatus;
@@ -71,9 +72,11 @@ export async function OrderList({
         title={t.sections.orders.title}
         description={t.sections.orders.description}
         actions={
-          <a href={storeHref} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
-            <ExternalLink size={16} /> {o.openStore}
-          </a>
+          viewer.role === "agent" ? undefined : (
+            <a href={storeHref} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+              <ExternalLink size={16} /> {o.openStore}
+            </a>
+          )
         }
       />
       <OrdersTabs lang={lang} t={t} current="orders" />
@@ -130,9 +133,15 @@ export async function OrderList({
             <p className="p-10 text-center text-sm text-muted">{o.noResults}</p>
           ) : (
             <div className="overflow-x-auto">
+              {members.length > 0 && <BulkAssignBar lang={lang} members={members} t={{ orders: t.orders, errors: t.errors }} />}
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted">
                   <tr className="border-b border-line">
+                    {members.length > 0 && (
+                      <th className="w-10 p-3">
+                        <SelectAllOrders label={o.bulk.selectAll} />
+                      </th>
+                    )}
                     <th className="p-3 text-start font-medium">{o.columns.order}</th>
                     <th className="p-3 text-start font-medium">{o.columns.customer}</th>
                     <th className="hidden p-3 text-start font-medium lg:table-cell">{o.columns.product}</th>
@@ -146,6 +155,11 @@ export async function OrderList({
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="relative border-b border-line last:border-0 hover:bg-panel-2/40" data-order={r.number}>
+                      {members.length > 0 && (
+                        <td className="p-3">
+                          <input type="checkbox" data-bulk-order value={r.id} disabled={r.locked} aria-label={`${o.bulk.select} #${r.number}`} className="relative z-10 size-4 accent-[var(--color-accent)]" />
+                        </td>
+                      )}
                       <td className="p-3 font-bold whitespace-nowrap">
                         {/* The whole row opens the order */}
                         <Link href={`${base}/${r.id}`} className="after:absolute after:inset-0">
@@ -154,7 +168,7 @@ export async function OrderList({
                       </td>
                       <td className="p-3">
                         {r.locked ? (
-                          <span className="flex items-center gap-1.5 text-sm font-semibold text-amber-300" data-locked>
+                          <span className="flex items-center gap-1.5 text-sm font-semibold text-warning" data-locked>
                             <Lock size={14} /> {o.locked.short}
                           </span>
                         ) : (

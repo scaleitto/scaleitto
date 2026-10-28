@@ -5,7 +5,7 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 
 const buttonVariants = {
   primary: "bg-accent text-accent-fg hover:brightness-110",
-  secondary: "border border-line bg-panel-2 text-fg hover:bg-line",
+  secondary: "border border-line bg-panel text-fg shadow-sm shadow-black/[0.03] hover:bg-panel-2",
   ghost: "text-muted hover:bg-panel-2 hover:text-fg",
   danger: "text-danger hover:bg-danger/10",
 };
@@ -39,7 +39,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg placeholder:text-muted/70 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
+  "w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-fg shadow-sm shadow-black/[0.02] placeholder:text-muted/70 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cx(inputClass, className)} {...props} />;
@@ -82,9 +82,9 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
   const tones = {
     neutral: "bg-panel-2 text-muted",
     accent: "bg-accent/15 text-accent",
-    warning: "bg-amber-400/15 text-amber-300",
+    warning: "bg-amber-400/15 text-warning",
     danger: "bg-danger/15 text-danger",
-    info: "bg-sky-400/15 text-sky-300",
+    info: "bg-sky-400/15 text-info",
   };
   return <span className={cx("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold", tones[tone])}>{children}</span>;
 }

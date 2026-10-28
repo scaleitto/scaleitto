@@ -50,7 +50,7 @@ export function PeriodTabs({ href, current, t }: { href: (p: Period) => string; 
 }
 
 const rate = (v: number | null) => (v == null ? "—" : `${v}%`);
-const rateTone = (v: number | null, good = 70, ok = 50) => (v == null ? "text-muted" : v >= good ? "text-accent" : v >= ok ? "text-amber-300" : "text-danger");
+const rateTone = (v: number | null, good = 70, ok = 50) => (v == null ? "text-muted" : v >= good ? "text-accent" : v >= ok ? "text-warning" : "text-danger");
 
 // The numbers of one member, as labelled values (used for the agent's own page and per-member cards).
 export function metricItems(p: MemberPerformance, t: Dictionary) {
@@ -58,7 +58,7 @@ export function metricItems(p: MemberPerformance, t: Dictionary) {
   const a = p.adherence;
   return [
     { key: "assigned", label: m.assigned, value: String(p.assigned) },
-    { key: "open", label: m.open, value: String(p.open), tone: p.open > 20 ? "text-amber-300" : undefined },
+    { key: "open", label: m.open, value: String(p.open), tone: p.open > 20 ? "text-warning" : undefined },
     { key: "confirmed", label: m.confirmed, value: String(p.confirmed) },
     { key: "cancelled", label: m.cancelled, value: String(p.cancelled) },
     { key: "noAnswer", label: m.noAnswer, value: String(p.noAnswer) },

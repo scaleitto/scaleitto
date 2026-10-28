@@ -12,7 +12,7 @@ import { canAdd } from "@/server/limits";
 import { asLocale } from "@/i18n";
 import type { ActionState } from "@/lib/action";
 import type { AppKey } from "@/server/db/schema";
-import { backfillSheet, testApp } from "./sync";
+import { OLD_SCRIPT, backfillSheet, testApp } from "./sync";
 import { createImportedProduct, fetchShopify, fetchYoucan, ImportError } from "./importer";
 import type { CatalogProduct } from "./catalog";
 
@@ -64,9 +64,12 @@ export async function saveAppUrl(lang: string, app: AppKey, _prev: ActionState, 
     await db.update(schema.shopApps).set({ url, active: true }).where(eq(schema.shopApps.id, row.id));
     const r = await testApp({ ...row, url, active: true });
     refresh();
-    return r.ok ? { ok: true, message: r.detail } : { ok: false, error: "appTestFailed", message: r.detail };
+    return testResult(r);
   });
 }
+
+const testResult = (r: { ok: boolean; detail: string }): ActionState =>
+  r.ok ? { ok: true, message: r.detail } : r.detail === OLD_SCRIPT ? { ok: false, error: "sheetsOldScript" } : { ok: false, error: "appTestFailed", message: r.detail };
 
 export async function testAppAction(lang: string, app: AppKey): Promise<ActionState> {
   return safeAction("apps/test", async () => {
@@ -75,7 +78,7 @@ export async function testAppAction(lang: string, app: AppKey): Promise<ActionSt
     if (!row?.url) return { ok: false, error: "notFound" };
     const r = await testApp(row);
     refresh();
-    return r.ok ? { ok: true, message: r.detail } : { ok: false, error: "appTestFailed", message: r.detail };
+    return testResult(r);
   });
 }
 

@@ -53,6 +53,8 @@ const en: Dictionary = {
     haveAccount: "Already have an account?",
   },
   errors: {
+    sheetsOldScript: "The code in your sheet is old: copy the new code below into Apps Script, then Deploy → Manage deployments → Edit → Version: New version → Deploy",
+    noAgents: "No active confirmation agents to receive the orders",
     unexpected: "Something went wrong and it was logged. Please try again.",
     invalid: "Invalid value",
     required: "This field is required",
@@ -231,6 +233,18 @@ const en: Dictionary = {
     errors: { type: "Unsupported file type", size: "Image too large (8 MB max)", empty: "Empty file", auth: "Session expired, log in again", unexpected: "Server error", network: "Connection problem" },
   },
   orders: {
+    bulk: {
+      selectAll: "Select every order on the page",
+      select: "Select the order",
+      hint: "Select orders in the table, then choose who gets them",
+      selected: "{n} order(s) selected",
+      assignTo: "Assign to",
+      assign: "Assign",
+      unassign: "Unassign",
+      spread: "Share equally between agents",
+      assigned: "{n} order(s) assigned",
+      spreadDone: "{n} order(s) shared:",
+    },
     locked: {
       short: "Locked order",
       title: "This order is locked",
@@ -383,6 +397,27 @@ const en: Dictionary = {
     sampleProduct: "Product {n}",
   },
   team: {
+    distribution: {
+      title: "Order distribution",
+      mode: "Distribution mode:",
+      change: "Change the mode",
+      explain: {
+        manual: "New orders stay without an agent until you hand them out: with the “Share now” button here, or from the orders list (select orders, then choose the agent).",
+        balanced: "Each new order goes right away to the agent with the fewest open orders (new, no answer, postponed). On a tie, to whoever has waited longest for one.",
+        on_shift: "Each new order goes right away to the least busy agent among those on shift now. If nobody is on shift, to the least busy of all.",
+      },
+      agent: "Agent",
+      shift: "Shift",
+      onShift: "On shift",
+      offShift: "Off shift",
+      open: "Open now",
+      today: "Assigned today",
+      last: "Last assigned",
+      unassigned: "{n} open order(s) without an agent",
+      noneUnassigned: "Every open order has an agent",
+      spreadNow: "Share them now",
+      noAgents: "No active confirmation agents yet. Add them in the team list below.",
+    },
     tabs: { team: "Team", performance: "Performance", activity: "Activity", settings: "Order assignment" },
     addMember: "Add member",
     addHint: "Create the member's account, then give them the email and password to sign in.",
@@ -767,6 +802,8 @@ const en: Dictionary = {
     copied: "Copied",
     save: "Save and test",
     sheets: {
+      testOk: "A test row (TEST) was written in the “{sheet}” tab of your spreadsheet. Open that tab at the bottom to check; you can delete the row.",
+      testRow: "Scaleitto connection test ✓ — you can delete this row",
       title: "Google Sheets",
       description: "Every new order becomes a row in your sheet, and every change (status, details, agent, tracking) updates that same row automatically.",
       steps: [
@@ -830,6 +867,8 @@ const en: Dictionary = {
     },
   },
   plans: {
+    platformShop: "Platform store — unlimited",
+    platformShopHint: "This is the platform admin's store: no plan or limit applies, and every feature is on.",
     current: "Your plan",
     perMonth: "{price} / month",
     free: "Free",

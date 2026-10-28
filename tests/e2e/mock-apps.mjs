@@ -61,7 +61,8 @@ export function startMockApps(port) {
       else {
         sheet.headers = body.headers;
         for (const row of body.rows) sheet.rows.set(String(row[0]), row.map(String));
-        result = { ok: true, count: body.rows.length };
+        // Like the real script: the tab it wrote to and its version (tests set sheet.version to fake an old copy)
+        result = { ok: true, count: body.rows.length, sheet: "Orders", ...(sheet.version === 1 ? {} : { version: sheet.version ?? 2 }) };
       }
       const id = ++counter;
       results.set(id, result);

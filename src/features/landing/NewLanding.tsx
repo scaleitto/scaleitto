@@ -132,7 +132,7 @@ function AiWizard({ lang, products, editorBase, t }: { lang: string; products: P
           ))}
         </ol>
         <p className="text-xs text-muted">{fmt(ai.elapsed, { s: elapsed })}</p>
-        {elapsed > 150 && <p className="text-xs text-amber-300">{ai.slow}</p>}
+        {elapsed > 150 && <p className="text-xs text-warning">{ai.slow}</p>}
       </Card>
     );
   }

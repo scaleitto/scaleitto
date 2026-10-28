@@ -209,7 +209,7 @@ export function SectionFields({ lang, section, set, productImages, t }: { lang: 
     case "reviews":
       return (
         <div className="space-y-3">
-          <p className="text-xs text-amber-300">{ed.reviewsHint}</p>
+          <p className="text-xs text-warning">{ed.reviewsHint}</p>
           {titleField(section.title)}
           {section.items.map((item, i) => {
             const update = (patch: Partial<typeof item>) => p({ items: section.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
@@ -219,7 +219,7 @@ export function SectionFields({ lang, section, set, productImages, t }: { lang: 
                   <Input aria-label={f.name} placeholder={f.name} value={item.name} maxLength={80} onChange={(e) => update({ name: e.target.value })} />
                   <div className="flex shrink-0" aria-label={f.rating}>
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <button key={n} type="button" onClick={() => update({ rating: n })} className="p-0.5 text-amber-400" aria-label={`${n}/5`}>
+                      <button key={n} type="button" onClick={() => update({ rating: n })} className="p-0.5 text-warning" aria-label={`${n}/5`}>
                         <Star size={16} fill={n <= item.rating ? "currentColor" : "none"} />
                       </button>
                     ))}

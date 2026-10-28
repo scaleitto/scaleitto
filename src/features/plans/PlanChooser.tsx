@@ -128,7 +128,7 @@ export function PlanChooser({
     <div className="space-y-4">
       {pending && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm" data-testid="plan-pending">
-          <Clock size={18} className="shrink-0 text-amber-300" />
+          <Clock size={18} className="shrink-0 text-warning" />
           <p className="me-auto">{fmt(p.pending, { plan: pending.planName, months: pending.months, amount: formatPrice(pending.amount, t.common.currency) })}</p>
           <Button variant="secondary" className="py-1.5 text-xs" disabled={busy} onClick={() => startTransition(async () => void (await cancelPlanRequest(lang, pending.id)))}>
             {p.cancelRequest}

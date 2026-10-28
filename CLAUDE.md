@@ -21,7 +21,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `src/features/<section>/` — each section's `actions.ts` (server actions), `components.tsx`, validators.
 - `src/ui/` — shared UI kit (`Button`, `Card`, `Field`, `Input`, `Alert`, `PageHeader`…) and `ui/form.tsx`
   (`useActionForm` — forms never lose typed values after an error —, `SubmitButton`, `FormMessage`, `fieldError`).
-  Colors are tokens in `src/app/globals.css` (dark dashboard, green accent).
+  Colors are tokens in `src/app/globals.css` (light dashboard, green accent; `text-warning` / `text-info` instead of fixed amber/sky).
 - `src/lib/permissions.ts` — the ONLY place that says which role sees which sidebar section (sidebar order =
   the owner's image: Overview, Products, Orders, Delivery, Store Design, Theme Store, Call Centers, Landing Pages,
   Analytics, Pixels, Apps, Plans, Settings, Profile). Roles: owner / manager / agent (call center).
@@ -64,7 +64,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
   look there, not in pages).
 - Themes (`src/features/themes/themes.ts`): each theme = tokens (font, surfaces, radii, card style) + layout
-  switches (header, hero, columns, image shape). `themeStyle()` sets CSS variables on `StoreFrame`; storefront
+  switches (header start/center, hero split/full/card/minimal, columns, image shape, product cards elevated/outline/minimal). `themeStyle()` sets CSS variables on `StoreFrame`; storefront
   code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-line`…), `rounded-[var(--s-radius)]`,
   `rounded-[var(--s-radius-btn)]` and `shadow-[var(--s-shadow)]` — never fixed slate/white colors, or dark themes
   break. Fonts for all themes are declared once in `src/app/fonts.ts`. The chosen theme is `design.theme`.
@@ -150,6 +150,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   during generation for the first 1–2 `/uploads/` photos (the generation's `result` holds `{imageTasks, applied}`;
   `finishImages` swaps the new URLs into the page and puts them first in the product images; failures keep the original),
   and from the editor's image picker (`EnhanceImage`). E2E: `phase15.mjs`.
+- Owner feedback round (phase16.mjs): a shop whose owner is the platform admin has no plan limits (`isPlatformShop` in
+  `limits.ts`, every limit -1, custom domain allowed, Plans page shows "platform store"). Agents never get store links.
+  Distribution: `team/distribution.ts` (`distributionBoard` per agent load, `spreadOrders` = same fewest-open-orders rule),
+  shown on Call Centers → team (`DistributionBoard`, "share now" for unassigned orders); the orders list has a bulk bar
+  (`orders/BulkAssign.tsx`: row checkboxes `data-bulk-order`, assign / unassign / share between agents). Google Sheets script
+  v2 (`SCRIPT_VERSION`): uses the first empty tab renamed "Orders", answers its version; "Test" writes a visible TEST row and
+  asks for the new script when the copy is older. The database is converted to utf8mb4 at startup (`migrate-lib.mjs`).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

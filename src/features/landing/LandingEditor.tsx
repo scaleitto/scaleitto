@@ -172,7 +172,7 @@ export function LandingEditor({
         </Link>
         <h1 className="me-auto truncate text-xl font-bold">{meta.title}</h1>
         <Badge tone={meta.status === "published" ? "accent" : "neutral"}>{lp.statuses[meta.status]}</Badge>
-        {dirty && <span className="text-xs text-amber-300">{ed.unsaved}</span>}
+        {dirty && <span className="text-xs text-warning">{ed.unsaved}</span>}
         {meta.status === "published" && (
           <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg">
             <ExternalLink size={15} /> {ed.open}
