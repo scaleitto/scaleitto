@@ -115,6 +115,8 @@ export default async function phase18(browser) {
     expect((await phone.locator("[data-testid=order-steps] li").count()) === 3, "3 steps");
     await phone.goto(`${BASE}/ar`);
     expect((await phone.locator("#journey li").count()) === 6, "6 journey steps");
+    expect((await phone.locator("[data-testid=home-pricing] [data-plan]").count()) >= 3, "the active plans with their prices");
+    expect((await phone.locator("[data-plan=starter]").innerText()).includes("مجانية"), "the free plan says so");
     expect((await phone.evaluate(() => document.documentElement.scrollWidth)) <= 390, "no sideways scrolling");
     await phone.close();
   });

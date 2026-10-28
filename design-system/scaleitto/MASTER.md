@@ -29,13 +29,13 @@ Adjustments to the tool's proposal (and why):
 | muted | #556860 | secondary text (≥ 5:1 on white) |
 | accent | #047857 | primary buttons, links, active (white text 5.5:1) |
 | accent-bright | #10B981 | indicators, charts, sidebar active icon |
-| attention | #C2410C | warnings / new / waiting (text on white 5.2:1) |
+| attention | #B53D0B | warnings / new / waiting (5.7:1 on white, ≥ 4.5 on its 10% tint) |
 | danger | #DC2626 | destructive |
 | info | #0369A1 | information |
 | sidebar | #0B2A1F → #082018 | navigation surface |
 
 ## Type
-IBM Plex Sans Arabic (variable via next/font, preloaded only in the dashboard layout). Scale: 12 (meta) / 14 (UI, tables)
+IBM Plex Sans Arabic 400/600/700 (next/font, preloaded only in the [lang] layout; 500 falls back to 400). Scale: 12 (meta) / 14 (UI, tables)
 / 16 (body, inputs on mobile) / 18 (card titles) / 24–28 (page titles, 700). Line-height 1.6 body, 1.25 titles.
 No all-caps labels, no letter-spaced eyebrows.
 

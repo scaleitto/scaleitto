@@ -17,7 +17,7 @@
   --color-accent-bright: #10b981;
   --color-accent-fg: #ffffff;
   --color-danger: #dc2626;
-  --color-warning: #c2410c;
+  --color-warning: #b53d0b;
   --color-info: #0369a1;
   --color-sidebar: #0b2a1f;
   --color-brand: var(--brand, #22c55e);
@@ -101,19 +101,38 @@ input[type="range"] {
 [dir="rtl"] .marquee-track {
   animation-name: marquee-rtl;
 }
-/* Homepage: the order notifications arrive once on the phone */
-@keyframes notify-in {
+/* Homepage: the shipping label settles, then the "confirmed" stamp lands — once, on load */
+@keyframes ticket-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.96);
+    transform: translateY(14px) rotate(-5deg);
   }
 }
-.notify-in {
-  animation: notify-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+@keyframes stamp-in {
+  0%,
+  55% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-12deg);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-12deg);
+  }
+}
+.ticket-in {
+  animation: ticket-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.stamp-in {
+  animation: stamp-in 1.2s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+/* The torn edge of a shipping label, in the color of the band it tops */
+.perforation {
+  background: radial-gradient(circle at 8px 0, transparent 7px, var(--color-sidebar) 7.5px) 0 0 / 16px 16px repeat-x;
 }
 @media (prefers-reduced-motion: reduce) {
   .marquee-track,
-  .notify-in {
+  .ticket-in,
+  .stamp-in {
     animation: none;
   }
 }
