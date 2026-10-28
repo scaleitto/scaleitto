@@ -191,6 +191,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
   `/api/health` shows version, DB, migrations and env status.
 
+## Design skill
+- `.claude/skills/ui-ux-pro-max/` (UI/UX Pro Max, MIT, from github.com/nextlevelbuilder/ui-ux-pro-max-skill): use it for any UI
+  work. Search: `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <product|style|color|typography|ux|chart> -n 3`
+  (or `--design-system` for a full proposal). Keep the project's own tokens (globals.css, `s-*` storefront colors) as the source.
+
 ## Testing (required before pushing every section)
 - `npm test` — unit tests in `tests/unit/` (node test runner via tsx).
 - `npm run test:e2e` — Playwright flows in `tests/e2e/phaseN.mjs` against a running server (E2E_URL, default
