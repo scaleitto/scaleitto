@@ -675,11 +675,10 @@ const en: Dictionary = {
       poster: {
         angle: "Marketing angle",
         kind: "Section type",
-        kinds: { hero: "Hook", problem: "Problem", solution: "Solution", benefits: "Benefits", features: "Features", howto: "How to use", beforeAfter: "Before / after", details: "Details", offer: "Offer and price", cta: "Call to action" },
+        kinds: { hero: "Hook", problem: "Problem", solution: "Solution", benefits: "Benefits", features: "Features", howto: "How to use", beforeAfter: "Before / after", details: "Details", offer: "Offer and price", cta: "Call to action", objections: "Objections", trust: "Trust" },
         headline: "Headline",
         subtitle: "Subtitle",
         bullets: "Points (one per line, a few words)",
-        cta: "Button text",
         regenerate: "Regenerate the image with AI",
         generate: "Generate the image",
         generating: "Designing the image… (up to 2 minutes)",

@@ -187,7 +187,7 @@ export default async function phase7(browser) {
     const [[page]] = await db.query("SELECT * FROM landing_pages WHERE id = ? AND shop_id = ?", [id, shopId]);
     const sections = typeof page.sections === "string" ? JSON.parse(page.sections) : page.sections;
     expect(page.product_id === productId && page.status === "draft", "page for the chosen product, as a draft");
-    expect(sections.map((s) => s.type).slice(0, 3).join() === "hero,badges,form", "order form placed after the hero and badges");
+    expect(sections[0].type === "hero" && sections[sections.length - 1].type === "form", `order form as the last step of the sequence (got ${sections.map((s) => s.type).join()})`);
     expect(!sections.some((s) => s.type === "image"), "image not from the product was dropped");
     const [[gen]] = await db.query("SELECT status, landing_page_id FROM ai_generations WHERE shop_id = ? ORDER BY created_at DESC LIMIT 1", [shopId]);
     expect(gen.status === "done" && gen.landing_page_id === id, "generation recorded");

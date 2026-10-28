@@ -45,7 +45,10 @@ export default async function phase17(browser) {
     const [[page]] = await db.query("SELECT sections, color, product_id FROM landing_pages WHERE id = ?", [pageId]);
     productId = page.product_id;
     const sections = json(page.sections);
-    expect(sections.map((s) => s.type).slice(0, 3).join() === "marquee,poster,form", `band, first image, form (got ${sections.map((s) => s.type).join()})`);
+    const types = sections.map((s) => s.type);
+    expect(types[0] === "marquee" && types[1] === "poster" && types[types.length - 1] === "form", `band, images, then the form (got ${types.join()})`);
+    const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
+    expect(plan.instructions.includes("objections") && plan.instructions.includes("AT LEAST 5") && plan.instructions.includes("Never payment or delivery here"), "the persuasion sequence in the plan prompt");
     const posters = sections.filter((s) => s.type === "poster");
     expect(posters.length === 6 && posters.every((s) => s.image.startsWith(`/uploads/${shopId}/`)), "6 designed images");
     expect(posters[0].kind === "hero" && posters[5].kind === "offer" && posters[0].headline === "عنوان القسم 1", "kinds and texts from the plan");
@@ -57,6 +60,7 @@ export default async function phase17(browser) {
     const text = last?.input?.[0]?.content?.find((c) => c.type === "input_text")?.text ?? "";
     expect(last?.input?.[0]?.content?.filter((c) => c.type === "input_image").length === 2, "the product photos are the references");
     expect(text.includes('Price: "3300') && text.includes("no people and no faces"), "offer price and the people choice in the image prompt");
+    expect(text.includes("Never draw buttons") && !text.includes("Button:"), "images never contain buttons");
     const [[product]] = await db.query("SELECT images FROM products WHERE id = ?", [productId]);
     expect(json(product.images).length === 2, "designed images are not added to the product photos");
   });
@@ -97,7 +101,10 @@ export default async function phase17(browser) {
     const layout = phone.locator("[data-layout=images]");
     await layout.waitFor();
     const order = await layout.evaluate((el) => [...el.children].map((c) => c.getAttribute("data-section")).slice(0, 4).join());
-    expect(order === "marquee,poster,form,poster", `order (got ${order})`);
+    expect(order === "marquee,poster,poster,poster", `order (got ${order})`);
+    expect((await layout.locator(":scope > [data-section]").last().getAttribute("data-section")) === "form", "the form after the images");
+    await phone.locator("[data-section=poster] a[href='#order-form']").first().click();
+    await phone.waitForFunction(() => document.getElementById("order-form").getBoundingClientRect().top < window.innerHeight);
     await phone.locator("[data-section=marquee]").getByText("دفع عند التسليم").first().waitFor();
     const img = await phone.locator("[data-section=poster] img").first().boundingBox();
     expect(Math.round(img.width) === 390, `images across the phone (${img.width})`);

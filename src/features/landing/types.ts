@@ -5,7 +5,7 @@ import { isBenefitIcon } from "./icons";
 
 export const sectionTypes = ["poster", "marquee", "hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
 // What a poster section is about (the AI designs one marketing image per section)
-export const posterKinds = ["hero", "problem", "solution", "benefits", "features", "howto", "beforeAfter", "details", "offer", "cta"] as const;
+export const posterKinds = ["hero", "problem", "solution", "benefits", "features", "howto", "details", "beforeAfter", "objections", "trust", "offer", "cta"] as const;
 export type PosterKind = (typeof posterKinds)[number];
 export const MAX_POSTER_HISTORY = 3;
 export type SectionType = (typeof sectionTypes)[number];
@@ -15,7 +15,7 @@ export type LandingSection = Base &
   (
     // A full-width marketing image with its text designed into it (AI-made or the merchant's own).
     // The texts are kept so the image can be regenerated; previous = earlier images (newest first) to restore.
-    | { type: "poster"; image: string; kind: PosterKind; angle?: string; headline: string; subtitle?: string; bullets: string[]; cta?: string; scene?: string; previous: string[] }
+    | { type: "poster"; image: string; kind: PosterKind; angle?: string; headline: string; subtitle?: string; bullets: string[]; scene?: string; previous: string[] }
     // A thin scrolling band of short selling points ("Cash on delivery → Fast delivery → …")
     | { type: "marquee"; items: string[] }
     | { type: "hero"; title: string; subtitle?: string; image?: string; badge?: string }
@@ -118,7 +118,6 @@ export function sanitizeSections(input: unknown): LandingSection[] {
             headline,
             subtitle: opt(s.subtitle, 240),
             bullets: list(s.bullets, 5, 80),
-            cta: opt(s.cta, 60),
             scene: opt(s.scene, 600),
             previous: (Array.isArray(s.previous) ? s.previous : []).filter(isSafeImage).slice(0, MAX_POSTER_HISTORY),
           };

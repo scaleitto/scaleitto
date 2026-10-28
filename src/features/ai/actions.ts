@@ -80,7 +80,6 @@ const posterInput = z.object({
   headline: z.string().trim().min(1).max(160),
   subtitle: z.string().trim().max(240).optional(),
   bullets: z.array(z.string().trim().max(80)).max(5),
-  cta: z.string().trim().max(60).optional(),
   // Where the image takes place (empty: the section's own direction)
   background: z.string().trim().max(600).optional(),
   extra: z.string().trim().max(1000).optional(),
@@ -106,7 +105,7 @@ export async function startPosterImage(lang: string, input: z.input<typeof poste
   if (!row) return { ok: false, error: "notFound" };
   const language = (pageLanguages.includes(row.language as PageLanguage) ? row.language : "ar") as PageLanguage;
   const references = [...(d.current && isSafeImage(d.current) ? [d.current] : []), ...row.product.images].slice(0, 4);
-  const content = { kind: d.kind, headline: d.headline, subtitle: d.subtitle || undefined, bullets: d.bullets.filter(Boolean), cta: d.cta || undefined, scene: d.scene };
+  const content = { kind: d.kind, headline: d.headline, subtitle: d.subtitle || undefined, bullets: d.bullets.filter(Boolean), scene: d.scene };
   const base = posterPrompt(content, {
     productName: row.product.name,
     language,

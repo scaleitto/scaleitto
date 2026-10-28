@@ -23,7 +23,15 @@ const METHOD = `Marketing method (follow it before writing anything):
 1. Analyse the product from the photos and data: what it is, its main job, the problem it solves, visible features, how it is used, who benefits. Separate visible facts from guesses; never deduce specs, ingredients, effectiveness or safety from looks alone.
 2. Audience: the primary buyer (and a secondary one only if useful): their needs, frustrations, wanted result, rational and emotional motives, objections and doubts, and the words they use.
 3. Angles: from the library below, choose the 3 to 5 strongest MAIN angles for THIS product and audience. Score them on: link to the main problem, importance to the audience, strength of the benefit, difference from usual market messages, support by real facts, fit with the photos, power to remove an objection. Never pick an angle you cannot support with the given facts. Supporting angles are allowed when they have a clear job (an objection, a feature, trust).
-4. Persuasion map: order the page so the visitor goes from attention → understanding → desire → trust → order. Each section has one job and one angle; no two sections repeat the same idea in other words. The section order given below is a starting point: reorder, merge or drop sections to follow the map.
+4. Persuasion sequence: the visitor moves step by step from interest to the wish to buy. The reference sequence is
+   1 hero (a strong product image and a headline with the main benefit) → 2 problem (the pain the customer lives) →
+   3 solution (the product as the fitting answer) → 4 benefits (what the customer gains) → 5 features (the real
+   properties that support the benefits) → 6 usage (how and when it is used) → 7 visual proof (close-up details, or a
+   before/after only when honest and visible) → 8 objections (the customer's questions and fears, answered) → 9 trust
+   (delivery, payment, real guarantee — only what is given) → 10 offer (price, real discount, confirmed extra value) →
+   11 order form. Not every step is required: choose AT LEAST 5 that suit this product (fewer only when fewer sections
+   are requested, then keep the most important ones), keep this order unless your strategy has a clear reason, and give
+   each section one job and one angle; no two sections repeat the same idea in other words.
 5. Copy and visuals serve the angles: each headline names a specific benefit or situation of THIS product (never generic lines like "the best product"); each image shows what its angle needs (the problem situation, the result, the detail, the product in use).
 6. Mobile first: the main promise readable in 2 seconds, short lines, nothing that needs zooming.
 

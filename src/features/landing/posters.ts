@@ -22,24 +22,25 @@ const languageNames: Record<PageLanguage, string> = {
   en: "English",
 };
 
-const PLAN_ROLE = `You are the creative director of a top cash-on-delivery (COD) e-commerce agency (direct marketing, consumer psychology, conversion optimisation). You plan "image landing pages" for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images (each image is one section with its text designed inside), an order form after the first image, and a sticky order button. Mobile visitors only scroll and look, so every image must sell on its own in 2 seconds.`;
+const PLAN_ROLE = `You are the creative director of a top cash-on-delivery (COD) e-commerce agency (direct marketing, consumer psychology, conversion optimisation). You plan "image landing pages" for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images (each image is one section with its text designed inside), then the order form, with a sticky order button; tapping any image opens the form. Mobile visitors only scroll and look, so every image must sell on its own in 2 seconds.`;
 
 // Format, copy limits and honesty: always apply, whatever the strategy
-const PLAN_CONTRACT = `Plan exactly the requested number of sections. Section kinds:
-- hero: the hook. Huge headline naming the outcome the buyer wants, a short subtitle, 2–3 trust points as bullets (cash on delivery, delivery to the 58 wilayas, a confirmation call — these are always true here).
-- problem: the pain or frustration the product removes, as a question headline + 2–3 short pains.
-- solution: the product as the answer, headline + subtitle.
-- benefits: 3–4 concrete benefits (2–3 words each) shown as icon rows next to the product.
-- features: the product in the center with callouts pointing to visible features (2–4 short labels).
-- howto: how to use it in 2–3 numbered steps (only if usage is simple to show).
-- beforeAfter: a before/after split (ONLY when the product's effect is visual and obvious; never for health or body results).
-- details: close-up on material, finish, size or what is in the box.
-- offer: the price as a big badge (and the old price struck through only if given), urgency only from a real discount.
-- cta: the closing image: product + call to action.
-Order: hero first; problem/solution early; offer or cta last (unless the persuasion map or the merchant's brief says otherwise). No two sections of the same kind in a row.
+const PLAN_CONTRACT = `Plan exactly the requested number of sections (the order form comes after them automatically). Section kinds, in the reference sequence order:
+- hero: a strong product image and a big headline naming the main benefit, a short subtitle, 2–3 product benefits as bullets. Never payment or delivery here: the band above the page already says it.
+- problem: the pain or frustration the customer lives, as a question headline + 2–3 short pains.
+- solution: the product as the fitting answer, headline + subtitle.
+- benefits: 3–4 concrete gains for the customer (2–3 words each) shown as icon rows next to the product.
+- features: the real properties that support the benefits: the product in the center with callouts (2–4 short labels).
+- howto: usage — how and when it is used, in 2–3 numbered steps.
+- details: visual proof — close-ups of material, finish, size or what is in the box.
+- beforeAfter: visual proof as a before/after split (ONLY when the effect is visual, real and obvious; never for health or body results).
+- objections: 2–3 of the customer's real questions or fears, each answered in a few words (only answers the facts support).
+- trust: delivery to the 58 wilayas, cash on delivery, a confirmation call, and a guarantee ONLY if the merchant gave one.
+- offer: the price as a big badge (and the old price struck through only if given), extra value only when confirmed.
+Order: follow the sequence above, keep hero first and offer last when present. No two sections of the same kind in a row.
 angle: the marketing angle the section serves (one of your chosen angles, a few words, in the page language).
 
-Copy rules (the text is rendered inside images, so it must be SHORT): headline max 6 words, subtitle max 10 words, bullets max 4 items of max 3 words, cta max 4 words. Vivid, specific to THIS product, in the requested language. No emojis.
+Copy rules (the text is rendered inside images, so it must be SHORT): headline max 6 words, subtitle max 10 words, bullets max 4 items of max 3 words. cta: always null (images never contain buttons: the page has real ones). Vivid, specific to THIS product, in the requested language. No emojis.
 scene: in English, one or two sentences describing the visual composition of the image (setting, camera angle, mood, where the product is, what the people are doing if any). Never describe text in the scene.
 
 Strict honesty (non-negotiable): use only facts from the product data, photos and merchant notes. Never invent specs, certifications, awards, statistics, medical or health claims, guarantees, return policies, reviews, ratings, customer counts, stock levels or deadlines. Free delivery only if the merchant notes say so. Prices only as given.
@@ -131,7 +132,7 @@ export function lookOf(palette: Palette, options: Pick<PosterOptions, "people" |
   return `Palette: background ${palette.background}, main ${palette.primary}, highlight ${palette.accent}. People: ${peopleRule[options.people]} Audience: ${options.audience}.`;
 }
 
-// The model's plan → a page: band of selling points, the images (still to design), the order form after the first one.
+// The model's plan → a page: band of selling points, the images (still to design), then the order form (step 11 of the sequence).
 export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions, custom = false) {
   const raw = plan.palette ?? {};
   const palette: Palette = {
@@ -148,14 +149,12 @@ export function finishPosterPage(plan: PosterPlan, fallbackName: string, options
     headline: s.headline,
     subtitle: s.subtitle ?? undefined,
     bullets: s.bullets ?? [],
-    cta: s.cta ?? undefined,
     scene: `${s.scene ?? ""}\n${look}`.trim(),
     previous: [],
   }));
   const sections = sanitizeSections([{ type: "marquee", items: plan.marquee ?? [] }, ...posters]);
   if (!sections.some((s) => s.type === "poster")) sections.push({ id: newSectionId(), type: "poster", image: "", kind: "hero", headline: fallbackName.slice(0, 160), bullets: [], scene: look, previous: [] });
-  const first = sections.findIndex((s) => s.type === "poster");
-  sections.splice(first + 1, 0, { id: newSectionId(), type: "form" });
+  sections.push({ id: newSectionId(), type: "form" });
   return {
     title: String(plan.title || fallbackName).slice(0, 200),
     productName: plan.product_name?.trim().slice(0, 200) || null,
@@ -167,19 +166,21 @@ export function finishPosterPage(plan: PosterPlan, fallbackName: string, options
 }
 
 const kindRules: Record<PosterKind, string> = {
-  hero: "Hero image: the headline very large at the top, the subtitle under it, the product big and dominant, the bullets as a column of icon + label rows.",
+  hero: "Hero image: the headline very large at the top, the subtitle under it, the product big and dominant, the bullets as a column of icon + label rows (product benefits, never payment or delivery).",
   problem: "Problem image: an emotional scene showing the frustration, the headline as a question, the bullets as pain points with simple icons.",
   solution: "Solution image: the product presented as the answer, glowing and premium, headline and subtitle.",
   benefits: "Benefits image: a headline at the top, the bullets as rows of round icons with labels beside the product.",
   features: "Features image: the product in the center with thin callout lines pointing to its parts, each callout labelled with one bullet.",
-  howto: "How-to image: the headline, then numbered steps (1, 2, 3…) as rounded panels, each showing the action with the product and its bullet as label.",
+  howto: "Usage image: the headline, then numbered steps (1, 2, 3…) as rounded panels, each showing the action with the product and its bullet as label.",
   beforeAfter: "Before/after image: a split composition labelled with the bullets (before on one side, after on the other), the headline above.",
   details: "Details image: macro close-ups of the product's material and finish in rounded frames, the bullets as labels.",
-  offer: "Offer image: the product with the price in a big eye-catching badge, the old price struck through if given, the call to action as a button shape.",
-  cta: "Closing image: the product hero shot with the call to action as a big button shape and the headline.",
+  objections: "Objections image: the headline, then 2–3 rounded question-and-answer panels (each bullet is one short answer) beside the product.",
+  trust: "Trust image: the product with 3–4 large icon + label rows for delivery, cash on delivery, the confirmation call (and a guarantee only if given).",
+  offer: "Offer image: the product with the price in a big eye-catching badge, the old price struck through if given.",
+  cta: "Closing image: the product hero shot with the headline.",
 };
 
-export type PosterContent = { kind: PosterKind; headline: string; subtitle?: string; bullets: string[]; cta?: string; scene?: string };
+export type PosterContent = { kind: PosterKind; headline: string; subtitle?: string; bullets: string[]; scene?: string };
 
 // The instructions for one image. The text to write is quoted exactly; nothing else may be written.
 export function posterPrompt(
@@ -190,7 +191,6 @@ export function posterPrompt(
     `Headline: "${s.headline}"`,
     s.subtitle ? `Subtitle: "${s.subtitle}"` : "",
     s.bullets.length ? `Labels: ${s.bullets.map((b) => `"${b}"`).join(", ")}` : "",
-    s.cta ? `Button: "${s.cta}"` : "",
     s.kind === "offer" ? `Price: "${ctx.price} ${ctx.currency}"${ctx.compareAtPrice && ctx.compareAtPrice > ctx.price ? ` and the old price struck through: "${ctx.compareAtPrice} ${ctx.currency}"` : ""}` : "",
   ].filter(Boolean);
   return [
@@ -200,6 +200,7 @@ export function posterPrompt(
     ctx.background || s.scene ? `Visual direction: ${ctx.background || s.scene}` : "",
     `Write ONLY these texts, exactly as given, in ${languageNames[ctx.language]}, perfectly spelled with correctly connected letters, in a bold modern font, large and readable on a phone, with strong contrast:\n${texts.join("\n")}`,
     "Do not write any other word, number or letter. No watermark, no website, no phone number, no fake brand, no ratings, no stars, no reviews, no certification badges.",
+    "Never draw buttons, button-like shapes, arrows saying to click, form fields or anything that looks tappable: the page has real buttons.",
     "Premium modern advertising style: depth, soft cinematic light, rich colors from the palette, clean composition, generous safe margins (nothing important within 6% of the edges).",
     ctx.extra ? `Additional instructions from the merchant: ${ctx.extra}` : "",
   ]

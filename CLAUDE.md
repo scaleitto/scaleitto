@@ -186,6 +186,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   prompt in its place (wizard step "method"; `shops.ai_prompt` = saved default); the format/honesty contract always stays.
   Both schemas return `strategy` (audience + angles, saved in `landing_pages.strategy`, `StrategyCard` in the editor) and posters
   carry their `angle`. Storefront form fields use `s-field-edge` / `s-field` (mixed from the theme's text color).
+- Owner feedback round 4: persuasion sequence (strategy.ts, both prompts): hero → problem → solution → benefits → features →
+  usage → visual proof → objections → trust → offer → order form, at least 5 steps chosen per product; the form is always the
+  last step (`finishPosterPage` / `finishLandingPage` push it at the end; sticky button + every poster image links to
+  `#order-form`). Posters never contain buttons (no `cta` field any more) and the hero never repeats payment/delivery (the
+  band does); poster kinds add `objections` and `trust`. The language switcher is a dropdown (`ui/LanguageSwitcher.tsx`).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

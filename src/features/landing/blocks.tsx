@@ -42,22 +42,27 @@ function Marquee({ items }: { items: string[] }) {
 // A designed marketing image (text inside it). Without its image yet: nothing on the public page,
 // a placeholder in the editor.
 function Poster({ section, editing, first }: { section: Extract<LandingSection, { type: "poster" }>; editing: boolean; first?: boolean }) {
-  if (section.image)
+  if (section.image) {
+    const img = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={section.image}
+        alt={[section.headline, section.subtitle].filter(Boolean).join(" — ")}
+        width={1024}
+        height={1536}
+        // The first image is what visitors see first: load it right away, the others when scrolled to
+        loading={first ? "eager" : "lazy"}
+        fetchPriority={first ? "high" : undefined}
+        className="block h-auto w-full"
+      />
+    );
+    // On the public page every image is a way to the order form (an image's text often invites to order)
     return (
       <figure data-section="poster" data-kind={section.kind}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={section.image}
-          alt={[section.headline, section.subtitle].filter(Boolean).join(" — ")}
-          width={1024}
-          height={1536}
-          // The first image is what visitors see first: load it right away, the others when scrolled to
-          loading={first ? "eager" : "lazy"}
-          fetchPriority={first ? "high" : undefined}
-          className="block h-auto w-full"
-        />
+        {editing ? img : <a href="#order-form" className="block outline-none focus-visible:ring-4 focus-visible:ring-brand/40">{img}</a>}
       </figure>
     );
+  }
   if (!editing) return null;
   return (
     <div className="flex aspect-[2/3] flex-col items-center justify-center gap-3 bg-gradient-to-b from-brand/80 to-brand p-8 text-center text-white" data-section="poster" data-pending>
@@ -293,10 +298,9 @@ export function LandingSections({ sections, form, t, price, editing = false }: {
         </div>
       ),
     );
-    // No form section: right after the first image
+    // No form section: after the images (the last step of the persuasion sequence)
     if (formAt < 0) {
-      const first = visible.findIndex((s) => s.type === "poster");
-      items.splice(first + 1, 0, (
+      items.push((
         <div key="form-slot" className="scroll-mt-4 bg-s-surface p-4" data-section="form">
           {form}
         </div>

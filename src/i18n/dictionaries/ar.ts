@@ -673,11 +673,10 @@ const ar = {
       poster: {
         angle: "الزاوية التسويقية",
         kind: "نوع القسم",
-        kinds: { hero: "الواجهة", problem: "المشكلة", solution: "الحل", benefits: "الفوائد", features: "المميزات", howto: "طريقة الاستعمال", beforeAfter: "قبل وبعد", details: "التفاصيل", offer: "العرض والسعر", cta: "دعوة للشراء" },
+        kinds: { hero: "الواجهة", problem: "المشكلة", solution: "الحل", benefits: "الفوائد", features: "المميزات", howto: "الاستخدامات", beforeAfter: "قبل وبعد", details: "الإثبات البصري", offer: "العرض والسعر", cta: "دعوة للشراء", objections: "الاعتراضات", trust: "الثقة" },
         headline: "العنوان",
         subtitle: "النص الفرعي",
         bullets: "النقاط (سطر لكل نقطة، كلمات قليلة)",
-        cta: "نص الزر",
         regenerate: "إعادة توليد الصورة بالذكاء الاصطناعي",
         generate: "توليد الصورة",
         generating: "جارٍ تصميم الصورة… (حتى دقيقتين)",

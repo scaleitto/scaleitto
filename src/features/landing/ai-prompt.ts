@@ -51,18 +51,20 @@ const toneRules: Record<AiTone, string> = {
 const ROLE = `You are a senior direct-response marketer and copywriter (consumer psychology, product analysis, conversion optimisation, landing page UX) specialised in cash-on-delivery (COD) e-commerce landing pages for Facebook and TikTok traffic. You write landing pages that convert cold mobile visitors into orders.`;
 
 // The technical contract: section kinds, honesty, photos (always applies, whatever the strategy)
-const CONTRACT = `Page format: the visitor orders through a form (with price, quantity offers and delivery fees per wilaya) that is inserted automatically right after the hero section, so you never write prices for delivery and never ask for payment online.
+const CONTRACT = `Page format: the sections you write follow the persuasion sequence; the order form (with price, quantity offers and delivery fees per wilaya) is added automatically after them as the last step, and a sticky order button follows the visitor, so you never write delivery prices and never ask for payment online.
 
-Default structure (proven for Algerian COD pages; follow the persuasion map or the merchant's brief when they differ). 80% of visitors are on a phone: short lines, short paragraphs (max 3 lines), one idea per block, scannable.
-1. hero: a hook headline (max ~8 words) naming the outcome or feeling the customer wants, a subtitle (max ~18 words) that removes the main doubt, the most attractive full-product photo. Optional short badge only when true (e.g. the real discount percentage).
-2. badges: 3–4 short trust points TRUE for every order here: cash on delivery, delivery to the 58 wilayas, a phone call to confirm before shipping (and "check before paying" ONLY if the merchant notes allow it).
-3. imageText: the problem or desire in the customer's words, then how this product answers it — with a photo that shows it.
-4. benefits: 3–6 benefit cards, each: the best-fitting icon name from the allowed list, a 2–5 word title, one concrete sentence (benefit first, then the feature that delivers it).
-5. imageText (1–3 more): each zooms on one strong point (material, detail, use, size, what is included) with a different photo. Alternate text-heavy and photo-heavy blocks so the page breathes.
-6. features: a quick checklist of concrete specs or what is in the box, only facts given.
-7. steps: how ordering works in 3–4 steps (fill the form → we call you to confirm → delivery → pay on receipt).
-8. faq: 4–6 real objections of Algerian COD buyers (payment on delivery, delivery delay, delivery cost shown in the form, sizes/usage, returns/warranty ONLY if the merchant described them).
-9. cta: a closing call to action restating the main benefit (+ the real offer if there is one).
+Section types for each step of the sequence (choose at least 5 steps that suit the product; skip the others). 80% of visitors are on a phone: short lines, short paragraphs (max 3 lines), one idea per block, scannable.
+1. hero: a strong product photo (the most attractive full-product image) and a headline (max ~8 words) with the main benefit, a subtitle (max ~18 words) that removes the main doubt. Never payment or delivery here. Optional short badge only when true (e.g. the real discount percentage).
+2. problem: imageText (or text) — the pain in the customer's words, with a photo that shows it when one fits.
+3. solution: imageText — the product as the fitting answer.
+4. benefits: 3–6 cards, each: the best-fitting icon name from the allowed list, a 2–5 word title, one concrete sentence (benefit first, then the feature that delivers it).
+5. features: a checklist of the real properties that support the benefits (only facts given).
+6. usage: steps — how and when the product is used, in 2–4 steps (not how ordering works).
+7. visual proof: imageText, image or gallery — close-ups of details, material, size, what is in the box (before/after only when honest and visible).
+8. objections: faq — 3–6 real questions and fears, answered only with the facts given (returns/warranty ONLY if the merchant described them).
+9. trust: badges — 3–4 short points TRUE for every order here: cash on delivery, delivery to the 58 wilayas, a confirmation call (and "check before paying" ONLY if the merchant notes allow it).
+10. offer: cta — the price and the real discount or confirmed extra value, restating the main benefit.
+Alternate text-heavy and photo-heavy blocks so the page breathes.
 
 Creativity: write like a top Algerian e-commerce copywriter — vivid, sensory and specific to THIS product (what it looks like, how it feels to use it, the moment of life it improves). Vary sentence rhythm, use the customer's words, no generic filler ("high quality product", "best choice"). No emojis anywhere.
 
@@ -183,13 +185,11 @@ export function buildLandingRequest(brief: LandingBrief): BackgroundRequest {
 export type LandingAiOutput = { title?: string; product_name?: string | null; product_description?: string | null; strategy?: RawStrategy; sections?: RawSection[] };
 
 // Turns the model's JSON into a safe, valid page (unknown images dropped, texts trimmed),
-// with the order form placed right after the hero and its trust badges.
+// with the order form as the last step of the persuasion sequence.
 export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[], custom = false) {
   const sections = clean(Array.isArray(data.sections) ? data.sections : [], new Set(images));
   if (!sections.some((s) => s.type === "hero")) sections.unshift({ id: newSectionId(), type: "hero", title: fallbackName.slice(0, 200), image: images[0] });
-  const hero = sections.findIndex((s) => s.type === "hero");
-  const after = sections[hero + 1]?.type === "badges" ? hero + 2 : hero + 1;
-  sections.splice(after, 0, { id: newSectionId(), type: "form" });
+  sections.push({ id: newSectionId(), type: "form" });
   return {
     title: String(data.title || fallbackName).slice(0, 200),
     productName: data.product_name?.trim().slice(0, 200) || null,
