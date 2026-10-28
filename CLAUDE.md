@@ -203,6 +203,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `/api/health` shows version, DB, migrations and env status.
 
 ## Design skill
+- `.claude/skills/frontend-design/` (Anthropic's official Frontend Design skill, from github.com/anthropics/claude-plugins-official):
+  the creative process for any page — design plan (4–6 named colors, type, layout, principles), review it against generic
+  defaults, build, then critique with screenshots. UI/UX Pro Max below supplies the data and rules.
 - `.claude/skills/ui-ux-pro-max/` (UI/UX Pro Max, MIT, from github.com/nextlevelbuilder/ui-ux-pro-max-skill): use it for any UI
   work. Search: `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <product|style|color|typography|ux|chart> -n 3`
   (or `--design-system` for a full proposal). Keep the project's own tokens (globals.css, `s-*` storefront colors) as the source.
