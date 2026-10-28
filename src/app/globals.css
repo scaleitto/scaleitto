@@ -3,10 +3,10 @@
 /* Dashboard design tokens (light theme, green accent). Storefronts set their own --brand. */
 @theme inline {
   --font-sans: var(--font-cairo), system-ui, sans-serif;
-  --color-bg: #f5f7f6;
+  --color-bg: #eef2f0;
   --color-panel: #ffffff;
   --color-panel-2: #f0f3f1;
-  --color-line: #e2e7e4;
+  --color-line: #dce3df;
   --color-fg: #14201a;
   --color-muted: #64716a;
   --color-accent: #16a34a;

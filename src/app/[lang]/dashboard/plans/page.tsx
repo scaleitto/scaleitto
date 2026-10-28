@@ -17,8 +17,7 @@ export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard
       <PageHeader title={t.sections.plans.title} description={t.sections.plans.description} />
       <div className="space-y-6">
         <CurrentPlan data={data} lang={lang} t={t} />
-        {!data.platform && (
-          <PlanChooser
+        <PlanChooser
           lang={lang}
           plans={data.plans.map((p) => ({ id: p.id, code: p.code, name: p.name, priceMonthly: p.priceMonthly, limits: p.limits }))}
           currentCode={data.current?.plan.code ?? ""}
@@ -26,8 +25,7 @@ export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard
           payment={paymentDetails()}
           shopName={shop.name}
           t={{ plans: t.plans, errors: t.errors, common: t.common, media: t.media }}
-          />
-        )}
+        />
         <RequestHistory data={data} lang={lang} t={t} />
       </div>
     </>

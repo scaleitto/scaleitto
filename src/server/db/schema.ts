@@ -522,6 +522,8 @@ export const shopApps = mysqlTable(
     url: varchar("url", { length: 500 }).notNull(),
     secret: text("secret").notNull(),
     active: boolean("active").notNull().default(true),
+    // The spreadsheet's own link, as the script reports it ("Open the sheet" button)
+    sheetUrl: varchar("sheet_url", { length: 500 }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shop_apps_shop_app_uq").on(t.shopId, t.app)],

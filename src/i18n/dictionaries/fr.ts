@@ -125,6 +125,8 @@ const fr: Dictionary = {
     login: "Connexion",
   },
   overview: {
+    openOrders: "Voir les commandes",
+    stats: { today: "Commandes du jour", waiting: "À confirmer", month: "Commandes du mois", delivered: "Ventes livrées ce mois" },
     welcome: "Bonjour,",
     subtitle: "Voici le tableau de bord de votre boutique",
     getStarted: "Préparons votre boutique",
@@ -400,7 +402,6 @@ const fr: Dictionary = {
     distribution: {
       title: "Répartition des commandes",
       mode: "Mode de répartition :",
-      change: "Changer le mode",
       explain: {
         manual: "Les nouvelles commandes restent sans agent jusqu'à ce que vous les répartissiez : avec le bouton « Répartir maintenant » ici, ou depuis la liste des commandes (sélectionnez puis choisissez l'agent).",
         balanced: "Chaque nouvelle commande va tout de suite à l'agent qui a le moins de commandes ouvertes (nouvelle, pas de réponse, reportée). À égalité, à celui qui n'en a pas reçu depuis le plus longtemps.",
@@ -801,7 +802,9 @@ const fr: Dictionary = {
     copy: "Copier",
     copied: "Copié",
     save: "Enregistrer et tester",
+    lastFailed: "Le dernier envoi de commandes a échoué :",
     sheets: {
+      open: "Ouvrir la feuille",
       testOk: "Une ligne de test (TEST) a été écrite dans l'onglet « {sheet} » de votre feuille. Ouvrez cet onglet en bas pour vérifier ; vous pouvez supprimer la ligne.",
       testRow: "Test de connexion Scaleitto ✓ — vous pouvez supprimer cette ligne",
       title: "Google Sheets",

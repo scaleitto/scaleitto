@@ -25,7 +25,7 @@ export default async function phase16(browser) {
     await owner.goto(`${dash}/plans`);
     await owner.waitForSelector("[data-plan=platform]");
     expect((await owner.locator("[data-meter=maxLandingPages]").innerText()).includes("غير محدود"), "unlimited pages");
-    expect(!(await owner.locator("[data-plan-card]").count()), "no plan to buy");
+    expect((await owner.locator("[data-plan-card]").count()) >= 3, "the owner still sees every plan");
     await db.query("UPDATE users SET is_platform_admin = 0 WHERE id = (SELECT owner_id FROM shops WHERE id = ?)", [shopId]);
   });
 
@@ -42,7 +42,7 @@ export default async function phase16(browser) {
   }
 
   await step("call centers: the distribution mode explained, unassigned orders shared between the agents", async () => {
-    await owner.goto(`${dash}/call-centers`);
+    await owner.goto(`${dash}/call-centers/settings`);
     const board = owner.locator("[data-testid=distribution]");
     await board.waitFor();
     expect((await board.locator("[data-mode]").getAttribute("data-mode")) === "balanced", "current mode shown");
@@ -97,7 +97,7 @@ export default async function phase16(browser) {
     await sheets.locator("button", { hasText: "ربط" }).click();
     const script = await owner.locator("[data-testid=sheets-script]").inputValue();
     sheet.token = script.match(/const TOKEN = "([^"]+)"/)?.[1];
-    expect(script.includes("const VERSION = 2") && script.includes("first.setName(SHEET)"), "new script: version, first tab used");
+    expect(script.includes("const VERSION = 3") && script.includes("first.setName(SHEET)") && script.includes("book.getUrl()"), "new script: version, first tab used, sheet link");
     sheet.rows.delete("TEST");
     await owner.fill("#google_sheets-url", `${FAKE}/sheets/exec`);
     await sheets.locator("button[type=submit]").click();
@@ -106,6 +106,8 @@ export default async function phase16(browser) {
     await sheets.getByRole("button", { name: "اختبار", exact: true }).click();
     await sheets.getByText("تمت كتابة صف تجريبي (TEST) في ورقة «Orders»").waitFor();
     expect(sheet.rows.get("TEST")?.[1].includes("اختبار الربط"), "test row written");
+    await owner.reload();
+    expect((await sheets.locator("[data-testid=open-sheet]").getAttribute("href")) === "https://docs.google.com/spreadsheets/d/e2e-sheet/edit", "open-the-sheet button");
     sheet.version = 1;
     await sheets.getByRole("button", { name: "اختبار", exact: true }).click();
     await sheets.getByText("الكود الموجود في جدولك قديم").waitFor();

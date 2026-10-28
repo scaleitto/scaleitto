@@ -1,0 +1,1 @@
+ALTER TABLE `shop_apps` ADD `sheet_url` varchar(500);

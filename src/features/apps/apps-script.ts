@@ -1,5 +1,5 @@
 // Bumped when the script changes: the "Test" button asks merchants with an older copy to paste the new one.
-export const SCRIPT_VERSION = 2;
+export const SCRIPT_VERSION = 3;
 
 // The Google Apps Script the merchant pastes in their sheet (Extensions → Apps Script) and deploys as a web app.
 // It writes the orders Scaleitto sends: a new order adds a row, a change updates the row with the same number.
@@ -42,7 +42,7 @@ function doPost(e) {
         keys.push(values[0]);
       }
     });
-    return reply({ ok: true, count: body.rows.length, sheet: SHEET, version: VERSION });
+    return reply({ ok: true, count: body.rows.length, sheet: SHEET, version: VERSION, url: book.getUrl() });
   } catch (err) {
     return reply({ ok: false, error: String(err) });
   } finally {

@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { Shuffle } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate } from "@/lib/format";
 import { Badge, Card } from "@/ui";
 import type { distributionBoard } from "./distribution";
@@ -10,11 +8,11 @@ import { SpreadNowButton } from "./SpreadNowButton";
 type Board = Awaited<ReturnType<typeof distributionBoard>>;
 type Mode = "manual" | "balanced" | "on_shift";
 
-// Call centers → team: how orders are handed out, in plain words, and each agent's load right now.
+// Call centers → distribution: how orders are handed out, in plain words, and each agent's load right now.
 export function DistributionBoard({ lang, mode, board, t }: { lang: string; mode: Mode; board: Board; t: Dictionary }) {
   const d = t.team.distribution;
   return (
-    <Card className="mb-6 space-y-4 p-0" data-testid="distribution">
+    <Card className="my-6 space-y-4 p-0" data-testid="distribution">
       <div className="space-y-2 p-5 pb-0">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="me-auto font-semibold">{d.title}</h2>
@@ -22,9 +20,6 @@ export function DistributionBoard({ lang, mode, board, t }: { lang: string; mode
           <Badge tone="accent">
             <span data-mode={mode}>{t.team.assignModes[mode].title}</span>
           </Badge>
-          <Link href={`${sectionHref(lang, "callCenters")}/settings`} className="text-sm font-semibold text-accent hover:underline">
-            {d.change}
-          </Link>
         </div>
         <p className="text-sm text-muted">{d.explain[mode]}</p>
       </div>

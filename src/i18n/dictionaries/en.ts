@@ -125,6 +125,8 @@ const en: Dictionary = {
     login: "Log in",
   },
   overview: {
+    openOrders: "Open orders",
+    stats: { today: "Orders today", waiting: "Waiting for confirmation", month: "Orders this month", delivered: "Delivered sales this month" },
     welcome: "Welcome,",
     subtitle: "This is your store dashboard",
     getStarted: "Let's set up your store",
@@ -400,7 +402,6 @@ const en: Dictionary = {
     distribution: {
       title: "Order distribution",
       mode: "Distribution mode:",
-      change: "Change the mode",
       explain: {
         manual: "New orders stay without an agent until you hand them out: with the “Share now” button here, or from the orders list (select orders, then choose the agent).",
         balanced: "Each new order goes right away to the agent with the fewest open orders (new, no answer, postponed). On a tie, to whoever has waited longest for one.",
@@ -801,7 +802,9 @@ const en: Dictionary = {
     copy: "Copy",
     copied: "Copied",
     save: "Save and test",
+    lastFailed: "The last order send failed:",
     sheets: {
+      open: "Open the sheet",
       testOk: "A test row (TEST) was written in the “{sheet}” tab of your spreadsheet. Open that tab at the bottom to check; you can delete the row.",
       testRow: "Scaleitto connection test ✓ — you can delete this row",
       title: "Google Sheets",

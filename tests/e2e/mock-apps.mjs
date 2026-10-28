@@ -62,7 +62,7 @@ export function startMockApps(port) {
         sheet.headers = body.headers;
         for (const row of body.rows) sheet.rows.set(String(row[0]), row.map(String));
         // Like the real script: the tab it wrote to and its version (tests set sheet.version to fake an old copy)
-        result = { ok: true, count: body.rows.length, sheet: "Orders", ...(sheet.version === 1 ? {} : { version: sheet.version ?? 2 }) };
+        result = { ok: true, count: body.rows.length, sheet: "Orders", ...(sheet.version === 1 ? {} : { version: sheet.version ?? 3 }), url: "https://docs.google.com/spreadsheets/d/e2e-sheet/edit" };
       }
       const id = ++counter;
       results.set(id, result);

@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { Copy, FileSpreadsheet, Link2, Send, Unplug, Webhook } from "lucide-react";
+import { Copy, ExternalLink, FileSpreadsheet, Link2, Send, Unplug, Webhook } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
-import { Alert, Badge, Button, Card, Field, Input } from "@/ui";
+import { Alert, Badge, Button, Card, Field, Input, buttonClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import type { AppKey } from "@/server/db/schema";
 import { backfillAction, disconnectApp, saveAppUrl, setAppActive, startApp, testAppAction } from "./actions";
 
 export type AppsText = Pick<Dictionary, "apps" | "errors" | "common">;
-export type AppView = { app: AppKey; url: string; active: boolean; secret: string; script: string | null } | null;
+export type AppView = { app: AppKey; url: string; active: boolean; secret: string; sheetUrl: string | null; lastError: string | null; script: string | null } | null;
 
 function CopyBox({ value, label, rows = 3, t, testId }: { value: string; label: string; rows?: number; t: AppsText; testId?: string }) {
   const [copied, setCopied] = useState(false);
@@ -98,6 +98,13 @@ function ConnectedControls({ lang, view, extra, t }: { lang: string; view: NonNu
   return (
     <div className="space-y-3">
       {result && <Alert variant={result.ok ? "success" : "error"}>{result.text}</Alert>}
+      {!result && view.lastError && (
+        <div data-testid="last-error">
+          <Alert>
+            {t.apps.lastFailed} <span className="break-all" dir="auto">{view.lastError}</span>
+          </Alert>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <label className="me-2 flex items-center gap-2 text-sm">
           <input
@@ -119,6 +126,11 @@ function ConnectedControls({ lang, view, extra, t }: { lang: string; view: NonNu
           <Button variant="secondary" className="py-1.5 text-xs" disabled={pending} onClick={() => run(() => backfillAction(lang), (r) => fmt(t.apps.sheets.backfillOk, { n: r.message ?? "0" }))}>
             {t.apps.sheets.backfill}
           </Button>
+        )}
+        {view.sheetUrl && (
+          <a href={view.sheetUrl} target="_blank" rel="noreferrer" className={buttonClass("primary", "py-1.5 text-xs")} data-testid="open-sheet">
+            <ExternalLink size={14} /> {t.apps.sheets.open}
+          </a>
         )}
         {extra}
         <Button

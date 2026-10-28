@@ -23,14 +23,17 @@ export function Button({ variant = "primary", className, ...props }: ComponentPr
 }
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cx("rounded-xl border border-line bg-panel p-5", className)} {...props} />;
+  return <div className={cx("rounded-xl border border-line bg-panel p-5 shadow-[0_1px_2px_rgba(16,24,40,.05),0_6px_16px_-8px_rgba(16,24,40,.10)]", className)} {...props} />;
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-fg">{title}</h1>
+        <h1 className="flex items-center gap-2.5 text-2xl font-extrabold text-fg">
+          <span className="h-7 w-1.5 rounded-full bg-accent" aria-hidden />
+          {title}
+        </h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}

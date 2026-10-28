@@ -101,7 +101,7 @@ async function post(app: App, payload: Record<string, unknown>, event: string): 
   try {
     if (app.app === "google_sheets") {
       const r = await safePostJson(app.url, JSON.stringify({ ...payload, token: secret }), { timeoutMs: 25_000 });
-      let json: { ok?: boolean; error?: string; count?: number; sheet?: string; version?: number } | null = null;
+      let json: { ok?: boolean; error?: string; count?: number; sheet?: string; version?: number; url?: string } | null = null;
       try {
         json = JSON.parse(r.text);
       } catch {
@@ -110,6 +110,10 @@ async function post(app: App, payload: Record<string, unknown>, event: string): 
       if (json?.ok) {
         // A test with a copy of the script older than the one shown in the dashboard
         if (event === "test" && (json.version ?? 1) < SCRIPT_VERSION) return { ok: false, detail: OLD_SCRIPT };
+        // Remember the spreadsheet's link for the "Open the sheet" button
+        if (typeof json.url === "string" && /^https:\/\/docs\.google\.com\/spreadsheets\//.test(json.url) && json.url !== app.sheetUrl) {
+          await db.update(schema.shopApps).set({ sheetUrl: json.url.slice(0, 500) }).where(eq(schema.shopApps.id, app.id));
+        }
         return { ok: true, detail: event === "test" ? (json.sheet ?? "Orders") : `OK (${json.count ?? 0})` };
       }
       return { ok: false, detail: json?.error ? `Script: ${json.error}` : `HTTP ${r.status} — ${r.contentType.includes("html") ? "HTML (deploy the script as a web app with access: Anyone)" : r.text.slice(0, 200)}` };
