@@ -6,10 +6,10 @@
   --color-bg: #eef2f0;
   --color-panel: #ffffff;
   --color-panel-2: #f0f3f1;
-  --color-line: #dce3df;
+  --color-line: #cdd7d1;
   /* Form fields: a tinted fill and a firmer edge so they stand out on white cards */
   --color-field: #f5f8f6;
-  --color-field-line: #c6d1cb;
+  --color-field-line: #b4c2ba;
   --color-fg: #14201a;
   --color-muted: #64716a;
   --color-accent: #16a34a;
@@ -26,6 +26,9 @@
   --color-s-muted: var(--s-muted, #64748b);
   --color-s-edge: var(--s-line, #e2e8f0);
   --color-s-card-border: var(--s-card-border, #e2e8f0);
+  /* Order form fields: edge and fill mixed from the theme's own text color, so they read on light and dark themes */
+  --color-s-field-edge: color-mix(in srgb, var(--s-text, #0f172a) 26%, var(--s-surface, #ffffff));
+  --color-s-field: color-mix(in srgb, var(--s-text, #0f172a) 3%, var(--s-surface, #ffffff));
 }
 
 :root {

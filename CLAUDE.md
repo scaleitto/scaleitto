@@ -178,6 +178,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   with `fetchPriority="high"`, AI images are webp with `output_compression` 80. Dashboard fields use the `field` /
   `field-line` tokens (tinted fill on white cards). The public homepage is `src/features/marketing/Home.tsx` (not tied to
   one country). Store home shows `OrderSteps` with the trust badges.
+- Owner feedback round 3: Sheets script v4 (`SCRIPT_VERSION`) answers `{sheet, gid, written:[{key,row}]}` → the log says
+  "Orders: 1043 → 12" and "Open the sheet" opens `url#gid=`; locked orders are logged (`LOCKED`), never skipped silently; the
+  setup steps say to publish a New version after pasting code. Admin → system has the full check (`features/admin/system-check.ts`
+  + `ui/CheckCard.tsx`: database, uploads, APP_URL/APP_SECRET, cron backlog > 15 min, AI steps). AI pages follow the owner's
+  marketing method (`landing/strategy.ts`: analysis → 3–5 angles from the angle library → persuasion map) or the merchant's own
+  prompt in its place (wizard step "method"; `shops.ai_prompt` = saved default); the format/honesty contract always stays.
+  Both schemas return `strategy` (audience + angles, saved in `landing_pages.strategy`, `StrategyCard` in the editor) and posters
+  carry their `angle`. Storefront form fields use `s-field-edge` / `s-field` (mixed from the theme's text color).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

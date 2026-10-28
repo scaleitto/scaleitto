@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, like } from "drizzle-orm";
 import { db, schema } from "@/server/db";
+import type { PageStrategy } from "@/server/db/schema";
 import { newId } from "@/server/auth/context";
 import { nextFreeSlug, slugify } from "@/lib/format";
 import { defaultForm, resolveForm, sanitizeSections } from "./types";
@@ -21,7 +22,7 @@ export async function shopProduct(shopId: string, productId: string) {
 }
 
 // Inserts a page (used by manual creation and by the AI).
-export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; form?: unknown; status?: "draft" | "published" }) {
+export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; form?: unknown; status?: "draft" | "published"; strategy?: PageStrategy | null }) {
   const id = newId();
   await db.insert(schema.landingPages).values({
     id,
@@ -34,6 +35,7 @@ export async function insertLandingPage(shopId: string, data: { productId: strin
     status: data.status ?? "draft",
     sections: sanitizeSections(data.sections),
     form: resolveForm(data.form ?? defaultForm),
+    strategy: data.strategy ?? null,
   });
   return id;
 }

@@ -14,6 +14,7 @@ import { nextFreeSlug, slugify } from "@/lib/format";
 import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import { aiTones, buildLandingRequest, finishLandingPage, type LandingAiOutput } from "./ai-prompt";
 import { insertLandingPage } from "./store";
+import { MAX_CUSTOM_PROMPT } from "./strategy";
 import { isSafeImage, pageLanguages, sanitizeSections } from "./types";
 import { imageStyles, pollTask, startImageTask, startPosterTask, type ImageStyle } from "@/features/ai/tasks";
 import { currencyLabel } from "@/i18n/store";
@@ -23,6 +24,8 @@ import { interfaceLocale, type PageLanguage } from "./types";
 // Everything needed to build the page once the text is ready (stored on the generation).
 type Brief = {
   productId: string | null;
+  // Made with the merchant's own prompt
+  custom?: boolean;
   newProduct: { name: string; price: number; compareAtPrice: number | null; images: string[] } | null;
   language: string;
   color: string | null;
@@ -56,6 +59,9 @@ const startSchema = z.object({
   language: z.enum(pageLanguages),
   tone: z.enum(aiTones),
   pageStyle: z.enum(["sections", "images"]).optional().default("sections"),
+  // The merchant's own prompt (empty = the platform's method); saved as the store's default when asked
+  customPrompt: z.string().trim().max(MAX_CUSTOM_PROMPT).optional().default(""),
+  savePrompt: z.boolean().optional().default(false),
   poster: z
     .object({
       count: z.union([z.literal(2), z.literal(4), z.literal(6), z.literal(8), z.literal(10)]),
@@ -115,9 +121,11 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
       brief = { productId: null, newProduct: { name, price: d.price, compareAtPrice: d.compareAtPrice ?? null, images }, language: d.language, color: null, images, enhance: poster ? null : (d.enhance ?? null), pageStyle: d.pageStyle, poster: poster ?? undefined };
     }
 
+    if (d.savePrompt) await db.update(schema.shops).set({ aiPrompt: d.customPrompt || null }).where(eq(schema.shops.id, shop.id));
+    brief.custom = Boolean(d.customPrompt);
     const vision = await visionImages(product.images, 10);
     const request = poster
-      ? buildPosterPlanRequest({ product, language: d.language, options: poster, notes: d.notes, sourceText, visionImages: vision, writeProduct: d.source !== "product" })
+      ? buildPosterPlanRequest({ product, language: d.language, options: poster, notes: d.notes, sourceText, visionImages: vision, writeProduct: d.source !== "product", customPrompt: d.customPrompt })
       : buildLandingRequest({
       product,
       language: d.language,
@@ -127,6 +135,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
       sourceText,
       visionImages: vision,
       writeProduct: d.source !== "product",
+      customPrompt: d.customPrompt,
     });
     const started = await startBackgroundJson(request);
     const generationId = newId();
@@ -168,8 +177,8 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
     if (!claim.affectedRows) return { state: "pending" };
 
     const brief = gen.brief as Brief;
-    const imagePage = brief.pageStyle === "images" && brief.poster ? finishPosterPage(result.data, brief.newProduct?.name || "Page", brief.poster) : null;
-    const page = imagePage ?? finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images);
+    const imagePage = brief.pageStyle === "images" && brief.poster ? finishPosterPage(result.data, brief.newProduct?.name || "Page", brief.poster, brief.custom) : null;
+    const page = imagePage ?? finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images, brief.custom);
     let productId = brief.productId;
     if (!productId && brief.newProduct) {
       const np = brief.newProduct;
@@ -191,7 +200,7 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
         offers: [],
       });
     }
-    const pageId = await insertLandingPage(shop.id, { productId: productId!, title: page.title, language: brief.language, color: imagePage ? imagePage.palette.primary : brief.color, sections: page.sections });
+    const pageId = await insertLandingPage(shop.id, { productId: productId!, title: page.title, language: brief.language, color: imagePage ? imagePage.palette.primary : brief.color, sections: page.sections, strategy: page.strategy });
     // Photos to rework: the hero's, then the next ones in page order (our uploads only)
     const imageTasks: NonNullable<ImageJobs["imageTasks"]> = [];
     if (imagePage) {

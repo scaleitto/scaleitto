@@ -2,6 +2,7 @@ import "server-only";
 import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { newSectionId, sanitizeSections, type LandingSection, type PageLanguage } from "./types";
+import { cleanStrategy, STRATEGY_SCHEMA, strategyInstructions, type RawStrategy } from "./strategy";
 
 // The prompt and output schema of the AI landing page writer (honesty rules included).
 export type AiLanguage = PageLanguage;
@@ -28,6 +29,8 @@ export type LandingBrief = {
   sourceText?: string;
   /** The product does not exist yet: also write its name and description. */
   writeProduct?: boolean;
+  /** The merchant's own prompt, in place of the platform's marketing method */
+  customPrompt?: string | null;
 };
 
 export const languageRules: Record<AiLanguage, string> = {
@@ -44,10 +47,12 @@ const toneRules: Record<AiTone, string> = {
   urgent: "Tone: energetic with a sense of urgency, but only around real facts (real discount, real offers).",
 };
 
-const SYSTEM = `You are a senior direct-response copywriter specialised in Algerian cash-on-delivery (COD) e-commerce landing pages for Facebook and TikTok traffic.
-You write landing pages that convert cold mobile visitors into orders. The order form (with price, quantity offers and delivery fees per wilaya) is inserted automatically right after the hero section, so you never write prices for delivery and never ask for payment online.
+const ROLE = `You are a senior direct-response marketer and copywriter (consumer psychology, product analysis, conversion optimisation, landing page UX) specialised in cash-on-delivery (COD) e-commerce landing pages for Facebook and TikTok traffic. You write landing pages that convert cold mobile visitors into orders.`;
 
-Conversion structure (proven for Algerian COD pages; adapt to the product). 80% of visitors are on a phone: short lines, short paragraphs (max 3 lines), one idea per block, scannable.
+// The technical contract: section kinds, honesty, photos (always applies, whatever the strategy)
+const CONTRACT = `Page format: the visitor orders through a form (with price, quantity offers and delivery fees per wilaya) that is inserted automatically right after the hero section, so you never write prices for delivery and never ask for payment online.
+
+Default structure (proven for Algerian COD pages; follow the persuasion map or the merchant's brief when they differ). 80% of visitors are on a phone: short lines, short paragraphs (max 3 lines), one idea per block, scannable.
 1. hero: a hook headline (max ~8 words) naming the outcome or feeling the customer wants, a subtitle (max ~18 words) that removes the main doubt, the most attractive full-product photo. Optional short badge only when true (e.g. the real discount percentage).
 2. badges: 3–4 short trust points TRUE for every order here: cash on delivery, delivery to the 58 wilayas, a phone call to confirm before shipping (and "check before paying" ONLY if the merchant notes allow it).
 3. imageText: the problem or desire in the customer's words, then how this product answers it — with a photo that shows it.
@@ -75,7 +80,8 @@ When product photos are attached:
 
 When source text from a product link is provided, treat it as raw supplier information: reuse the facts, never copy its wording, never mention the source site, ignore its prices/shipping/return terms (this store sells in Algeria with its own terms).
 
-product_name / product_description: when asked to write them, give a short, clear product name (max ~8 words, no brand you cannot see) and a 2–4 sentence product description in the page language. Otherwise return null.`;
+product_name / product_description: when asked to write them, give a short, clear product name (max ~8 words, no brand you cannot see) and a 2–4 sentence product description in the page language. Otherwise return null.
+strategy: the audience and the 3–5 main angles you chose, each with one sentence on why, in the page language.`;
 
 // Strict Structured Outputs schema: every property is required, optional ones are nullable.
 const str = { type: "string" };
@@ -91,9 +97,10 @@ const section = (type: string, properties: Record<string, unknown>) => ({
 const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "product_name", "product_description", "sections"],
+  required: ["title", "product_name", "product_description", "strategy", "sections"],
   properties: {
     title: { type: "string", description: "Short internal name of the page" },
+    strategy: STRATEGY_SCHEMA,
     product_name: { type: ["string", "null"] },
     product_description: { type: ["string", "null"] },
     sections: {
@@ -168,14 +175,15 @@ export function buildLandingRequest(brief: LandingBrief): BackgroundRequest {
     .filter(Boolean)
     .join("\n\n");
 
-  return { instructions: SYSTEM, user, images: brief.visionImages ?? [], schemaName: "landing_page", schema: RESPONSE_SCHEMA };
+  const instructions = [ROLE, strategyInstructions(brief.customPrompt), CONTRACT].join("\n\n");
+  return { instructions, user, images: brief.visionImages ?? [], schemaName: "landing_page", schema: RESPONSE_SCHEMA };
 }
 
-export type LandingAiOutput = { title?: string; product_name?: string | null; product_description?: string | null; sections?: RawSection[] };
+export type LandingAiOutput = { title?: string; product_name?: string | null; product_description?: string | null; strategy?: RawStrategy; sections?: RawSection[] };
 
 // Turns the model's JSON into a safe, valid page (unknown images dropped, texts trimmed),
 // with the order form placed right after the hero and its trust badges.
-export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[]) {
+export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[], custom = false) {
   const sections = clean(Array.isArray(data.sections) ? data.sections : [], new Set(images));
   if (!sections.some((s) => s.type === "hero")) sections.unshift({ id: newSectionId(), type: "hero", title: fallbackName.slice(0, 200), image: images[0] });
   const hero = sections.findIndex((s) => s.type === "hero");
@@ -185,6 +193,7 @@ export function finishLandingPage(data: LandingAiOutput, fallbackName: string, i
     title: String(data.title || fallbackName).slice(0, 200),
     productName: data.product_name?.trim().slice(0, 200) || null,
     productDescription: data.product_description?.trim().slice(0, 5000) || null,
+    strategy: cleanStrategy(data.strategy, custom),
     sections,
   };
 }

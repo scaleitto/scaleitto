@@ -23,6 +23,7 @@ export default async function NewLandingPage({ params }: PageProps<"/[lang]/dash
         createAction={createLandingPage.bind(null, lang)}
         aiLeft={limits.maxAiPerMonth === -1 ? null : Math.max(0, limits.maxAiPerMonth - used)}
         shopColor={shop.primaryColor}
+        savedPrompt={shop.aiPrompt}
         t={{ landingPages: t.landingPages, media: t.media, errors: t.errors, common: t.common }}
       />
     </>

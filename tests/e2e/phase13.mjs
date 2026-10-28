@@ -113,8 +113,12 @@ export default async function phase13(browser) {
     expect((await a.locator("[data-env=DATABASE_URL]").innerText()).includes("✓"), "DATABASE_URL set");
     expect((await a.locator("[data-env=PAYMENT_RIB]").innerText()).includes("—"), "PAYMENT_RIB missing");
     await a.getByText("0010_settings").waitFor();
-    await a.locator("[data-testid=ai-test] button").click();
-    await a.locator("[data-testid=ai-test]").getByText("كل شيء يعمل").waitFor({ timeout: 30_000 });
+    await a.locator("[data-testid=system-check] button").click();
+    const check = a.locator("[data-testid=system-check]");
+    await check.locator("[data-result]").waitFor({ timeout: 40_000 });
+    for (const step of ["database", "uploads", "cron", "ai-key", "ai-models", "ai-background", "ai-result"]) {
+      expect((await check.locator(`[data-step=${step}]`).getAttribute("data-ok")) === "1", `full check: ${step} (${await check.locator(`[data-step=${step}]`).innerText()})`);
+    }
     const log = a.locator("[data-testid=error-log]");
     await log.locator("[data-error='e2e/sample']").waitFor();
     await log.getByRole("button", { name: "مسح السجل" }).click();

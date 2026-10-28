@@ -1,6 +1,7 @@
 import "server-only";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { languageRules } from "./ai-prompt";
+import { cleanStrategy, STRATEGY_SCHEMA, strategyInstructions, type RawStrategy } from "./strategy";
 import { newSectionId, posterKinds, sanitizeSections, type PageLanguage, type PosterKind } from "./types";
 
 // Image pages (Wibi style): the AI first plans the page (texts, colors, one scene per section), then designs
@@ -21,9 +22,10 @@ const languageNames: Record<PageLanguage, string> = {
   en: "English",
 };
 
-const PLAN_SYSTEM = `You are the creative director of a top Algerian cash-on-delivery (COD) e-commerce agency. You plan "image landing pages" for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images (each image is one section with its text designed inside), an order form after the first image, and a sticky order button. Mobile visitors only scroll and look, so every image must sell on its own in 2 seconds.
+const PLAN_ROLE = `You are the creative director of a top cash-on-delivery (COD) e-commerce agency (direct marketing, consumer psychology, conversion optimisation). You plan "image landing pages" for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images (each image is one section with its text designed inside), an order form after the first image, and a sticky order button. Mobile visitors only scroll and look, so every image must sell on its own in 2 seconds.`;
 
-Plan exactly the requested number of sections. Section kinds:
+// Format, copy limits and honesty: always apply, whatever the strategy
+const PLAN_CONTRACT = `Plan exactly the requested number of sections. Section kinds:
 - hero: the hook. Huge headline naming the outcome the buyer wants, a short subtitle, 2–3 trust points as bullets (cash on delivery, delivery to the 58 wilayas, a confirmation call — these are always true here).
 - problem: the pain or frustration the product removes, as a question headline + 2–3 short pains.
 - solution: the product as the answer, headline + subtitle.
@@ -34,7 +36,8 @@ Plan exactly the requested number of sections. Section kinds:
 - details: close-up on material, finish, size or what is in the box.
 - offer: the price as a big badge (and the old price struck through only if given), urgency only from a real discount.
 - cta: the closing image: product + call to action.
-Order: hero first; problem/solution early; offer or cta last. No two sections of the same kind in a row.
+Order: hero first; problem/solution early; offer or cta last (unless the persuasion map or the merchant's brief says otherwise). No two sections of the same kind in a row.
+angle: the marketing angle the section serves (one of your chosen angles, a few words, in the page language).
 
 Copy rules (the text is rendered inside images, so it must be SHORT): headline max 6 words, subtitle max 10 words, bullets max 4 items of max 3 words, cta max 4 words. Vivid, specific to THIS product, in the requested language. No emojis.
 scene: in English, one or two sentences describing the visual composition of the image (setting, camera angle, mood, where the product is, what the people are doing if any). Never describe text in the scene.
@@ -42,16 +45,18 @@ scene: in English, one or two sentences describing the visual composition of the
 Strict honesty (non-negotiable): use only facts from the product data, photos and merchant notes. Never invent specs, certifications, awards, statistics, medical or health claims, guarantees, return policies, reviews, ratings, customer counts, stock levels or deadlines. Free delivery only if the merchant notes say so. Prices only as given.
 
 palette: three hex colors that fit the product and convert well (background, primary, accent with strong contrast for text). marquee: 3 short selling points (max 3 words each) that are true for every order (e.g. cash on delivery, delivery to 58 wilayas, call to confirm).
-product_name / product_description: when asked, a short product name (max 8 words) and a 2–4 sentence description in the page language; otherwise null.`;
+product_name / product_description: when asked, a short product name (max 8 words) and a 2–4 sentence description in the page language; otherwise null.
+strategy: the audience and the 3–5 main angles you chose, each with one sentence on why, in the page language.`;
 
 const str = { type: "string" };
 const nullableStr = { type: ["string", "null"] };
 const PLAN_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "product_name", "product_description", "palette", "marquee", "sections"],
+  required: ["title", "product_name", "product_description", "strategy", "palette", "marquee", "sections"],
   properties: {
     title: str,
+    strategy: STRATEGY_SCHEMA,
     product_name: nullableStr,
     product_description: nullableStr,
     palette: { type: "object", additionalProperties: false, required: ["background", "primary", "accent"], properties: { background: str, primary: str, accent: str } },
@@ -61,8 +66,8 @@ const PLAN_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["kind", "headline", "subtitle", "bullets", "cta", "scene"],
-        properties: { kind: { type: "string", enum: [...posterKinds] }, headline: str, subtitle: nullableStr, bullets: { type: "array", items: str }, cta: nullableStr, scene: str },
+        required: ["kind", "angle", "headline", "subtitle", "bullets", "cta", "scene"],
+        properties: { kind: { type: "string", enum: [...posterKinds] }, angle: str, headline: str, subtitle: nullableStr, bullets: { type: "array", items: str }, cta: nullableStr, scene: str },
       },
     },
   },
@@ -78,6 +83,7 @@ export function buildPosterPlanRequest(brief: {
   sourceText?: string;
   visionImages: string[];
   writeProduct: boolean;
+  customPrompt?: string | null;
 }): BackgroundRequest {
   const p = brief.product;
   const data = {
@@ -100,7 +106,8 @@ export function buildPosterPlanRequest(brief: {
   ]
     .filter(Boolean)
     .join("\n\n");
-  return { instructions: PLAN_SYSTEM, user, images: brief.visionImages, schemaName: "image_landing_page", schema: PLAN_SCHEMA };
+  const instructions = [PLAN_ROLE, strategyInstructions(brief.customPrompt), PLAN_CONTRACT].join("\n\n");
+  return { instructions, user, images: brief.visionImages, schemaName: "image_landing_page", schema: PLAN_SCHEMA };
 }
 
 export type PosterPlan = {
@@ -109,7 +116,8 @@ export type PosterPlan = {
   product_description?: string | null;
   palette?: Partial<Palette>;
   marquee?: string[];
-  sections?: { kind?: string; headline?: string; subtitle?: string | null; bullets?: string[]; cta?: string | null; scene?: string }[];
+  strategy?: RawStrategy;
+  sections?: { kind?: string; angle?: string; headline?: string; subtitle?: string | null; bullets?: string[]; cta?: string | null; scene?: string }[];
 };
 
 const peopleRule: Record<PosterOptions["people"], string> = {
@@ -124,7 +132,7 @@ export function lookOf(palette: Palette, options: Pick<PosterOptions, "people" |
 }
 
 // The model's plan → a page: band of selling points, the images (still to design), the order form after the first one.
-export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions) {
+export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions, custom = false) {
   const raw = plan.palette ?? {};
   const palette: Palette = {
     background: HEX.test(raw.background ?? "") ? raw.background! : "#0f172a",
@@ -136,6 +144,7 @@ export function finishPosterPage(plan: PosterPlan, fallbackName: string, options
     type: "poster",
     image: "",
     kind: s.kind,
+    angle: s.angle,
     headline: s.headline,
     subtitle: s.subtitle ?? undefined,
     bullets: s.bullets ?? [],
@@ -152,6 +161,7 @@ export function finishPosterPage(plan: PosterPlan, fallbackName: string, options
     productName: plan.product_name?.trim().slice(0, 200) || null,
     productDescription: plan.product_description?.trim().slice(0, 5000) || null,
     palette,
+    strategy: cleanStrategy(plan.strategy, custom),
     sections,
   };
 }

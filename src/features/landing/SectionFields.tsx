@@ -94,6 +94,11 @@ function PosterFields({ lang, pageId, section, set, t }: { lang: string; pageId:
   const replace = (image: string) => set({ image, previous: [section.image, ...section.previous].filter(Boolean).slice(0, MAX_POSTER_HISTORY) });
   return (
     <div className="space-y-3" data-testid="poster-fields">
+      {section.angle && (
+        <p className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent" data-testid="poster-angle">
+          {pt.angle}: {section.angle}
+        </p>
+      )}
       {section.image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={section.image} alt="" className="mx-auto max-h-72 rounded-lg border border-line" />

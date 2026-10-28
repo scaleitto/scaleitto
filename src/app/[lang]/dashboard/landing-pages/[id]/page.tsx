@@ -8,10 +8,13 @@ import { resolveDesign } from "@/features/design/types";
 import { getShippingRates } from "@/features/storefront/queries";
 import { getLandingPage, landingProduct } from "@/features/landing/queries";
 import { LandingEditor } from "@/features/landing/LandingEditor";
+import { StrategyCard } from "@/features/landing/StrategyCard";
 import { pageLanguage } from "@/features/landing/PublicLanding";
 import { resolveForm, sanitizeSections } from "@/features/landing/types";
 
-export default async function EditLandingPage({ params }: PageProps<"/[lang]/dashboard/landing-pages/[id]">) {
+export default async function EditLandingPage({
+  params,
+}: PageProps<"/[lang]/dashboard/landing-pages/[id]">) {
   const { lang: rawLang, id } = await params;
   const lang = asLocale(rawLang);
   const t = getDictionary(lang);
@@ -22,21 +25,55 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
   if (!product) notFound();
   const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
   return (
-    <LandingEditor
-      key={page.id}
-      lang={lang}
-      pageId={page.id}
-      initial={{ title: page.title, slug: page.slug, language: pageLanguage(page.language), color: page.color, status: page.status, sections: sanitizeSections(page.sections), form: resolveForm(page.form) }}
-      product={{ name: product.name, price: product.price, compareAtPrice: product.compareAtPrice, images: product.images, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
-      variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
-      rates={await getShippingRates(shop.id)}
-      storeTexts={{ ar: getStoreText("ar"), fr: getStoreText("fr"), en: getStoreText("en") }}
-      themeKey={resolveDesign(shop.design).theme}
-      shopColor={shop.primaryColor}
-      pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
-      embedUrl={`${appUrl}/embed/${shop.slug}/${encodeURIComponent(page.slug)}`}
-      backHref={sectionHref(lang, "landingPages")}
-      t={{ landingPages: t.landingPages, media: t.media, errors: t.errors, common: t.common }}
-    />
+    <>
+      <StrategyCard strategy={page.strategy} t={t.landingPages.strategy} />
+      <LandingEditor
+        key={page.id}
+        lang={lang}
+        pageId={page.id}
+        initial={{
+          title: page.title,
+          slug: page.slug,
+          language: pageLanguage(page.language),
+          color: page.color,
+          status: page.status,
+          sections: sanitizeSections(page.sections),
+          form: resolveForm(page.form),
+        }}
+        product={{
+          name: product.name,
+          price: product.price,
+          compareAtPrice: product.compareAtPrice,
+          images: product.images,
+          trackStock: product.trackStock,
+          stock: product.stock,
+          options: product.options,
+          offers: product.offers,
+        }}
+        variants={product.variants.map((v) => ({
+          id: v.id,
+          values: v.optionValues,
+          price: v.price,
+          stock: v.stock,
+        }))}
+        rates={await getShippingRates(shop.id)}
+        storeTexts={{
+          ar: getStoreText("ar"),
+          fr: getStoreText("fr"),
+          en: getStoreText("en"),
+        }}
+        themeKey={resolveDesign(shop.design).theme}
+        shopColor={shop.primaryColor}
+        pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
+        embedUrl={`${appUrl}/embed/${shop.slug}/${encodeURIComponent(page.slug)}`}
+        backHref={sectionHref(lang, "landingPages")}
+        t={{
+          landingPages: t.landingPages,
+          media: t.media,
+          errors: t.errors,
+          common: t.common,
+        }}
+      />
+    </>
   );
 }

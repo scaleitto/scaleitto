@@ -11,7 +11,8 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { limitKeys, type Limits } from "@/server/db/schema";
 import { releaseLockedOrders } from "@/features/plans/locked";
-import { checkAiConnection, type AiCheckStep } from "@/server/ai/openai";
+import type { CheckStep } from "@/ui/CheckCard";
+import { runSystemCheck } from "./system-check";
 
 const admin = (lang: string) => requirePlatformAdmin(asLocale(lang));
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "e:invalid");
@@ -119,8 +120,8 @@ export async function clearErrorLogs(lang: string): Promise<ActionState> {
   });
 }
 
-// The AI connection test, for the platform admin (no shop needed)
-export async function adminTestAi(lang: string): Promise<AiCheckStep[]> {
+// The full system check (database, uploads, settings, cron, AI), for the platform admin
+export async function adminSystemCheck(lang: string): Promise<CheckStep[]> {
   await admin(lang);
-  return checkAiConnection();
+  return runSystemCheck();
 }

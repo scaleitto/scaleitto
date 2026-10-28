@@ -21,6 +21,7 @@ function landingAnswer(body) {
     title: "صفحة الذكاء الاصطناعي",
     product_name: isNew ? "ساعة ذكية AI" : null,
     product_description: isNew ? "وصف كتبه الذكاء الاصطناعي" : null,
+    strategy: { audience: "الشباب النشيطون", angles: [{ name: "الراحة اليومية", why: "يستعملها كل يوم" }, { name: "القيمة مقابل السعر", why: "سعر مناسب" }] },
     sections: [
       { type: "hero", title: "عنوان من الذكاء الاصطناعي", subtitle: "جملة قصيرة", image: images[0] ?? null, badge: null },
       { type: "badges", items: ["الدفع عند الاستلام", "توصيل 58 ولاية"] },
@@ -48,7 +49,8 @@ const answers = {
       product_description: text.includes("This is a new product") ? "مصباح يقتل البعوض بهدوء." : null,
       palette: { background: "#0b1a3a", primary: "#2563eb", accent: "#facc15" },
       marquee: ["دفع عند التسليم", "توصيل سريع", "نتصل بك للتأكيد"],
-      sections: Array.from({ length: n }, (_, i) => ({ kind: i === n - 1 ? "offer" : kinds[i % 8], headline: `عنوان القسم ${i + 1}`, subtitle: i === 0 ? "نص فرعي قصير" : null, bullets: ["نقطة أولى", "نقطة ثانية"], cta: i === n - 1 ? "اطلب الآن" : null, scene: "A bedroom at night, product on a table" })),
+      strategy: { audience: "العائلات", angles: [{ name: "نوم هادئ", why: "البعوض يزعج النوم" }, { name: "أمان العائلة", why: "بدون مواد كيميائية ظاهرة" }, { name: "سهولة الاستعمال", why: "زر واحد" }] },
+      sections: Array.from({ length: n }, (_, i) => ({ kind: i === n - 1 ? "offer" : kinds[i % 8], angle: i === 0 ? "نوم هادئ" : "سهولة الاستعمال", headline: `عنوان القسم ${i + 1}`, subtitle: i === 0 ? "نص فرعي قصير" : null, bullets: ["نقطة أولى", "نقطة ثانية"], cta: i === n - 1 ? "اطلب الآن" : null, scene: "A bedroom at night, product on a table" })),
     };
   },
   call_guide: () => ({

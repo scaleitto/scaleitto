@@ -14,7 +14,7 @@ export type LandingSection = Base &
   (
     // A full-width marketing image with its text designed into it (AI-made or the merchant's own).
     // The texts are kept so the image can be regenerated; previous = earlier images (newest first) to restore.
-    | { type: "poster"; image: string; kind: PosterKind; headline: string; subtitle?: string; bullets: string[]; cta?: string; scene?: string; previous: string[] }
+    | { type: "poster"; image: string; kind: PosterKind; angle?: string; headline: string; subtitle?: string; bullets: string[]; cta?: string; scene?: string; previous: string[] }
     // A thin scrolling band of short selling points ("Cash on delivery → Fast delivery → …")
     | { type: "marquee"; items: string[] }
     | { type: "hero"; title: string; subtitle?: string; image?: string; badge?: string }
@@ -113,6 +113,7 @@ export function sanitizeSections(input: unknown): LandingSection[] {
             type: "poster",
             image: img,
             kind: oneOf(s.kind, posterKinds, "details"),
+            angle: opt(s.angle, 120),
             headline,
             subtitle: opt(s.subtitle, 240),
             bullets: list(s.bullets, 5, 80),

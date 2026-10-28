@@ -208,10 +208,15 @@ export function LandingEditor({
           {tab === "sections" && (
             <div className="space-y-2" data-testid="sections-editor">
               {sections.map((s, i) => (
-                <div key={s.id} className={`rounded-xl border border-line bg-panel ${s.hidden ? "opacity-60" : ""}`} data-editor-section={s.type}>
+                <div
+                  key={s.id}
+                  className={`rounded-xl border bg-panel shadow-[0_1px_2px_rgba(16,24,40,.06)] transition ${open === s.id ? "border-accent ring-[3px] ring-accent/10" : "border-line"} ${s.hidden ? "opacity-60" : ""}`}
+                  data-editor-section={s.type}
+                >
                   <div className="flex items-center gap-1 p-2">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-start hover:bg-panel-2" onClick={() => setOpen(open === s.id ? null : s.id)} aria-expanded={open === s.id}>
                       <ChevronDown size={16} className={`shrink-0 text-muted transition ${open === s.id ? "rotate-180" : ""}`} />
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-panel-2 text-xs font-bold text-muted tabular-nums">{i + 1}</span>
                       <span className="shrink-0 text-sm font-semibold">{ed.types[s.type]}</span>
                       <span className="truncate text-xs text-muted">{summary(s)}</span>
                     </button>

@@ -77,6 +77,8 @@ export const shops = mysqlTable(
     seo: json("seo").$type<ShopSeo | null>(),
     // Policy pages shown in the store footer (plain text)
     policies: json("policies").$type<ShopPolicies | null>(),
+    // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
+    aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
     customDomain: varchar("custom_domain", { length: 191 }),
     // Value of the TXT record _scaleitto.<domain> proving the merchant owns it
@@ -89,6 +91,8 @@ export const shops = mysqlTable(
 
 export type ShopSeo = { title?: string; description?: string };
 export type ShopPolicies = Partial<Record<PolicyKind, string>>;
+// The AI's marketing strategy for a landing page: who it talks to and the angles it chose (with the reason)
+export type PageStrategy = { audience: string; angles: { name: string; why: string }[]; custom: boolean };
 
 export const memberRoles = ["owner", "manager", "agent"] as const;
 export type MemberRole = (typeof memberRoles)[number];
@@ -282,6 +286,8 @@ export const landingPages = mysqlTable(
     color: varchar("color", { length: 9 }),
     sections: json("sections").notNull(),
     form: json("form").notNull(),
+    // What the AI chose for this page (audience, marketing angles and why), shown in the editor
+    strategy: json("strategy").$type<PageStrategy | null>(),
     views: int("views").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),

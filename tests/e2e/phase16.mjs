@@ -98,7 +98,7 @@ export default async function phase16(browser) {
     await sheets.locator("button", { hasText: "ربط" }).click();
     const script = await owner.locator("[data-testid=sheets-script]").inputValue();
     sheet.token = script.match(/const TOKEN = "([^"]+)"/)?.[1];
-    expect(script.includes("const VERSION = 3") && script.includes("first.setName(SHEET)") && script.includes("book.getUrl()"), "new script: version, first tab used, sheet link");
+    expect(script.includes("const VERSION = 4") && script.includes("first.setName(SHEET)") && script.includes("book.getUrl()"), "new script: version, first tab used, sheet link");
     sheet.rows.delete("TEST");
     await owner.fill("#google_sheets-url", `${FAKE}/sheets/exec`);
     await sheets.locator("button[type=submit]").click();
@@ -108,7 +108,7 @@ export default async function phase16(browser) {
     await sheets.getByText("تمت كتابة صف تجريبي (TEST) في ورقة «Orders»").waitFor();
     expect(sheet.rows.get("TEST")?.[1].includes("اختبار الربط"), "test row written");
     await owner.reload();
-    expect((await sheets.locator("[data-testid=open-sheet]").getAttribute("href")) === "https://docs.google.com/spreadsheets/d/e2e-sheet/edit", "open-the-sheet button");
+    expect((await sheets.locator("[data-testid=open-sheet]").getAttribute("href")) === "https://docs.google.com/spreadsheets/d/e2e-sheet/edit#gid=0", "open-the-sheet button opens the Orders tab");
     sheet.version = 1;
     await sheets.getByRole("button", { name: "اختبار", exact: true }).click();
     await sheets.getByText("الكود الموجود في جدولك قديم").waitFor();

@@ -7,7 +7,7 @@
 import { createServer } from "node:http";
 import { pngBuffer } from "./helpers.mjs";
 
-export const sheet = { token: null, headers: null, rows: new Map() }; // order number → row
+export const sheet = { token: null, headers: null, rows: new Map(), order: [] }; // order number → row (order = row positions)
 export const hooks = [];
 const dns = new Map(); // "TXT _scaleitto.x.test" → ["…"]
 export const setDns = (name, type, values) => dns.set(`${type} ${name}`, values);
@@ -62,9 +62,14 @@ export function startMockApps(port) {
       if (sheet.token && body.token !== sheet.token) result = { ok: false, error: "wrong token" };
       else {
         sheet.headers = body.headers;
-        for (const row of body.rows) sheet.rows.set(String(row[0]), row.map(String));
-        // Like the real script: the tab it wrote to and its version (tests set sheet.version to fake an old copy)
-        result = { ok: true, count: body.rows.length, sheet: "Orders", ...(sheet.version === 1 ? {} : { version: sheet.version ?? 3 }), url: "https://docs.google.com/spreadsheets/d/e2e-sheet/edit" };
+        // Like the real script: where each row went, the tab and its version (tests set sheet.version to fake an old copy)
+        const written = body.rows.map((row) => {
+          const key = String(row[0]);
+          if (!sheet.rows.has(key)) sheet.order.push(key);
+          sheet.rows.set(key, row.map(String));
+          return { key, row: sheet.order.indexOf(key) + 2 };
+        });
+        result = { ok: true, sheet: "Orders", gid: 0, written, ...(sheet.version === 1 ? {} : { version: sheet.version ?? 4 }), url: "https://docs.google.com/spreadsheets/d/e2e-sheet/edit" };
       }
       const id = ++counter;
       results.set(id, result);

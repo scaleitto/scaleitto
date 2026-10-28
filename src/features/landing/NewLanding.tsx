@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Image as ImageIcon, LayoutTemplate, Link2, LoaderCircle, Package, PenLine, Sparkles, WandSparkles } from "lucide-react";
+import { Check, FileText, Image as ImageIcon, LayoutTemplate, Link2, LoaderCircle, Package, PenLine, Sparkles, WandSparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
@@ -113,6 +113,7 @@ export function NewLanding({
   createAction,
   aiLeft,
   shopColor,
+  savedPrompt,
   t,
 }: {
   lang: string;
@@ -122,6 +123,8 @@ export function NewLanding({
   // AI uses left this month (null = unlimited)
   aiLeft: number | null;
   shopColor: string;
+  // The store's saved prompt (null = the platform's method by default)
+  savedPrompt: string | null;
   t: NewLandingText;
 }) {
   const lp = t.landingPages;
@@ -142,6 +145,9 @@ export function NewLanding({
   const [tone, setTone] = useState<AiStartInput["tone"]>("persuasive");
   const [audienceText, setAudienceText] = useState("");
   const [notes, setNotes] = useState("");
+  const [promptMode, setPromptMode] = useState<"method" | "own">(savedPrompt ? "own" : "method");
+  const [customPrompt, setCustomPrompt] = useState(savedPrompt ?? "");
+  const [savePrompt, setSavePrompt] = useState(false);
   const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
   const [enhance, setEnhance] = useState(true);
   const [style, setStyle] = useState<(typeof imageStyleKeys)[number]>("studio");
@@ -216,6 +222,8 @@ export function NewLanding({
       enhance: !images && enhance ? { style, count: enhanceCount } : null,
       pageStyle,
       poster: images ? { ...poster, color } : undefined,
+      customPrompt: promptMode === "own" ? customPrompt : "",
+      savePrompt: promptMode === "own" && savePrompt,
     }).catch(() => ({ ok: false as const, error: "unexpected" }));
     if (r.ok) setGenerationId(r.generationId);
     else {
@@ -276,6 +284,7 @@ export function NewLanding({
             [w.summary.colors, colorMode === "auto" ? w.colorAuto : (color ?? "")],
           ] as [string, string][])
         : ([[w.summary.tone, ai.tones[tone]]] as [string, string][])),
+      [w.summary.prompt, promptMode === "own" ? w.prompt.own : w.prompt.method],
     ];
     return (
       <Card className="mx-auto max-w-2xl space-y-5" data-testid="ai-confirm">
@@ -499,8 +508,31 @@ export function NewLanding({
             <p className="text-xs text-muted">{ai.honesty}</p>
           </Step>
 
+          <Step n={5} title={w.prompt.title}>
+            <Choice
+              value={promptMode}
+              onChange={setPromptMode}
+              testId="prompt-mode"
+              options={[
+                { key: "method", icon: Sparkles, title: w.prompt.method, hint: w.prompt.methodHint },
+                { key: "own", icon: FileText, title: w.prompt.own, hint: w.prompt.ownHint },
+              ]}
+            />
+            {promptMode === "own" && (
+              <>
+                <Field label={w.prompt.label} htmlFor="ai-prompt" hint={fmt(w.prompt.count, { n: customPrompt.length, max: 20000 })}>
+                  <Textarea id="ai-prompt" dir="auto" rows={10} maxLength={20000} value={customPrompt} onChange={(ev) => setCustomPrompt(ev.target.value)} />
+                </Field>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" className="size-4" checked={savePrompt} onChange={(ev) => setSavePrompt(ev.target.checked)} data-testid="save-prompt" />
+                  {w.prompt.save}
+                </label>
+              </>
+            )}
+          </Step>
+
           <div className="flex justify-end">
-            <Button onClick={() => setPhase("confirm")} disabled={source === "product" && !products.length} data-testid="ai-next">
+            <Button onClick={() => setPhase("confirm")} disabled={(source === "product" && !products.length) || (promptMode === "own" && !customPrompt.trim())} data-testid="ai-next">
               {w.next}
             </Button>
           </div>

@@ -4,9 +4,9 @@ import { requirePlatformAdmin } from "@/server/auth/context";
 import { formatDate } from "@/lib/format";
 import { Badge, Card, PageHeader } from "@/ui";
 import { appliedMigrations, recentErrors } from "@/features/admin/queries";
-import { adminTestAi } from "@/features/admin/actions";
+import { adminSystemCheck } from "@/features/admin/actions";
 import { ClearErrorsButton } from "@/features/admin/AdminForms";
-import { AiTestCard } from "@/features/landing/AiTestCard";
+import { CheckCard } from "@/ui/CheckCard";
 import { cronKey } from "@/server/crypto";
 
 // Every server setting the platform reads (values are never shown, only whether they are set)
@@ -63,7 +63,12 @@ export default async function AdminSystem({ params }: PageProps<"/[lang]/admin/s
         </Card>
       </div>
       <div className="mb-6">
-        <AiTestCard test={adminTestAi.bind(null, lang)} t={t.landingPages.ai} />
+        <CheckCard
+          run={adminSystemCheck.bind(null, lang)}
+          labels={{ ...sy.check.steps, ...Object.fromEntries(Object.entries(t.landingPages.ai.testSteps).map(([k, v]) => [`ai-${k}`, v])) }}
+          t={sy.check}
+          testId="system-check"
+        />
       </div>
       <Card className="mb-6 space-y-2 text-sm" data-testid="cron">
         <h2 className="font-semibold">{sy.cron}</h2>

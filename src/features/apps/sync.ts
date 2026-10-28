@@ -96,27 +96,38 @@ export const sheetHeaders = (locale: "ar" | "fr" | "en") => columnKeys.map((k) =
 
 type Result = { ok: boolean; detail: string };
 
+type ScriptAnswer = { ok?: boolean; error?: string; version?: number; sheet?: string; gid?: number; url?: string; count?: number; written?: { key: string; row: number }[] };
+
+// The script's JSON answer (null when Google answered with an HTML page, e.g. a deployment that is not public)
+function readScriptAnswer(text: string): ScriptAnswer | null {
+  try {
+    const json = JSON.parse(text);
+    return json && typeof json === "object" ? (json as ScriptAnswer) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function post(app: App, payload: Record<string, unknown>, event: string): Promise<Result> {
   const secret = decryptJson<string>(app.secret);
   try {
     if (app.app === "google_sheets") {
       const r = await safePostJson(app.url, JSON.stringify({ ...payload, token: secret }), { timeoutMs: 25_000 });
-      let json: { ok?: boolean; error?: string; count?: number; sheet?: string; version?: number; url?: string } | null = null;
-      try {
-        json = JSON.parse(r.text);
-      } catch {
-        // Apps Script answers with an HTML page when the deployment is not public ("Anyone")
+      const answer = readScriptAnswer(r.text);
+      if (!answer?.ok) {
+        return { ok: false, detail: answer?.error ? `Script: ${answer.error}` : `HTTP ${r.status} — ${r.contentType.includes("html") ? "HTML (deploy the script as a web app with access: Anyone)" : r.text.slice(0, 200)}` };
       }
-      if (json?.ok) {
-        // A test with a copy of the script older than the one shown in the dashboard
-        if (event === "test" && (json.version ?? 1) < SCRIPT_VERSION) return { ok: false, detail: OLD_SCRIPT };
-        // Remember the spreadsheet's link for the "Open the sheet" button
-        if (typeof json.url === "string" && /^https:\/\/docs\.google\.com\/spreadsheets\//.test(json.url) && json.url !== app.sheetUrl) {
-          await db.update(schema.shopApps).set({ sheetUrl: json.url.slice(0, 500) }).where(eq(schema.shopApps.id, app.id));
-        }
-        return { ok: true, detail: event === "test" ? (json.sheet ?? "Orders") : `OK (${json.count ?? 0})` };
+      // A test with a copy of the script older than the one shown in the dashboard
+      if (event === "test" && (answer.version ?? 1) < SCRIPT_VERSION) return { ok: false, detail: OLD_SCRIPT };
+      // The "Open the sheet" button opens the very tab the orders are written to
+      if (answer.url && /^https:\/\/docs\.google\.com\/spreadsheets\//.test(answer.url)) {
+        const link = (answer.gid === undefined ? answer.url : `${answer.url.split("#")[0]}#gid=${answer.gid}`).slice(0, 500);
+        if (link !== app.sheetUrl) await db.update(schema.shopApps).set({ sheetUrl: link }).where(eq(schema.shopApps.id, app.id));
       }
-      return { ok: false, detail: json?.error ? `Script: ${json.error}` : `HTTP ${r.status} — ${r.contentType.includes("html") ? "HTML (deploy the script as a web app with access: Anyone)" : r.text.slice(0, 200)}` };
+      // Where the rows went, e.g. "Orders: 1043 → row 12" (older scripts only say how many)
+      const tab = answer.sheet ?? "Orders";
+      const where = answer.written?.length ? answer.written.map((w) => `${w.key} → ${w.row}`).join(", ") : `${answer.count ?? (payload.rows as unknown[] | undefined)?.length ?? 0}`;
+      return { ok: true, detail: event === "test" ? tab : `${tab}: ${where}`.slice(0, 500) };
     }
     const body = JSON.stringify({ event, ...payload });
     const signature = createHmac("sha256", secret).update(body).digest("hex");
@@ -145,8 +156,12 @@ export async function syncOrder(shopId: string, orderId: string, event: SyncEven
     const apps = await db.select().from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.active, true)));
     if (!apps.length) return null;
     const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
-    // A locked order (over the plan's limit) is sent once it is unlocked
-    if (!order || order.locked) return null;
+    if (!order) return null;
+    // A locked order (over the plan's limit) is sent once it is unlocked; the log says why it waits
+    if (order.locked) {
+      for (const app of apps) await log(shopId, app.app, "order", orderId, { ok: false, detail: LOCKED });
+      return null;
+    }
     const [full] = await loadOrders(shopId, [order]);
     const locale = await shopLocaleOf(shopId);
     let failure: string | null = null;
@@ -263,6 +278,7 @@ export async function backfillSheet(app: App): Promise<Result> {
 }
 
 export const OLD_SCRIPT = "OLD_SCRIPT";
+export const LOCKED = "LOCKED";
 
 // "Test" button: the sheet gets its header row and a visible test row (key "TEST", updated by every test),
 // the webhook a test event. For the sheet, the detail is the tab the script writes to.

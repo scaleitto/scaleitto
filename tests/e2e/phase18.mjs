@@ -29,6 +29,34 @@ export default async function phase18(browser) {
     expect(json(page.sections).filter((s) => s.type === "poster").length === 2, "2 designed images");
     const plan = requests.find((r) => JSON.stringify(r.input ?? "").includes("Lampe anti moustique"));
     expect(plan && !JSON.stringify(plan.input).includes("- AliExpress"), "the page's title read from the product data, without the site name");
+    expect(plan.instructions.includes("Angle library") && plan.instructions.includes("hidden problem") && !plan.instructions.includes("MERCHANT BRIEF"), "the platform's marketing method and angle library");
+  });
+
+  await step("own prompt: used for the generation, saved as the store's default; the strategy is shown in the editor", async () => {
+    await owner.goto(`${dash}/landing-pages/new`);
+    expect((await owner.locator("[data-testid=prompt-mode] button[aria-pressed=true]").innerText()).includes("منهجية المنصة"), "platform method by default");
+    await owner.locator("[data-testid=prompt-mode] button", { hasText: "البرومبت الخاص بي" }).click();
+    expect(await owner.locator("[data-testid=ai-next]").isDisabled(), "an empty prompt cannot be used");
+    await owner.fill("#ai-prompt", "أنت خبير تسويق. ركّز على زاوية راحة البال واسألني قبل التنفيذ.");
+    await owner.locator("[data-testid=save-prompt]").check();
+    await owner.selectOption("#ai-count", "2");
+    await owner.click("[data-testid=ai-next]");
+    await owner.locator("[data-testid=ai-confirm]").getByText("البرومبت الخاص بي").waitFor();
+    await owner.locator("[data-testid=ai-confirm] button").last().click();
+    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
+    const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
+    expect(plan?.instructions.includes("MERCHANT BRIEF") && plan.instructions.includes("ركّز على زاوية راحة البال") && plan.instructions.includes("never ask questions") && !plan.instructions.includes("Angle library"), "the merchant's prompt replaces the method, with the format and honesty rules kept");
+    const [[shop]] = await db.query("SELECT ai_prompt FROM shops WHERE id = ?", [shopId]);
+    expect(shop.ai_prompt?.includes("راحة البال"), "saved as the store's default");
+    const [[page]] = await db.query("SELECT strategy FROM landing_pages WHERE id = ?", [owner.url().split("/").pop()]);
+    const strategy = json(page.strategy);
+    expect(strategy?.custom === true && strategy.angles.length === 3 && strategy.audience === "العائلات", "strategy saved with the page");
+    await owner.locator("[data-testid=page-strategy] summary").click();
+    expect((await owner.locator("[data-testid=page-strategy] [data-angle]").count()) === 3, "the angles shown in the editor");
+    await owner.locator("[data-editor-section=poster]").first().locator("button[aria-expanded]").click();
+    await owner.locator("[data-testid=poster-angle]").getByText("نوم هادئ").waitFor();
+    await owner.goto(`${dash}/landing-pages/new`);
+    expect((await owner.inputValue("#ai-prompt")).includes("راحة البال"), "the saved prompt is ready next time");
   });
 
   await step("Google fails: the order waits in the queue, then 'send now' delivers it", async () => {
@@ -42,6 +70,7 @@ export default async function phase18(browser) {
     await owner.waitForSelector("[data-testid=app-sheets][data-state=on]");
 
     sheet.rows.clear(); // earlier phases wrote their own #1001
+    sheet.order.length = 0;
     sheet.down = true;
     const customer = await browser.newPage();
     await customer.goto(`${BASE}/store/shop-${tag}/p/item`);
@@ -63,6 +92,8 @@ export default async function phase18(browser) {
     await queue.locator("button").click();
     await sheets.getByText("تم إرسال 1 طلبية، المتبقي: 0").waitFor();
     expect(sheet.rows.get("1001")?.includes("0555667788"), "the order reached the sheet");
+    const [[sent]] = await db.query("SELECT detail FROM app_events WHERE shop_id = ? AND kind = 'order' AND ok = 1 ORDER BY created_at DESC LIMIT 1", [shopId]);
+    expect(sent?.detail === "Orders: 1001 → 2", `the log says the tab and the row (got ${sent?.detail})`);
     const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM app_queue WHERE shop_id = ?", [shopId]);
     expect(n === 0, "queue empty");
   });

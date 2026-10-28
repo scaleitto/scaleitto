@@ -5,6 +5,7 @@ import { Badge, Card, PageHeader } from "@/ui";
 import { EcomanagerCard, SheetsCard, WebhookCard } from "@/features/apps/AppCards";
 import { ProductImport } from "@/features/apps/ProductImport";
 import { appLog, appViews } from "@/features/apps/queries";
+import { LOCKED, OLD_SCRIPT } from "@/features/apps/sync";
 
 export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/apps">) {
   const lang = asLocale((await params).lang);
@@ -54,8 +55,8 @@ export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/
                   <td className="p-3">
                     <Badge tone={ev.ok ? "accent" : "danger"}>{ev.ok ? a.log.ok : a.log.failed}</Badge>
                   </td>
-                  <td className="max-w-xs truncate p-3 text-xs text-muted" dir="ltr" title={ev.detail ?? ""}>
-                    {ev.detail}
+                  <td className="max-w-sm p-3 text-xs break-words text-muted" dir="auto">
+                    {ev.detail === LOCKED ? a.log.locked : ev.detail === OLD_SCRIPT ? t.errors.sheetsOldScript : ev.detail}
                   </td>
                 </tr>
               ))}
