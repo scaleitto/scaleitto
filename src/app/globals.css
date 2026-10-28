@@ -1,22 +1,25 @@
 @import "tailwindcss";
 
-/* Dashboard design tokens (light theme, green accent). Storefronts set their own --brand. */
+/* Dashboard design tokens: design-system/scaleitto/MASTER.md (white + green, Arabic first). Storefronts set their own --brand. */
 @theme inline {
-  --font-sans: var(--font-cairo), system-ui, sans-serif;
-  --color-bg: #eef2f0;
+  --font-sans: var(--font-ui), var(--font-cairo), system-ui, sans-serif;
+  --color-bg: #f3f6f4;
   --color-panel: #ffffff;
-  --color-panel-2: #f0f3f1;
-  --color-line: #cdd7d1;
+  --color-panel-2: #f6f8f7;
+  --color-line: #d5ded9;
   /* Form fields: a tinted fill and a firmer edge so they stand out on white cards */
-  --color-field: #f5f8f6;
-  --color-field-line: #b4c2ba;
-  --color-fg: #14201a;
-  --color-muted: #64716a;
-  --color-accent: #16a34a;
+  --color-field: #f7faf8;
+  --color-field-line: #b9c6bf;
+  --color-fg: #0f2a20;
+  --color-muted: #556860;
+  /* Primary actions: white text on it is 5.5:1; the bright green is for indicators and charts only */
+  --color-accent: #047857;
+  --color-accent-bright: #10b981;
   --color-accent-fg: #ffffff;
   --color-danger: #dc2626;
-  --color-warning: #b45309;
+  --color-warning: #c2410c;
   --color-info: #0369a1;
+  --color-sidebar: #0b2a1f;
   --color-brand: var(--brand, #22c55e);
   /* Storefront theme tokens (set per store by src/features/themes/themes.ts). The line color is "s-edge":
      "border-s-line" would also be read as Tailwind's border-inline-start + the dashboard line color. */
@@ -37,6 +40,38 @@
 
 body {
   @apply antialiased;
+}
+
+/* Selects draw their own chevron (on the left in RTL, on the right in LTR) */
+.select-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23556860' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+[dir="rtl"] .select-chevron {
+  background-position: left 0.75rem center;
+}
+
+/* Dashboard tables (inside the app shell): quiet head, clear rows, tabular numbers.
+   :where() keeps them at zero specificity so a page's own classes still win. */
+@layer base {
+  :where([data-shell] table) {
+    font-variant-numeric: tabular-nums;
+  }
+  :where([data-shell] thead) {
+    background: var(--color-panel-2);
+  }
+  :where([data-shell] thead th) {
+    font-weight: 600;
+    color: var(--color-muted);
+    border-bottom: 1px solid var(--color-line);
+  }
+  :where([data-shell] tbody tr) {
+    transition: background-color 150ms;
+  }
+  :where([data-shell] tbody tr:hover) {
+    background: color-mix(in srgb, var(--color-panel-2) 70%, transparent);
+  }
 }
 
 /* Native checkboxes, radios and ranges in the dashboard's green */

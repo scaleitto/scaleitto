@@ -195,6 +195,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `.claude/skills/ui-ux-pro-max/` (UI/UX Pro Max, MIT, from github.com/nextlevelbuilder/ui-ux-pro-max-skill): use it for any UI
   work. Search: `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <product|style|color|typography|ux|chart> -n 3`
   (or `--design-system` for a full proposal). Keep the project's own tokens (globals.css, `s-*` storefront colors) as the source.
+- The platform's design system is `design-system/scaleitto/MASTER.md` (tokens, type, components, checklist): read it before UI
+  work. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout only); primary green #047857
+  (`accent`), bright #10b981 (`accent-bright`) for indicators only, `warning` = attention orange; sidebar `sidebar` color.
+  Tables inside the shell (`[data-shell]`) get their head/rows/tabular numbers from globals.css; selects use `select-chevron`.
 
 ## Testing (required before pushing every section)
 - `npm test` — unit tests in `tests/unit/` (node test runner via tsx).

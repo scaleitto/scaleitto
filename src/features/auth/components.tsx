@@ -4,27 +4,49 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { Locale } from "@/i18n/config";
-import { Card, Field, Input } from "@/ui";
+import { CircleCheck } from "lucide-react";
+import { Field, Input } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import type { ActionState } from "@/lib/action";
 
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
+// Sign-in and sign-up: the form on a white side, the platform's promise on the deep-green side (large screens)
 export function AuthShell({ lang, t, title, subtitle, children }: { lang: Locale; t: Dictionary; title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <Link href={`/${lang}`} className="mb-6 text-3xl font-extrabold text-accent">
-        {t.brand}
-      </Link>
-      <Card className="w-full max-w-md p-6">
-        <h1 className="text-xl font-bold">{title}</h1>
-        <p className="mb-5 mt-1 text-sm text-muted">{subtitle}</p>
-        {children}
-      </Card>
-      <div className="mt-6">
-        <LanguageSwitcher current={lang} />
+    <div className="grid min-h-screen bg-panel lg:grid-cols-[1fr_1.05fr]">
+      <div className="flex flex-col px-5 py-6 sm:px-10">
+        <div className="flex items-center justify-between">
+          <Link href={`/${lang}`} className="flex items-center gap-2.5">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#34d399] to-[#059669] font-bold text-white">{t.brand.charAt(0)}</span>
+            <span className="text-lg font-bold tracking-tight">{t.brand}</span>
+          </Link>
+          <LanguageSwitcher current={lang} />
+        </div>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
+          <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">{title}</h1>
+          <p className="mt-2 mb-7 text-sm text-muted">{subtitle}</p>
+          {children}
+        </div>
       </div>
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-sidebar to-[#06291d] p-12 text-white lg:flex lg:flex-col lg:justify-end" aria-hidden>
+        <div className="pointer-events-none absolute -top-32 -end-32 size-[28rem] rounded-full bg-accent-bright/20 blur-3xl" />
+        <div className="relative max-w-md space-y-6">
+          <p className="text-3xl leading-snug font-bold">{t.landing.title}</p>
+          <ul className="space-y-3 text-white/80">
+            {t.landing.journey.slice(1, 5).map(([title, hint]) => (
+              <li key={title} className="flex gap-3">
+                <CircleCheck size={18} className="mt-0.5 shrink-0 text-accent-bright" />
+                <span>
+                  <span className="block font-semibold text-white">{title}</span>
+                  <span className="text-sm">{hint}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
     </div>
   );
 }

@@ -83,7 +83,7 @@ export default async function phase0(browser) {
   });
 
   await step("logout, old password refused, new password works", async () => {
-    await Promise.all([page.waitForURL("**/ar/login"), page.click("header form button")]);
+    await Promise.all([page.waitForURL("**/ar/login"), page.locator("[data-testid=logout]:visible").first().click()]);
     await page.fill("#email", owner.email);
     await page.fill("#password", owner.password);
     await page.click("button[type=submit]");
