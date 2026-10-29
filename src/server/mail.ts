@@ -27,7 +27,10 @@ export async function verifyMail() {
   } catch (err) {
     const e = err as { code?: string; message?: string };
     const hint =
-      e.code === "EDNS" || /ENOTFOUND|EAI_AGAIN/.test(e.message ?? "")
+      // Shared hosting: mail.<domain> reaches a server whose certificate names the host's own domain
+      /altnames|ERR_TLS_CERT_ALTNAME/i.test(`${e.message} ${e.code}`)
+        ? "SMTP_HOST must be the name on the server's certificate: use the outgoing server shown in cPanel → Email Accounts → Connect Devices (e.g. serverXXX.web-hosting.com on Namecheap)"
+        : e.code === "EDNS" || /ENOTFOUND|EAI_AGAIN/.test(e.message ?? "")
         ? "SMTP_HOST is not a mail server name (Namecheap Private Email: mail.privateemail.com; cPanel email: mail.<your-domain>)"
         : e.code === "EAUTH"
           ? "the server refused SMTP_USER / SMTP_PASS (full email address as user, the mailbox password)"

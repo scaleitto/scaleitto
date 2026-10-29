@@ -60,6 +60,8 @@ MAIL_FROM="Scaleitto <no-reply@scaleitto.com>"
 
 > `SMTP_*`: لإرسال رسائل تأكيد البريد واسترجاع كلمة المرور. في **cPanel → Email Accounts** أنشئ بريداً مثل
 > `no-reply@scaleitto.com`، ثم من **Connect Devices** انسخ «Outgoing Server» (غالباً `mail.اسم-موقعك` والمنفذ 465).
+> على استضافة Namecheap المشتركة لا تكتب `mail.اسم-موقعك` بل اسم الخادم نفسه الظاهر في **Email Accounts → Connect Devices**
+> تحت «Secure SSL/TLS Settings» (مثل `server123.web-hosting.com`)، وإلا يظهر خطأ «is not in the cert's altnames».
 > إن كان بريدك من **Namecheap Private Email** (البريد الاحترافي المدفوع) فالخادم هو `SMTP_HOST="mail.privateemail.com"`
 > والمنفذ 465، و`SMTP_USER` هو البريد كاملاً. لا تضع اسم موقعك وحده (`scaleitto.com`) في `SMTP_HOST`.
 > بعد كل تغيير في `.env` اضغط **Restart** للتطبيق، ثم افتح **إدارة المنصة ← النظام**: خطوة «البريد» تتصل فعلاً بالخادم
