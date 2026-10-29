@@ -6,7 +6,7 @@ import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import { Alert, Badge, Card, PageHeader, buttonClass } from "@/ui";
 import { addOrderNote, updateOrderCustomer } from "./actions";
-import { AssignCard, CustomerCard, NoteForm, PhoneBlockButton, StatusPicker, type OrderText } from "./OrderPanels";
+import { AssignCard, CustomerCard, NoteForm, PhoneBlockButton, RiskCard, StatusPicker, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
 import { isOrderStatus, statusTone } from "./statuses";
 import { ShipmentCard } from "@/features/delivery/ShipmentCard";
@@ -27,6 +27,7 @@ export function OrderDetail({
   members,
   shop,
   whatsappApi,
+  protection,
 }: {
   lang: string;
   t: Dictionary;
@@ -39,6 +40,8 @@ export function OrderDetail({
   shop: { name: string; phone: string | null; messages: unknown };
   // The shop's WhatsApp Business API is connected: messages are sent from here
   whatsappApi: boolean;
+  // The store's fake-order protection (risk threshold, suspicious orders held)
+  protection: { riskThreshold: number; holdSuspicious: boolean };
 }) {
   const o = t.orders;
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
@@ -86,14 +89,15 @@ export function OrderDetail({
               shipment && {
                 carrierName: shipment.carrierName,
                 trackingNumber: shipment.trackingNumber,
-                labelUrl: shipment.labelUrl,
+                // The courier's own link, or our download of the PDF (Ecotrack companies)
+                labelHref: shipment.labelUrl ?? (accounts.some((a) => a.id === shipment.carrierAccountId && a.platform === "ecotrack") ? `/api/shipments/${shipment.id}/label` : null),
                 status: shipment.status,
                 rawStatus: shipment.rawStatus,
                 checkedAt: shipment.checkedAt ? formatDate(shipment.checkedAt, lang) : null,
                 fromCarrier: Boolean(shipment.carrierAccountId),
               }
             }
-            accounts={accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault }))}
+            accounts={accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault, options: a.options }))}
             deliveryHref={canManageDelivery ? sectionHref(lang, "delivery") : null}
             t={{ delivery: t.delivery, errors: t.errors, common: t.common }}
           />}
@@ -176,6 +180,9 @@ export function OrderDetail({
         </div>
 
         <div className="space-y-6">
+          {!order.locked && (order.risk > 0 || (order.riskReasons ?? []).length > 0) && (
+            <RiskCard lang={lang} orderId={order.id} risk={order.risk} reasons={order.riskReasons ?? []} threshold={protection.riskThreshold} held={protection.holdSuspicious && !order.assignedTo} t={text} />
+          )}
           {!order.locked && <MessageCard lang={lang} orderId={order.id} phone={order.phone} texts={messages.texts} vars={messageVars} initialKind={suggestedKind(order.status)} api={whatsappApi} errors={t.errors as Record<string, string>} t={t.assistant} />}
           {!order.locked && <AssignCard lang={lang} orderId={order.id} assignedTo={order.assignedTo} assigneeName={order.assigneeName} members={members} t={text} />}
           {!order.locked && <Card className="space-y-3" data-testid="phone-history">

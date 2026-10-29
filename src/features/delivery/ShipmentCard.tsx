@@ -5,26 +5,19 @@ import { useState, useTransition } from "react";
 import { ExternalLink, RefreshCw, Send, Trash2 } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import type { ShipmentStatus } from "@/server/db/schema";
+import { shipmentTone as tone } from "./status";
 import { fmt } from "@/lib/format";
+import { defaultParcelOptions, type ParcelDefaults } from "@/lib/enums";
+import { ParcelOptionsFields } from "./ParcelOptions";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
 import { SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { addManualShipment, refreshTracking, removeShipment, sendToCarrier } from "./actions";
 import type { DeliveryText } from "./CarrierPanels";
 
-type Shipment = { carrierName: string; trackingNumber: string; labelUrl: string | null; status: ShipmentStatus; rawStatus: string | null; checkedAt: string | null; fromCarrier: boolean };
-type Account = { id: string; name: string; isDefault: boolean };
+type Shipment = { carrierName: string; trackingNumber: string; labelHref: string | null; status: ShipmentStatus; rawStatus: string | null; checkedAt: string | null; fromCarrier: boolean };
+type Account = { id: string; name: string; isDefault: boolean; options: Partial<ParcelDefaults> | null };
 
-const tone: Record<ShipmentStatus, "neutral" | "accent" | "warning" | "danger" | "info"> = {
-  created: "neutral",
-  in_transit: "info",
-  out_for_delivery: "info",
-  attempted: "warning",
-  delivered: "accent",
-  returning: "warning",
-  returned: "danger",
-  cancelled: "danger",
-  unknown: "neutral",
-};
+
 
 function errorText(t: DeliveryText, r: ActionState) {
   const errors = t.errors as Record<string, string>;
@@ -37,7 +30,12 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
   const e = t.errors as Record<string, string>;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [accountId, setAccountId] = useState(accounts.find((a) => a.isDefault)?.id ?? accounts[0]?.id ?? "");
+  const firstAccount = accounts.find((a) => a.isDefault) ?? accounts[0];
+  const [accountId, setAccountId] = useState(firstAccount?.id ?? "");
+  // The parcel options start from the chosen company's saved defaults
+  const startOptions = (a?: Account) => ({ ...defaultParcelOptions, ...(a?.options ?? {}) });
+  const [options, setOptions] = useState(() => startOptions(firstAccount));
+  const [showOptions, setShowOptions] = useState(false);
   const [manual, setManual] = useState(false);
   const manualForm = useActionForm(addManualShipment.bind(null, lang, orderId));
   const run = (fn: () => Promise<ActionState>) =>
@@ -80,8 +78,8 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
               <RefreshCw size={15} className={pending ? "animate-spin" : ""} /> {d.refresh}
             </Button>
           )}
-          {shipment.labelUrl && (
-            <a href={shipment.labelUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-panel-2">
+          {shipment.labelHref && (
+            <a href={shipment.labelHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-semibold hover:bg-panel-2" data-testid="label-link">
               <ExternalLink size={15} /> {d.label}
             </a>
           )}
@@ -106,7 +104,14 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
         <div className="flex flex-wrap items-end gap-2">
           <label className="min-w-48 flex-1 space-y-1 text-sm">
             <span className="block text-muted">{d.sendWith}</span>
-            <Select value={accountId} onChange={(ev) => setAccountId(ev.target.value)} aria-label={d.sendWith}>
+            <Select
+              value={accountId}
+              onChange={(ev) => {
+                setAccountId(ev.target.value);
+                setOptions(startOptions(accounts.find((a) => a.id === ev.target.value)));
+              }}
+              aria-label={d.sendWith}
+            >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
@@ -114,7 +119,7 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
               ))}
             </Select>
           </label>
-          <Button disabled={pending || !canSend} onClick={() => run(() => sendToCarrier(lang, orderId, accountId))}>
+          <Button disabled={pending || !canSend} onClick={() => run(() => sendToCarrier(lang, orderId, accountId, options))}>
             <Send size={15} /> {d.send}
           </Button>
         </div>
@@ -127,6 +132,23 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
             </Link>
           )}
         </p>
+      )}
+      {accounts.length > 0 && (
+        <div className="rounded-lg border border-line">
+          <button type="button" onClick={() => setShowOptions(!showOptions)} aria-expanded={showOptions} className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold" data-testid="parcel-options-toggle">
+            {d.options.title}
+            <span className="text-xs font-normal text-muted">
+              {d.options.kinds[options.kind]}
+              {options.fragile ? ` · ${d.options.fragileShort}` : ""}
+              {options.weight ? ` · ${options.weight} kg` : ""}
+            </span>
+          </button>
+          {showOptions && (
+            <div className="border-t border-line p-3">
+              <ParcelOptionsFields value={options} onChange={setOptions} idPrefix="po" t={t} />
+            </div>
+          )}
+        </div>
       )}
       {!canSend && accounts.length > 0 && <p className="text-xs text-muted">{e.confirmFirst}</p>}
       {error && <Alert>{error}</Alert>}

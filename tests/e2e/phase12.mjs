@@ -2,7 +2,7 @@
 // paid plans only, DNS ownership + pointing checks, the store served on the merchant's domain (ordering included),
 // the certificate check endpoint, roles.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, playwright, step } from "./helpers.mjs";
+import { BASE, BROWSER_ARGS, createSession, createShop, db, expect, playwright, step } from "./helpers.mjs";
 import { setDns } from "./mock-apps.mjs";
 
 export default async function phase12(browser) {
@@ -110,7 +110,7 @@ export default async function phase12(browser) {
   await step("the store runs on the merchant's domain, ordering included; another shop cannot take it", async () => {
     const { chromium } = playwright();
     const port = new URL(BASE).port || "80";
-    const b = await chromium.launch({ args: [`--host-resolver-rules=MAP ${domain} 127.0.0.1, MAP www.${domain} 127.0.0.1`] });
+    const b = await chromium.launch({ args: [...BROWSER_ARGS, `--host-resolver-rules=MAP ${domain} 127.0.0.1, MAP www.${domain} 127.0.0.1`] });
     const p = await b.newPage();
     await p.goto(`http://www.${domain}:${port}/`);
     await p.waitForSelector("text=Boutique Lina");

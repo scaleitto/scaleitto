@@ -1,0 +1,4 @@
+-- Old and new stages side by side, existing parcels moved to their new stage, then only the new list is kept
+ALTER TABLE `shipments` MODIFY COLUMN `status` enum('created','in_transit','attempted','ready','pickup','to_station','at_station','to_wilaya','preparing','out_for_delivery','suspended','delivered','returning','returned','cancelled','deleted','to_delete','unknown') NOT NULL DEFAULT 'ready';--> statement-breakpoint
+UPDATE `shipments` SET `status` = CASE `status` WHEN 'created' THEN 'ready' WHEN 'in_transit' THEN 'to_wilaya' WHEN 'attempted' THEN 'suspended' ELSE `status` END WHERE `status` IN ('created', 'in_transit', 'attempted');--> statement-breakpoint
+ALTER TABLE `shipments` MODIFY COLUMN `status` enum('ready','pickup','to_station','at_station','to_wilaya','preparing','out_for_delivery','suspended','delivered','returning','returned','cancelled','deleted','to_delete','unknown') NOT NULL DEFAULT 'ready';

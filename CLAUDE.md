@@ -197,6 +197,24 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   delivers text inside the 24-hour window), actions in `messages/actions.ts` (save/test/disconnect for owners/managers on Apps,
   `sendWhatsappMessage` for anyone who can touch the order → order event "message"). `WhatsappCard` on Apps; `MessageCard`
   shows "Send now" when connected and keeps the wa.me / SMS links. E2E: mock-pixels answers Bearer "wa-good".
+- Owner feedback round 5 (phase21.mjs) — Orders organised in sub-sections (`orders/views.ts`: all / confirm / ship (confirmed) /
+  transit (shipped, chips per courier stage) / done / risk, plus Abandoned and Protection pages; filters wilaya, delivery type,
+  dates, agent, page size) with selection tools (`OrderTools.tsx`: select all/none/invert, `ShipPanel` = bulk send one order per
+  request with progress, stop, report and "retry the failed", `TrackPanel` = bulk stage refresh). Shipment stages follow the
+  Ecotrack/Packers screen (`shipmentStatuses`: ready, pickup, to_station, at_station, to_wilaya, preparing, out_for_delivery,
+  suspended, delivered, returning, returned, cancelled, deleted, to_delete; mapping in `delivery/status.ts`). Parcel options
+  (`lib/enums.ts` ParcelOptions: type delivery/exchange/pickup/recovery = Ecotrack `type` 1–4, stop desk, fragile → "FRAGILE"
+  in the note, weight, phone 2 → `telephone_2`, item to collect → `produit_a_recupere`, map link, product wording; field names
+  from the CourierDZ client) built by `delivery/parcel.ts` (`buildParcel`, `parseParcelOptions`), defaults per company in
+  `carrier_accounts.options`. Packers import sheet = `delivery/packers-sheet.ts` (the owner's 18-column model, CSV with BOM) via
+  POST `/api/orders/packers-sheet`; labels via `/api/shipments/<id>/label` (Ecotrack PDF fetched with the shop's token).
+  `delivery/tracking.ts`: `trackShipment` (button, bulk) and `trackDueShipments` (the same cron URL as the apps queue, every
+  parcel every 3 h). Fake orders: `checkout/protection.ts` (store settings `shops.protection` via `resolveProtection`: limits,
+  duplicates, min fill seconds, block bots, risk threshold, hold suspicious, network) + `checkout/risk.ts` (pure `scoreOrder`:
+  returns/cancels of the phone, returns in other stores, fill time from `CheckoutForm`'s `fill` field (missing = no JavaScript),
+  robot user agent, fake name, many phones from one IP; delivered orders lower it) → `orders.risk` / `risk_reasons`, event "risk";
+  obvious robots refused (error "bot"), suspicious orders held from agents when the store says so; `RiskCard` + "order is fine"
+  (`markOrderTrusted`). E2E browsers use `BROWSER_ARGS` (a normal Chrome user agent: "HeadlessChrome" is refused).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

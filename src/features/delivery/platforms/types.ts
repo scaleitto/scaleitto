@@ -1,4 +1,5 @@
 import "server-only";
+import type { ParcelKind } from "@/lib/enums";
 
 export type Credentials = Partial<Record<"apiId" | "apiToken" | "token" | "key" | "userGuid" | "tenantId" | "apiKey", string>>;
 
@@ -17,9 +18,17 @@ export type ParcelInput = {
   // What the courier collects from the customer (products + delivery as quoted to the customer)
   codAmount: number;
   stopDesk: boolean;
+  // Already carries "FRAGILE" when the parcel is fragile (understood by every courier)
   note: string;
   originWilayaCode: number;
   originWilayaName: string;
+  // Packers / Ecotrack options (each courier sends what its API knows)
+  phone2: string;
+  kind: ParcelKind;
+  fragile: boolean;
+  weight: number | null;
+  itemToCollect: string;
+  mapLink: string;
 };
 
 export type CreatedParcel = { trackingNumber: string; labelUrl?: string | null };
@@ -30,6 +39,8 @@ export interface CarrierClient {
   createParcel(parcel: ParcelInput): Promise<CreatedParcel>;
   // The courier's own wording of the parcel's current status, or null when unknown
   trackingStatus(trackingNumber: string): Promise<string | null>;
+  // The printable label, when the courier serves it as a file (otherwise labelUrl from createParcel is used)
+  label?(trackingNumber: string): Promise<{ body: ArrayBuffer; contentType: string } | null>;
 }
 
 // A refusal from the courier, shown to the merchant as is (e.g. "commune introuvable").

@@ -14,7 +14,7 @@ export default async function AbandonedPage({ params, searchParams }: PageProps<
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const o = t.orders;
-  const { shop } = await requireSection(lang, "orders");
+  const { shop, role } = await requireSection(lang, "orders");
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const { rows, total } = await listLeads(shop.id, page);
   const base = `${sectionHref(lang, "orders")}/abandoned`;
@@ -23,7 +23,7 @@ export default async function AbandonedPage({ params, searchParams }: PageProps<
   return (
     <>
       <PageHeader title={t.sections.orders.title} description={t.sections.orders.description} />
-      <OrdersTabs lang={lang} t={t} current="abandoned" />
+      <OrdersTabs lang={lang} t={t} current="abandoned" showProtection={role !== "agent"} />
       <p className="mb-4 text-sm text-muted">{o.leadsHint}</p>
       {total === 0 ? (
         <EmptyState icon={<ShoppingBasket size={40} />} title={o.leadsEmpty} />

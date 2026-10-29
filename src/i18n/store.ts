@@ -102,6 +102,7 @@ const ar = {
     blocked: "تعذر تسجيل الطلب، تواصل مع المتجر",
     tooMany: "لقد أرسلت عدة طلبات، سنتصل بك قريباً",
     duplicate: "طلبك لهذا المنتج مسجل مسبقاً، سنتصل بك قريباً لتأكيده",
+    bot: "تعذّر إرسال الطلب من هذا المتصفح. حاول مرة أخرى أو اتصل بالمتجر.",
     unexpected: "حدث خطأ، حاول مرة أخرى",
   },
 };
@@ -209,6 +210,7 @@ const fr: StoreText = {
     blocked: "Impossible d'enregistrer la commande, contactez la boutique",
     tooMany: "Vous avez envoyé plusieurs commandes, nous vous appellerons bientôt",
     duplicate: "Votre commande pour ce produit est déjà enregistrée, nous vous appellerons bientôt",
+    bot: "La commande n'a pas pu être envoyée depuis ce navigateur. Réessayez ou contactez la boutique.",
     unexpected: "Une erreur s'est produite, réessayez",
   },
 };
@@ -314,6 +316,7 @@ const en: StoreText = {
     blocked: "The order could not be placed, please contact the store",
     tooMany: "You sent several orders, we will call you soon",
     duplicate: "Your order for this product is already registered, we will call you soon",
+    bot: "The order could not be sent from this browser. Try again or contact the store.",
     unexpected: "Something went wrong, please try again",
   },
 };

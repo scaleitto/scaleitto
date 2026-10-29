@@ -91,9 +91,16 @@ export function startMockCarriers(port) {
       if (path === "/api/v1/get/wilayas") return send(res, 200, [{ wilaya_id: 16, wilaya_name: "Alger" }]);
       if (path === "/api/v1/create/order") {
         received.push({ platform: "ecotrack", ...body });
+        // A commune Ecotrack does not know is refused, like the real API
+        if (body.commune === "Nowhere") return send(res, 422, { success: false, message: "La commune n'existe pas" });
         const tracking = newTracking("ECO");
-        parcels.set(tracking, { status: "En préparation", payload: body });
+        parcels.set(tracking, { status: "Prêt à expédier", payload: body });
         return send(res, 200, { success: true, tracking });
+      }
+      if (path === "/api/v1/get/order/label") {
+        if (!parcels.has(url.searchParams.get("tracking"))) return send(res, 422, { message: "Not found" });
+        res.writeHead(200, { "Content-Type": "application/pdf" });
+        return res.end("%PDF-1.4 label");
       }
       if (path === "/api/v1/get/tracking/info") return send(res, 200, { activity: [{ status: parcels.get(url.searchParams.get("tracking"))?.status ?? "" }] });
     }

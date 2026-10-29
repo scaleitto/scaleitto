@@ -61,6 +61,9 @@ export function CheckoutForm({
   const formRef = useRef<HTMLFormElement>(null);
   const checkoutStarted = useCheckoutStarted();
   const lastLead = useRef("");
+  // Fake-order protection: seconds from the first touch of the form to sending it (robots without a browser send nothing)
+  const startedAt = useRef<number | null>(null);
+  const fillRef = useRef<HTMLInputElement>(null);
   const [formVisible, setFormVisible] = useState(true);
 
   // The mobile sticky button is shown only while the form is off screen.
@@ -104,7 +107,18 @@ export function CheckoutForm({
 
   return (
     <>
-      <form ref={formRef} id="order-form" onSubmit={onSubmit} onFocusCapture={checkoutStarted} noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
+      <form
+        ref={formRef}
+        id="order-form"
+        onSubmit={onSubmit}
+        onFocusCapture={() => {
+          startedAt.current ??= Date.now();
+          checkoutStarted();
+        }}
+        onSubmitCapture={() => {
+          if (fillRef.current) fillRef.current.value = String(Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000));
+        }}
+        noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
         <div>
           <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
           <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
@@ -112,6 +126,7 @@ export function CheckoutForm({
 
         <input type="hidden" name="variantId" value={variant?.id ?? ""} />
         <input type="hidden" name="quantity" value={quantity} />
+        <input ref={fillRef} type="hidden" name="fill" defaultValue="" />
         {/* Honeypot: invisible to people */}
         <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -start-[9999px] h-0 w-0 opacity-0" />
 

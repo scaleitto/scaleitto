@@ -4,7 +4,8 @@ import { db, schema } from "@/server/db";
 import { newId } from "@/server/auth/context";
 import type { StoreShop } from "@/features/storefront/queries";
 import { getShippingRates } from "@/features/storefront/queries";
-import { checkOrderAllowed, type BlockReason } from "./protection";
+import { checkOrderAllowed, protectionFor, riskSignals, scoreOrder, type BlockReason } from "./protection";
+import { isObviousBot } from "./risk";
 import { linePrice, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
 import { takeOrderSlot } from "@/features/plans/locked";
@@ -31,8 +32,14 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
   const variant = variants.find((v) => v.id === input.variantId) ?? null;
   if (variants.length > 0 && !variant) return { ok: false, error: "variant" };
 
-  const blocked = await checkOrderAllowed(shop.id, input.phone, meta.ip, product.id);
+  // Fake-order protection: refuse what the store does not accept, score the rest (suspicious orders are flagged)
+  const protection = await protectionFor(shop.id);
+  const blocked = await checkOrderAllowed(shop.id, input.phone, meta.ip, product.id, protection);
   if (blocked) return { ok: false, error: blocked };
+  const signals = await riskSignals(shop.id, input, meta, protection);
+  if (protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
+  const risk = scoreOrder(signals);
+  const suspicious = risk.score >= protection.riskThreshold;
 
   const shipping = shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType);
   if (shipping === null) return { ok: false, error: "shipping" };
@@ -85,6 +92,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         locked,
         ip: meta.ip,
         userAgent: meta.userAgent?.slice(0, 255) ?? null,
+        risk: risk.score,
+        riskReasons: risk.reasons.length ? risk.reasons : null,
       });
       await tx.insert(schema.orderItems).values({
         id: newId(),
@@ -102,9 +111,11 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         stockTracked: product.trackStock,
       });
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "created", toStatus: "new" });
+      if (suspicious) await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "risk", note: `${risk.score}: ${risk.reasons.join(", ")}` });
       // Hand the order to a call center agent (unless the shop assigns by hand)
-      // (a locked order waits until it is unlocked: nobody can work on it yet)
-      const agent = locked ? null : await pickAgent(tx, shop.id);
+      // (a locked order waits until it is unlocked: nobody can work on it yet; a suspicious one waits for a review
+      // when the store holds them)
+      const agent = locked || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id);
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });

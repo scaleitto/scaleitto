@@ -3,7 +3,7 @@ import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mys
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 // Value lists shared with browser code live in a plain module (no database code in client bundles)
-import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type PolicyKind } from "../../lib/enums";
+import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
 export { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
 export type { LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
 
@@ -82,6 +82,8 @@ export const shops = mysqlTable(
     seo: json("seo").$type<ShopSeo | null>(),
     // Policy pages shown in the store footer (plain text)
     policies: json("policies").$type<ShopPolicies | null>(),
+    // Fake-order protection settings (src/features/checkout/protection-settings.ts); null → defaults
+    protection: json("protection").$type<Partial<ProtectionSettings> | null>(),
     // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
     aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
@@ -238,11 +240,17 @@ export const orders = mysqlTable(
     assignedAt: timestamp("assigned_at"),
     ip: varchar("ip", { length: 45 }),
     userAgent: varchar("user_agent", { length: 255 }),
+    // Fake-order risk computed when the order was placed (0–100, src/features/checkout/risk.ts) and why;
+    // set back to 0 when someone marks the order as trusted
+    risk: int("risk").notNull().default(0),
+    riskReasons: json("risk_reasons").$type<string[] | null>(),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
   (t) => [
     uniqueIndex("orders_shop_number_uq").on(t.shopId, t.number),
+    // The phone's history across every store (the network signal of the fake-order protection)
+    index("orders_phone_idx").on(t.phone),
     index("orders_shop_created_idx").on(t.shopId, t.createdAt),
     index("orders_shop_status_idx").on(t.shopId, t.status),
     index("orders_shop_phone_idx").on(t.shopId, t.phone),
@@ -335,7 +343,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),
@@ -395,6 +403,8 @@ export const carrierAccounts = mysqlTable(
     credentials: text("credentials").notNull(),
     // Wilaya the parcels leave from (required by Yalidine)
     originWilaya: int("origin_wilaya").notNull().default(16),
+    // Starting options of every parcel sent with this account (src/lib/enums.ts ParcelDefaults)
+    options: json("options").$type<Partial<ParcelDefaults>>(),
     isDefault: boolean("is_default").notNull().default(false),
     createdAt: createdAt(),
   },
@@ -402,7 +412,10 @@ export const carrierAccounts = mysqlTable(
 );
 
 // normalized parcel statuses, whatever the carrier's wording
-export const shipmentStatuses = ["created", "in_transit", "out_for_delivery", "attempted", "delivered", "returning", "returned", "cancelled", "unknown"] as const;
+// A parcel's stage, in the order the Ecotrack couriers (Packers, DHD…) show them: ready to ship, being picked up,
+// to the station, at the station, to the wilaya, being prepared, out for delivery, suspended (failed attempt, postponed),
+// delivered, returns, then cancelled / deleted / to delete. Other couriers' wording is mapped to these (delivery/status.ts).
+export const shipmentStatuses = ["ready", "pickup", "to_station", "at_station", "to_wilaya", "preparing", "out_for_delivery", "suspended", "delivered", "returning", "returned", "cancelled", "deleted", "to_delete", "unknown"] as const;
 export type ShipmentStatus = (typeof shipmentStatuses)[number];
 
 // The parcel of an order at a delivery company (or entered by hand).
@@ -417,7 +430,7 @@ export const shipments = mysqlTable(
     carrierName: varchar("carrier_name", { length: 80 }).notNull(),
     trackingNumber: varchar("tracking_number", { length: 80 }).notNull(),
     labelUrl: varchar("label_url", { length: 500 }),
-    status: mysqlEnum("status", shipmentStatuses).notNull().default("created"),
+    status: mysqlEnum("status", shipmentStatuses).notNull().default("ready"),
     rawStatus: varchar("raw_status", { length: 120 }),
     checkedAt: timestamp("checked_at"),
     createdAt: createdAt(),

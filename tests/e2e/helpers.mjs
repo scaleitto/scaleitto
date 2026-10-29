@@ -14,6 +14,9 @@ if (!process.env.DATABASE_URL && existsSync(".env")) {
 }
 
 export const BASE = process.env.E2E_URL ?? "http://localhost:3000";
+// Test browsers present themselves as a normal desktop Chrome: the fake-order protection refuses "HeadlessChrome"
+// (phase21 tests that with its own robot)
+export const BROWSER_ARGS = ["--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"];
 const mysql = require("mysql2/promise");
 export const db = await mysql.createConnection({ uri: process.env.DATABASE_URL });
 

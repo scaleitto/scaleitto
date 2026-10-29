@@ -10,7 +10,7 @@ export async function listRates(shopId: string) {
 // Connected delivery accounts, without their secrets.
 export async function listCarrierAccounts(shopId: string) {
   return db
-    .select({ id: schema.carrierAccounts.id, carrier: schema.carrierAccounts.carrier, platform: schema.carrierAccounts.platform, baseUrl: schema.carrierAccounts.baseUrl, originWilaya: schema.carrierAccounts.originWilaya, isDefault: schema.carrierAccounts.isDefault })
+    .select({ id: schema.carrierAccounts.id, carrier: schema.carrierAccounts.carrier, platform: schema.carrierAccounts.platform, baseUrl: schema.carrierAccounts.baseUrl, originWilaya: schema.carrierAccounts.originWilaya, isDefault: schema.carrierAccounts.isDefault, options: schema.carrierAccounts.options })
     .from(schema.carrierAccounts)
     .where(eq(schema.carrierAccounts.shopId, shopId))
     .orderBy(desc(schema.carrierAccounts.isDefault), asc(schema.carrierAccounts.createdAt));

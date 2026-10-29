@@ -1,0 +1,1 @@
+ALTER TABLE `carrier_accounts` ADD `options` json;

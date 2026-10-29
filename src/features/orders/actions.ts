@@ -17,6 +17,8 @@ import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { spreadOrders, type Spread } from "@/features/team/distribution";
+import { pickAgent } from "@/features/team/assign";
+import { resolveProtection } from "@/features/checkout/protection-settings";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "orders");
 
@@ -81,12 +83,12 @@ export async function updateOrderCustomer(lang: string, orderId: string, _prev: 
   });
 }
 
-export async function setPhoneBlocked(lang: string, rawPhone: string, blocked: boolean): Promise<ActionState> {
+export async function setPhoneBlocked(lang: string, rawPhone: string, blocked: boolean, reason?: string): Promise<ActionState> {
   return safeAction("orders/block", async () => {
     const { shop } = await guard(lang);
     const phone = normalizePhone(rawPhone);
     if (!isValidDzPhone(phone)) return { ok: false, error: "phone" };
-    if (blocked) await db.insert(schema.blockedPhones).ignore().values({ shopId: shop.id, phone });
+    if (blocked) await db.insert(schema.blockedPhones).ignore().values({ shopId: shop.id, phone, reason: reason?.trim().slice(0, 200) || null });
     else await db.delete(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shop.id), eq(schema.blockedPhones.phone, phone)));
     refresh();
     return { ok: true };
@@ -168,4 +170,57 @@ export async function spreadOrdersAction(lang: string, orderIds: string[] | null
     return { ok: true };
   });
   return { ...state, spread };
+}
+
+// ─── Fake-order protection ────────────────────────────────
+
+// The store's protection settings (owners and managers: Orders → Protection)
+export async function saveProtection(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("orders/protection", async () => {
+    const { shop, role } = await guard(lang);
+    if (role === "agent") return { ok: false, error: "forbidden" };
+    const num = (k: string) => Number(formData.get(k));
+    const on = (k: string) => formData.get(k) === "on";
+    const raw = {
+      maxPerPhonePerDay: num("maxPerPhonePerDay"),
+      maxPerIpPerHour: num("maxPerIpPerHour"),
+      blockDuplicates: on("blockDuplicates"),
+      minFillSeconds: num("minFillSeconds"),
+      blockBots: on("blockBots"),
+      riskThreshold: num("riskThreshold"),
+      holdSuspicious: on("holdSuspicious"),
+      useNetwork: on("useNetwork"),
+    };
+    // Out-of-range numbers are refused (resolveProtection would silently use the default)
+    const bounds: [keyof typeof raw, number, number][] = [["maxPerPhonePerDay", 1, 50], ["maxPerIpPerHour", 1, 500], ["minFillSeconds", 0, 60], ["riskThreshold", 10, 100]];
+    const fieldErrors: Record<string, string> = {};
+    for (const [k, min, max] of bounds) if (!Number.isInteger(raw[k]) || (raw[k] as number) < min || (raw[k] as number) > max) fieldErrors[k] = "invalid";
+    if (Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
+    await db.update(schema.shops).set({ protection: resolveProtection(raw) }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// "This order is fine": the risk flag is removed and, when suspicious orders were held, it goes to an agent now
+export async function markOrderTrusted(lang: string, orderId: string): Promise<ActionState> {
+  return safeAction("orders/trusted", async () => {
+    const ctx = await guard(lang);
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
+    await db.transaction(async (tx) => {
+      await tx.update(schema.orders).set({ risk: 0, riskReasons: null }).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
+      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "risk", note: "0" });
+      const [order] = await tx.select({ assignedTo: schema.orders.assignedTo, status: schema.orders.status }).from(schema.orders).where(eq(schema.orders.id, orderId));
+      if (order && !order.assignedTo && order.status === "new") {
+        const agent = await pickAgent(tx, shop.id);
+        if (agent) {
+          await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
+          await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });
+        }
+      }
+    });
+    refresh();
+    return { ok: true };
+  });
 }

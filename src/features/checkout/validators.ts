@@ -20,6 +20,11 @@ export const orderInputSchema = z.object({
   note: z.string().trim().max(500).optional().default(""),
   // Honeypot: hidden from people, bots fill it
   website: z.string().optional().default(""),
+  // Seconds spent on the form, written by the browser when it is sent (missing: no JavaScript → robot signal)
+  fill: z
+    .string()
+    .optional()
+    .transform((v) => (v && /^\d{1,6}$/.test(v) ? Number(v) : null)),
 });
 
 export type OrderInput = z.output<typeof orderInputSchema>;

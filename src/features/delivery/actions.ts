@@ -13,10 +13,11 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { applyOrderStatus } from "@/features/orders/transition";
 import { canTouchOrder, viewerOf } from "@/features/orders/access";
-import { carrierClient, CarrierError, type ParcelInput } from "./platforms";
+import { carrierClient, CarrierError } from "./platforms";
 import type { Credentials } from "./platforms/types";
 import { findCarrier, normalizeEcotrackUrl, platformFields } from "./carriers";
-import { normalizeShipmentStatus, orderStatusFor, splitName } from "./status";
+import { buildParcel, parseParcelOptions } from "./parcel";
+import { trackShipment } from "./tracking";
 
 const MAX_PRICE = 100_000;
 
@@ -128,10 +129,10 @@ export async function setDefaultCarrier(lang: string, accountId: string): Promis
 
 // ─── Shipments (from the order page) ──────────────────────
 
-const frenchWilaya = (code: number) => wilayas.find((w) => w.code === code)?.fr ?? String(code);
-
-// Sends a confirmed order to a connected delivery company and marks it as shipping.
-export async function sendToCarrier(lang: string, orderId: string, accountId: string): Promise<ActionState> {
+// Sends a confirmed order to a connected delivery company and marks it as shipping. Used one order at a time by the
+// order page and by the bulk send (the browser sends the selected orders one by one and shows each result).
+// `options` = this send's parcel options (type, fragile, weight…), over the company's saved defaults.
+export async function sendToCarrier(lang: string, orderId: string, accountId: string, options?: unknown): Promise<ActionState> {
   return safeAction("delivery/send", async () => {
     const ctx = await requireSection(asLocale(lang), "orders");
     const { shop, user } = ctx;
@@ -144,24 +145,7 @@ export async function sendToCarrier(lang: string, orderId: string, accountId: st
     if (!account) return { ok: false, error: "notFound" };
 
     const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId));
-    const { firstName, lastName } = splitName(order.customerName);
-    const parcel: ParcelInput = {
-      reference: String(order.number),
-      fullName: order.customerName,
-      firstName,
-      lastName,
-      phone: order.phone,
-      wilayaCode: order.wilayaCode,
-      wilayaName: frenchWilaya(order.wilayaCode),
-      commune: order.commune,
-      address: order.address ?? "",
-      products: items.map((i) => `${i.name}${i.variantTitle ? ` (${i.variantTitle})` : ""} x${i.quantity}`).join(", "),
-      codAmount: order.total,
-      stopDesk: order.deliveryType === "office",
-      note: order.customerNote ?? "",
-      originWilayaCode: account.originWilaya,
-      originWilayaName: frenchWilaya(account.originWilaya),
-    };
+    const parcel = buildParcel(order, items, account.originWilaya, parseParcelOptions(options, account.options));
 
     let created;
     try {
@@ -184,6 +168,20 @@ export async function sendToCarrier(lang: string, orderId: string, accountId: st
       });
       await applyOrderStatus(tx, shop.id, orderId, "shipped", user.id, `${carrierName}: ${created.trackingNumber}`);
     });
+    refresh();
+    return { ok: true, message: created.trackingNumber };
+  });
+}
+
+// The starting options of every parcel sent with this account (type, fragile, weight, note)
+export async function saveCarrierDefaults(lang: string, accountId: string, options: unknown): Promise<ActionState> {
+  return safeAction("delivery/defaults", async () => {
+    const { shop } = await requireSection(asLocale(lang), "delivery");
+    const o = parseParcelOptions(options);
+    await db
+      .update(schema.carrierAccounts)
+      .set({ options: { kind: o.kind, fragile: o.fragile, weight: o.weight, note: o.note } })
+      .where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, accountId)));
     refresh();
     return { ok: true };
   });
@@ -215,6 +213,7 @@ export async function addManualShipment(lang: string, orderId: string, _prev: Ac
 }
 
 // Asks the delivery company where the parcel is; a delivered/returned parcel closes the order.
+// Used by the order page and, one order at a time, by the bulk "update stages" of the orders list.
 export async function refreshTracking(lang: string, orderId: string): Promise<ActionState> {
   return safeAction("delivery/track", async () => {
     const ctx = await requireSection(asLocale(lang), "orders");
@@ -222,22 +221,15 @@ export async function refreshTracking(lang: string, orderId: string): Promise<Ac
     if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     const [shipment] = await db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
     if (!shipment?.carrierAccountId) return { ok: false, error: "notFound" };
-    const [account] = await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, shipment.carrierAccountId)));
-    if (!account) return { ok: false, error: "carrierMissing" };
-    let raw: string | null;
+    let status;
     try {
-      raw = await carrierClient(account.platform, account.baseUrl, decryptJson<Credentials>(account.credentials)).trackingStatus(shipment.trackingNumber);
+      status = await trackShipment(shipment, user.id);
     } catch (err) {
       return { ok: false, error: "carrierUnreachable", message: err instanceof Error ? err.message : String(err) };
     }
-    const status = normalizeShipmentStatus(raw);
-    await db.transaction(async (tx) => {
-      await tx.update(schema.shipments).set({ status, rawStatus: raw?.slice(0, 120) ?? null, checkedAt: new Date() }).where(eq(schema.shipments.id, shipment.id));
-      const next = orderStatusFor(status);
-      if (next) await applyOrderStatus(tx, shop.id, orderId, next, user.id, `${shipment.carrierName}: ${raw}`);
-    });
+    if (!status) return { ok: false, error: "carrierMissing" };
     refresh();
-    return { ok: true };
+    return { ok: true, message: status };
   });
 }
 

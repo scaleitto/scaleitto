@@ -38,11 +38,12 @@ export function yalidineClient(baseUrl: string, creds: Credentials): CarrierClie
         length: 0,
         width: 0,
         height: 0,
-        weight: 0,
+        weight: p.weight ?? 0,
         freeshipping: true,
         is_stopdesk: p.stopDesk,
         ...(p.stopDesk ? { stopdesk_id: await firstDesk(p.wilayaCode) } : {}),
-        has_exchange: false,
+        has_exchange: p.kind === "exchange",
+        ...(p.kind === "exchange" && p.itemToCollect ? { product_to_collect: p.itemToCollect } : {}),
       };
       const { status, data } = await request(`${baseUrl}/v1/parcels/`, { method: "POST", headers, body: [parcel] });
       const result = (data as Record<string, { success?: boolean | string; tracking?: string; label?: string; message?: string }>)[p.reference];

@@ -127,6 +127,27 @@
       "when": 1793265174718,
       "tag": "0017_payg_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1793268317794,
+      "tag": "0018_shipment_stages",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1793268445702,
+      "tag": "0019_parcel_options",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1793268887229,
+      "tag": "0020_fraud_protection",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 // Runs every end-to-end phase against a running server (E2E_URL, default http://localhost:3000)
 // and checks that no server error was logged while testing.
-import { BASE, db, failed, playwright, step, expect } from "./helpers.mjs";
+import { BASE, BROWSER_ARGS, db, failed, playwright, step, expect } from "./helpers.mjs";
 import phase0 from "./phase0.mjs";
 import phase1 from "./phase1.mjs";
 import phase2 from "./phase2.mjs";
@@ -22,12 +22,13 @@ import phase17 from "./phase17.mjs";
 import phase18 from "./phase18.mjs";
 import phase19 from "./phase19.mjs";
 import phase20 from "./phase20.mjs";
+import phase21 from "./phase21.mjs";
 import { startMockCarriers } from "./mock-carriers.mjs";
 import { startMockOpenAi } from "./mock-openai.mjs";
 import { startMockPixels } from "./mock-pixels.mjs";
 import { startMockApps } from "./mock-apps.mjs";
 
-const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12, phase13, phase14, phase15, phase16, phase17, phase18, phase19, phase20 };
+const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12, phase13, phase14, phase15, phase16, phase17, phase18, phase19, phase20, phase21 };
 const only = process.argv[2];
 
 // The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)
@@ -40,7 +41,7 @@ const appsMock = process.env.E2E_APPS_URL ? await startMockApps(Number(new URL(p
 const ai = process.env.OPENAI_BASE_URL?.startsWith("http://127.0.0.1") ? await startMockOpenAi(Number(new URL(process.env.OPENAI_BASE_URL).port)) : null;
 
 const { chromium } = playwright();
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: BROWSER_ARGS });
 // Errors logged since the tests started (by time, so the admin's "clear the log" does not hide or break anything)
 const [[{ startedAt }]] = await db.query("SELECT NOW() AS startedAt");
 

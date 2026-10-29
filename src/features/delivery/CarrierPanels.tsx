@@ -7,7 +7,9 @@ import type { ActionState } from "@/lib/action";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
 import { SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { carriers, platformFields, type CarrierInfo } from "./carriers";
-import { connectCarrier, disconnectCarrier, setDefaultCarrier } from "./actions";
+import { connectCarrier, disconnectCarrier, saveCarrierDefaults, setDefaultCarrier } from "./actions";
+import { defaultParcelOptions } from "@/lib/enums";
+import { ParcelOptionsFields } from "./ParcelOptions";
 import type { CarrierAccountRow } from "./queries";
 
 export type DeliveryText = Pick<Dictionary, "delivery" | "errors" | "common">;
@@ -37,40 +39,81 @@ export function ConnectedAccounts({ lang, accounts, wilayaNames, t }: { lang: st
       {error && <Alert>{error}</Alert>}
       <div className="grid gap-3 md:grid-cols-2">
         {accounts.map((a) => (
-          <Card key={a.id} className="flex items-start justify-between gap-3" data-account={a.carrier}>
-            <div className="min-w-0 space-y-1">
-              <p className="flex items-center gap-2 font-semibold">
-                <CircleCheck size={16} className="text-accent" /> {carrierName(a.carrier)}
-                {a.isDefault && <Badge tone="accent">{d.isDefault}</Badge>}
-              </p>
-              <p className="truncate text-xs text-muted" dir="ltr">
-                {a.baseUrl.replace(/^https:\/\//, "")}
-              </p>
-              <p className="text-xs text-muted">
-                {d.originWilaya}: {wilayaNames[a.originWilaya]}
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-1">
-              {!a.isDefault && (
-                <Button variant="ghost" className="px-2 py-1 text-xs" disabled={pending} onClick={() => run(() => setDefaultCarrier(lang, a.id))}>
-                  <Star size={14} /> {d.makeDefault}
+          <Card key={a.id} className="space-y-2" data-account={a.carrier}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <p className="flex items-center gap-2 font-semibold">
+                  <CircleCheck size={16} className="text-accent" /> {carrierName(a.carrier)}
+                  {a.isDefault && <Badge tone="accent">{d.isDefault}</Badge>}
+                </p>
+                <p className="truncate text-xs text-muted" dir="ltr">
+                  {a.baseUrl.replace(/^https:\/\//, "")}
+                </p>
+                <p className="text-xs text-muted">
+                  {d.originWilaya}: {wilayaNames[a.originWilaya]}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                {!a.isDefault && (
+                  <Button variant="ghost" className="px-2 py-1 text-xs" disabled={pending} onClick={() => run(() => setDefaultCarrier(lang, a.id))}>
+                    <Star size={14} /> {d.makeDefault}
+                  </Button>
+                )}
+                <Button
+                  variant="danger"
+                  className="px-2 py-1 text-xs"
+                  disabled={pending}
+                  aria-label={d.disconnect}
+                  onClick={() => {
+                    if (confirm(d.confirmDisconnect)) run(() => disconnectCarrier(lang, a.id));
+                  }}
+                >
+                  <Trash2 size={14} /> {d.disconnect}
                 </Button>
-              )}
-              <Button
-                variant="danger"
-                className="px-2 py-1 text-xs"
-                disabled={pending}
-                aria-label={d.disconnect}
-                onClick={() => {
-                  if (confirm(d.confirmDisconnect)) run(() => disconnectCarrier(lang, a.id));
-                }}
-              >
-                <Trash2 size={14} /> {d.disconnect}
-              </Button>
+              </div>
             </div>
+            <AccountDefaults lang={lang} account={a} t={t} />
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+// What every parcel sent with this company starts from (type, fragile, weight, note)
+function AccountDefaults({ lang, account, t }: { lang: string; account: CarrierAccountRow; t: DeliveryText }) {
+  const o = t.delivery.options;
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(() => ({ ...defaultParcelOptions, ...(account.options ?? {}) }));
+  const [saved, setSaved] = useState(false);
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="pt-1" data-testid="account-defaults">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="text-xs font-semibold text-accent hover:underline">
+        {o.defaults}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-3 rounded-lg border border-line bg-panel-2/50 p-3">
+          <p className="text-xs text-muted">{o.defaultsHint}</p>
+          <ParcelOptionsFields value={value} onChange={(v) => (setValue(v), setSaved(false))} idPrefix={`def-${account.carrier}`} defaultsOnly t={t} />
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              className="py-1.5 text-xs"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const r = await saveCarrierDefaults(lang, account.id, value);
+                  setSaved(Boolean(r.ok));
+                })
+              }
+            >
+              {o.saveDefaults}
+            </Button>
+            {saved && <span className="text-xs font-semibold text-[#047857]">{t.common.saved}</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
