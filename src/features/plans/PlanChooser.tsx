@@ -127,7 +127,7 @@ export function PlanChooser({
   return (
     <div className="space-y-4">
       {pending && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm" data-testid="plan-pending">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm" data-testid="plan-pending">
           <Clock size={18} className="shrink-0 text-warning" />
           <p className="me-auto">{fmt(p.pending, { plan: pending.planName, months: pending.months, amount: formatPrice(pending.amount, t.common.currency) })}</p>
           <Button variant="secondary" className="py-1.5 text-xs" disabled={busy} onClick={() => startTransition(async () => void (await cancelPlanRequest(lang, pending.id)))}>
@@ -136,7 +136,7 @@ export function PlanChooser({
         </div>
       )}
       <h2 className="text-lg font-semibold">{p.compare}</h2>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         {plans.map((plan) => {
           const mine = plan.code === currentCode;
           const paid = plan.priceMonthly > 0;
@@ -146,6 +146,7 @@ export function PlanChooser({
                 <h3 className="text-lg font-bold">{plan.name}</h3>
                 {mine && <Badge tone="accent">{p.yours}</Badge>}
               </div>
+              <p className="-mt-2 text-sm text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
               <p className="text-2xl font-extrabold">{paid ? fmt(p.perMonth, { price: formatPrice(plan.priceMonthly, t.common.currency) }) : p.free}</p>
               <ul className="flex-1 space-y-1.5 text-sm">
                 {limitKeys.map((k) => (

@@ -14,6 +14,13 @@ const defaultPlans = [
     features: ["landing_pages", "variants", "pixels"],
   },
   {
+    code: "basic",
+    name: "Basic",
+    priceMonthly: 1900,
+    limits: { maxProducts: 50, maxOrdersPerMonth: 500, maxStaff: 2, maxLandingPages: 10, maxAiPerMonth: 15 },
+    features: ["landing_pages", "variants", "pixels", "google_sheets", "abandoned_cart", "delivery_integrations", "analytics"],
+  },
+  {
     code: "pro",
     name: "Pro",
     priceMonthly: 3900,
@@ -25,6 +32,13 @@ const defaultPlans = [
     name: "Business",
     priceMonthly: 9900,
     limits: { maxProducts: -1, maxOrdersPerMonth: -1, maxStaff: 20, maxLandingPages: -1, maxAiPerMonth: 300 },
+    features: ["landing_pages", "variants", "pixels", "custom_domain", "google_sheets", "abandoned_cart", "upsell", "delivery_integrations", "analytics", "ai", "api"],
+  },
+  {
+    code: "scale",
+    name: "Scale",
+    priceMonthly: 19900,
+    limits: { maxProducts: -1, maxOrdersPerMonth: -1, maxStaff: 50, maxLandingPages: -1, maxAiPerMonth: 1000 },
     features: ["landing_pages", "variants", "pixels", "custom_domain", "google_sheets", "abandoned_cart", "upsell", "delivery_integrations", "analytics", "ai", "api"],
   },
 ];

@@ -210,7 +210,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   work. Search: `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <product|style|color|typography|ux|chart> -n 3`
   (or `--design-system` for a full proposal). Keep the project's own tokens (globals.css, `s-*` storefront colors) as the source.
 - The platform's design system is `design-system/scaleitto/MASTER.md` (tokens, type, components, checklist): read it before UI
-  work. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout only); primary green #047857
+  work. Interface font = Cairo (`--font-cairo` in `src/app/fonts.ts`, preloaded; dashboard, homepage, auth, admin); primary green #047857
   (`accent`), bright #10b981 (`accent-bright`) for indicators only, `warning` = attention orange; sidebar `sidebar` color.
   Tables inside the shell (`[data-shell]`) get their head/rows/tabular numbers from globals.css; selects use `select-chevron`.
 - Storefront/landing rules: `design-system/scaleitto/pages/storefront.md`. On the merchant's color use `text-brand-fg` (never
@@ -237,6 +237,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 
 ## Roadmap (from the owner's feature list)
 v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
+Missing features seen in competitors (fraud score, Snapchat pixel, coupons, multi-store, WhatsApp self-confirmation…) are listed
+in `docs/next-round.md`: the homepage only claims what exists. Default plans (seeded by `scripts/migrate-lib.mjs`, missing codes
+added on every start): starter (free) / basic 1,900 / pro 3,900 / business 9,900 / scale 19,900 DA; the homepage highlights `pro`.
 Next: the owner tests image landing pages with a real OpenAI key (image quality / Arabic text), A/B variants of a page; real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
 against public docs/clients; ZR Express new platform added.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

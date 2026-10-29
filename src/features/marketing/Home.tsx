@@ -3,18 +3,21 @@ import type { ReactNode } from "react";
 import {
   BarChart3,
   CheckCircle2,
+  Download,
   Globe,
   LayoutTemplate,
+  MessageCircle,
   MousePointerClick,
   PackageCheck,
   Palette,
   PhoneCall,
   Radar,
   Sheet,
+  ShieldCheck,
   ShoppingBag,
+  ShoppingCart,
   Sparkles,
   Truck,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n";
@@ -187,7 +190,7 @@ export function MarketingHome({ lang, t, plans }: { lang: Locale; t: Dictionary;
 }
 
 const journeyIcons: LucideIcon[] = [MousePointerClick, LayoutTemplate, ShoppingBag, PhoneCall, Truck, BarChart3];
-const moreIcons: LucideIcon[] = [Palette, Radar, Sheet, BarChart3, Globe, Users];
+const moreIcons: LucideIcon[] = [ShieldCheck, ShoppingCart, MessageCircle, Radar, Sheet, BarChart3, Globe, Palette, Download];
 
 // A barcode drawn from the order number (decorative)
 function Barcode({ value }: { value: string }) {
@@ -338,6 +341,9 @@ function DeliveryPicture({ t }: { t: Dictionary }) {
   );
 }
 
+// The plan the homepage highlights (plan codes are fixed, see the admin plans editor)
+const RECOMMENDED = "pro";
+
 // The active plans as stored by the platform admin (prices and limits are never written by hand here)
 function Pricing({ lang, t, plans }: { lang: Locale; t: Dictionary; plans: HomePlan[] }) {
   const l = t.landing;
@@ -346,26 +352,31 @@ function Pricing({ lang, t, plans }: { lang: Locale; t: Dictionary; plans: HomeP
     <section id="pricing" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-20 md:py-28">
       <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{l.pricingTitle}</h2>
       <p className="mt-3 max-w-xl text-lg text-muted">{l.pricingText}</p>
-      <div className="mt-10 grid divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-panel md:grid-cols-3 md:divide-y-0" data-testid="home-pricing">
-        {plans.map((plan, i) => (
-          <div key={plan.code} className={`flex flex-col border-line p-6 transition-colors hover:bg-panel-2/60 sm:p-8 ${i > 0 ? "md:border-s" : ""}`} data-plan={plan.code}>
-            <h3 className="text-lg font-bold">{plan.name}</h3>
-            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums">{plan.priceMonthly ? fmt(p.perMonth, { price: formatPrice(plan.priceMonthly, t.common.currency) }) : p.free}</p>
-            <ul className="mt-6 flex-1 space-y-2.5 text-sm">
-              {limitKeys.map((k) => (
-                <li key={k} className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="shrink-0 text-accent" aria-hidden />
-                  <span>
-                    <span className="font-semibold tabular-nums">{plan.limits[k] === -1 ? t.common.unlimited : (plan.limits[k] ?? 0).toLocaleString("fr-FR")}</span> {p.planLimits[k]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Link href={`/${lang}/register`} className={buttonClass(plan.priceMonthly ? "secondary" : "primary", "mt-8 py-3")}>
-              {l.choose}
-            </Link>
-          </div>
-        ))}
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing">
+        {plans.map((plan) => {
+          const picked = plan.code === RECOMMENDED;
+          return (
+            <div key={plan.code} className={`relative flex flex-col rounded-[18px] border bg-panel p-6 lg:p-5 ${picked ? "border-accent shadow-[0_18px_40px_-24px_rgba(4,120,87,.55)] ring-1 ring-accent" : "border-line"}`} data-plan={plan.code}>
+              {picked && <span className="absolute -top-3 start-6 rounded-full bg-accent px-3 py-0.5 text-xs font-bold text-white">{l.recommended}</span>}
+              <h3 className="text-lg font-bold">{plan.name}</h3>
+              <p className="mt-1 min-h-10 text-sm leading-snug text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
+              <p className="mt-4 text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums lg:text-xl">{plan.priceMonthly ? fmt(p.perMonth, { price: formatPrice(plan.priceMonthly, t.common.currency) }) : p.free}</p>
+              <ul className="mt-5 flex-1 space-y-2.5 border-t border-line pt-5 text-sm">
+                {limitKeys.map((k) => (
+                  <li key={k} className="flex items-start gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+                    <span>
+                      <span className="font-semibold tabular-nums">{plan.limits[k] === -1 ? t.common.unlimited : (plan.limits[k] ?? 0).toLocaleString("fr-FR")}</span> {p.planLimits[k]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link href={`/${lang}/register`} className={buttonClass(picked || !plan.priceMonthly ? "primary" : "secondary", "mt-6 py-3")}>
+                {l.choose}
+              </Link>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

@@ -2,7 +2,7 @@
 
 /* Dashboard design tokens: design-system/scaleitto/MASTER.md (white + green, Arabic first). Storefronts set their own --brand. */
 @theme inline {
-  --font-sans: var(--font-ui), var(--font-cairo), system-ui, sans-serif;
+  --font-sans: var(--font-cairo), system-ui, sans-serif;
   --color-bg: #f3f6f4;
   --color-panel: #ffffff;
   --color-panel-2: #f6f8f7;

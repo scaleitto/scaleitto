@@ -13,7 +13,8 @@ active place, success). Everything else is quiet and legible.
 
 Adjustments to the tool's proposal (and why):
 - Primary #059669 + white text is 3.8:1 → buttons use **#047857** (5.5:1); #10B981 only for graphics/indicators.
-- Rubik / Nunito Sans have no Arabic → **IBM Plex Sans Arabic** for the whole interface (Arabic + Latin, 400–700).
+- Rubik / Nunito Sans have no Arabic → **Cairo** for the whole interface (Arabic + Latin, variable 200–1000). IBM Plex Sans
+  Arabic was tried first; the owner preferred Cairo, and it is already preloaded for the stores, so one font file serves all.
 - Orange #EA580C kept only as the "attention" color (new orders, warnings), never as decoration.
 - Mint page background (#ECFDF5) read as tinted cards → neutral green-grey canvas #F3F6F4 so white cards stand out.
 
@@ -35,7 +36,7 @@ Adjustments to the tool's proposal (and why):
 | sidebar | #0B2A1F → #082018 | navigation surface |
 
 ## Type
-IBM Plex Sans Arabic 400/600/700 (next/font, preloaded only in the [lang] layout; 500 falls back to 400). Scale: 12 (meta) / 14 (UI, tables)
+Cairo (variable, `--font-cairo` from src/app/fonts.ts, preloaded; also the classic store theme's font). Scale: 12 (meta) / 14 (UI, tables)
 / 16 (body, inputs on mobile) / 18 (card titles) / 24–28 (page titles, 700). Line-height 1.6 body, 1.25 titles.
 No all-caps labels, no letter-spaced eyebrows.
 

@@ -13,7 +13,7 @@ Primary job: understand in 5 seconds that the whole order journey lives here, th
 ## Plan
 Color: Ink #0B2A1F (sidebar), Canvas #F3F6F4, Paper #FFFFFF, Signal #10B981 (indicators), Accent #047857 (actions,
 the stamp), Kraft #D8C3A0 (only the parcel behind the waybill).
-Type: IBM Plex Sans Arabic only. Headline 700, tight leading; numbers tabular; no all-caps, no eyebrows.
+Type: Cairo only. Headline 700, tight leading; numbers tabular; no all-caps, no eyebrows.
 Layout:
 ```
 [header: brand | journey · features · pricing | language · login · create store]

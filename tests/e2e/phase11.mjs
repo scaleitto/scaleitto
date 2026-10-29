@@ -34,7 +34,7 @@ export default async function phase11(browser) {
     await owner.waitForSelector("[data-testid=current-plan] [data-plan=starter]");
     expect((await owner.locator("[data-meter=maxProducts]").innerText()).includes("1 / 20"), "products 1 / 20");
     expect((await owner.locator("[data-meter=maxOrdersPerMonth]").innerText()).includes("0 / 2"), "contract limit shown");
-    expect((await owner.locator("[data-plan-card]").count()) === 3, "3 plans");
+    expect((await owner.locator("[data-plan-card]").count()) === 5, "5 plans");
     expect(!(await owner.locator("[data-plan-card=starter] button").count()), "free plan cannot be requested");
   });
 
