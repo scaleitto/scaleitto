@@ -5,6 +5,20 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  ChartPie,
+  ChevronDown,
+  ClipboardList,
+  Dot,
+  ListOrdered,
+  Paintbrush,
+  Plug,
+  Radar,
+  ScanLine,
+  Send,
+  ShieldCheck,
+  ShoppingBasket,
+  Sparkles,
+  Undo2,
   Blocks,
   Boxes,
   Wallet,
@@ -60,6 +74,22 @@ const icons: Record<ShellKey, LucideIcon> = {
   adminSystem: ServerCog,
 };
 
+// The sub-sections' icons (sidebar and tabs)
+const subIcons: Partial<Record<string, LucideIcon>> = {
+  orders: ListOrdered,
+  shipping: Send,
+  tracking: Radar,
+  returns: Undo2,
+  abandoned: ShoppingBasket,
+  protection: ShieldCheck,
+  orderInsights: ChartPie,
+  storeDesign: Paintbrush,
+  themes: Sparkles,
+  orderForm: ClipboardList,
+  pixels: ScanLine,
+  apps: Plug,
+};
+
 // A sidebar entry; a group lists its sub-sections (shown under it in the sidebar and as tabs above its pages)
 export type NavItem = { key: ShellKey; href: string; label: string; children?: { key: string; href: string; label: string }[] };
 
@@ -106,6 +136,13 @@ export function DashboardShell({
   const active = current?.group;
   const activeGroup = items.find((i) => i.key === active);
   const tabs = activeGroup?.children && activeGroup.children.length > 1 ? activeGroup.children : null;
+  // The open group in the sidebar: the current page's group, until the merchant opens or closes one
+  const [openGroup, setOpenGroup] = useState<string | null>(active ?? null);
+  const [seenActive, setSeenActive] = useState(active);
+  if (seenActive !== active) {
+    setSeenActive(active);
+    setOpenGroup(active ?? null);
+  }
 
   const initials = userName.trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0)).join("").toUpperCase() || "•";
 
@@ -132,39 +169,56 @@ export function DashboardShell({
           const Icon = icons[item.key];
           const isActive = item.key === active;
           const sub = item.children && item.children.length > 1 ? item.children : null;
+          const entry = `relative flex min-h-10 w-full items-center gap-3 rounded-[10px] px-3 py-2 text-start text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/60 ${
+            isActive ? "bg-white/[0.09] text-white" : "text-white/65 hover:bg-white/[0.05] hover:text-white"
+          }`;
+          const head = (
+            <>
+              {/* The active section: a bright bar on the inner edge */}
+              {isActive && <span className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-accent-bright" aria-hidden />}
+              <Icon size={18} strokeWidth={isActive ? 2.2 : 1.9} aria-hidden className={isActive ? "text-accent-bright" : "text-white/55"} />
+              <span className="flex-1">{item.label}</span>
+            </>
+          );
+          if (!sub)
+            return (
+              <li key={item.key} data-nav={item.key}>
+                <Link href={item.href} aria-current={isActive ? "page" : undefined} className={entry} data-nav-link>
+                  {head}
+                </Link>
+              </li>
+            );
+          // A group: its header opens and closes its sub-sections (they slide down and up)
+          const expanded = openGroup === item.key;
           return (
-            <li key={item.key} data-nav={item.key}>
-              <Link
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                className={`relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-accent-bright/60 ${
-                  isActive ? "bg-white/[0.09] text-white" : "text-white/65 hover:bg-white/[0.05] hover:text-white"
-                }`}
-              >
-                {/* The active page: a bright green bar on the inner edge */}
-                {isActive && <span className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-accent-bright" aria-hidden />}
-                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.9} aria-hidden className={isActive ? "text-accent-bright" : "text-white/55"} />
-                {item.label}
-              </Link>
-              {/* The group's sub-sections, open under the active group */}
-              {sub && isActive && (
-                <ul className="ms-[1.35rem] mt-0.5 mb-1 border-s border-white/10 ps-2.5" data-testid="nav-children">
+            <li key={item.key} data-nav={item.key} data-open={expanded}>
+              <button type="button" aria-expanded={expanded} onClick={() => setOpenGroup(expanded ? null : item.key)} className={entry} data-nav-toggle>
+                {head}
+                <ChevronDown size={16} aria-hidden className={`text-white/45 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+              </button>
+              <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                <ul className="min-h-0 overflow-hidden" data-testid="nav-children" aria-hidden={!expanded}>
+                  <li className="h-1" aria-hidden />
                   {sub.map((c) => {
                     const here = current?.key === c.key;
+                    const SubIcon = subIcons[c.key] ?? Dot;
                     return (
                       <li key={c.key}>
                         <Link
                           href={c.href}
+                          tabIndex={expanded ? undefined : -1}
                           aria-current={here ? "page" : undefined}
-                          className={`block rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${here ? "font-semibold text-white" : "text-white/55 hover:text-white"}`}
+                          className={`ms-4 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors ${here ? "bg-white/[0.1] font-semibold text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white"}`}
                         >
+                          <SubIcon size={15} aria-hidden className={here ? "text-accent-bright" : "text-white/40"} />
                           {c.label}
                         </Link>
                       </li>
                     );
                   })}
+                  <li className="h-1" aria-hidden />
                 </ul>
-              )}
+              </div>
             </li>
           );
         })}
@@ -248,21 +302,28 @@ export function DashboardShell({
         <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
           {/* The active group's sub-sections */}
           {tabs && (
-            <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-line bg-panel p-1 text-sm shadow-sm" aria-label={activeGroup?.label} data-testid="section-tabs">
-              {tabs.map((c) => {
-                const here = current?.key === c.key;
-                return (
-                  <Link
-                    key={c.key}
-                    href={c.href}
-                    aria-current={here ? "page" : undefined}
-                    data-tab={c.key}
-                    className={`shrink-0 rounded-lg px-3.5 py-2 font-semibold whitespace-nowrap transition-colors ${here ? "bg-accent text-accent-fg shadow-sm" : "text-muted hover:bg-panel-2 hover:text-fg"}`}
-                  >
-                    {c.label}
-                  </Link>
-                );
-              })}
+            <nav className="mb-6 -mx-1 overflow-x-auto px-1 pb-1" aria-label={activeGroup?.label} data-testid="section-tabs">
+              <ul className="flex min-w-max gap-2">
+                {tabs.map((c) => {
+                  const here = current?.key === c.key;
+                  const SubIcon = subIcons[c.key] ?? Dot;
+                  return (
+                    <li key={c.key}>
+                      <Link
+                        href={c.href}
+                        aria-current={here ? "page" : undefined}
+                        data-tab={c.key}
+                        className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
+                          here ? "border-accent bg-accent text-accent-fg shadow-md shadow-accent/20" : "border-line bg-panel text-muted hover:border-accent/40 hover:text-fg"
+                        }`}
+                      >
+                        <SubIcon size={16} aria-hidden className={here ? "" : "text-accent/70"} />
+                        {c.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </nav>
           )}
           {children}

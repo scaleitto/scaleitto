@@ -42,7 +42,7 @@ const en: Dictionary = {
     overview: "Overview",
     products: "Products",
     inventory: "Inventory",
-    orders: "Orders",
+    orders: "Order list",
     shipping: "Send to couriers",
     tracking: "Parcel tracking",
     returns: "Returns",
@@ -341,7 +341,7 @@ const en: Dictionary = {
   sections: {
     overview: { title: "Overview", description: "Your store at a glance" },
     products: { title: "Products", description: "Your products, images, variants and stock" },
-    orders: { title: "Orders", description: "Cash-on-delivery orders and their statuses" },
+    orders: { title: "Order list", description: "Cash-on-delivery orders and their statuses" },
     delivery: { title: "Delivery", description: "Delivery prices and delivery companies" },
     storeDesign: { title: "Store Design", description: "Your store's look and identity" },
     themes: { title: "Themes", description: "Pick a ready-made design for your store" },

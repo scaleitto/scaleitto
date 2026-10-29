@@ -32,14 +32,23 @@ export default async function phase23(browser) {
 
   await step("sidebar groups: Orders, Store design and Integrations show their sub-sections; renamed entries", async () => {
     await owner.goto(dash);
-    const entries = await owner.locator("aside nav li[data-nav] > a").allInnerTexts();
+    const entries = await owner.locator("aside nav li[data-nav] > a, aside nav li[data-nav] > button").allInnerTexts();
     expect(entries.includes("المخزون") && entries.includes("المالية") && entries.includes("الربط والتطبيقات") && entries.includes("باقات الاشتراك"), `new entries (got ${entries.join(", ")})`);
     expect(!entries.includes("البكسل") && !entries.includes("الثيمات"), "pixels and themes are sub-sections now");
-    await owner.locator("aside nav li[data-nav=orders] > a").click();
+    // A group opens and closes; its sub-sections slide under it
+    const group = owner.locator("aside li[data-nav=orders]");
+    await group.locator(":scope > button").click();
+    expect((await group.getAttribute("data-open")) === "true", "opened");
+    await group.locator("a", { hasText: "قائمة الطلبات" }).click();
     await owner.waitForURL("**/dashboard/orders");
     const tabs = await owner.locator("[data-testid=section-tabs] a").allInnerTexts();
-    expect(tabs.join("|") === "الطلبات|الإرسال لشركات الشحن|تتبع الطرود|المرتجعات|السلات المتروكة|الحماية|تحليل الطلبات", `orders tabs (got ${tabs.join("|")})`);
-    expect((await owner.locator("aside [data-testid=nav-children] a").count()) === 7, "sub-sections under Orders in the sidebar");
+    expect(tabs.join("|") === "قائمة الطلبات|الإرسال لشركات الشحن|تتبع الطرود|المرتجعات|السلات المتروكة|الحماية|تحليل الطلبات", `orders tabs (got ${tabs.join("|")})`);
+    expect((await group.locator("[data-testid=nav-children] a").count()) === 7, "sub-sections under Orders in the sidebar");
+    await group.locator(":scope > button").click();
+    expect((await group.getAttribute("data-open")) === "false", "closed again");
+    // The order of the sidebar: daily work first
+    const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
+    expect(order.slice(0, 4).join() === "overview,orders,products,inventory", `logical order (got ${order.join()})`);
     await owner.goto(`${dash}/store-design`);
     expect((await owner.locator("[data-testid=section-tabs] a").allInnerTexts()).join("|") === "التصميم|الثيمات|فورم الطلب", "store design tabs");
     // Old addresses still work

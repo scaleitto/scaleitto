@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDictionary, type Locale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { storeUrl } from "@/lib/urls";
 import { canAccess, sectionHref } from "@/lib/permissions";
 import { formatDate, formatTime } from "@/lib/format";
 import { isOrderStatus } from "./statuses";
@@ -52,7 +51,6 @@ export async function OrderListPage({ lang, section, searchParams: sp }: { lang:
       viewer={viewerOf(ctx)}
       members={members}
       accounts={accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault, options: a.options }))}
-      storeHref={storeUrl(shop)}
       deliveryHref={canAccess(ctx.role, "delivery") ? sectionHref(lang, "delivery") : null}
       riskThreshold={protection.riskThreshold}
       section={section}

@@ -40,7 +40,7 @@ const ar = {
     overview: "الرئيسية",
     products: "المنتجات",
     inventory: "المخزون",
-    orders: "الطلبات",
+    orders: "قائمة الطلبات",
     shipping: "الإرسال لشركات الشحن",
     tracking: "تتبع الطرود",
     returns: "المرتجعات",
@@ -339,7 +339,7 @@ const ar = {
   sections: {
     overview: { title: "الرئيسية", description: "ملخص أداء متجرك" },
     products: { title: "المنتجات", description: "منتجاتك، صورها، متغيراتها ومخزونها" },
-    orders: { title: "الطلبات", description: "طلبات الدفع عند الاستلام وحالاتها" },
+    orders: { title: "قائمة الطلبات", description: "طلبات الدفع عند الاستلام وحالاتها" },
     delivery: { title: "التوصيل", description: "أسعار التوصيل وربط شركات التوصيل" },
     storeDesign: { title: "تصميم المتجر", description: "شكل متجرك وهويته" },
     themes: { title: "الثيمات", description: "اختر تصميماً جاهزاً لمتجرك" },

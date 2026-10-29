@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, FileText, Lock, Search, ShieldAlert, ShoppingCart } from "lucide-react";
+import { FileText, Lock, Search, ShieldAlert, ShoppingCart } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatPrice } from "@/lib/format";
@@ -29,7 +29,6 @@ export async function OrderList({
   viewer,
   members,
   accounts,
-  storeHref,
   deliveryHref,
   riskThreshold,
   filters: f,
@@ -43,7 +42,6 @@ export async function OrderList({
   members: { userId: string; name: string; role: string }[];
   // Connected delivery companies (for sending)
   accounts: { id: string; name: string; isDefault: boolean; options: Partial<ParcelDefaults> | null }[];
-  storeHref: string;
   deliveryHref: string | null;
   riskThreshold: number;
   filters: OrderFilters;
@@ -84,13 +82,6 @@ export async function OrderList({
       <PageHeader
         title={t.sections[section].title}
         description={t.sections[section].description}
-        actions={
-          viewer.role === "agent" ? undefined : (
-            <a href={storeHref} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
-              <ExternalLink size={16} /> {o.openStore}
-            </a>
-          )
-        }
       />
       {/* The list's views: everything, to confirm, suspicious, finished */}
       {section === "orders" && (

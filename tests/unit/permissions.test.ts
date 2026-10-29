@@ -5,7 +5,7 @@ import { canAccess, groupOf, homeSection, navFor, sectionHref, sections, section
 test("sidebar follows the agreed order, with sub-sections grouped", () => {
   assert.deepEqual(
     navFor("owner").map((g) => g.key),
-    ["overview", "products", "inventory", "orders", "delivery", "finance", "storeDesign", "callCenters", "landingPages", "analytics", "integrations", "plans", "settings", "profile"],
+    ["overview", "orders", "products", "inventory", "delivery", "callCenters", "storeDesign", "landingPages", "integrations", "analytics", "finance", "plans", "settings", "profile"],
   );
   const orders = navFor("owner").find((g) => g.key === "orders")!;
   assert.deepEqual(orders.children, ["orders", "shipping", "tracking", "returns", "abandoned", "protection", "orderInsights"]);

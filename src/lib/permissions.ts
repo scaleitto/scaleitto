@@ -39,17 +39,21 @@ export type SectionKey = (typeof sections)[number]["key"];
 // The sidebar, in the owner's order: a group is one entry whose pages show as sub-sections (under it in the
 // sidebar and as tabs on its pages). A single-page entry has the page's own key.
 export const navGroups = [
+  // Daily work first: orders, then what is sold and its stock, delivery and the team
   { key: "overview", children: ["overview"] },
+  { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection", "orderInsights"] },
   { key: "products", children: ["products"] },
   { key: "inventory", children: ["inventory"] },
-  { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection", "orderInsights"] },
   { key: "delivery", children: ["delivery"] },
-  { key: "finance", children: ["finance"] },
-  { key: "storeDesign", children: ["storeDesign", "themes", "orderForm"] },
   { key: "callCenters", children: ["callCenters"] },
+  // Selling: the store, landing pages, ads and connected tools
+  { key: "storeDesign", children: ["storeDesign", "themes", "orderForm"] },
   { key: "landingPages", children: ["landingPages"] },
-  { key: "analytics", children: ["analytics"] },
   { key: "integrations", children: ["pixels", "apps"] },
+  // Numbers and money
+  { key: "analytics", children: ["analytics"] },
+  { key: "finance", children: ["finance"] },
+  // Account
   { key: "plans", children: ["plans"] },
   { key: "settings", children: ["settings"] },
   { key: "profile", children: ["profile"] },
