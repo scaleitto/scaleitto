@@ -46,6 +46,11 @@ const shopify = (base) => ({
   ],
 });
 
+// Emails the app sends (E2E_MAIL_URL = <this server>/mail): newest last
+export const inbox = [];
+// The link of the last email sent to this address
+export const lastLink = (to) => inbox.findLast((m) => m.to === to)?.text.match(/https?:\/\/\S+/)?.[0] ?? null;
+
 export function startMockApps(port) {
   const base = `http://127.0.0.1:${port}`;
   const server = createServer(async (req, res) => {
@@ -53,6 +58,12 @@ export function startMockApps(port) {
     let raw = "";
     for await (const chunk of req) raw += chunk;
     const path = url.pathname;
+
+    if (path === "/mail" && req.method === "POST") {
+      inbox.push(JSON.parse(raw));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end("{}");
+    }
 
     if (path === "/sheets/exec" && req.method === "POST") {
       const body = JSON.parse(raw);

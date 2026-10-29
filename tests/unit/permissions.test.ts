@@ -5,14 +5,14 @@ import { canAccess, homeSection, sectionHref, sections, sectionsFor } from "../.
 test("sidebar follows the agreed order", () => {
   assert.deepEqual(
     sections.map((s) => s.key),
-    ["overview", "products", "orders", "delivery", "storeDesign", "themes", "callCenters", "landingPages", "analytics", "pixels", "apps", "plans", "settings", "profile"],
+    ["overview", "products", "orders", "delivery", "storeDesign", "themes", "callCenters", "landingPages", "orderForm", "analytics", "pixels", "apps", "plans", "settings", "profile"],
   );
 });
 
 test("owners see everything, managers all but plans", () => {
-  assert.equal(sectionsFor("owner").length, 14);
+  assert.equal(sectionsFor("owner").length, 15);
   assert.ok(!canAccess("manager", "plans"));
-  assert.equal(sectionsFor("manager").length, 13);
+  assert.equal(sectionsFor("manager").length, 14);
 });
 
 test("call center agents only get orders, call centers and profile", () => {

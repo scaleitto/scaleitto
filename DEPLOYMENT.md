@@ -51,7 +51,16 @@ PAYMENT_HOLDER="اسمك كما في الحساب"
 PAYMENT_CCP="رقم CCP والمفتاح"
 PAYMENT_RIB=""
 PAYMENT_WHATSAPP="+213 ..."
+SMTP_HOST="mail.scaleitto.com"
+SMTP_PORT=465
+SMTP_USER="no-reply@scaleitto.com"
+SMTP_PASS="كلمة مرور البريد"
+MAIL_FROM="Scaleitto <no-reply@scaleitto.com>"
 ```
+
+> `SMTP_*`: لإرسال رسائل تأكيد البريد واسترجاع كلمة المرور. في **cPanel → Email Accounts** أنشئ بريداً مثل
+> `no-reply@scaleitto.com`، ثم من **Connect Devices** انسخ «Outgoing Server» (غالباً `mail.اسم-موقعك` والمنفذ 465).
+> بدون هذه الإعدادات تُقبل الحسابات الجديدة دون تأكيد البريد ولا يعمل «نسيت كلمة المرور».
 
 > `APP_SECRET` يُستعمل لتشفير مفاتيح شركات التوصيل والبيكسلات. ولّد نصاً عشوائياً من 64 حرفاً من
 > https://www.random.org/strings/ (اختر أرقاماً وأحرفاً)، ضعه **مرة واحدة ولا تغيّره أبداً**، واحتفظ بنسخة منه في مكان آمن.

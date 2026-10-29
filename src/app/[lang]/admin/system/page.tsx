@@ -15,6 +15,7 @@ const ENV_KEYS = [
   "OPENAI_API_KEY", "OPENAI_MODEL",
   "PAYMENT_HOLDER", "PAYMENT_CCP", "PAYMENT_RIB", "PAYMENT_WHATSAPP",
   "DOMAIN_CNAME_TARGET", "SERVER_IP", "SHOP_SUBDOMAINS",
+  "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM",
 ];
 
 export default async function AdminSystem({ params }: PageProps<"/[lang]/admin/system">) {

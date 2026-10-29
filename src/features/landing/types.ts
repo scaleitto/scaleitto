@@ -42,7 +42,17 @@ export type LandingSection = Base &
 
 export type CustomField = { id: string; label: string; type: "text" | "select"; options: string[]; required: boolean };
 
-// Customization of the order form, limited to choices that keep it clean and trustworthy.
+// The order form's elements, in their default order. Custom fields are "custom:<id>" entries in `order`.
+export const formElements = ["variants", "quantity", "name", "phone", "wilaya", "commune", "delivery", "address", "note", "summary"] as const;
+export type FormElement = (typeof formElements)[number];
+// Fields whose label and placeholder the merchant can rewrite
+export const textFields = ["name", "phone", "wilaya", "commune", "address", "note"] as const;
+export type TextField = (typeof textFields)[number];
+export const formAppearances = ["direct", "popup", "drawer"] as const;
+export const buttonEffects = ["none", "pulse", "shake"] as const;
+
+// Customization of the order form (the store's default form on shops.order_form, and each landing page's own),
+// limited to choices that keep it clean and trustworthy.
 export type FormSettings = {
   title: string;
   subtitle: string;
@@ -56,6 +66,22 @@ export type FormSettings = {
   custom: CustomField[];
   thankYou: string;
   stickyButton: boolean;
+  // Element order (every built-in element once + "custom:<id>")
+  order: string[];
+  // Rewritten labels / placeholders ("" = the default text)
+  labels: Partial<Record<TextField, { label: string; placeholder: string }>>;
+  // An icon at the start of each field
+  icons: boolean;
+  showQuantity: boolean;
+  // Shown in the page, or behind an order button in a popup / a side drawer
+  appearance: (typeof formAppearances)[number];
+  buttonEffect: (typeof buttonEffects)[number];
+  // Delivery choice labels ("" = default) and which one is chosen first
+  homeLabel: string;
+  officeLabel: string;
+  preferDelivery: "home" | "office";
+  // A second button that sends the order to the store's WhatsApp
+  whatsapp: boolean;
 };
 
 export const defaultForm: FormSettings = {
@@ -71,7 +97,30 @@ export const defaultForm: FormSettings = {
   custom: [],
   thankYou: "",
   stickyButton: true,
+  order: [...formElements],
+  labels: {},
+  icons: true,
+  showQuantity: true,
+  appearance: "direct",
+  buttonEffect: "none",
+  homeLabel: "",
+  officeLabel: "",
+  preferDelivery: "home",
+  whatsapp: false,
 };
+
+// Every built-in element exactly once and every custom field once (new ones before the summary), in the saved order
+function resolveOrder(input: unknown, custom: CustomField[]): string[] {
+  const wanted = [...formElements, ...custom.map((c) => `custom:${c.id}`)];
+  const out = [...new Set(Array.isArray(input) ? input.filter((k): k is string => typeof k === "string" && wanted.includes(k)) : [])];
+  for (const k of wanted) {
+    if (out.includes(k)) continue;
+    const summary = out.indexOf("summary");
+    if (k.startsWith("custom:") && summary >= 0) out.splice(summary, 0, k);
+    else out.push(k);
+  }
+  return out;
+}
 
 export const MAX_SECTIONS = 40;
 export const MAX_CUSTOM_FIELDS = 4;
@@ -256,6 +305,23 @@ export function resolveForm(input: unknown): FormSettings {
     custom,
     thankYou: str(f.thankYou, 500),
     stickyButton: bool(f.stickyButton, defaultForm.stickyButton),
+    order: resolveOrder(f.order, custom),
+    labels: Object.fromEntries(
+      textFields
+        .map((k) => {
+          const l = (f.labels as Record<string, Record<string, unknown>> | undefined)?.[k];
+          return [k, { label: str(l?.label, 60), placeholder: str(l?.placeholder, 80) }] as const;
+        })
+        .filter(([, l]) => l.label || l.placeholder),
+    ),
+    icons: bool(f.icons, defaultForm.icons),
+    showQuantity: bool(f.showQuantity, defaultForm.showQuantity),
+    appearance: oneOf(f.appearance, formAppearances, defaultForm.appearance),
+    buttonEffect: oneOf(f.buttonEffect, buttonEffects, defaultForm.buttonEffect),
+    homeLabel: str(f.homeLabel, 40),
+    officeLabel: str(f.officeLabel, 40),
+    preferDelivery: oneOf(f.preferDelivery, ["home", "office"] as const, defaultForm.preferDelivery),
+    whatsapp: bool(f.whatsapp, defaultForm.whatsapp),
   };
 }
 

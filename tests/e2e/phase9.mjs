@@ -126,7 +126,7 @@ export default async function phase9(browser) {
     expect((await fbCalls(customer)).some((c) => c[2] === "InitiateCheckout"), "InitiateCheckout on first focus");
     await customer.fill("#phone", "0555 11 22 33");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "حيدرة");
+    await customer.selectOption("#commune", "حيدرة");
     await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
     watchOrder = new URL(customer.url()).searchParams.get("o");
     const purchase = await waitFor(async () => (await fbCalls(customer)).find((c) => c[2] === "Purchase"), "browser Purchase");
@@ -154,7 +154,7 @@ export default async function phase9(browser) {
     await customer.fill("#name", "سارة");
     await customer.fill("#phone", "0666 11 22 33");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "حيدرة");
+    await customer.selectOption("#commune", "حيدرة");
     await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
     bagOrder = new URL(customer.url()).searchParams.get("o");
     const lead = await waitFor(async () => (await ttCalls(customer, TIKTOK)).find((c) => c[1] === "PlaceAnOrder"), "TikTok PlaceAnOrder");

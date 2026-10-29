@@ -77,7 +77,7 @@ export default async function phase18(browser) {
     await customer.fill("#name", "زبون");
     await customer.fill("#phone", "0555 66 77 88");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "القبة");
+    await customer.selectOption("#commune", "القبة");
     await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
     await customer.close();
     // The first try runs right after the order is placed: wait until its failure is recorded

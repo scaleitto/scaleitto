@@ -20,8 +20,24 @@ export const users = mysqlTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
   locale: varchar("locale", { length: 5 }).notNull().default("ar"),
+  // When the owner clicked the link sent to their email (null: not confirmed yet)
+  emailVerifiedAt: datetime("email_verified_at"),
   createdAt: createdAt(),
 });
+
+// One-time links sent by email: confirm the address, or choose a new password. Only the sha256 of the token is stored.
+export const authTokenKinds = ["verify", "reset"] as const;
+export const authTokens = mysqlTable(
+  "auth_tokens",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    userId: id("user_id").notNull(),
+    kind: mysqlEnum("kind", authTokenKinds).notNull(),
+    expiresAt: datetime("expires_at").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("auth_tokens_user_idx").on(t.userId, t.kind)],
+);
 
 export const sessions = mysqlTable(
   "sessions",
@@ -84,6 +100,9 @@ export const shops = mysqlTable(
     policies: json("policies").$type<ShopPolicies | null>(),
     // Fake-order protection settings (src/features/checkout/protection-settings.ts); null → defaults
     protection: json("protection").$type<Partial<ProtectionSettings> | null>(),
+    // The store's order form (features/landing/types.ts FormSettings, read through resolveForm): product pages use it,
+    // new landing pages start from it
+    orderForm: json("order_form"),
     // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
     aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
@@ -141,7 +160,8 @@ export const shopContracts = mysqlTable(
 // ─── Catalog ──────────────────────────────────────────────
 
 // e.g. { name: "Size", values: ["S", "M", "L"] }
-export type ProductOption = { name: string; values: string[] };
+// kind "color": the values are shown as color swatches (colors = value → #rrggbb)
+export type ProductOption = { name: string; values: string[]; kind?: "color"; colors?: Record<string, string> };
 // "2 pieces for 4500 DZD": the total price for that quantity
 export type QuantityOffer = { quantity: number; price: number; label?: string };
 

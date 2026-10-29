@@ -34,7 +34,8 @@ export async function insertLandingPage(shopId: string, data: { productId: strin
     color: data.color ?? null,
     status: data.status ?? "draft",
     sections: sanitizeSections(data.sections),
-    form: resolveForm(data.form ?? defaultForm),
+    // New pages start from the store's own order form
+    form: resolveForm(data.form ?? (await db.select({ form: schema.shops.orderForm }).from(schema.shops).where(eq(schema.shops.id, shopId)))[0]?.form ?? defaultForm),
     strategy: data.strategy ?? null,
   });
   return id;

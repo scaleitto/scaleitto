@@ -1,3 +1,4 @@
+import { mailConfigured } from "@/server/mail";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
@@ -39,7 +40,16 @@ export async function runSystemCheck(): Promise<CheckStep[]> {
   await run("settings", async () => {
     const missing = ["APP_URL", "APP_SECRET"].filter((k) => !process.env[k]);
     if (missing.length) throw new Error(`missing: ${missing.join(", ")}`);
+    // A server copied from a test setup would give merchants "localhost" links
+    const local = ["APP_URL", "ROOT_DOMAIN"].filter((k) => /localhost|127\.0\.0\.1/.test(process.env[k] ?? ""));
+    if (local.length && process.env.NODE_ENV === "production" && !process.env.E2E_CARRIER_URL) throw new Error(`${local.join(", ")}: put the platform's real address (e.g. https://scaleitto.com / scaleitto.com)`);
     return "APP_URL, APP_SECRET";
+  });
+
+  // Emails (account confirmation, new password): sent through the hosting's SMTP account
+  await run("mail", async () => {
+    if (!mailConfigured()) throw new Error("SMTP_HOST / SMTP_USER / SMTP_PASS not set: accounts are not confirmed by email and passwords cannot be reset");
+    return process.env.E2E_MAIL_URL ? "test inbox" : `${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 465}`;
   });
 
   // The cron job: orders due for the apps for more than 15 minutes mean nothing sends them in the background

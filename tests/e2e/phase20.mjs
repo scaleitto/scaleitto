@@ -17,7 +17,7 @@ export default async function phase20(browser) {
     await p.fill("#name", "زبون");
     await p.fill("#phone", phone);
     await p.selectOption("#wilaya", "16");
-    await p.fill("#commune", "حيدرة");
+    await p.selectOption("#commune", "حيدرة");
     await Promise.all([p.waitForURL(/\/thanks\?o=/), p.click("button[type=submit]")]);
     const id = new URL(p.url()).searchParams.get("o");
     await p.close();

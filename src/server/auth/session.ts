@@ -30,7 +30,7 @@ export async function destroySession() {
   store.delete(COOKIE);
 }
 
-export type CurrentUser = { id: string; name: string; email: string; phone: string | null; locale: string; isPlatformAdmin: boolean };
+export type CurrentUser = { id: string; name: string; email: string; phone: string | null; locale: string; isPlatformAdmin: boolean; emailVerifiedAt: Date | null };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   // Everything that reads the session is per-request (also lets pages use new Date()).
@@ -45,6 +45,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       phone: schema.users.phone,
       locale: schema.users.locale,
       isPlatformAdmin: schema.users.isPlatformAdmin,
+      emailVerifiedAt: schema.users.emailVerifiedAt,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))

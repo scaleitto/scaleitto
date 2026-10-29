@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { Ban, MessageCircle, Pencil, Phone, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
-import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/ui";
+import { Alert, Button, Card, Field, Input, Select, Textarea, inputClass } from "@/ui";
+import { CommuneSelect } from "@/features/checkout/CommuneSelect";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { assignOrder, changeOrderStatus, markOrderTrusted, setPhoneBlocked } from "./actions";
 import { fmt } from "@/lib/format";
@@ -65,6 +66,7 @@ type Customer = { customerName: string; phone: string; wilayaCode: number; commu
 export function CustomerCard({ customer, wilayaLabel, wilayas, t, action }: { customer: Customer; wilayaLabel: string; wilayas: { code: number; name: string }[]; t: OrderText; action: FormAction }) {
   const o = t.orders;
   const [editing, setEditing] = useState(false);
+  const [wilaya, setWilaya] = useState(customer.wilayaCode);
   const { state, pending, onSubmit } = useActionForm(async (prev, fd) => {
     const result = await action(prev, fd);
     if (result.ok) setEditing(false);
@@ -139,7 +141,7 @@ export function CustomerCard({ customer, wilayaLabel, wilayas, t, action }: { cu
             <Input id="phone" name="phone" dir="ltr" defaultValue={customer.phone} />
           </Field>
           <Field label={o.wilaya} htmlFor="wilayaCode" error={fieldError(state, e, "wilayaCode")}>
-            <Select id="wilayaCode" name="wilayaCode" defaultValue={customer.wilayaCode}>
+            <Select id="wilayaCode" name="wilayaCode" value={wilaya} onChange={(ev) => setWilaya(Number(ev.target.value))}>
               {wilayas.map((w) => (
                 <option key={w.code} value={w.code}>
                   {w.name}
@@ -148,7 +150,16 @@ export function CustomerCard({ customer, wilayaLabel, wilayas, t, action }: { cu
             </Select>
           </Field>
           <Field label={o.commune} htmlFor="commune" error={fieldError(state, e, "commune")}>
-            <Input id="commune" name="commune" defaultValue={customer.commune} />
+            <CommuneSelect
+              key={wilaya}
+              wilaya={wilaya}
+              arabic={t.common.arabicNames}
+              defaultValue={wilaya === customer.wilayaCode ? customer.commune : ""}
+              className={inputClass}
+              placeholder={o.commune}
+              choose={o.chooseCommune}
+              chooseWilayaFirst={o.chooseWilayaFirst}
+            />
           </Field>
           <Field label={o.deliveryType} htmlFor="deliveryType">
             <Select id="deliveryType" name="deliveryType" defaultValue={customer.deliveryType}>

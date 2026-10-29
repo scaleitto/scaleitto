@@ -66,7 +66,7 @@ export default async function phase2(browser) {
     await customer.click("text=2 قطعة");
     await customer.selectOption("#wilaya", "31");
     expect(await customer.locator('input[value="office"]').isDisabled(), "office delivery unavailable in wilaya 31");
-    await customer.fill("#commune", "بئر الجير");
+    await customer.selectOption("#commune", "بئر الجير");
     expect((await customer.locator("[data-testid=total]").innerText()).replace(/\s/g, "").includes("9200"), "total = 8500 + 700");
     await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
     expect((await customer.locator("[data-testid=order-number]").innerText()) === "#1001", "first order is #1001");
@@ -83,7 +83,7 @@ export default async function phase2(browser) {
     await customer.fill("#name", "كريم بن علي");
     await customer.fill("#phone", "0555123456");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "باب الزوار");
+    await customer.selectOption("#commune", "باب الزوار");
     await customer.click("button[type=submit]");
     await customer.waitForSelector("text=طلبك لهذا المنتج مسجل مسبقاً");
   });
@@ -112,13 +112,13 @@ export default async function phase2(browser) {
 
   await step("editing the customer's details recomputes the total", async () => {
     await owner.click("text=تعديل المعلومات");
-    await owner.fill("#commune", "السانية");
+    await owner.selectOption("#commune", "السانية");
     await owner.fill("#shippingPrice", "500");
     await owner.locator("form:has(#commune) button[type=submit]").click();
     await owner.waitForSelector("text=تم الحفظ");
     expect((await owner.locator("[data-testid=order-total]").innerText()).replace(/\s/g, "").includes("9000"), "total = 8500 + 500");
     const [[order]] = await db.query("SELECT commune, total FROM orders WHERE id = ?", [orderId]);
-    expect(order.commune === "السانية" && order.total === 9000, "saved");
+    expect(order.commune === "Es Senia" && order.total === 9000, "saved");
   });
 
   await step("notes are added to the history and the box is cleared", async () => {
@@ -135,7 +135,7 @@ export default async function phase2(browser) {
     await customer.fill("#name", "كريم بن علي");
     await customer.fill("#phone", "0555123456");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "باب الزوار");
+    await customer.selectOption("#commune", "باب الزوار");
     await customer.click("button[type=submit]");
     await customer.waitForSelector("text=تعذر تسجيل الطلب");
     await owner.click('button:has-text("إلغاء الحظر")');

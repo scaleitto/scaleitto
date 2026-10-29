@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
+import { styleChoices } from "./types";
+
+// A theme change chosen from a list, or "" (the theme's own choice)
+const choice = <T extends string | number>(list: readonly T[]) => z.preprocess((v) => (list.map(String).includes(String(v)) ? list.find((x) => String(x) === String(v)) : ""), z.union([z.literal(""), z.custom<T>()]));
 
 const text = (max: number) => z.string().trim().max(max, "e:tooLong").optional().default("");
 const checkbox = z.preprocess((v) => v === "on" || v === "true", z.boolean());
@@ -30,6 +34,15 @@ export const designSchema = z
     heroButtonText: text(40),
     productsTitle: text(80),
     showBadges: checkbox,
+    showOrderSteps: checkbox,
+    floatingWhatsapp: checkbox,
+    styleFont: choice(styleChoices.font),
+    styleHeader: choice(styleChoices.header),
+    styleHero: choice(styleChoices.hero),
+    styleColumns: choice(styleChoices.columns),
+    styleImage: choice(styleChoices.image),
+    styleCards: choice(styleChoices.cards),
+    styleCorners: choice(styleChoices.corners),
     about: text(1000),
     facebook: social(/(^|\.)(facebook\.com|fb\.com)$/i),
     instagram: social(/(^|\.)instagram\.com$/i),
@@ -54,6 +67,9 @@ export const designSchema = z
       hero: { enabled: d.heroEnabled, image: d.heroImage, title: d.heroTitle, subtitle: d.heroSubtitle, buttonText: d.heroButtonText },
       productsTitle: d.productsTitle,
       showBadges: d.showBadges,
+      showOrderSteps: d.showOrderSteps,
+      floatingWhatsapp: d.floatingWhatsapp,
+      style: { font: d.styleFont, header: d.styleHeader, hero: d.styleHero, columns: d.styleColumns || 0, image: d.styleImage, cards: d.styleCards, corners: d.styleCorners },
       about: d.about,
       socials: { facebook: d.facebook, instagram: d.instagram, tiktok: d.tiktok, whatsapp: d.whatsapp },
     },

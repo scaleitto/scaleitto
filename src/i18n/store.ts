@@ -2,6 +2,8 @@
 import type { Locale } from "./config";
 
 const ar = {
+  // Place names (communes) in Arabic script
+  arabicNames: true as boolean,
   products: "منتجاتنا",
   empty: "لا توجد منتجات حالياً، عد قريباً.",
   viewProduct: "اطلب الآن",
@@ -36,6 +38,10 @@ const ar = {
     chooseWilaya: "اختر الولاية",
     commune: "البلدية",
     communePlaceholder: "اكتب اسم البلدية",
+    chooseCommune: "اختر البلدية",
+    whatsapp: "اطلب عبر واتساب",
+    whatsappIntro: "السلام عليكم، أريد طلب:",
+    close: "إغلاق",
     address: "العنوان (اختياري)",
     addressRequired: "العنوان",
     optional: "اختياري",
@@ -110,6 +116,7 @@ const ar = {
 export type StoreText = typeof ar;
 
 const fr: StoreText = {
+  arabicNames: false,
   products: "Nos produits",
   empty: "Aucun produit pour le moment, revenez bientôt.",
   viewProduct: "Commander",
@@ -144,6 +151,10 @@ const fr: StoreText = {
     chooseWilaya: "Choisir la wilaya",
     commune: "Commune",
     communePlaceholder: "Nom de la commune",
+    chooseCommune: "Choisir la commune",
+    whatsapp: "Commander via WhatsApp",
+    whatsappIntro: "Bonjour, je voudrais commander :",
+    close: "Fermer",
     address: "Adresse (optionnel)",
     addressRequired: "Adresse",
     optional: "optionnel",
@@ -216,6 +227,7 @@ const fr: StoreText = {
 };
 
 const en: StoreText = {
+  arabicNames: false,
   products: "Our products",
   empty: "No products right now, come back soon.",
   viewProduct: "Order now",
@@ -250,6 +262,10 @@ const en: StoreText = {
     chooseWilaya: "Choose the wilaya",
     commune: "Commune",
     communePlaceholder: "Commune name",
+    chooseCommune: "Choose the commune",
+    whatsapp: "Order on WhatsApp",
+    whatsappIntro: "Hello, I would like to order:",
+    close: "Close",
     address: "Address (optional)",
     addressRequired: "Address",
     optional: "optional",

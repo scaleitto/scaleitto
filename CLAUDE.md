@@ -24,7 +24,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   Colors are tokens in `src/app/globals.css` (light dashboard, green accent; `text-warning` / `text-info` instead of fixed amber/sky).
 - `src/lib/permissions.ts` — the ONLY place that says which role sees which sidebar section (sidebar order =
   the owner's image: Overview, Products, Orders, Delivery, Store Design, Theme Store, Call Centers, Landing Pages,
-  Analytics, Pixels, Apps, Plans, Settings, Profile). Roles: owner / manager / agent (call center).
+  Order form, Analytics, Pixels, Apps, Plans, Settings, Profile). Roles: owner / manager / agent (call center).
 - `src/server/auth/` — sessions, passwords, `requireShop()`, `requireSection(lang, key)` (redirects to the
   member's home section when not allowed), `requirePlatformAdmin()`.
 - `src/server/errors.ts` — every server action is wrapped in `safeAction(where, fn)`: errors are logged to
@@ -215,6 +215,20 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   robot user agent, fake name, many phones from one IP; delivered orders lower it) → `orders.risk` / `risk_reasons`, event "risk";
   obvious robots refused (error "bot"), suspicious orders held from agents when the store says so; `RiskCard` + "order is fine"
   (`markOrderTrusted`). E2E browsers use `BROWSER_ARGS` (a normal Chrome user agent: "HeadlessChrome" is refused).
+- Owner feedback round 6 (phase22.mjs): accounts — register asks the phone (required) and the store language, the link
+  preview shows the platform domain (`storeLinkParts`), owners confirm their email (`auth_tokens` verify/reset,
+  `server/mail.ts`: SMTP_* env or E2E_MAIL_URL = mock-apps `/mail`; no mail settings → accounts count as confirmed), forgot/reset
+  password; `requireShop` sends unconfirmed owners to `/[lang]/verify`; PLATFORM_ADMIN_EMAIL is promoted at login too. Communes:
+  `lib/communes.ts` (1541, [latin, arabic]) via `/api/communes?w=` → `checkout/CommuneSelect.tsx` (value = Latin name, Arabic
+  label in Arabic stores; give it key={wilaya}). Product color options: `ProductOption.kind = "color"` + `colors` (value → hex),
+  palette in `lib/colors.ts`, swatches in `CheckoutForm`. Order form section (`/dashboard/order-form`, `features/order-form/`):
+  `FormBuilder` (also the landing editor's form tab) edits `FormSettings` — `order` (built-ins + `custom:<id>`, fixed by
+  `resolveForm`), labels/placeholders, icons, appearance direct/popup/drawer (popup forms answer every `#order-form` link),
+  button effect (`btn-pulse`/`btn-shake`), delivery labels + preferred type, WhatsApp order button (store phone) —; the store's
+  form is `shops.order_form` (product pages, `submitOrder`, store thank-you, starting point of new landing pages). Store design
+  `style` overrides the theme (font, header, hero, columns, image, cards, corners) through `storeTheme(design)` — use it instead of
+  `findTheme` for storefront pages —, plus `showOrderSteps` and `floatingWhatsapp`. Logo: `ui/Logo.tsx`, `app/icon.svg`. The
+  audit of what is still missing is `docs/next-round.md`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

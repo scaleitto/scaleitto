@@ -54,15 +54,20 @@ export default async function phase7(browser) {
   await step("order form settings: button, required address, home only, custom field, thank-you", async () => {
     await owner.locator("nav button", { hasText: "نموذج الطلب" }).click();
     await owner.waitForSelector("[data-testid=form-editor]");
-    await owner.fill('input[aria-label="نص زر الطلب"]', "اطلب ساعتك الآن");
+    // Elements tab: the address's settings (gear), then a custom field (opens its settings)
+    await owner.click("[data-element=address] [data-testid=element-settings]");
     await owner.selectOption('select[aria-label="حقل العنوان"]', "required");
-    await owner.selectOption('select[aria-label="أنواع التوصيل"]', "home");
     await owner.click("text=إضافة حقل");
     const field = owner.locator("[data-custom-field='0']");
     await field.locator('input[aria-label="اسم الحقل"]').fill("لون السوار");
     await field.locator('select[aria-label="النوع"]').selectOption("select");
     await field.locator('textarea[aria-label^="الخيارات"]').fill("أسود\nأزرق");
     await field.locator("label", { hasText: "إلزامي" }).click();
+    await owner.click("[data-testid=form-tab-settings]");
+    await owner.fill('input[aria-label="نص زر الطلب"]', "اطلب ساعتك الآن");
+    await owner.click("[data-testid=form-tab-delivery]");
+    await owner.selectOption('select[aria-label="أنواع التوصيل"]', "home");
+    await owner.click("[data-testid=form-tab-thanks]");
     await owner.fill('textarea[aria-label="رسالة بعد الطلب (اختياري)"]', "شكراً! سنتصل بك اليوم.");
     await owner.waitForSelector('[data-testid=landing-preview] button:has-text("اطلب ساعتك الآن")');
     await owner.click("[data-testid=save-page]");
@@ -111,7 +116,7 @@ export default async function phase7(browser) {
     await customer.fill("#name", "ياسين");
     await customer.fill("#phone", "0661 22 33 44");
     await customer.selectOption("#wilaya", "16");
-    await customer.fill("#commune", "باب الزوار");
+    await customer.selectOption("#commune", "باب الزوار");
     await customer.click("button[type=submit]");
     await customer.waitForSelector("text=هذه المعلومة مطلوبة");
     await customer.fill("#address", "حي 500 مسكن");
@@ -151,7 +156,7 @@ export default async function phase7(browser) {
     await embed.fill("#name", "سارة");
     await embed.fill("#phone", "0770 11 22 33");
     await embed.selectOption("#wilaya", "16");
-    await embed.fill("#commune", "القبة");
+    await embed.selectOption("#commune", "القبة");
     await embed.fill("#address", "شارع 1");
     await embed.locator("select[name^=custom_]").selectOption("أسود");
     await Promise.all([embed.waitForURL(/\/embed\/[^/]+\/thanks\?o=/), embed.click("button[type=submit]")]);

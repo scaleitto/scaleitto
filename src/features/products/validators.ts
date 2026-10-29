@@ -30,10 +30,17 @@ const json = <T extends z.ZodType>(inner: T, message: string) =>
       return z.NEVER;
     });
 
-const optionSchema = z.object({
-  name: z.string().trim().min(1).max(40),
-  values: z.array(z.string().trim().min(1).max(40)).min(1).max(30),
-});
+const optionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(40),
+    values: z.array(z.string().trim().min(1).max(40)).min(1).max(30),
+    kind: z.literal("color").optional(),
+    colors: z.record(z.string(), z.string().regex(/^#[0-9a-f]{6}$/i)).optional(),
+  })
+  // Only color options keep colors, and only for their own values
+  .transform(({ kind, colors, ...o }) =>
+    kind === "color" ? { ...o, kind, colors: Object.fromEntries(Object.entries(colors ?? {}).filter(([v]) => o.values.includes(v))) } : o,
+  );
 
 const variantSchema = z.object({
   title: z.string(),

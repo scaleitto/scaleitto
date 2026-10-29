@@ -119,7 +119,7 @@ export default async function phase12(browser) {
     await p.fill("#name", "Lina");
     await p.fill("#phone", "0770 12 34 56");
     await p.selectOption("#wilaya", "16");
-    await p.fill("#commune", "Hydra");
+    await p.selectOption("#commune", "Hydra");
     await Promise.all([p.waitForURL(new RegExp(`^http://www\\.${domain.replace(/\./g, "\\.")}:${port}/thanks\\?o=`)), p.click("button[type=submit]")]);
     const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ?", [shopId]);
     expect(n === 1, "order placed through the domain");

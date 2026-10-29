@@ -20,7 +20,7 @@ export default async function phase14(browser) {
   await customer.fill("#name", "سمير");
   await customer.fill("#phone", "0661 23 45 67");
   await customer.selectOption("#wilaya", "16");
-  await customer.fill("#commune", "باب الوادي");
+  await customer.selectOption("#commune", "باب الوادي");
   await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
   const orderId = new URL(customer.url()).searchParams.get("o");
   await customer.close();

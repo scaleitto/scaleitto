@@ -6,12 +6,13 @@ import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { Locale } from "@/i18n/config";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
-import { Card, Field, Input, Textarea } from "@/ui";
+import { Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
 import { AnnouncementBar, Hero, ProductGrid, StoreFooter, StoreFrame, StoreHeader, TrustBadges, type GridProduct } from "@/features/storefront/blocks";
-import { colorPresets, type StoreDesign } from "./types";
-import { findTheme } from "@/features/themes/themes";
+import { colorPresets, storeTheme, styleChoices, type StoreDesign, type StyleOverrides } from "./types";
+
+const fontNames: Record<string, string> = { cairo: "Cairo", tajawal: "Tajawal", almarai: "Almarai", changa: "Changa", "el-messiri": "El Messiri", plex: "IBM Plex", kufi: "Noto Kufi", readex: "Readex" };
 
 export type DesignText = Pick<Dictionary, "design" | "media" | "errors" | "common">;
 
@@ -53,7 +54,8 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const set = <K extends keyof StoreDesign>(key: K, value: StoreDesign[K]) => setDesign((prev) => ({ ...prev, [key]: value }));
   const validColor = /^#[0-9a-f]{6}$/i.test(color) ? color : initial.primaryColor;
-  const theme = findTheme(design.theme);
+  const theme = storeTheme(design);
+  const styleLabel = (key: keyof StyleOverrides, v: string | number) => (key === "font" ? fontNames[v] : (d.styleOptions as Record<string, string>)[key === "cards" && v === "minimal" ? "minimalCard" : String(v)]);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
@@ -110,6 +112,27 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
             <Input id="productsTitle" name="productsTitle" maxLength={80} placeholder={preview.storeText.products} value={design.productsTitle} onChange={(ev) => set("productsTitle", ev.target.value)} />
           </Field>
           <Toggle name="showBadges" checked={design.showBadges} onChange={(v) => set("showBadges", v)} label={d.showBadges} />
+          <Toggle name="showOrderSteps" checked={design.showOrderSteps} onChange={(v) => set("showOrderSteps", v)} label={d.showOrderSteps} />
+        </Section>
+
+        <Section title={d.styleTitle} hint={d.styleHint}>
+          <div className="grid gap-3 sm:grid-cols-2" data-testid="style-overrides">
+            {(Object.keys(styleChoices) as (keyof StyleOverrides)[]).map((key) => {
+              const name = `style${key[0].toUpperCase()}${key.slice(1)}`;
+              return (
+                <Field key={key} label={d.styleLabels[key]} htmlFor={name}>
+                  <Select id={name} name={name} value={String(design.style[key] || "")} onChange={(ev) => set("style", { ...design.style, [key]: key === "columns" ? Number(ev.target.value) || 0 : ev.target.value })}>
+                    <option value="">{d.themeDefault}</option>
+                    {styleChoices[key].map((v) => (
+                      <option key={v} value={v}>
+                        {styleLabel(key, v)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              );
+            })}
+          </div>
         </Section>
 
         <Section title={d.footer}>
@@ -129,6 +152,7 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
           <Field label={d.whatsapp} htmlFor="whatsapp" error={err("whatsapp")}>
             <Input id="whatsapp" name="whatsapp" dir="ltr" inputMode="tel" placeholder="0555 12 34 56" value={design.socials.whatsapp} onChange={(ev) => set("socials", { ...design.socials, whatsapp: ev.target.value })} />
           </Field>
+          <Toggle name="floatingWhatsapp" checked={design.floatingWhatsapp} onChange={(v) => set("floatingWhatsapp", v)} label={d.floatingWhatsapp} />
         </Section>
 
         <div className="sticky bottom-0 z-10 -mx-1 flex justify-end bg-bg/90 px-1 py-3 backdrop-blur">

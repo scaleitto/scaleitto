@@ -21,7 +21,7 @@ export default async function phase3(browser) {
     await p.fill("#name", name);
     await p.fill("#phone", phone);
     await p.selectOption("#wilaya", String(wilaya));
-    await p.fill("#commune", commune);
+    await p.selectOption("#commune", commune);
     await Promise.all([p.waitForURL(/thanks\?o=/), p.click("button[type=submit]")]);
     const id = new URL(p.url()).searchParams.get("o");
     await p.close();
@@ -84,7 +84,9 @@ export default async function phase3(browser) {
 
   let orderId;
   await step("an order must be confirmed before sending; the courier's refusal is shown", async () => {
-    orderId = await placeOrder("سارة بن علي", "0661223344", 16, "Nowhere");
+    orderId = await placeOrder("سارة بن علي", "0661223344", 16, "Kouba");
+    // A commune the courier does not know (only possible in old orders: the form lists real communes)
+    await db.query("UPDATE orders SET commune = 'Nowhere' WHERE id = ?", [orderId]);
     await page.goto(`${orders}/${orderId}`);
     expect(await page.locator('[data-testid=shipment] button:has-text("إرسال الطلب")').isDisabled(), "send disabled while new");
     await page.click('[data-testid=status-picker] button:has-text("مؤكد")');
@@ -96,7 +98,7 @@ export default async function phase3(browser) {
 
   await step("sending to Yalidine saves the tracking number and marks the order as shipping", async () => {
     await page.click("text=تعديل المعلومات");
-    await page.fill("#commune", "Bab Ezzouar");
+    await page.selectOption("#commune", "Bab Ezzouar");
     await page.locator("form:has(#commune) button[type=submit]").click();
     await page.waitForSelector("text=تم الحفظ");
     await page.selectOption('[data-testid=shipment] select', { label: "Yalidine" });

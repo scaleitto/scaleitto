@@ -42,7 +42,7 @@ export const failed = () => failures;
 // Creates a member directly in the database and returns a session token for it.
 export async function createSession({ shopId, role, email }) {
   const userId = randomUUID();
-  await db.query("INSERT INTO users (id, email, name, password_hash, locale) VALUES (?, ?, ?, ?, 'ar')", [userId, email, `Test ${role}`, "scrypt$00$00"]);
+  await db.query("INSERT INTO users (id, email, name, password_hash, locale, email_verified_at) VALUES (?, ?, ?, ?, 'ar', NOW())", [userId, email, `Test ${role}`, "scrypt$00$00"]);
   await db.query("INSERT INTO shop_members (shop_id, user_id, role) VALUES (?, ?, ?)", [shopId, userId, role]);
   const token = randomBytes(32).toString("base64url");
   await db.query("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY))", [createHash("sha256").update(token).digest("hex"), userId]);
@@ -55,7 +55,7 @@ export async function createShop(browser, { viewport = { width: 1366, height: 90
   const shopId = randomUUID();
   const [[plan]] = await db.query("SELECT id FROM plans WHERE code = 'starter'");
   const ownerId = randomUUID();
-  await db.query("INSERT INTO users (id, email, name, password_hash, locale) VALUES (?, ?, ?, ?, 'ar')", [ownerId, `owner-${tag}@test.dz`, "Owner", "scrypt$00$00"]);
+  await db.query("INSERT INTO users (id, email, name, password_hash, locale, email_verified_at) VALUES (?, ?, ?, ?, 'ar', NOW())", [ownerId, `owner-${tag}@test.dz`, "Owner", "scrypt$00$00"]);
   await db.query("INSERT INTO shops (id, slug, name, owner_id, plan_id) VALUES (?, ?, ?, ?, ?)", [shopId, `shop-${tag}`, `Shop ${tag}`, ownerId, plan.id]);
   await db.query("INSERT INTO shop_members (shop_id, user_id, role) VALUES (?, ?, 'owner')", [shopId, ownerId]);
   const token = randomBytes(32).toString("base64url");

@@ -6,6 +6,7 @@ import { db, schema } from "@/server/db";
 import type { MemberRole } from "@/server/db/schema";
 import { canAccess, homeSection, sectionHref, type SectionKey } from "@/lib/permissions";
 import { getCurrentUser, type CurrentUser } from "./session";
+import { mailConfigured } from "@/server/mail";
 
 export const newId = () => randomUUID();
 
@@ -44,6 +45,9 @@ export async function requireShop(locale: string): Promise<ShopContext> {
   }
   // Suspended by the platform: no dashboard and no actions, only an explanation
   if (m.shop.status !== "active") redirect(`/${locale}/suspended`);
+  // A new store's owner confirms their email first (when the server can send emails; team members are created
+  // by the owner and need no confirmation)
+  if (m.role === "owner" && !user.emailVerifiedAt && !user.isPlatformAdmin && mailConfigured()) redirect(`/${locale}/verify`);
   return { user, shop: m.shop, role: m.role };
 }
 

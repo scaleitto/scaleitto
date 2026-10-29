@@ -32,6 +32,7 @@ import { limitKeys } from "@/lib/enums";
 import type { Limits } from "@/server/db/schema";
 import { limitLine, priceParts } from "@/features/plans/labels";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
+import { LogoMark } from "@/ui/Logo";
 
 // The platform's public homepage (design-system/scaleitto/pages/homepage.md), modelled on ayor's: a centred hero with
 // a deep-indigo call to action, a product screen, a bento of pastel cards that each show a real part of the product,
@@ -50,7 +51,7 @@ const softButton = "inline-flex items-center justify-center gap-2 rounded-full p
 const violetText = "bg-gradient-to-b from-[#4a1fd0] to-[#2a0b96] bg-clip-text text-transparent";
 
 function Mark({ size = "size-9" }: { size?: string }) {
-  return <span className={`flex ${size} items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7cf6] to-accent text-lg font-bold text-white shadow-[0_6px_16px_-6px_rgba(79,59,214,.7)]`}>S</span>;
+  return <LogoMark className={`${size} drop-shadow-[0_6px_12px_rgba(79,59,214,.35)]`} />;
 }
 
 function Heading({ top, bottom, center = false }: { top: string; bottom: string; center?: boolean }) {

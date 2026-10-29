@@ -1,5 +1,4 @@
-import { findTheme } from "@/features/themes/themes";
-import { resolveDesign } from "@/features/design/types";
+import { resolveDesign, storeTheme } from "@/features/design/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getShippingRates, getShopBySlug, getStoreLanding } from "@/features/storefront/queries";
@@ -45,7 +44,8 @@ export default async function LandingPage({ params }: PageProps<"/store/[slug]/l
       rates={await getShippingRates(shop.id)}
       action={submitOrder.bind(null, shop.slug, product.id, page.id, false)}
       saveLead={saveLead.bind(null, shop.slug, product.id)}
-      theme={findTheme(resolveDesign(shop.design).theme)}
+      whatsapp={{ phone: shop.phone ?? "", product: product.name }}
+      theme={storeTheme(resolveDesign(shop.design))}
     >
       <LandingView pageId={page.id} />
     </PublicLanding>

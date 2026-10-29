@@ -9,11 +9,11 @@ import type { ActionState } from "@/lib/action";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
 import { StoreFrame } from "@/features/storefront/blocks";
 import { CheckoutForm } from "@/features/storefront/CheckoutForm";
-import { findTheme } from "@/features/themes/themes";
+import type { Theme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
 import { LandingSections, isImagePage } from "./blocks";
 import { PriceTag } from "./PriceTag";
-import { FormEditor } from "./FormEditor";
+import { FormBuilder, type FormBuilderText } from "@/features/order-form/FormBuilder";
 import { SectionFields, type EditorText } from "./SectionFields";
 import { saveLandingPage, type LandingDraft } from "./actions";
 import { interfaceLocale, newSectionId, pageLanguages, resolveForm, sanitizeSections, sectionTypes, type FormSettings, type LandingSection, type PageLanguage, type SectionType } from "./types";
@@ -100,7 +100,7 @@ export function LandingEditor({
   variants,
   rates,
   storeTexts,
-  themeKey,
+  theme,
   shopColor,
   pageUrl,
   embedUrl,
@@ -114,12 +114,12 @@ export function LandingEditor({
   variants: Variant[];
   rates: RateMap;
   storeTexts: Record<"ar" | "fr" | "en", StoreText>;
-  themeKey: string;
+  theme: Theme;
   shopColor: string;
   pageUrl: string;
   embedUrl: string;
   backHref: string;
-  t: EditorText;
+  t: EditorText & FormBuilderText;
 }) {
   const ed = t.landingPages.editor;
   const lp = t.landingPages;
@@ -276,7 +276,7 @@ export function LandingEditor({
           )}
 
           {tab === "form" && (
-            <FormEditor
+            <FormBuilder
               form={form}
               set={(patch) => {
                 setForm((f) => ({ ...f, ...patch }));
@@ -392,7 +392,7 @@ export function LandingEditor({
           <div className="overflow-hidden rounded-xl border border-line bg-panel-2 p-3">
             <div className={`mx-auto max-h-[80vh] overflow-y-auto rounded-lg bg-white shadow-xl ${device === "mobile" ? "max-w-[390px]" : ""}`} data-testid="landing-preview">
               <div inert className="select-none">
-              <StoreFrame locale={locale} color={color} theme={findTheme(themeKey)}>
+              <StoreFrame locale={locale} color={color} theme={theme}>
                 <div lang={locale} dir={dir(locale)} className={isImagePage(sections) ? "" : "p-4"}>
                   <LandingSections
                     editing

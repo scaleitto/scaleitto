@@ -156,7 +156,7 @@ export default async function phase21(browser) {
     await b.fill("#name", "Robot Robot");
     await b.fill("#phone", "0555 44 33 22");
     await b.selectOption("#wilaya", "16");
-    await b.fill("#commune", "Kouba");
+    await b.selectOption("#commune", "Kouba");
     await b.click("button[type=submit]");
     await b.getByText("تعذّر إرسال الطلب من هذا المتصفح").waitFor();
     await bot.close();
@@ -169,7 +169,7 @@ export default async function phase21(browser) {
     await c.fill("#name", "aaaa1111");
     await c.fill("#phone", "0555 66 77 88");
     await c.selectOption("#wilaya", "16");
-    await c.fill("#commune", "Kouba");
+    await c.selectOption("#commune", "Kouba");
     await Promise.all([c.waitForURL(/\/thanks\?o=/), c.click("button[type=submit]")]);
     const id = new URL(c.url()).searchParams.get("o");
     await c.close();

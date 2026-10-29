@@ -7,6 +7,7 @@ import {
   Blocks,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   Gauge,
   ServerCog,
   ChartColumn,
@@ -32,6 +33,7 @@ import type { Locale } from "@/i18n/config";
 import type { SectionKey } from "@/lib/permissions";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { ActivityPing } from "./ActivityPing";
+import { LogoMark } from "@/ui/Logo";
 
 // Merchant sections and the platform admin's pages
 export type ShellKey = SectionKey | "adminOverview" | "adminShops" | "adminRequests" | "adminPlans" | "adminSystem";
@@ -45,6 +47,7 @@ const icons: Record<ShellKey, LucideIcon> = {
   themes: WandSparkles,
   callCenters: Headset,
   landingPages: LayoutTemplate,
+  orderForm: ClipboardList,
   analytics: ChartColumn,
   pixels: ScanLine,
   apps: Blocks,
@@ -102,7 +105,7 @@ export function DashboardShell({
   const sidebar = (
     <nav className="flex h-full flex-col overflow-y-auto px-3 pt-4 pb-3" aria-label={labels.menu}>
       <div className="mb-6 flex items-center gap-3 rounded-xl px-2 py-1">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7cf6] to-[#4f3bd6] text-lg font-bold text-white shadow-[0_6px_16px_-6px_rgba(124,108,242,.6)]">{brand.charAt(0)}</span>
+        <LogoMark className="size-10 drop-shadow-[0_6px_12px_rgba(124,108,242,.45)]" />
         <span className="min-w-0">
           <span className="block text-[17px] leading-tight font-bold tracking-tight text-white">{brand}</span>
           <span className="block truncate text-xs text-white/55">{shopName}</span>

@@ -10,11 +10,12 @@ import type { getOrderSummary } from "./queries";
 type Order = NonNullable<Awaited<ReturnType<typeof getOrderSummary>>>;
 
 // The thank-you content after an order (store page, landing page and embedded form).
-export function ThankYou({ order, locale: storeLocale, children }: { order: Order; locale: Locale; children?: ReactNode }) {
+// storeForm = the store's order form (its thank-you message for orders from product pages)
+export function ThankYou({ order, locale: storeLocale, storeForm, children }: { order: Order; locale: Locale; storeForm?: unknown; children?: ReactNode }) {
   const locale = order.landing ? interfaceLocale(pageLanguage(order.landing.language)) : storeLocale;
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
-  const message = order.landing ? resolveForm(order.landing.form).thankYou : "";
+  const message = resolveForm(order.landing ? order.landing.form : storeForm).thankYou;
   return (
     <div lang={locale} dir={dir(locale)} className="mx-auto max-w-lg space-y-5 py-6 text-center">
       <CircleCheckBig size={64} className="mx-auto text-brand-ink" />

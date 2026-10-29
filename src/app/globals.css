@@ -132,8 +132,36 @@ input[type="range"] {
 .perforation {
   background: radial-gradient(circle at 8px 0, transparent 7px, var(--color-sidebar) 7.5px) 0 0 / 16px 16px repeat-x;
 }
+/* Order form button effects (form settings → buttonEffect) */
+@keyframes btn-pulse {
+  50% {
+    transform: scale(1.03);
+  }
+}
+@keyframes btn-shake {
+  0%,
+  84%,
+  100% {
+    transform: none;
+  }
+  88%,
+  96% {
+    transform: translateX(-4px) rotate(-1deg);
+  }
+  92% {
+    transform: translateX(4px) rotate(1deg);
+  }
+}
+.btn-pulse {
+  animation: btn-pulse 1.8s ease-in-out infinite;
+}
+.btn-shake {
+  animation: btn-shake 3.2s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .marquee-track,
+  .btn-pulse,
+  .btn-shake,
   .ticket-in,
   .stamp-in {
     animation: none;

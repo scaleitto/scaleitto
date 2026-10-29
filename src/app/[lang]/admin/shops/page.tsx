@@ -68,6 +68,8 @@ export default async function AdminShops({ params, searchParams }: PageProps<"/[
                   </td>
                   <td className="p-3 text-muted" dir="ltr">
                     {r.ownerEmail}
+                    {!r.ownerVerified && <span className="ms-1 rounded-full bg-warning/10 px-1.5 text-[11px] font-semibold text-warning">{s.unverified}</span>}
+                    {r.ownerPhone && <span className="block text-xs">{r.ownerPhone}</span>}
                   </td>
                   <td className="p-3 whitespace-nowrap">
                     {r.planName}

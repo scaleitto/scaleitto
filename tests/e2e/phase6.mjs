@@ -28,7 +28,7 @@ export default async function phase6(browser) {
     await p.fill("#name", "زبون تجريبي");
     await p.fill("#phone", phone);
     await p.selectOption("#wilaya", "16");
-    await p.fill("#commune", "Kouba");
+    await p.selectOption("#commune", "Kouba");
     await Promise.all([p.waitForURL(/thanks\?o=/), p.click("button[type=submit]")]);
     const orderId = new URL(p.url()).searchParams.get("o");
     await p.close();

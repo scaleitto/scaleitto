@@ -2,12 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { registerSchema } from "../../src/features/auth/validators";
 
-const valid = { name: "Amine", email: "Amine@Example.com ", password: "password123", shopName: "متجري", shopSlug: "My-Shop" };
+const valid = { name: "Amine", email: "Amine@Example.com ", password: "password123", shopName: "متجري", shopSlug: "My-Shop", phone: "0555 12 34 56", storeLanguage: "fr" };
 
 test("valid registration is normalized", () => {
   const r = registerSchema.parse(valid);
   assert.equal(r.email, "amine@example.com");
   assert.equal(r.shopSlug, "my-shop");
+  assert.equal(r.phone, "0555123456");
+  assert.equal(r.storeLanguage, "fr");
+});
+
+test("the phone is required and must be Algerian", () => {
+  for (const phone of ["", "0123", "+33 6 12 34 56 78"]) {
+    const r = registerSchema.safeParse({ ...valid, phone });
+    assert.ok(!r.success && r.error.issues.some((i) => i.path[0] === "phone" && i.message === "e:phone"), phone);
+  }
 });
 
 test("rejects bad slugs and reserved names with the right message keys", () => {

@@ -25,6 +25,7 @@ export function PublicLanding({
   action,
   saveLead,
   embedded = false,
+  whatsapp,
   theme,
   children,
 }: {
@@ -35,6 +36,7 @@ export function PublicLanding({
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   saveLead: Parameters<typeof CheckoutForm>[0]["saveLead"];
   embedded?: boolean;
+  whatsapp?: Parameters<typeof CheckoutForm>[0]["whatsapp"];
   // The store's theme, so the page's own color gets readable text on and around it
   theme: Theme;
   children?: ReactNode;
@@ -54,6 +56,7 @@ export function PublicLanding({
       saveLead={saveLead}
       settings={resolveForm(page.form)}
       embedded={embedded}
+      whatsapp={whatsapp}
     />
   );
   const sections = sanitizeSections(page.sections);

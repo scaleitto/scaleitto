@@ -1,0 +1,1 @@
+ALTER TABLE `shops` ADD `order_form` json;

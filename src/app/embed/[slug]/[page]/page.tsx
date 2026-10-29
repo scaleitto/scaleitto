@@ -6,8 +6,7 @@ import { HeightReporter } from "@/features/landing/HeightReporter";
 import { LandingView } from "@/features/landing/LandingView";
 import { StoreFrame } from "@/features/storefront/blocks";
 import { shopLocale } from "@/features/storefront/StoreShell";
-import { resolveDesign } from "@/features/design/types";
-import { findTheme } from "@/features/themes/themes";
+import { resolveDesign, storeTheme } from "@/features/design/types";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
 
@@ -20,7 +19,7 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
   if (!landing) notFound();
   const { page, product } = landing;
   return (
-    <StoreFrame locale={shopLocale(shop)} color={page.color ?? shop.primaryColor} theme={findTheme(resolveDesign(shop.design).theme)} className="bg-transparent p-1">
+    <StoreFrame locale={shopLocale(shop)} color={page.color ?? shop.primaryColor} theme={storeTheme(resolveDesign(shop.design))} className="bg-transparent p-1">
       <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
       <PublicLanding
         page={page}
@@ -29,7 +28,8 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
         rates={await getShippingRates(shop.id)}
         action={submitOrder.bind(null, shop.slug, product.id, page.id, true)}
         saveLead={saveLead.bind(null, shop.slug, product.id)}
-        theme={findTheme(resolveDesign(shop.design).theme)}
+        whatsapp={{ phone: shop.phone ?? "", product: product.name }}
+        theme={storeTheme(resolveDesign(shop.design))}
         embedded
       >
         <LandingView pageId={page.id} />

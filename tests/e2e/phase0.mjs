@@ -1,5 +1,6 @@
 // Phase 0: auth, dashboard shell, sections, profile, roles, languages, mobile menu.
 import { createSession, expect, step, db, BASE } from "./helpers.mjs";
+import { lastLink } from "./mock-apps.mjs";
 
 export default async function phase0(browser) {
   const id = Date.now().toString(36);
@@ -23,14 +24,33 @@ export default async function phase0(browser) {
     expect(!(await page.locator("text=حدث خطأ غير متوقع").count()), "no unexpected error");
   });
 
-  await step("register creates the shop and opens the overview", async () => {
+  await step("register: phone required, the store link on the platform's address, the store language", async () => {
     await page.fill("#name", owner.name);
     await page.fill("#email", owner.email);
     await page.fill("#password", owner.password);
     await page.fill("#shopName", owner.shop);
     await page.fill("#shopSlug", owner.slug);
-    await Promise.all([page.waitForURL("**/ar/dashboard"), page.click("button[type=submit]")]);
+    const preview = await page.locator("[data-testid=store-link-preview]").innerText();
+    expect(preview.endsWith(`/store/${owner.slug}`) && !preview.includes("localhost"), `the link shows the platform's address (got ${preview})`);
+    await page.click("button[type=submit]");
+    await page.waitForSelector("text=رقم هاتف غير صحيح");
+    await page.fill("#phone", "0555 12 34 56");
+    await page.selectOption("#storeLanguage", "fr");
+  });
+
+  await step("register creates the shop; the owner confirms the email, then opens the overview", async () => {
+    await Promise.all([page.waitForURL("**/ar/verify"), page.click("button[type=submit]")]);
+    // Until the email is confirmed the dashboard waits
+    await page.goto(`${BASE}/ar/dashboard`);
+    await page.waitForURL("**/ar/verify");
+    const link = lastLink(owner.email);
+    expect(link?.includes("/ar/verify?token="), `confirmation email sent (got ${link})`);
+    await page.goto(`${BASE}/ar/verify?token=${new URL(link).searchParams.get("token")}`);
+    await page.locator("[data-testid=email-verified]").waitFor();
+    await page.goto(`${BASE}/ar/dashboard`);
     expect((await page.locator("main h1").filter({ visible: true }).innerText()).includes(owner.name), "welcome shows the name");
+    const [[row]] = await db.query("SELECT u.phone, u.email_verified_at, s.default_locale FROM users u JOIN shops s ON s.owner_id = u.id WHERE u.email = ?", [owner.email]);
+    expect(row.phone === "0555123456" && row.email_verified_at && row.default_locale === "fr", `phone, confirmation and store language saved (got ${JSON.stringify(row)})`);
   });
 
   await step("registering the same store link again is refused with a clear message", async () => {
@@ -39,6 +59,7 @@ export default async function phase0(browser) {
     await other.fill("#name", "Other");
     await other.fill("#email", `other-${id}@test.dz`);
     await other.fill("#password", "password123");
+    await other.fill("#phone", "0555 12 34 57");
     await other.fill("#shopName", "Other shop");
     await other.fill("#shopSlug", owner.slug);
     await other.click("button[type=submit]");
@@ -46,9 +67,9 @@ export default async function phase0(browser) {
     await other.close();
   });
 
-  await step("owner sees the 14 sections and every page opens", async () => {
+  await step("owner sees the 15 sections and every page opens", async () => {
     const links = page.locator("aside nav a");
-    expect((await links.count()) === 14, `14 sidebar links (got ${await links.count()})`);
+    expect((await links.count()) === 15, `15 sidebar links (got ${await links.count()})`);
     const hrefs = await links.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     for (const href of hrefs) {
       const res = await page.goto(`${BASE}${href}`);

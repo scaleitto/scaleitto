@@ -1,22 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, Minus, Plus, ShoppingBag } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Building2, LoaderCircle, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
-import { isValidDzPhone, normalizePhone } from "@/lib/phone";
+import { intlPhone, isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
 import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
 import { useCheckoutStarted } from "@/features/pixels/PixelScope";
-import { defaultForm, type FormSettings } from "@/features/landing/types";
+import { defaultForm, type FormSettings, type TextField } from "@/features/landing/types";
+import { CommuneSelect } from "@/features/checkout/CommuneSelect";
 
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
 type LeadInput = { name?: string; phone?: string; wilaya?: number | null; variantId?: string; quantity?: number };
 
 const field = "w-full rounded-[var(--s-radius-btn)] border border-s-field-edge bg-s-field px-3.5 py-3 text-base outline-none transition focus:border-brand focus:bg-s-surface focus:ring-2 focus:ring-brand/20 aria-[invalid=true]:border-red-500";
+const selectField = `${field} select-chevron cursor-pointer appearance-none pe-10`;
 const label = "mb-1.5 block text-sm font-semibold text-s-muted";
+const icons: Record<TextField, ReactNode> = {
+  name: <User size={17} />,
+  phone: <Phone size={17} />,
+  wilaya: <Signpost size={17} />,
+  commune: <Building2 size={17} />,
+  address: <MapPin size={17} />,
+  note: <NotebookPen size={17} />,
+};
 
 export function CheckoutForm({
   t,
@@ -29,6 +39,7 @@ export function CheckoutForm({
   saveLead,
   settings = defaultForm,
   embedded = false,
+  whatsapp,
 }: {
   t: StoreText;
   currency: string;
@@ -38,10 +49,12 @@ export function CheckoutForm({
   wilayas: { code: number; name: string }[];
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   saveLead: (input: LeadInput) => Promise<void>;
-  // Landing page form customization (the store's product page uses the defaults)
+  // The order form's settings (the store's form on product pages, the page's own on landing pages)
   settings?: FormSettings;
-  // Inside an iframe on another site: no sticky button
+  // Inside an iframe on another site: no sticky button, no popup
   embedded?: boolean;
+  // "Order on WhatsApp": the store's number and the product's name for the message
+  whatsapp?: { phone: string; product: string };
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -57,23 +70,51 @@ export function CheckoutForm({
   const [quantity, setQuantity] = useState(1);
   const [wilaya, setWilaya] = useState<number | null>(null);
   const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
-  const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes[0]);
+  const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes.includes(settings.preferDelivery as never) ? settings.preferDelivery : allowedTypes[0]);
   const formRef = useRef<HTMLFormElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const checkoutStarted = useCheckoutStarted();
   const lastLead = useRef("");
   // Fake-order protection: seconds from the first touch of the form to sending it (robots without a browser send nothing)
   const startedAt = useRef<number | null>(null);
   const fillRef = useRef<HTMLInputElement>(null);
   const [formVisible, setFormVisible] = useState(true);
+  // Popup / drawer forms open from an order button (and from every link to #order-form on the page)
+  const overlay = embedded ? null : settings.appearance === "direct" ? null : settings.appearance;
+  const [open, setOpen] = useState(false);
 
-  // The mobile sticky button is shown only while the form is off screen.
+  // The mobile sticky button is shown only while the form (or its order button) is off screen.
   useEffect(() => {
-    const form = formRef.current;
-    if (!form || typeof IntersectionObserver === "undefined") return;
+    const target = overlay ? anchorRef.current : formRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(([entry]) => setFormVisible(entry.isIntersecting), { threshold: 0.05 });
-    observer.observe(form);
+    observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [overlay]);
+
+  useEffect(() => {
+    if (!overlay) return;
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement).closest?.('a[href="#order-form"]');
+      if (!link) return;
+      e.preventDefault();
+      setOpen(true);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [overlay]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [open]);
 
   const variant = variants.find((v) => product.options.every((o) => v.values[o.name] === selected[o.name])) ?? null;
   const available = !product.trackStock ? Infinity : variants.length ? (variant?.stock ?? 0) : product.stock;
@@ -105,38 +146,71 @@ export function CheckoutForm({
     saveLead(input).catch(() => {});
   };
 
-  return (
-    <>
-      <form
-        ref={formRef}
-        id="order-form"
-        onSubmit={onSubmit}
-        onFocusCapture={() => {
-          startedAt.current ??= Date.now();
-          checkoutStarted();
-        }}
-        onSubmitCapture={() => {
-          if (fillRef.current) fillRef.current.value = String(Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000));
-        }}
-        noValidate className="space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
-        <div>
-          <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
-          <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
-        </div>
+  // The merchant's own wording, else the default
+  const text = (key: TextField, fallback: string) => settings.labels[key]?.label || fallback;
+  const hint = (key: TextField, fallback?: string) => settings.labels[key]?.placeholder || fallback;
+  const withIcon = (key: TextField, input: ReactNode) =>
+    settings.icons ? (
+      <div className="relative">
+        <span className="pointer-events-none absolute inset-y-0 start-0 z-[1] flex w-11 items-center justify-center text-s-muted">{icons[key]}</span>
+        {input}
+      </div>
+    ) : (
+      input
+    );
+  const pad = settings.icons ? " ps-11" : "";
+  const error = (name: string) => err(name) && <p className="mt-1 text-sm text-red-600">{err(name)}</p>;
+  const wide = settings.layout === "compact" ? "sm:col-span-2" : "";
 
-        <input type="hidden" name="variantId" value={variant?.id ?? ""} />
-        <input type="hidden" name="quantity" value={quantity} />
-        <input ref={fillRef} type="hidden" name="fill" defaultValue="" />
-        {/* Honeypot: invisible to people */}
-        <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -start-[9999px] h-0 w-0 opacity-0" />
+  const orderOnWhatsapp = () => {
+    const form = formRef.current;
+    if (!form || !whatsapp?.phone) return;
+    rememberLead();
+    const data = new FormData(form);
+    const choice = product.options.map((o) => selected[o.name]).filter(Boolean).join(" / ");
+    const lines = [
+      t.form.whatsappIntro,
+      `${whatsapp.product}${choice ? ` (${choice})` : ""} × ${quantity}`,
+      `${t.form.name}: ${data.get("name") ?? ""}`,
+      `${t.form.phone}: ${data.get("phone") ?? ""}`,
+      `${t.form.wilaya}: ${wilayas.find((w) => w.code === wilaya)?.name ?? ""}`,
+      `${t.form.commune}: ${data.get("commune") ?? ""}`,
+      data.get("address") ? `${t.form.addressRequired}: ${data.get("address")}` : "",
+      `${t.form.deliveryType}: ${deliveryType === "home" ? settings.homeLabel || t.form.home : settings.officeLabel || t.form.office}`,
+      `${t.summary.total}: ${formatPrice(total, currency)}`,
+    ].filter(Boolean);
+    window.open(`https://wa.me/${intlPhone(whatsapp.phone)}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener");
+  };
 
-        {product.options.map((option) => (
-          <fieldset key={option.name}>
-            <legend className={label}>{fmt(t.choose, { option: option.name })}</legend>
+  const custom = new Map(settings.custom.map((c) => [`custom:${c.id}`, c]));
+  const element = (key: string): ReactNode => {
+    switch (key) {
+      case "variants":
+        return product.options.map((option) => (
+          <fieldset key={option.name} className={wide}>
+            <legend className={label}>
+              {fmt(t.choose, { option: option.name })}
+              {option.kind === "color" && selected[option.name] && <span className="font-bold text-s-text">: {selected[option.name]}</span>}
+            </legend>
             <div className="flex flex-wrap gap-2">
               {option.values.map((value) => {
                 const active = selected[option.name] === value;
                 const ok = valueAvailable(option.name, value);
+                const swatch = option.kind === "color" ? option.colors?.[value] : undefined;
+                if (swatch)
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      title={value}
+                      aria-label={value}
+                      aria-pressed={active}
+                      disabled={!ok}
+                      onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
+                      className={`relative size-10 rounded-full border border-s-field-edge transition ${active ? "ring-2 ring-brand ring-offset-2 ring-offset-s-surface" : "hover:scale-105"} disabled:cursor-not-allowed disabled:opacity-30 disabled:after:absolute disabled:after:inset-x-1 disabled:after:top-1/2 disabled:after:h-0.5 disabled:after:-rotate-45 disabled:after:bg-s-text`}
+                      style={{ background: swatch }}
+                    />
+                  );
                 return (
                   <button
                     key={value}
@@ -154,37 +228,40 @@ export function CheckoutForm({
               })}
             </div>
           </fieldset>
-        ))}
-
-        {quantityChoices.length ? (
-          <fieldset>
-            <legend className={label}>{t.form.quantity}</legend>
-            <div className="grid gap-2">
-              {quantityChoices.map((q) => {
-                const price = linePrice(line.unitPrice, q, product.offers);
-                const saving = line.unitPrice * q - price.total;
-                const active = quantity === q;
-                return (
-                  <label
-                    key={q}
-                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-field-edge"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
-                  >
-                    <span className="flex items-center gap-3">
-                      <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 accent-[var(--brand)]" />
-                      <span className="font-bold">{fmt(t.form.pieces, { n: q })}</span>
-                      {price.offer?.label && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{price.offer.label}</span>}
-                    </span>
-                    <span className="text-end">
-                      <span className="block font-extrabold">{formatPrice(price.total, currency)}</span>
-                      {saving > 0 && <span className="block text-xs font-semibold text-green-700">{fmt(t.form.save, { amount: formatPrice(saving, currency) })}</span>}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        ) : (
-          <div>
+        ));
+      case "quantity":
+        if (quantityChoices.length)
+          return (
+            <fieldset className={wide}>
+              <legend className={label}>{t.form.quantity}</legend>
+              <div className="grid gap-2">
+                {quantityChoices.map((q) => {
+                  const price = linePrice(line.unitPrice, q, product.offers);
+                  const saving = line.unitPrice * q - price.total;
+                  const active = quantity === q;
+                  return (
+                    <label
+                      key={q}
+                      className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-field-edge"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 accent-[var(--brand)]" />
+                        <span className="font-bold">{fmt(t.form.pieces, { n: q })}</span>
+                        {price.offer?.label && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{price.offer.label}</span>}
+                      </span>
+                      <span className="text-end">
+                        <span className="block font-extrabold">{formatPrice(price.total, currency)}</span>
+                        {saving > 0 && <span className="block text-xs font-semibold text-green-700">{fmt(t.form.save, { amount: formatPrice(saving, currency) })}</span>}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        if (!settings.showQuantity) return null;
+        return (
+          <div className={wide}>
             <span className={label}>{t.form.quantity}</span>
             <div className="inline-flex items-center rounded-[var(--s-radius-btn)] border border-s-field-edge">
               <button type="button" aria-label="-" className="p-3 disabled:opacity-30" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
@@ -198,162 +275,299 @@ export function CheckoutForm({
               </button>
             </div>
           </div>
-        )}
-
-        <div className={`grid gap-4 ${settings.layout === "compact" ? "sm:grid-cols-2" : ""}`}>
+        );
+      case "name":
+        return (
           <div>
             <label htmlFor="name" className={label}>
-              {t.form.name}
+              {text("name", t.form.name)}
             </label>
-            <input id="name" aria-invalid={Boolean(err("name"))} name="name" autoComplete="name" placeholder={t.form.namePlaceholder} className={field} onBlur={rememberLead} />
-            {err("name") && <p className="mt-1 text-sm text-red-600">{err("name")}</p>}
+            {withIcon("name", <input id="name" aria-invalid={Boolean(err("name"))} name="name" autoComplete="name" placeholder={hint("name", t.form.namePlaceholder)} className={field + pad} onBlur={rememberLead} />)}
+            {error("name")}
           </div>
+        );
+      case "phone":
+        return (
           <div>
             <label htmlFor="phone" className={label}>
-              {t.form.phone}
+              {text("phone", t.form.phone)}
             </label>
-            <input id="phone" aria-invalid={Boolean(err("phone"))} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="0555 12 34 56" className={`${field} text-start`} onBlur={rememberLead} />
-            {err("phone") && <p className="mt-1 text-sm text-red-600">{err("phone")}</p>}
+            {withIcon(
+              "phone",
+              <input id="phone" aria-invalid={Boolean(err("phone"))} name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder={hint("phone", "0555 12 34 56")} className={`${field} text-start${pad}`} onBlur={rememberLead} />,
+            )}
+            {error("phone")}
           </div>
+        );
+      case "wilaya":
+        return (
           <div>
             <label htmlFor="wilaya" className={label}>
-              {t.form.wilaya}
+              {text("wilaya", t.form.wilaya)}
             </label>
-            <select
-              id="wilaya" aria-invalid={Boolean(err("wilaya"))}
-              name="wilaya"
-              className={`${field} select-chevron cursor-pointer appearance-none pe-10`}
-              value={wilaya ?? ""}
-              onChange={(e) => {
-                const code = Number(e.target.value) || null;
-                setWilaya(code);
-                // Switch to the other delivery type when the chosen one is not delivered there.
-                if (code && shippingPrice(rates, code, deliveryType) === null) {
-                  const other = deliveryType === "home" ? "office" : "home";
-                  if (allowedTypes.includes(other as never) && shippingPrice(rates, code, other) !== null) setDeliveryType(other);
-                }
-              }}
-              onBlur={rememberLead}
-            >
-              <option value="">{t.form.chooseWilaya}</option>
-              {wilayas.map((w) => (
-                <option key={w.code} value={w.code}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-            {err("wilaya") && <p className="mt-1 text-sm text-red-600">{err("wilaya")}</p>}
+            {withIcon(
+              "wilaya",
+              <select
+                id="wilaya"
+                aria-invalid={Boolean(err("wilaya"))}
+                name="wilaya"
+                className={selectField + pad}
+                value={wilaya ?? ""}
+                onChange={(e) => {
+                  const code = Number(e.target.value) || null;
+                  setWilaya(code);
+                  // Switch to the other delivery type when the chosen one is not delivered there.
+                  if (code && shippingPrice(rates, code, deliveryType) === null) {
+                    const other = deliveryType === "home" ? "office" : "home";
+                    if (allowedTypes.includes(other as never) && shippingPrice(rates, code, other) !== null) setDeliveryType(other);
+                  }
+                }}
+                onBlur={rememberLead}
+              >
+                <option value="">{hint("wilaya", t.form.chooseWilaya)}</option>
+                {wilayas.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>,
+            )}
+            {error("wilaya")}
           </div>
+        );
+      case "commune":
+        return (
           <div>
             <label htmlFor="commune" className={label}>
-              {t.form.commune}
+              {text("commune", t.form.commune)}
             </label>
-            <input id="commune" aria-invalid={Boolean(err("commune"))} name="commune" placeholder={t.form.communePlaceholder} className={field} />
-            {err("commune") && <p className="mt-1 text-sm text-red-600">{err("commune")}</p>}
+            {withIcon(
+              "commune",
+              <CommuneSelect
+                key={wilaya ?? 0}
+                wilaya={wilaya}
+                arabic={t.arabicNames}
+                invalid={Boolean(err("commune"))}
+                className={field + pad}
+                placeholder={t.form.communePlaceholder}
+                choose={hint("commune", t.form.chooseCommune)!}
+                chooseWilayaFirst={t.summary.chooseWilayaFirst}
+              />,
+            )}
+            {error("commune")}
           </div>
-          {settings.custom.map((c) => (
-            <div key={c.id}>
-              <label htmlFor={`custom_${c.id}`} className={label}>
-                {c.label}
-                {!c.required && <span className="font-normal"> ({t.form.optional})</span>}
-              </label>
-              {c.type === "select" ? (
-                <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={`${field} select-chevron cursor-pointer appearance-none pe-10`} defaultValue="">
-                  <option value="">{t.form.choose}</option>
-                  {c.options.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input id={`custom_${c.id}`} name={`custom_${c.id}`} maxLength={200} className={field} />
-              )}
-              {err(`custom_${c.id}`) && <p className="mt-1 text-sm text-red-600">{err(`custom_${c.id}`)}</p>}
+        );
+      case "delivery":
+        return (
+          <fieldset className={wide}>
+            <legend className={label}>{t.form.deliveryType}</legend>
+            <div className={`grid gap-2 ${allowedTypes.length > 1 ? "sm:grid-cols-2" : ""}`}>
+              {allowedTypes.map((type) => {
+                const price = wilaya ? shippingPrice(rates, wilaya, type) : undefined;
+                const unavailable = price === null;
+                return (
+                  <label
+                    key={type}
+                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-s-field-edge"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <input type="radio" name="deliveryType" value={type} checked={deliveryType === type} disabled={unavailable} onChange={() => setDeliveryType(type)} className="size-4 accent-[var(--brand)]" />
+                      {type === "home" ? settings.homeLabel || t.form.home : settings.officeLabel || t.form.office}
+                    </span>
+                    {price !== undefined && <span className="font-bold">{price === null ? t.summary.notDelivered : price === 0 ? t.summary.free : formatPrice(price, currency)}</span>}
+                  </label>
+                );
+              })}
             </div>
-          ))}
-        </div>
-
-        <fieldset>
-          <legend className={label}>{t.form.deliveryType}</legend>
-          <div className={`grid gap-2 ${allowedTypes.length > 1 ? "sm:grid-cols-2" : ""}`}>
-            {allowedTypes.map((type) => {
-              const price = wilaya ? shippingPrice(rates, wilaya, type) : undefined;
-              const unavailable = price === null;
-              return (
-                <label
-                  key={type}
-                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 text-sm transition ${deliveryType === type ? "border-brand bg-brand/5" : "border-s-field-edge"} ${unavailable ? "pointer-events-none opacity-40" : ""}`}
-                >
-                  <span className="flex items-center gap-2 font-semibold">
-                    <input type="radio" name="deliveryType" value={type} checked={deliveryType === type} disabled={unavailable} onChange={() => setDeliveryType(type)} className="size-4 accent-[var(--brand)]" />
-                    {type === "home" ? t.form.home : t.form.office}
-                  </span>
-                  {price !== undefined && <span className="font-bold">{price === null ? t.summary.notDelivered : price === 0 ? t.summary.free : formatPrice(price, currency)}</span>}
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        {deliveryType === "home" && settings.address !== "hidden" && (
-          <div>
+          </fieldset>
+        );
+      case "address":
+        if (deliveryType !== "home" || settings.address === "hidden") return null;
+        return (
+          <div className={wide}>
             <label htmlFor="address" className={label}>
-              {settings.address === "required" ? t.form.addressRequired : t.form.address}
+              {text("address", settings.address === "required" ? t.form.addressRequired : t.form.address)}
             </label>
-            <input id="address" aria-invalid={Boolean(err("address"))} name="address" autoComplete="street-address" placeholder={t.form.addressPlaceholder} className={field} />
-            {err("address") && <p className="mt-1 text-sm text-red-600">{err("address")}</p>}
+            {withIcon(
+              "address",
+              <input id="address" aria-invalid={Boolean(err("address"))} name="address" autoComplete="street-address" placeholder={hint("address", t.form.addressPlaceholder)} className={field + pad} />,
+            )}
+            {error("address")}
           </div>
-        )}
-        {settings.note && (
-          <div>
+        );
+      case "note":
+        if (!settings.note) return null;
+        return (
+          <div className={wide}>
             <label htmlFor="note" className={label}>
-              {t.form.note}
+              {text("note", t.form.note)}
             </label>
-            <textarea id="note" name="note" rows={2} maxLength={500} className={field} />
+            <textarea id="note" name="note" rows={2} maxLength={500} placeholder={hint("note")} className={field} />
           </div>
+        );
+      case "summary":
+        return (
+          <dl className={`space-y-2 rounded-[var(--s-radius-btn)] bg-s-bg p-4 text-sm ${wide} ${settings.showSummary ? "" : "hidden"}`} data-testid="summary">
+            <div className="flex justify-between">
+              <dt className="text-s-muted">
+                {t.summary.product} {quantity > 1 && `(×${quantity})`}
+              </dt>
+              <dd className="font-semibold">{formatPrice(line.total, currency)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-s-muted">{t.summary.shipping}</dt>
+              <dd className="font-semibold">
+                {!hasRates ? t.summary.free : shipping === undefined ? t.summary.chooseWilayaFirst : shipping === null ? t.summary.notDelivered : shipping === 0 ? t.summary.free : formatPrice(shipping, currency)}
+              </dd>
+            </div>
+            <div className="flex justify-between border-t border-s-edge pt-2 text-base">
+              <dt className="font-bold">{t.summary.total}</dt>
+              <dd className="font-extrabold text-brand-ink" data-testid="total">
+                {formatPrice(total, currency)}
+              </dd>
+            </div>
+          </dl>
+        );
+    }
+    const c = custom.get(key);
+    if (!c) return null;
+    return (
+      <div>
+        <label htmlFor={`custom_${c.id}`} className={label}>
+          {c.label}
+          {!c.required && <span className="font-normal"> ({t.form.optional})</span>}
+        </label>
+        {c.type === "select" ? (
+          <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={selectField} defaultValue="">
+            <option value="">{t.form.choose}</option>
+            {c.options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input id={`custom_${c.id}`} name={`custom_${c.id}`} maxLength={200} className={field} />
         )}
+        {error(`custom_${c.id}`)}
+      </div>
+    );
+  };
 
-        <dl className={`space-y-2 rounded-[var(--s-radius-btn)] bg-s-bg p-4 text-sm ${settings.showSummary ? "" : "hidden"}`} data-testid="summary">
-          <div className="flex justify-between">
-            <dt className="text-s-muted">
-              {t.summary.product} {quantity > 1 && `(×${quantity})`}
-            </dt>
-            <dd className="font-semibold">{formatPrice(line.total, currency)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-s-muted">{t.summary.shipping}</dt>
-            <dd className="font-semibold">
-              {!hasRates ? t.summary.free : shipping === undefined ? t.summary.chooseWilayaFirst : shipping === null ? t.summary.notDelivered : shipping === 0 ? t.summary.free : formatPrice(shipping, currency)}
-            </dd>
-          </div>
-          <div className="flex justify-between border-t border-s-edge pt-2 text-base">
-            <dt className="font-bold">{t.summary.total}</dt>
-            <dd className="font-extrabold text-brand-ink" data-testid="total">
-              {formatPrice(total, currency)}
-            </dd>
-          </div>
-        </dl>
+  const effect = settings.buttonEffect === "pulse" ? "btn-pulse" : settings.buttonEffect === "shake" ? "btn-shake" : "";
+  const submitLabel = soldOut ? t.outOfStock : `${settings.buttonText || t.form.submit} · ${formatPrice(total, currency)}`;
+  const form = (
+    <form
+      ref={formRef}
+      id={overlay ? "order-form-fields" : "order-form"}
+      onSubmit={onSubmit}
+      onFocusCapture={() => {
+        startedAt.current ??= Date.now();
+        checkoutStarted();
+      }}
+      onSubmitCapture={() => {
+        if (fillRef.current) fillRef.current.value = String(Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000));
+      }}
+      noValidate
+      className={overlay ? "space-y-5 p-4 sm:p-5" : "space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5"}
+    >
+      <div className={overlay ? "pe-8" : ""}>
+        <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
+        <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
+      </div>
 
-        {state.error && (
-          <p role="alert" className="rounded-[var(--s-radius-btn)] bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {errors[state.error] ?? errors.unexpected}
-          </p>
-        )}
+      <input type="hidden" name="variantId" value={variant?.id ?? ""} />
+      <input type="hidden" name="quantity" value={quantity} />
+      <input ref={fillRef} type="hidden" name="fill" defaultValue="" />
+      {/* Honeypot: invisible to people */}
+      <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -start-[9999px] h-0 w-0 opacity-0" />
 
+      <div className={`grid gap-4 ${settings.layout === "compact" ? "sm:grid-cols-2" : ""}`}>
+        {settings.order.map((key) => {
+          const node = element(key);
+          return node ? (
+            <div key={key} className={`contents`} data-element={key}>
+              {node}
+            </div>
+          ) : null;
+        })}
+      </div>
+
+      {state.error && (
+        <p role="alert" className="rounded-[var(--s-radius-btn)] bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {errors[state.error] ?? errors.unexpected}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending || soldOut}
+        className={`flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60 ${pending || soldOut ? "" : effect}`}
+      >
+        {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
+        {pending ? t.form.sending : submitLabel}
+      </button>
+      {settings.whatsapp && whatsapp?.phone && !soldOut && (
         <button
-          type="submit"
-          disabled={pending || soldOut}
-          className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60"
+          type="button"
+          onClick={orderOnWhatsapp}
+          className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] border-2 border-[#25d366] px-6 py-3 text-base font-bold text-[#128c4b] transition hover:bg-[#25d366]/10"
+          data-testid="whatsapp-order"
         >
-          {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
-          {soldOut ? t.outOfStock : pending ? t.form.sending : `${settings.buttonText || t.form.submit} · ${formatPrice(total, currency)}`}
+          <MessageCircle size={19} /> {t.form.whatsapp}
         </button>
-        {product.trackStock && !soldOut && available <= 5 && <p className="text-center text-sm font-semibold text-amber-700">{fmt(t.inStockLow, { n: available })}</p>}
-      </form>
+      )}
+      {product.trackStock && !soldOut && available <= 5 && <p className="text-center text-sm font-semibold text-amber-700">{fmt(t.inStockLow, { n: available })}</p>}
+    </form>
+  );
 
-      {/* Mobile: a sticky button that brings the form into view */}
-      <a href="#order-form" aria-hidden={formVisible} className={`${formVisible || embedded || !settings.stickyButton ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-brand-fg shadow-xl md:hidden`}>
+  return (
+    <>
+      {overlay ? (
+        <>
+          {/* In the page: the order button (links to #order-form land here and open the form) */}
+          <div ref={anchorRef} id="order-form" className="rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
+            <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
+            <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              disabled={soldOut}
+              className={`mt-4 flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60 ${soldOut ? "" : effect}`}
+              data-testid="open-order-form"
+            >
+              <ShoppingBag size={20} /> {soldOut ? t.outOfStock : `${settings.buttonText || t.form.title} · ${formatPrice(line.total, currency)}`}
+            </button>
+          </div>
+          {/* The form stays mounted while closed, so nothing typed is lost */}
+          <div className={open ? "fixed inset-0 z-50" : "hidden"} data-testid="order-overlay" data-kind={overlay}>
+            <button type="button" aria-label={t.form.close} className="absolute inset-0 bg-black/55" onClick={() => setOpen(false)} tabIndex={-1} />
+            <div
+              role="dialog"
+              aria-modal="true"
+              className={
+                overlay === "popup"
+                  ? "absolute inset-x-3 top-1/2 mx-auto max-h-[92vh] max-w-lg -translate-y-1/2 overflow-y-auto rounded-[var(--s-radius)] bg-s-surface text-s-text shadow-2xl"
+                  : "absolute inset-y-0 end-0 w-full max-w-md overflow-y-auto bg-s-surface text-s-text shadow-2xl"
+              }
+            >
+              <button type="button" onClick={() => setOpen(false)} aria-label={t.form.close} className="absolute end-3 top-3 z-10 rounded-full p-1.5 text-s-muted hover:bg-s-bg" data-testid="close-order-form">
+                <X size={20} />
+              </button>
+              {form}
+            </div>
+          </div>
+        </>
+      ) : (
+        form
+      )}
+
+      {/* Mobile: a sticky button that brings the form into view (or opens it) */}
+      <a
+        href="#order-form"
+        aria-hidden={formVisible}
+        className={`${formVisible || embedded || !settings.stickyButton || open ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-brand-fg shadow-xl md:hidden ${effect}`}
+      >
         <ShoppingBag size={18} /> {settings.buttonText || t.form.title}
       </a>
     </>

@@ -1,0 +1,48 @@
+import { and, eq } from "drizzle-orm";
+import { getDictionary, asLocale, isLocale } from "@/i18n";
+import { requireSection } from "@/server/auth/context";
+import { db, schema } from "@/server/db";
+import { PageHeader } from "@/ui";
+import { currencyLabel, getStoreText } from "@/i18n/store";
+import { resolveForm } from "@/features/landing/types";
+import { resolveDesign, storeTheme } from "@/features/design/types";
+import { getShippingRates } from "@/features/storefront/queries";
+import { OrderFormEditor } from "@/features/order-form/OrderFormEditor";
+import { saveOrderForm } from "@/features/order-form/actions";
+import { wilayas } from "@/lib/wilayas";
+
+export default async function OrderFormPage({ params }: PageProps<"/[lang]/dashboard/order-form">) {
+  const lang = asLocale((await params).lang);
+  const t = getDictionary(lang);
+  const { shop } = await requireSection(lang, "orderForm");
+  // The preview speaks the store's language (what customers see)
+  const storeLocale = isLocale(shop.defaultLocale) ? shop.defaultLocale : "ar";
+  // A real product of the store for the preview (its options and offers), else a sample
+  const [product] = await db
+    .select({ name: schema.products.name, price: schema.products.price, options: schema.products.options, offers: schema.products.offers })
+    .from(schema.products)
+    .where(and(eq(schema.products.shopId, shop.id), eq(schema.products.status, "active")))
+    .limit(1);
+  return (
+    <>
+      <PageHeader title={t.sections.orderForm.title} description={t.orderForm.description} />
+      <OrderFormEditor
+        lang={lang}
+        initial={resolveForm(shop.orderForm)}
+        t={{ orderForm: t.orderForm, errors: t.errors, common: t.common }}
+        preview={{
+          storeText: getStoreText(storeLocale),
+          locale: storeLocale,
+          currency: currencyLabel(storeLocale),
+          color: shop.primaryColor,
+          theme: storeTheme(resolveDesign(shop.design)),
+          product: product ? { ...product, options: product.options ?? [], offers: product.offers ?? [] } : { name: t.orderForm.sampleProduct, price: 3500, options: [], offers: [] },
+          rates: await getShippingRates(shop.id),
+          wilayas: wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${storeLocale === "ar" ? w.ar : w.fr}` })),
+          phone: shop.phone ?? "",
+        }}
+        action={saveOrderForm.bind(null, lang)}
+      />
+    </>
+  );
+}

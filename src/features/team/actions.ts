@@ -42,7 +42,8 @@ export async function addMember(lang: string, _prev: ActionState, formData: Form
     if (existing) return { ok: false, error: "checkFields", fieldErrors: { email: "emailTaken" } };
     const userId = newId();
     await db.transaction(async (tx) => {
-      await tx.insert(schema.users).values({ id: userId, email: d.email, name: d.name, passwordHash: await hashPassword(d.password), locale: asLocale(lang) });
+      // Created by the shop owner, who knows them: no email confirmation
+      await tx.insert(schema.users).values({ id: userId, email: d.email, name: d.name, passwordHash: await hashPassword(d.password), locale: asLocale(lang), emailVerifiedAt: new Date() });
       await tx.insert(schema.shopMembers).values({ shopId: ctx.shop.id, userId, role: d.role });
     });
     refresh();

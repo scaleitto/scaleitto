@@ -4,7 +4,7 @@ import { getStoreText } from "@/i18n/store";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
-import { resolveDesign } from "@/features/design/types";
+import { resolveDesign, storeTheme } from "@/features/design/types";
 import { getShippingRates } from "@/features/storefront/queries";
 import { getLandingPage, landingProduct } from "@/features/landing/queries";
 import { LandingEditor } from "@/features/landing/LandingEditor";
@@ -62,13 +62,14 @@ export default async function EditLandingPage({
           fr: getStoreText("fr"),
           en: getStoreText("en"),
         }}
-        themeKey={resolveDesign(shop.design).theme}
+        theme={storeTheme(resolveDesign(shop.design))}
         shopColor={shop.primaryColor}
         pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
         embedUrl={`${appUrl}/embed/${shop.slug}/${encodeURIComponent(page.slug)}`}
         backHref={sectionHref(lang, "landingPages")}
         t={{
           landingPages: t.landingPages,
+          orderForm: t.orderForm,
           media: t.media,
           errors: t.errors,
           common: t.common,

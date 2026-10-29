@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState, type KeyboardEvent } from "react";
-import { ArrowRight, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Palette, Plus, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
+import { colorByName, colorPalette } from "@/lib/colors";
 import { Alert, Card, Field, Input, PageHeader, Select, Textarea, inputClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
@@ -36,6 +37,7 @@ export type ProductFormValues = {
 export type ProductFormText = Pick<Dictionary, "products" | "media" | "errors" | "common" | "assistant">;
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
 type VariantData = { sku: string; price: number | null; stock: number };
+const DEFAULT_SWATCH = "#9ca3af";
 
 const toNumber = (v: string) => (v.trim() === "" ? null : Number(v.replace(/\s/g, "")));
 
@@ -58,7 +60,12 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
 
   // Values typed but not confirmed with Enter still count when saving.
   const effectiveOptions = options
-    .map((o, i) => ({ name: o.name.trim(), values: pendingValues[i]?.trim() && !o.values.includes(pendingValues[i].trim()) ? [...o.values, pendingValues[i].trim()] : o.values }))
+    .map((o, i) => {
+      const typed = pendingValues[i]?.trim();
+      const values = typed && !o.values.includes(typed) ? [...o.values, typed] : o.values;
+      if (o.kind !== "color") return { name: o.name.trim(), values };
+      return { name: o.name.trim(), values, kind: o.kind, colors: Object.fromEntries(values.map((v) => [v, o.colors?.[v] ?? colorByName(v) ?? DEFAULT_SWATCH])) };
+    })
     .filter((o) => o.name && o.values.length);
   const variants = combinations(effectiveOptions).map((values) => {
     const title = variantTitle(values, effectiveOptions);
@@ -66,11 +73,22 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
   });
 
   const updateOption = (i: number, patch: Partial<ProductOption>) => setOptions((all) => all.map((o, j) => (j === i ? { ...o, ...patch } : o)));
-  const addValue = (i: number) => {
+  const addValue = (i: number, color?: string) => {
     const value = pendingValues[i]?.trim();
-    if (value && !options[i].values.includes(value)) updateOption(i, { values: [...options[i].values, value] });
+    if (value && !options[i].values.includes(value)) addColorValue(i, value, color);
     setPendingValues((all) => all.map((v, j) => (j === i ? "" : v)));
   };
+  // A value (with its swatch on color options); an existing value only gets the new color
+  const addColorValue = (i: number, value: string, color?: string) =>
+    setOptions((all) =>
+      all.map((o, j) => {
+        if (j !== i) return o;
+        const values = o.values.includes(value) ? o.values : [...o.values, value];
+        if (o.kind !== "color") return { ...o, values };
+        return { ...o, values, colors: { ...o.colors, [value]: color ?? o.colors?.[value] ?? colorByName(value) ?? DEFAULT_SWATCH } };
+      }),
+    );
+  const paletteName = (c: (typeof colorPalette)[number]) => c[ai.lang as "ar" | "fr" | "en"] ?? c.ar;
   const onValueKey = (i: number) => (ev: KeyboardEvent<HTMLInputElement>) => {
     if (ev.key === "Enter" || ev.key === ",") {
       ev.preventDefault();
@@ -138,11 +156,28 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
               <p className="mt-1 text-sm text-muted">{p.variantsHint}</p>
             </div>
             {options.map((option, i) => (
-              <div key={i} className="grid gap-3 rounded-lg border border-line bg-panel-2/50 p-3 sm:grid-cols-[10rem_1fr_auto]">
-                <Input aria-label={p.optionName} placeholder={p.optionNamePlaceholder} value={option.name} maxLength={40} onChange={(ev) => updateOption(i, { name: ev.target.value })} />
-                <div className={`${inputClass} flex flex-wrap items-center gap-1.5 py-1.5`}>
+              <div key={i} className="grid gap-3 rounded-lg border border-line bg-panel-2/50 p-3 sm:grid-cols-[10rem_1fr_auto]" data-option={i}>
+                <div className="space-y-2">
+                  <Input aria-label={p.optionName} placeholder={p.optionNamePlaceholder} value={option.name} maxLength={40} onChange={(ev) => updateOption(i, { name: ev.target.value })} />
+                  <Select aria-label={p.optionKind} value={option.kind ?? "text"} onChange={(ev) => updateOption(i, ev.target.value === "color" ? { kind: "color", colors: option.colors ?? {} } : { kind: undefined })} data-testid="option-kind">
+                    <option value="text">{p.optionKinds.text}</option>
+                    <option value="color">{p.optionKinds.color}</option>
+                  </Select>
+                </div>
+                <div className={`${inputClass} flex flex-wrap items-center gap-1.5 self-start py-1.5`}>
                   {option.values.map((value) => (
                     <span key={value} className="inline-flex items-center gap-1 rounded-md bg-panel-2 px-2 py-0.5 text-xs">
+                      {option.kind === "color" && (
+                        <label className="relative size-4 cursor-pointer overflow-hidden rounded-full border border-field-line" style={{ background: option.colors?.[value] ?? colorByName(value) ?? DEFAULT_SWATCH }} title={p.pickColor}>
+                          <input
+                            type="color"
+                            aria-label={`${p.pickColor} ${value}`}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                            value={option.colors?.[value] ?? colorByName(value) ?? DEFAULT_SWATCH}
+                            onChange={(ev) => addColorValue(i, value, ev.target.value)}
+                          />
+                        </label>
+                      )}
                       {value}
                       <button type="button" aria-label={`${p.remove} ${value}`} className="text-muted hover:text-danger" onClick={() => updateOption(i, { values: option.values.filter((v) => v !== value) })}>
                         <X size={12} />
@@ -172,8 +207,47 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
                 >
                   <Trash2 size={16} />
                 </button>
+                {option.kind === "color" && (
+                  <div className="space-y-1.5 sm:col-span-3" data-testid="color-palette">
+                    <p className="text-xs text-muted">{p.paletteHint}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {colorPalette.map((c) => {
+                        const name = paletteName(c);
+                        const used = option.values.includes(name);
+                        return (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            title={name}
+                            aria-label={name}
+                            aria-pressed={used}
+                            onClick={() => (used ? updateOption(i, { values: option.values.filter((v) => v !== name) }) : addColorValue(i, name, c.hex))}
+                            className={`size-7 rounded-full border border-field-line transition hover:scale-110 ${used ? "ring-2 ring-accent ring-offset-2 ring-offset-panel" : ""}`}
+                            style={{ background: c.hex }}
+                          />
+                        );
+                      })}
+                      <label className="relative inline-flex size-7 cursor-pointer items-center justify-center rounded-full border border-dashed border-field-line text-muted hover:text-fg" title={p.customColor}>
+                        <Plus size={14} />
+                        <input
+                          type="color"
+                          aria-label={p.customColor}
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                          defaultValue="#4f3bd6"
+                          onChange={(ev) => {
+                            const hex = ev.target.value;
+                            const typed = pendingValues[i]?.trim();
+                            if (typed) addValue(i, hex);
+                            else addColorValue(i, hex.toUpperCase(), hex);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
             {options.length < MAX_OPTIONS && (
               <button
                 type="button"
@@ -186,6 +260,20 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
                 <Plus size={16} /> {p.addOption}
               </button>
             )}
+            {options.length < MAX_OPTIONS && !options.some((o) => o.kind === "color") && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
+                data-testid="add-color-option"
+                onClick={() => {
+                  setOptions((all) => [...all, { name: p.colorOptionName, values: [], kind: "color", colors: {} }]);
+                  setPendingValues((all) => [...all, ""]);
+                }}
+              >
+                <Palette size={16} /> {p.addColorOption}
+              </button>
+            )}
+            </div>
             {err("options") && <Alert>{err("options")}</Alert>}
             {variants.length > 0 && (
               <div className="overflow-x-auto rounded-lg border border-line">

@@ -11,6 +11,7 @@ export const sections = [
   { key: "themes", path: "themes", roles: ["owner", "manager"] },
   { key: "callCenters", path: "call-centers", roles: ["owner", "manager", "agent"] },
   { key: "landingPages", path: "landing-pages", roles: ["owner", "manager"] },
+  { key: "orderForm", path: "order-form", roles: ["owner", "manager"] },
   { key: "analytics", path: "analytics", roles: ["owner", "manager"] },
   { key: "pixels", path: "pixels", roles: ["owner", "manager"] },
   { key: "apps", path: "apps", roles: ["owner", "manager"] },

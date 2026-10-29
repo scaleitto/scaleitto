@@ -42,6 +42,8 @@ jobs:
       # Custom domains: where merchants point them, and a fake DNS resolver for the tests
       DOMAIN_CNAME_TARGET: stores.scaleitto.test
       E2E_DNS_URL: http://127.0.0.1:4040
+      # The emails the app sends (account confirmation, new password) go to the same fake server
+      E2E_MAIL_URL: http://127.0.0.1:4040/mail
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

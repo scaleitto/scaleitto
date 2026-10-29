@@ -42,12 +42,12 @@ export async function listShops({ q = "", status, page = 1 }: { q?: string; stat
   const filters: (SQL | undefined)[] = [status ? eq(s.status, status) : undefined];
   if (q.trim()) {
     const term = `%${escapeLike(q.trim().toLowerCase())}%`;
-    filters.push(or(like(s.name, term), like(s.slug, term), like(s.customDomain, term), like(schema.users.email, term)));
+    filters.push(or(like(s.name, term), like(s.slug, term), like(s.customDomain, term), like(schema.users.email, term), like(schema.users.phone, term)));
   }
   const where = and(...filters);
   const [rows, [{ total }]] = await Promise.all([
     db
-      .select({ id: s.id, name: s.name, slug: s.slug, status: s.status, createdAt: s.createdAt, planExpiresAt: s.planExpiresAt, planName: schema.plans.name, ownerEmail: schema.users.email })
+      .select({ id: s.id, name: s.name, slug: s.slug, status: s.status, createdAt: s.createdAt, planExpiresAt: s.planExpiresAt, planName: schema.plans.name, ownerEmail: schema.users.email, ownerPhone: schema.users.phone, ownerVerified: schema.users.emailVerifiedAt })
       .from(s)
       .innerJoin(schema.plans, eq(schema.plans.id, s.planId))
       .innerJoin(schema.users, eq(schema.users.id, s.ownerId))

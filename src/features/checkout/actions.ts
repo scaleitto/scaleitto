@@ -13,7 +13,7 @@ import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
-import { defaultForm, resolveForm } from "@/features/landing/types";
+import { resolveForm } from "@/features/landing/types";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
@@ -49,7 +49,7 @@ export async function submitOrder(slug: string, productId: string, landingPageId
   if (!shop) return { ok: false, error: "unavailable" };
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
-    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : defaultForm;
+    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : resolveForm(shop.orderForm);
     if (!settings) return { ok: false, error: "unavailable" };
 
     // What the landing page's form asks on top of the standard fields
