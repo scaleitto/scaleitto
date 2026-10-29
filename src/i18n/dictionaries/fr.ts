@@ -183,6 +183,7 @@ const fr: Dictionary = {
     carrierRefused: "La société de livraison a refusé la commande",
     confirmFirst: "Confirmez d'abord la commande, puis envoyez-la au livreur",
     tooMany: "Vous avez atteint le maximum",
+    mailFailed: "L'e-mail n'a pas pu être envoyé",
     notReturned: "Le colis n'est pas encore revenu : attendez que le transporteur confirme le retour",
     alreadyShipped: "Cette commande a déjà été envoyée",
     carrierMissing: "Le compte du livreur n'est plus connecté",
@@ -1469,6 +1470,10 @@ const fr: Dictionary = {
     },
     features: { custom_domain: "Domaine personnalisé", landing_pages: "Landing pages", ai: "IA", pixels: "Pixels", google_sheets: "Google Sheets", abandoned_cart: "Paniers abandonnés", delivery_integrations: "Sociétés de livraison", analytics: "Statistiques", variants: "Variantes", upsell: "Offres additionnelles", api: "API" },
     system: {
+      mailTitle: "E-mail de la plateforme",
+      mailHint: "Les e-mails de confirmation et de nouveau mot de passe partent du compte SMTP_*. Cliquez pour recevoir un e-mail de test.",
+      testMail: "M'envoyer un e-mail de test",
+      testMailSent: "E-mail de test envoyé à",
     check: {
       title: "Vérification complète",
       hint: "Vérifie la base de données, l'enregistrement des photos, les réglages, la tâche cron et l'IA, avec la raison exacte de chaque problème.",

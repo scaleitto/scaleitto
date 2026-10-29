@@ -5,7 +5,7 @@ import { formatDate } from "@/lib/format";
 import { Badge, Card, PageHeader } from "@/ui";
 import { appliedMigrations, recentErrors } from "@/features/admin/queries";
 import { adminSystemCheck } from "@/features/admin/actions";
-import { ClearErrorsButton } from "@/features/admin/AdminForms";
+import { ClearErrorsButton, TestMailButton } from "@/features/admin/AdminForms";
 import { CheckCard } from "@/ui/CheckCard";
 import { cronKey } from "@/server/crypto";
 
@@ -15,7 +15,7 @@ const ENV_KEYS = [
   "OPENAI_API_KEY", "OPENAI_MODEL",
   "PAYMENT_HOLDER", "PAYMENT_CCP", "PAYMENT_RIB", "PAYMENT_WHATSAPP",
   "DOMAIN_CNAME_TARGET", "SERVER_IP", "SHOP_SUBDOMAINS",
-  "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM",
+  "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM", "SMTP_SECURE",
 ];
 
 export default async function AdminSystem({ params }: PageProps<"/[lang]/admin/system">) {
@@ -71,6 +71,11 @@ export default async function AdminSystem({ params }: PageProps<"/[lang]/admin/s
           testId="system-check"
         />
       </div>
+      <Card className="mb-6 space-y-2 text-sm">
+        <h2 className="font-semibold">{sy.mailTitle}</h2>
+        <p className="text-muted">{sy.mailHint}</p>
+        <TestMailButton lang={lang} t={{ admin: t.admin, plans: t.plans, errors: t.errors, common: t.common }} />
+      </Card>
       <Card className="mb-6 space-y-2 text-sm" data-testid="cron">
         <h2 className="font-semibold">{sy.cron}</h2>
         <p className="text-muted">{sy.cronHint}</p>

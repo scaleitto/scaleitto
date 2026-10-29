@@ -6,6 +6,38 @@ import nodemailer from "nodemailer";
 // E2E_MAIL_URL sends them to the tests' fake inbox instead (never set it in production).
 export const mailConfigured = () => Boolean(process.env.E2E_MAIL_URL || (process.env.SMTP_HOST && process.env.SMTP_USER));
 
+// SMTP_SECURE=true/false forces SSL; by default port 465 uses SSL and 587 STARTTLS
+function smtp() {
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE.trim().toLowerCase() === "true" : port === 465;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST?.trim(),
+    port,
+    secure,
+    auth: { user: process.env.SMTP_USER?.trim(), pass: process.env.SMTP_PASS },
+    connectionTimeout: 15_000,
+  });
+}
+
+// Connects and logs in to the SMTP server without sending anything (admin → system check). Throws with the reason and
+// what to fix.
+export async function verifyMail() {
+  try {
+    await smtp().verify();
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    const hint =
+      e.code === "EDNS" || /ENOTFOUND|EAI_AGAIN/.test(e.message ?? "")
+        ? "SMTP_HOST is not a mail server name (Namecheap Private Email: mail.privateemail.com; cPanel email: mail.<your-domain>)"
+        : e.code === "EAUTH"
+          ? "the server refused SMTP_USER / SMTP_PASS (full email address as user, the mailbox password)"
+          : e.code === "ETIMEDOUT" || e.code === "ECONNECTION" || e.code === "ESOCKET"
+            ? "no answer on this port: use 465 (SSL) or 587 with SMTP_SECURE=false"
+            : "";
+    throw new Error(`${e.message ?? String(err)}${hint ? ` → ${hint}` : ""}`);
+  }
+}
+
 export type Mail = { to: string; subject: string; text: string; html: string };
 
 export async function sendMail(mail: Mail) {
@@ -14,14 +46,7 @@ export async function sendMail(mail: Mail) {
     if (!res.ok) throw new Error(`mail ${res.status}`);
     return;
   }
-  const port = Number(process.env.SMTP_PORT || 465);
-  const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    connectionTimeout: 15_000,
-  });
+  const transport = smtp();
   await transport.sendMail({ from: process.env.MAIL_FROM || `Scaleitto <${process.env.SMTP_USER}>`, ...mail });
 }
 

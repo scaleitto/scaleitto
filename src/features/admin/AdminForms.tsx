@@ -6,7 +6,7 @@ import type { ActionState } from "@/lib/action";
 import { limitKeys, planFeatures } from "@/lib/enums";
 import { Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { addContract, clearErrorLogs, endContract, setShopPlan, setShopStatus, updatePlan } from "./actions";
+import { addContract, clearErrorLogs, endContract, sendTestMail, setShopPlan, setShopStatus, updatePlan } from "./actions";
 
 type Text = Pick<Dictionary, "admin" | "plans" | "errors" | "common">;
 type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; isActive: boolean; limits: Partial<Record<(typeof limitKeys)[number], number | null>>; features: string[] };
@@ -185,4 +185,23 @@ export function PlanEditor({ lang, plan, t }: { lang: string; plan: Plan; t: Tex
 
 export function ClearErrorsButton({ lang, t }: { lang: string; t: Text }) {
   return <ActionButton run={() => clearErrorLogs(lang)} confirmText={t.admin.system.confirmClear} label={t.admin.system.clear} danger t={t} />;
+}
+
+// "Send me a test email": proves the SMTP settings work end to end
+export function TestMailButton({ lang, t }: { lang: string; t: Text }) {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<ActionState | null>(null);
+  const e = t.errors as Record<string, string>;
+  return (
+    <div className="space-y-2" data-testid="test-mail">
+      <Button variant="secondary" disabled={pending} onClick={() => startTransition(async () => setResult(await sendTestMail(lang)))}>
+        {pending ? t.common.loading : t.admin.system.testMail}
+      </Button>
+      {result && (
+        <p className={`text-sm ${result.ok ? "text-accent" : "text-danger"}`} data-ok={result.ok}>
+          {result.ok ? `${t.admin.system.testMailSent} ${result.message}` : `${e[result.error ?? "unexpected"] ?? e.unexpected}${result.message ? `: ${result.message}` : ""}`}
+        </p>
+      )}
+    </div>
+  );
 }

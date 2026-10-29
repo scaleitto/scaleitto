@@ -117,9 +117,12 @@ export default async function phase13(browser) {
     await a.locator("[data-testid=system-check] button").click();
     const check = a.locator("[data-testid=system-check]");
     await check.locator("[data-result]").waitFor({ timeout: 40_000 });
-    for (const step of ["database", "uploads", "cron", "ai-key", "ai-models", "ai-background", "ai-result"]) {
+    for (const step of ["database", "uploads", "mail", "cron", "ai-key", "ai-models", "ai-background", "ai-result"]) {
       expect((await check.locator(`[data-step=${step}]`).getAttribute("data-ok")) === "1", `full check: ${step} (${await check.locator(`[data-step=${step}]`).innerText()})`);
     }
+    // A real test email to the admin's own address (the tests' fake inbox)
+    await a.locator("[data-testid=test-mail] button").click();
+    await a.locator("[data-testid=test-mail] p[data-ok=true]").waitFor();
     const log = a.locator("[data-testid=error-log]");
     await log.locator("[data-error='e2e/sample']").waitFor();
     await log.getByRole("button", { name: "مسح السجل" }).click();

@@ -1,4 +1,3 @@
-import { mailConfigured } from "@/server/mail";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
@@ -7,6 +6,7 @@ import { asc, lte, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { uploadsDir } from "@/server/storage";
 import { checkAiConnection } from "@/server/ai/openai";
+import { mailConfigured, verifyMail } from "@/server/mail";
 import type { CheckStep } from "@/ui/CheckCard";
 
 // The platform's full check (admin → system): everything a live server needs, each with the exact reason.
@@ -49,7 +49,10 @@ export async function runSystemCheck(): Promise<CheckStep[]> {
   // Emails (account confirmation, new password): sent through the hosting's SMTP account
   await run("mail", async () => {
     if (!mailConfigured()) throw new Error("SMTP_HOST / SMTP_USER / SMTP_PASS not set: accounts are not confirmed by email and passwords cannot be reset");
-    return process.env.E2E_MAIL_URL ? "test inbox" : `${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 465}`;
+    if (process.env.E2E_MAIL_URL) return "test inbox";
+    // A real login to the mail server, so a wrong host / password shows here and not when a merchant needs the email
+    await verifyMail();
+    return `${process.env.SMTP_USER} @ ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 465}`;
   });
 
   // The cron job: orders due for the apps for more than 15 minutes mean nothing sends them in the background

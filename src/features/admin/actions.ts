@@ -13,6 +13,7 @@ import { limitKeys, type Limits } from "@/server/db/schema";
 import { releaseLockedOrders } from "@/features/plans/locked";
 import type { CheckStep } from "@/ui/CheckCard";
 import { runSystemCheck } from "./system-check";
+import { mailConfigured, sendMail } from "@/server/mail";
 
 const admin = (lang: string) => requirePlatformAdmin(asLocale(lang));
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "e:invalid");
@@ -128,4 +129,18 @@ export async function clearErrorLogs(lang: string): Promise<ActionState> {
 export async function adminSystemCheck(lang: string): Promise<CheckStep[]> {
   await admin(lang);
   return runSystemCheck();
+}
+
+// Sends a test email to the platform admin's own address (admin → system)
+export async function sendTestMail(lang: string): Promise<ActionState> {
+  return safeAction("admin/test-mail", async () => {
+    const user = await admin(lang);
+    if (!mailConfigured()) return { ok: false, error: "mailNotSetUp" };
+    try {
+      await sendMail({ to: user.email, subject: "Scaleitto — test email", text: "This test email from Scaleitto arrived: the platform can send emails.", html: "<p>This test email from <b>Scaleitto</b> arrived: the platform can send emails.</p>" });
+    } catch (err) {
+      return { ok: false, error: "mailFailed", message: err instanceof Error ? err.message : String(err) };
+    }
+    return { ok: true, message: user.email };
+  });
 }
