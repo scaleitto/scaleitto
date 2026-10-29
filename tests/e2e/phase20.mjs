@@ -64,7 +64,13 @@ export default async function phase20(browser) {
     await row.getByText("مقبول").waitFor();
     await adminContext.close();
 
-    const [[shop]] = await db.query("SELECT p.code, s.plan_expires_at AS until, s.order_credits AS credits FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [shopId]);
+    // The approval finishes on the server (top-up, then the locked order is paid) a moment after the row changes
+    let shop;
+    for (let i = 0; i < 25; i++) {
+      [[shop]] = await db.query("SELECT p.code, s.plan_expires_at AS until, s.order_credits AS credits FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [shopId]);
+      if (shop.credits === 199) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
     expect(shop.code === "orbit" && shop.until === null && shop.credits === 199, `200 orders added, one used to open the locked order, no end date (got ${shop.credits}, ${shop.until})`);
     const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND locked = 1", [shopId]);
     expect(n === 0, "no locked order left");
