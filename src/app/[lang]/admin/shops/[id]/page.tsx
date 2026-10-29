@@ -60,7 +60,7 @@ export default async function AdminShop({ params }: PageProps<"/[lang]/admin/sho
           </Card>
           <Card className="space-y-4">
             <h2 className="font-semibold">{s.plan}</h2>
-            <ShopPlanForm lang={lang} shopId={shop.id} plans={plans} planId={shop.planId} expiresOn={shop.planExpiresAt ? algeriaParts(shop.planExpiresAt).day : ""} t={text} />
+            <ShopPlanForm lang={lang} shopId={shop.id} plans={plans} planId={shop.planId} expiresOn={shop.planExpiresAt ? algeriaParts(shop.planExpiresAt).day : ""} credits={shop.orderCredits} t={text} />
             <UsageMeters meters={overview.meters} threshold={overview.threshold} t={t} />
           </Card>
           <Card className="space-y-3" data-testid="shop-status">

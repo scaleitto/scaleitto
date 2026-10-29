@@ -73,7 +73,7 @@ export function SeoForm({ lang, values, shopName, url, t }: { lang: string; valu
         {/* How it looks in search results (always light, like Google) */}
         <div className="rounded-lg bg-white p-4" dir="auto">
           <p className="text-xs text-slate-500">{s.preview}</p>
-          <p className="truncate text-xs text-emerald-700" dir="ltr">
+          <p className="truncate text-xs text-accent" dir="ltr">
             {url}
           </p>
           <p className="truncate text-lg text-blue-800">{title || shopName}</p>

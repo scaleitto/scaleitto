@@ -87,3 +87,17 @@ export async function canAdd(shopId: string, key: LimitKey, adding = 1) {
   const [limits, used] = await Promise.all([getEffectiveLimits(shopId), getUsage(shopId, key)]);
   return limits[key] === -1 || used + adding <= limits[key];
 }
+
+export type OrderRule = { kind: "monthly"; limit: number } | { kind: "credits"; credits: number };
+
+// How the shop's orders are counted: a monthly quota, or the balance of a pay-as-you-go plan (plans.order_pack).
+// A contract that sets its own monthly orders always wins over the balance.
+export async function orderRule(shopId: string): Promise<OrderRule> {
+  if (await isPlatformShop(shopId)) return { kind: "monthly", limit: -1 };
+  const [current, contract] = await Promise.all([getCurrentPlan(shopId), getActiveContract(shopId)]);
+  if (current?.plan.orderPack && contract?.limits.maxOrdersPerMonth == null) {
+    const [shop] = await db.select({ credits: schema.shops.orderCredits }).from(schema.shops).where(eq(schema.shops.id, shopId));
+    return { kind: "credits", credits: shop?.credits ?? 0 };
+  }
+  return { kind: "monthly", limit: (await getEffectiveLimits(shopId)).maxOrdersPerMonth };
+}

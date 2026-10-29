@@ -1,36 +1,29 @@
-# Homepage (frontend-design pass) — overrides MASTER for the public homepage
+# Homepage — overrides MASTER for the public homepage
 
-Subject: an operations platform for cash-on-delivery sellers. Their world is orders, confirmation calls, parcels and
-waybills (the printed delivery slip glued on every parcel). Audience: sellers deciding whether to open a store.
-Primary job: understand in 5 seconds that the whole order journey lives here, then create a store.
+Reference: **ayor.ai** (the owner's choice, studied at 1440 and 390 px). We follow its structure and look, with our own
+brand, copy and only features that exist.
 
-## Weaknesses found (inspection, 1440 / 820 / 375 px)
-- Feature pictures were grey bars and empty shapes (wireframes): the page looked unfinished.
-- Hero phone hidden behind three notifications; the "10:08" box read as a placeholder.
-- Journey = six identical cells in a grid; final CTA = dark card with a blurred glow (generic).
-- No prices although the plans are real (database).
+## What we take from ayor
+- Centred hero: an announcement pill (sparkle + link), a two-line title (first line violet gradient #4A1FD0 → #2A0B96,
+  second line ink #080529), a grey subtitle, one dark pill button (gradient #2A2178 → ink).
+- A light lavender band under the hero (ayor shows customer avatars there; we show true facts: 0% commission…).
+- A product screen (our dashboard home, drawn in HTML).
+- Section heads: big two-tone title on one side, grey text + a dark button on the other.
+- A bento of rounded (28px) cards: pastel gradients (lavender, mint, peach) and night-violet cards with small stars, each
+  holding a small real screen (sources table, AI generator phone, image pages, chart + best sellers, stock and variants,
+  the fake-order protection receipt).
+- Integration cards: pastel top with the app tile on a white tab, name and one line.
+- Delivery collage tilted in perspective: carrier cards with "connected / manage", the sending settings.
+- Three phone screens with a coloured icon label (ayor's Track / Launch / Manage → our Share / Confirm / Follow).
+- Plan cards: centred violet name, "compare plans" link, big amount + small note, dark button for the recommended plan,
+  one line "best for…" under it; then a comparison table.
+- Footer: logo + one sentence, link columns.
 
-## Plan
-Color: Ink #0B2A1F (sidebar), Canvas #F3F6F4, Paper #FFFFFF, Signal #10B981 (indicators), Accent #047857 (actions,
-the stamp), Kraft #D8C3A0 (only the parcel behind the waybill).
-Type: Cairo only. Headline 700, tight leading; numbers tabular; no all-caps, no eyebrows.
-Layout:
-```
-[header: brand | journey · features · pricing | language · login · create store]
-[hero: headline + subtitle + 2 actions + facts | the waybill on a kraft parcel, stamped "confirmed"]
-[journey: ink band, one horizontal rail with 6 nodes (vertical rail on phones) — a real sequence]
-[features: 3 alternating rows with real mini screens: designed images with their text, the orders list with
- names/cities/amounts/statuses, delivery tracking with real carrier names]
-[more: quiet two-column list]
-[pricing: the active plans from the database, plain columns, prices and limits as stored]
-[closing: ink band whose top edge is a waybill perforation, one action]
-```
-Principles: one bold object (the waybill and its stamp); everything else quiet. Real content everywhere, no grey bars.
-One motion moment: on load the waybill settles and the stamp lands (skipped with reduced motion). Hover only where it
-answers the pointer (buttons, plan columns). No new dependencies; no images to download (CSS + inline SVG).
+## What we do not take
+- Testimonials and "thousands of merchants": we have none yet (never invent them).
+- The mobile app section: no app yet (docs/next-round.md).
 
-## Review against generic defaults
-- "Big headline + device mockup" is the common hero; replaced the phone by the waybill, specific to cash on delivery.
-- Kraft could drift toward the warm-cream trait: limited to the small parcel, never a background.
-- Orange stamp would read as the terracotta tell: the stamp is in the action green.
-- Footer "© brand · rights" used a middle-dot meta string: replaced by two separate items.
+## Rules
+Type: IBM Plex Sans Arabic. Numbers tabular; Arabic text keeps thousands with a narrow no-break space so "5 400" never
+flips. No images to download (CSS + inline SVG), no new dependencies. No sideways scrolling at 390 px (the integrations
+row scrolls inside itself on phones).

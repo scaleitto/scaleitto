@@ -3,40 +3,43 @@
 Source of truth for every screen (dashboard, auth, admin, marketing). Storefront themes keep their own `s-*` tokens
 (src/features/themes/themes.ts) but follow the same rules for touch targets, contrast and forms.
 Generated with UI/UX Pro Max (`"ecommerce saas merchant dashboard" --design-system`, density 7, variance 5, motion 3),
-then adjusted to the owner's brief: white + green, Arabic RTL first, sidebar menu names unchanged.
+then adjusted to the owner's brief. Since the owner's ayor round, ayor.ai is the visual reference: white surfaces, deep
+indigo ink and violet accents, IBM Plex Sans Arabic, Arabic RTL first, sidebar menu names unchanged.
 
 ## Direction
 Product: an operations tool for cash-on-delivery merchants and their call-center agents (long sessions, many forms
 and tables, mostly on laptops, sometimes on phones). Style: clean "Sales Intelligence" dashboard on white surfaces,
-one signature element — the deep-green sidebar — and green used only where it means something (primary action,
-active place, success). Everything else is quiet and legible.
+one signature element — the deep-indigo sidebar — and violet used only where it means something (primary action,
+active place). Success stays green (#047857) in statuses. Everything else is quiet and legible.
 
 Adjustments to the tool's proposal (and why):
-- Primary #059669 + white text is 3.8:1 → buttons use **#047857** (5.5:1); #10B981 only for graphics/indicators.
-- Rubik / Nunito Sans have no Arabic → **Cairo** for the whole interface (Arabic + Latin, variable 200–1000). IBM Plex Sans
-  Arabic was tried first; the owner preferred Cairo, and it is already preloaded for the stores, so one font file serves all.
+- ayor's colors: violet **#4F3BD6** for primary buttons and links (white text 7.6:1), **#7C6CF2** only for indicators,
+  ink **#080529** for the big marketing buttons and headings.
+- Font = ayor's: **IBM Plex Sans Arabic** 400/500/600/700 (`src/app/ui-font.ts`, `--font-ui`, [lang] layout only; stores
+  keep Cairo and their theme fonts).
 - Orange #EA580C kept only as the "attention" color (new orders, warnings), never as decoration.
-- Mint page background (#ECFDF5) read as tinted cards → neutral green-grey canvas #F3F6F4 so white cards stand out.
+- Canvas #F6F6FB (a hint of lavender) so white cards stand out.
 
 ## Color tokens (src/app/globals.css)
 | Token | Hex | Use |
 |---|---|---|
-| bg | #F3F6F4 | page canvas |
+| bg | #F6F6FB | page canvas |
 | panel | #FFFFFF | cards, header, inputs on focus |
-| panel-2 | #F6F8F7 | table heads, quiet blocks, hover |
-| field / field-line | #F7FAF8 / #B9C6BF | form fields (fill + edge) |
-| line | #D5DED9 | card borders, dividers |
-| fg | #0F2A20 | text |
-| muted | #556860 | secondary text (≥ 5:1 on white) |
-| accent | #047857 | primary buttons, links, active (white text 5.5:1) |
-| accent-bright | #10B981 | indicators, charts, sidebar active icon |
+| panel-2 | #F7F6FD | table heads, quiet blocks, hover |
+| field / field-line | #F8F7FD / #C7C3DD | form fields (fill + edge) |
+| line | #E2E0EF | card borders, dividers |
+| fg | #0B0820 | text |
+| muted | #5F5B78 | secondary text (≥ 5:1 on white) |
+| accent | #4F3BD6 | primary buttons, links, active (white text 7.6:1) |
+| accent-bright | #7C6CF2 | indicators, charts, sidebar active icon |
+| ink | #080529 | marketing buttons and headings (ayor's) |
 | attention | #B53D0B | warnings / new / waiting (5.7:1 on white, ≥ 4.5 on its 10% tint) |
 | danger | #DC2626 | destructive |
 | info | #0369A1 | information |
-| sidebar | #0B2A1F → #082018 | navigation surface |
+| sidebar | #0D0A2B | navigation surface |
 
 ## Type
-Cairo (variable, `--font-cairo` from src/app/fonts.ts, preloaded; also the classic store theme's font). Scale: 12 (meta) / 14 (UI, tables)
+IBM Plex Sans Arabic 400/500/600/700 (next/font, [lang] layout only). Scale: 12 (meta) / 14 (UI, tables)
 / 16 (body, inputs on mobile) / 18 (card titles) / 24–28 (page titles, 700). Line-height 1.6 body, 1.25 titles.
 No all-caps labels, no letter-spaced eyebrows.
 

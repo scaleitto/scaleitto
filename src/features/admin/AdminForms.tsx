@@ -9,7 +9,7 @@ import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form"
 import { addContract, clearErrorLogs, endContract, setShopPlan, setShopStatus, updatePlan } from "./actions";
 
 type Text = Pick<Dictionary, "admin" | "plans" | "errors" | "common">;
-type Plan = { id: string; code: string; name: string; priceMonthly: number; isActive: boolean; limits: Partial<Record<(typeof limitKeys)[number], number | null>>; features: string[] };
+type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; isActive: boolean; limits: Partial<Record<(typeof limitKeys)[number], number | null>>; features: string[] };
 
 // A button running one action, with a confirmation and its error message
 function ActionButton({ run, confirmText, label, variant = "secondary", danger = false, t }: { run: () => Promise<ActionState>; confirmText?: string; label: string; variant?: "primary" | "secondary"; danger?: boolean; t: Text }) {
@@ -37,7 +37,7 @@ function ActionButton({ run, confirmText, label, variant = "secondary", danger =
   );
 }
 
-export function ShopPlanForm({ lang, shopId, plans, planId, expiresOn, t }: { lang: string; shopId: string; plans: { id: string; name: string }[]; planId: string; expiresOn: string; t: Text }) {
+export function ShopPlanForm({ lang, shopId, plans, planId, expiresOn, credits, t }: { lang: string; shopId: string; plans: { id: string; name: string }[]; planId: string; expiresOn: string; credits: number; t: Text }) {
   const s = t.admin.shop;
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(setShopPlan.bind(null, lang, shopId));
@@ -56,6 +56,9 @@ export function ShopPlanForm({ lang, shopId, plans, planId, expiresOn, t }: { la
         </Field>
         <Field label={s.expiresOn} htmlFor="sp-expires" error={fieldError(state, e, "expiresOn")}>
           <Input id="sp-expires" name="expiresOn" type="date" dir="ltr" defaultValue={expiresOn} />
+        </Field>
+        <Field label={t.plans.credits} hint={s.creditsHint} htmlFor="sp-credits" error={fieldError(state, e, "credits")}>
+          <Input id="sp-credits" name="credits" type="number" min={0} dir="ltr" defaultValue={credits} />
         </Field>
       </div>
       <SubmitButton pending={pending} pendingText={t.common.loading}>
@@ -143,6 +146,9 @@ export function PlanEditor({ lang, plan, t }: { lang: string; plan: Plan; t: Tex
           </Field>
           <Field label={`${p.price} (${t.common.currency})`} htmlFor={`pe-price-${plan.code}`} error={fieldError(state, e, "priceMonthly")}>
             <Input id={`pe-price-${plan.code}`} name="priceMonthly" type="number" min={0} dir="ltr" defaultValue={plan.priceMonthly} />
+          </Field>
+          <Field label={p.orderPack} hint={p.orderPackHint} htmlFor={`pe-pack-${plan.code}`} error={fieldError(state, e, "orderPack")}>
+            <Input id={`pe-pack-${plan.code}`} name="orderPack" type="number" min={1} dir="ltr" defaultValue={plan.orderPack ?? ""} />
           </Field>
         </div>
         <p className="text-xs text-muted">{p.unlimitedHint}</p>

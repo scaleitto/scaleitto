@@ -11,7 +11,7 @@ export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard
   const t = getDictionary(lang);
   const { shop } = await requireSection(lang, "plans");
   const data = await planOverview(shop.id);
-  const pending = data.pending ? { id: data.pending.request.id, planName: data.pending.planName, months: data.pending.request.months, amount: data.pending.request.amount } : null;
+  const pending = data.pending ? { id: data.pending.request.id, planName: data.pending.planName, months: data.pending.request.months, orderPack: data.pending.orderPack, amount: data.pending.request.amount } : null;
   return (
     <>
       <PageHeader title={t.sections.plans.title} description={t.sections.plans.description} />
@@ -19,7 +19,7 @@ export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard
         <CurrentPlan data={data} lang={lang} t={t} />
         <PlanChooser
           lang={lang}
-          plans={data.plans.map((p) => ({ id: p.id, code: p.code, name: p.name, priceMonthly: p.priceMonthly, limits: p.limits }))}
+          plans={data.plans.map((p) => ({ id: p.id, code: p.code, name: p.name, priceMonthly: p.priceMonthly, orderPack: p.orderPack, limits: p.limits }))}
           currentCode={data.current?.plan.code ?? ""}
           pending={pending}
           payment={paymentDetails()}

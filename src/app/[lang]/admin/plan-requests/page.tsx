@@ -1,10 +1,11 @@
 import { connection } from "next/server";
 import { getDictionary, asLocale } from "@/i18n";
 import { requirePlatformAdmin } from "@/server/auth/context";
-import { fmt, formatDate, formatPrice } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 import { Badge, Card, PageHeader } from "@/ui";
 import { adminPlanRequests } from "@/features/plans/queries";
 import { DecideRequest } from "@/features/plans/AdminRequests";
+import { periodLabel } from "@/features/plans/labels";
 
 // Platform admin: plan upgrade requests
 export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/admin/plan-requests">) {
@@ -32,7 +33,7 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ request: r, planName, shopName, shopSlug }) => (
+              {rows.map(({ request: r, planName, orderPack, shopName, shopSlug }) => (
                 <tr key={r.id} className="border-b border-line align-top last:border-0" data-request-row={shopSlug}>
                   <td className="p-3">
                     <span className="block font-semibold">{shopName}</span>
@@ -42,7 +43,7 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
                     {r.note && <p className="mt-1 text-xs text-muted">{r.note}</p>}
                   </td>
                   <td className="p-3">{planName}</td>
-                  <td className="p-3 whitespace-nowrap">{fmt(t.plans.request.monthsOption, { n: r.months })}</td>
+                  <td className="p-3 whitespace-nowrap">{periodLabel(r.months, orderPack, t)}</td>
                   <td className="p-3 font-semibold whitespace-nowrap">{formatPrice(r.amount, t.common.currency)}</td>
                   <td className="p-3">{t.plans.request.methods[r.method]}</td>
                   <td className="p-3">

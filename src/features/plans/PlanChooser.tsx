@@ -4,19 +4,20 @@ import { useEffect, useState, useTransition } from "react";
 import { Check, Clock, MessageCircle } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatPrice } from "@/lib/format";
-import { Alert, Badge, Button, Card, Field, Select, Textarea } from "@/ui";
+import { Alert, Badge, Button, Card, Field, Select, Textarea, buttonClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
 import { limitKeys, type PaymentMethod } from "@/lib/enums";
 import type { Limits } from "@/server/db/schema";
 import { cancelPlanRequest, requestPlan } from "./actions";
+import { limitLine, periodLabel, priceLabel } from "./labels";
 
 type Text = Pick<Dictionary, "plans" | "errors" | "common" | "media">;
-type Plan = { id: string; code: string; name: string; priceMonthly: number; limits: Limits };
+type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; limits: Limits };
 type Payment = { holder: string | null; methods: Partial<Record<PaymentMethod, string>> };
+// Same lists as billing.ts (server): months of a monthly plan, packs of a pay-as-you-go plan
 const PERIODS = [1, 3, 6, 12];
-
-const limitText = (n: number | null | undefined, t: Text) => (n == null ? "—" : n === -1 ? t.common.unlimited : n.toLocaleString("fr-FR"));
+const PACKS = [1, 2, 3, 5, 10];
 
 function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: string; plan: Plan; payment: Payment; shopName: string; onClose: () => void; t: Text }) {
   const r = t.plans.request;
@@ -31,7 +32,7 @@ function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: stri
   }, [state, onClose]);
   const amount = formatPrice(plan.priceMonthly * months, t.common.currency);
   if (!method) return <Alert variant="info">{r.noMethods}</Alert>;
-  const whatsappText = fmt(r.whatsappMessage, { plan: plan.name, months, amount, shop: shopName });
+  const whatsappText = fmt(r.whatsappMessage, { plan: plan.name, period: periodLabel(months, plan.orderPack, t), amount, shop: shopName });
   return (
     <Card className="space-y-4 border-accent/40" data-testid="plan-request-form">
       <h2 className="text-lg font-semibold">{fmt(r.title, { name: plan.name })}</h2>
@@ -40,11 +41,11 @@ function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: stri
         <input type="hidden" name="planId" value={plan.id} />
         <input type="hidden" name="receiptUrl" value={receipt[0] ?? ""} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={r.months} htmlFor="pr-months">
+          <Field label={plan.orderPack ? r.packs : r.months} htmlFor="pr-months">
             <Select id="pr-months" name="months" value={months} onChange={(ev) => setMonths(Number(ev.target.value))}>
-              {PERIODS.map((n) => (
+              {(plan.orderPack ? PACKS : PERIODS).map((n) => (
                 <option key={n} value={n}>
-                  {fmt(r.monthsOption, { n })}
+                  {periodLabel(n, plan.orderPack, t)}
                 </option>
               ))}
             </Select>
@@ -116,7 +117,7 @@ export function PlanChooser({
   lang: string;
   plans: Plan[];
   currentCode: string;
-  pending: { id: string; planName: string; months: number; amount: number } | null;
+  pending: { id: string; planName: string; months: number; orderPack: number | null; amount: number } | null;
   payment: Payment;
   shopName: string;
   t: Text;
@@ -129,7 +130,7 @@ export function PlanChooser({
       {pending && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm" data-testid="plan-pending">
           <Clock size={18} className="shrink-0 text-warning" />
-          <p className="me-auto">{fmt(p.pending, { plan: pending.planName, months: pending.months, amount: formatPrice(pending.amount, t.common.currency) })}</p>
+          <p className="me-auto">{fmt(p.pending, { plan: pending.planName, period: periodLabel(pending.months, pending.orderPack, t), amount: formatPrice(pending.amount, t.common.currency) })}</p>
           <Button variant="secondary" className="py-1.5 text-xs" disabled={busy} onClick={() => startTransition(async () => void (await cancelPlanRequest(lang, pending.id)))}>
             {p.cancelRequest}
           </Button>
@@ -147,27 +148,49 @@ export function PlanChooser({
                 {mine && <Badge tone="accent">{p.yours}</Badge>}
               </div>
               <p className="-mt-2 text-sm text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
-              <p className="text-2xl font-extrabold">{paid ? fmt(p.perMonth, { price: formatPrice(plan.priceMonthly, t.common.currency) }) : p.free}</p>
+              <p className="text-2xl font-extrabold">{priceLabel(plan, t)}</p>
               <ul className="flex-1 space-y-1.5 text-sm">
-                {limitKeys.map((k) => (
-                  <li key={k} className="flex items-center gap-2">
-                    <Check size={15} className="shrink-0 text-accent" />
-                    <span>
-                      <span className="font-semibold">{limitText(plan.limits[k], t)}</span> {p.planLimits[k]}
-                    </span>
-                  </li>
-                ))}
+                {limitKeys.map((k) => {
+                  const line = limitLine(plan, k, t);
+                  return (
+                    <li key={k} className="flex items-center gap-2">
+                      <Check size={15} className="shrink-0 text-accent" />
+                      <span>
+                        <span className="font-semibold">{line.value}</span> {line.label}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
               {paid && (
                 <Button variant={mine ? "secondary" : "primary"} disabled={Boolean(pending)} onClick={() => setChosen(plan)}>
-                  {mine ? p.renew : p.choose}
+                  {mine ? (plan.orderPack ? p.topUp : p.renew) : p.choose}
                 </Button>
               )}
             </Card>
           );
         })}
+        <CustomPlanCard whatsapp={payment.methods.whatsapp} t={t} />
       </div>
       {chosen && !pending && <RequestForm key={chosen.id} lang={lang} plan={chosen} payment={payment} shopName={shopName} onClose={() => setChosen(null)} t={t} />}
     </div>
+  );
+}
+
+// Bigger stores: limits and dates agreed one by one (set by the platform admin as a contract)
+export function CustomPlanCard({ whatsapp, t }: { whatsapp?: string; t: Pick<Text, "plans"> }) {
+  const c = t.plans.custom;
+  return (
+    <Card className="flex flex-col gap-4" data-plan-card="custom">
+      <h3 className="text-lg font-bold">{c.name}</h3>
+      <p className="-mt-2 text-sm text-muted">{c.tagline}</p>
+      <p className="text-2xl font-extrabold">{c.price}</p>
+      <p className="flex-1 text-sm">{c.text}</p>
+      {whatsapp && (
+        <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(c.whatsapp)}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+          <MessageCircle size={16} /> {c.contact}
+        </a>
+      )}
+    </Card>
   );
 }

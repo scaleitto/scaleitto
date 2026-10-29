@@ -1,6 +1,6 @@
 // Phase 18 (owner's feedback): AliExpress-style links that redirect in a loop until their cookie comes back,
 // image pages with 2 images, Google Sheets orders kept in a queue while Google fails (sent later by "send now"
-// or the cron link), the store's "how to order" steps and the public homepage.
+// or the cron link) and the store's "how to order" steps.
 import { createHash, randomUUID } from "node:crypto";
 import { BASE, createShop, db, expect, step, wizardGenerate } from "./helpers.mjs";
 import { requests } from "./mock-openai.mjs";
@@ -109,16 +109,10 @@ export default async function phase18(browser) {
     expect(sheet.rows.get("1001")?.includes("زبون من الكرون"), "row updated by the cron run");
   });
 
-  await step("store: the three ordering steps; homepage: the order journey, on a phone", async () => {
+  await step("store: the three ordering steps, on a phone", async () => {
     const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await phone.goto(`${BASE}/store/shop-${tag}`);
     expect((await phone.locator("[data-testid=order-steps] li").count()) === 3, "3 steps");
-    await phone.goto(`${BASE}/ar`);
-    expect((await phone.locator("#journey li").count()) === 6, "6 journey steps");
-    const codes = await phone.locator("[data-testid=home-pricing] [data-plan]").evaluateAll((els) => els.map((e) => e.getAttribute("data-plan")).join());
-    expect(codes === "starter,basic,pro,business,scale", `the 5 plans, cheapest first (got ${codes})`);
-    expect((await phone.locator("[data-plan=pro]").innerText()).includes("مقترحة"), "the recommended plan is marked");
-    expect((await phone.locator("[data-plan=starter]").innerText()).includes("مجانية"), "the free plan says so");
     expect((await phone.evaluate(() => document.documentElement.scrollWidth)) <= 390, "no sideways scrolling");
     await phone.close();
   });

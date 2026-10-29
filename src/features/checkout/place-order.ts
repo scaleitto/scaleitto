@@ -7,8 +7,8 @@ import { getShippingRates } from "@/features/storefront/queries";
 import { checkOrderAllowed, type BlockReason } from "./protection";
 import { linePrice, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
-import { overOrderLimit } from "@/features/plans/locked";
-import { getEffectiveLimits } from "@/server/limits";
+import { takeOrderSlot } from "@/features/plans/locked";
+import { orderRule } from "@/server/limits";
 import type { OrderInput } from "./validators";
 import type { OrderTracking } from "@/server/db/schema";
 
@@ -39,7 +39,7 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
 
   const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
   const orderId = newId();
-  const orderLimit = (await getEffectiveLimits(shop.id)).maxOrdersPerMonth;
+  const rule = await orderRule(shop.id);
   let locked = false;
 
   try {
@@ -62,8 +62,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
       await tx.select({ id: schema.shops.id }).from(schema.shops).where(eq(schema.shops.id, shop.id)).for("update");
       const [last] = await tx.select({ number: schema.orders.number }).from(schema.orders).where(eq(schema.orders.shopId, shop.id)).orderBy(desc(schema.orders.number)).limit(1);
       const number = last ? last.number + 1 : FIRST_ORDER_NUMBER;
-      // Over the plan's monthly orders: kept (the customer is never turned away) but locked
-      locked = await overOrderLimit(tx, shop.id, orderLimit);
+      // Over the plan's monthly orders, or no pay-as-you-go balance left: kept (the customer is never turned away) but locked
+      locked = await takeOrderSlot(tx, shop.id, rule);
 
       await tx.insert(schema.orders).values({
         id: orderId,

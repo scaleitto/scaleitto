@@ -3,7 +3,8 @@ import { CircleAlert, Crown, Lock } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatDate, formatDay, formatPrice } from "@/lib/format";
 import { Alert, Badge, Card } from "@/ui";
-import type { planOverview } from "./queries";
+import type { PlanNotice, planOverview } from "./queries";
+import { periodLabel, priceLabel } from "./labels";
 
 type Overview = Awaited<ReturnType<typeof planOverview>>;
 
@@ -46,7 +47,7 @@ export function CurrentPlan({ data, lang, t }: { data: Overview; lang: string; t
             {current.plan.name}
           </p>
           <p className="text-sm text-muted">
-            {price > 0 ? fmt(p.perMonth, { price: formatPrice(price, t.common.currency) }) : p.free}
+            {priceLabel({ priceMonthly: price, orderPack: data.contract?.priceMonthly != null ? null : current.plan.orderPack }, t)}
             {" · "}
             {!current.expired && current.expiresAt ? fmt(p.expires, { date: formatDay(current.expiresAt, lang) }) : p.noExpiry}
           </p>
@@ -58,6 +59,13 @@ export function CurrentPlan({ data, lang, t }: { data: Overview; lang: string; t
           </Badge>
         )}
       </div>
+      {data.credits !== null && (
+        <div className="rounded-lg border border-line bg-panel-2 p-4" data-testid="order-credits" data-credits={data.credits}>
+          <p className="text-sm text-muted">{p.credits}</p>
+          <p className={`text-2xl font-bold tabular-nums ${data.credits ? "" : "text-danger"}`}>{fmt(p.creditsLeft, { n: data.credits.toLocaleString("fr-FR") })}</p>
+          <p className="mt-1 text-xs text-muted">{p.creditsHint}</p>
+        </div>
+      )}
       <UsageMeters meters={data.meters} threshold={data.threshold} t={t} />
     </Card>
   );
@@ -73,7 +81,7 @@ export function UsageMeters({ meters, threshold, t }: { meters: Overview["meters
           <span className="text-xs text-muted">{fmt(p.threshold, { n: threshold })}</span>
         </div>
         {meters.map((m) => {
-          const tone = m.limit === -1 ? "bg-accent" : m.percent >= 100 ? "bg-danger" : m.percent >= threshold ? "bg-amber-400" : "bg-accent";
+          const tone = m.limit === -1 ? "bg-accent" : m.percent >= 100 ? "bg-danger" : m.percent >= threshold ? "bg-warning" : "bg-accent";
           return (
             <div key={m.key} data-meter={m.key} data-percent={m.percent}>
               <div className="mb-1 flex justify-between text-sm">
@@ -106,7 +114,7 @@ export function RequestHistory({ data, lang, t }: { data: Overview; lang: string
           {data.requests.map((r) => (
             <tr key={r.id} className="border-t border-line" data-request={r.status}>
               <td className="p-3 font-medium">{r.planName}</td>
-              <td className="p-3 text-muted">{fmt(p.request.monthsOption, { n: r.months })}</td>
+              <td className="p-3 text-muted">{periodLabel(r.months, r.orderPack, t)}</td>
               <td className="p-3 whitespace-nowrap">{formatPrice(r.amount, t.common.currency)}</td>
               <td className="p-3 text-muted">{p.request.methods[r.method]}</td>
               <td className="p-3">
@@ -125,12 +133,18 @@ export function RequestHistory({ data, lang, t }: { data: Overview; lang: string
 }
 
 // The banner at the top of every dashboard page (owners and managers)
-export function PlanNoticeBanner({ notice, plansHref, t }: { notice: { kind: "locked"; n: number } | { kind: "usage"; key: keyof Dictionary["plans"]["limits"]; percent: number }; plansHref: string | null; t: Dictionary }) {
+export function PlanNoticeBanner({ notice, plansHref, t }: { notice: PlanNotice; plansHref: string | null; t: Dictionary }) {
   const locked = notice.kind === "locked";
   return (
-    <div className={`mb-6 flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm ${locked ? "border-danger/40 bg-danger/10" : "border-amber-400/40 bg-amber-400/10"}`} data-testid="plan-notice" data-kind={notice.kind}>
+    <div className={`mb-6 flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm ${locked ? "border-danger/40 bg-danger/10" : "border-warning/30 bg-warning/10"}`} data-testid="plan-notice" data-kind={notice.kind}>
       {locked ? <Lock size={18} className="shrink-0 text-danger" /> : <CircleAlert size={18} className="shrink-0 text-warning" />}
-      <p className="me-auto">{locked ? fmt(t.orders.locked.banner, { n: notice.n }) : fmt(t.plans.notice.usage, { percent: notice.percent, limit: t.plans.limits[notice.key] })}</p>
+      <p className="me-auto">
+        {notice.kind === "locked"
+          ? fmt(t.orders.locked.banner, { n: notice.n })
+          : notice.kind === "credits"
+            ? fmt(t.plans.notice.credits, { n: notice.n })
+            : fmt(t.plans.notice.usage, { percent: notice.percent, limit: t.plans.limits[notice.key] })}
+      </p>
       {plansHref && (
         <a href={plansHref} className="font-semibold text-accent hover:underline">
           {t.plans.notice.see}

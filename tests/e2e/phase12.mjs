@@ -83,7 +83,7 @@ export default async function phase12(browser) {
     await owner.goto(section);
     const card = owner.locator("[data-testid=settings-domain]");
     await card.getByText("الدومين الخاص متاح في الباقات المدفوعة").waitFor();
-    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'pro') WHERE id = ?", [shopId]);
+    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'rocket') WHERE id = ?", [shopId]);
     await owner.reload();
     await owner.fill("#domain", "not a domain");
     await card.locator("button[type=submit]").click();
@@ -127,7 +127,7 @@ export default async function phase12(browser) {
     const check = (d) => fetch(`${BASE}/api/domains/check?domain=${d}`).then((r) => r.status);
     expect((await check(domain)) === 200 && (await check(`www.${domain}`)) === 200 && (await check("unknown.test")) === 404, "certificate check endpoint");
     const other = await createShop(browser);
-    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'pro') WHERE id = ?", [other.shopId]);
+    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'rocket') WHERE id = ?", [other.shopId]);
     const op = await other.context.newPage();
     await op.goto(section);
     await op.fill("#domain", domain);
@@ -139,7 +139,7 @@ export default async function phase12(browser) {
   await step("back on the free plan the domain stops; removing it; agents have no settings", async () => {
     await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'starter') WHERE id = ?", [shopId]);
     expect((await fetch(`${BASE}/api/domains/check?domain=${domain}`)).status === 404, "not served on the free plan");
-    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'pro') WHERE id = ?", [shopId]);
+    await db.query("UPDATE shops SET plan_id = (SELECT id FROM plans WHERE code = 'rocket') WHERE id = ?", [shopId]);
     await owner.goto(section);
     await owner.locator("[data-testid=settings-domain] button", { hasText: "إزالة الدومين" }).click();
     await owner.waitForSelector("[data-testid=settings-domain][data-state=none]");

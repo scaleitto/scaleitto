@@ -8,7 +8,7 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 const focusRing = "outline-none focus-visible:ring-[3px] focus-visible:ring-accent/30";
 
 const buttonVariants = {
-  primary: "bg-accent text-accent-fg shadow-[0_1px_2px_rgba(4,120,87,.25),inset_0_1px_0_rgba(255,255,255,.12)] hover:bg-[#065f46]",
+  primary: "bg-accent text-accent-fg shadow-[0_1px_2px_rgba(79,59,214,.25),inset_0_1px_0_rgba(255,255,255,.12)] hover:bg-[#3f2db8]",
   secondary: "border border-line bg-panel text-fg shadow-[0_1px_2px_rgba(16,24,40,.05)] hover:border-muted/40 hover:bg-panel-2",
   ghost: "text-muted hover:bg-panel-2 hover:text-fg",
   danger: "text-danger hover:bg-danger/10",

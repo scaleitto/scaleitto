@@ -11,12 +11,13 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { paymentMethods } from "@/server/db/schema";
 import { FREE_PLAN } from "@/server/limits";
-import { PERIODS, approvePlanRequest, paymentDetails, rejectPlanRequest } from "./billing";
+import { PACKS, PERIODS, approvePlanRequest, paymentDetails, rejectPlanRequest } from "./billing";
 import { pendingRequest } from "./queries";
 
 const requestSchema = z.object({
   planId: z.string().uuid("e:invalid"),
-  months: z.coerce.number().refine((n) => (PERIODS as readonly number[]).includes(n), "e:invalid"),
+  // Months of a monthly plan (PERIODS) or packs of a pay-as-you-go plan (PACKS), checked once the plan is known
+  months: z.coerce.number().int("e:invalid"),
   method: z.enum(paymentMethods, { error: "e:paymentMethod" }),
   receiptUrl: z.string().trim().max(255),
   note: z.string().trim().max(500, "e:invalid"),
@@ -40,6 +41,7 @@ export async function requestPlan(lang: string, _prev: ActionState, formData: Fo
     if (d.method !== "whatsapp" && !d.receiptUrl.startsWith(`/uploads/${shop.id}/`)) return { ok: false, error: "checkFields", fieldErrors: { receiptUrl: "receipt" } };
     const [plan] = await db.select().from(schema.plans).where(and(eq(schema.plans.id, d.planId), eq(schema.plans.isActive, true)));
     if (!plan || plan.code === FREE_PLAN || plan.priceMonthly <= 0) return { ok: false, error: "invalid" };
+    if (!((plan.orderPack ? PACKS : PERIODS) as readonly number[]).includes(d.months)) return { ok: false, error: "invalid" };
     if (await pendingRequest(shop.id)) return { ok: false, error: "requestPending" };
     await db.insert(schema.planRequests).values({
       id: newId(),

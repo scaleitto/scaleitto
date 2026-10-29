@@ -24,13 +24,15 @@ const limitsFrom = (fd: FormData) => Object.fromEntries(limitKeys.map((k) => [k,
 export async function setShopPlan(lang: string, shopId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("admin/shop-plan", async () => {
     await admin(lang);
-    const parsed = z.object({ planId: z.string().uuid("e:invalid"), expiresOn: z.union([day, z.literal("")]) }).safeParse(Object.fromEntries(formData));
+    const parsed = z
+      .object({ planId: z.string().uuid("e:invalid"), expiresOn: z.union([day, z.literal("")]), credits: z.coerce.number().int("e:invalid").min(0, "e:invalid").max(10_000_000, "e:invalid") })
+      .safeParse({ ...Object.fromEntries(formData), credits: formData.get("credits") || 0 });
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const [plan] = await db.select({ id: schema.plans.id }).from(schema.plans).where(eq(schema.plans.id, parsed.data.planId));
     if (!plan) return { ok: false, error: "notFound" };
     // The end of the chosen day, Algeria time
     const expires = parsed.data.expiresOn ? new Date(`${parsed.data.expiresOn}T23:59:59+01:00`) : null;
-    await db.update(schema.shops).set({ planId: plan.id, planExpiresAt: expires }).where(eq(schema.shops.id, shopId));
+    await db.update(schema.shops).set({ planId: plan.id, planExpiresAt: expires, orderCredits: parsed.data.credits }).where(eq(schema.shops.id, shopId));
     await releaseLockedOrders(shopId);
     refresh();
     return { ok: true };
@@ -90,13 +92,15 @@ const planSchema = z.object({
   name: z.string().trim().min(2, "e:tooShort").max(80, "e:invalid"),
   priceMonthly: z.coerce.number().int("e:invalid").min(0, "e:invalid").max(10_000_000, "e:invalid"),
   isActive: z.preprocess((v) => v === "on", z.boolean()),
+  // Empty = a monthly plan; a number = pay as you go, that many orders per purchase
+  orderPack: z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int("e:invalid").min(1, "e:invalid").max(1_000_000, "e:invalid").nullable()),
 });
 
 // Name, price, limits, features and visibility of a plan (codes stay fixed: "starter" is the free fallback)
 export async function updatePlan(lang: string, planId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("admin/plan", async () => {
     await admin(lang);
-    const parsed = planSchema.safeParse({ name: formData.get("name"), priceMonthly: formData.get("priceMonthly"), isActive: formData.get("isActive") });
+    const parsed = planSchema.safeParse({ name: formData.get("name"), priceMonthly: formData.get("priceMonthly"), isActive: formData.get("isActive"), orderPack: formData.get("orderPack") });
     const limits = z.object(Object.fromEntries(limitKeys.map((k) => [k, limitField.refine((v) => v !== null, "e:required")]))).safeParse(limitsFrom(formData));
     if (!parsed.success || !limits.success) {
       return { ok: false, error: "checkFields", fieldErrors: { ...(parsed.success ? {} : fieldErrorsFrom(parsed.error)), ...(limits.success ? {} : fieldErrorsFrom(limits.error)) } };
@@ -104,7 +108,7 @@ export async function updatePlan(lang: string, planId: string, _prev: ActionStat
     const features = formData.getAll("features").map(String).filter((f) => /^[a-z_]{2,40}$/.test(f));
     await db
       .update(schema.plans)
-      .set({ name: parsed.data.name, priceMonthly: parsed.data.priceMonthly, isActive: parsed.data.isActive, limits: limits.data as Limits, features })
+      .set({ name: parsed.data.name, priceMonthly: parsed.data.priceMonthly, orderPack: parsed.data.orderPack, isActive: parsed.data.isActive, limits: limits.data as Limits, features })
       .where(eq(schema.plans.id, planId));
     refresh();
     return { ok: true };

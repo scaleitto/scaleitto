@@ -45,6 +45,9 @@ export const plans = mysqlTable("plans", {
   code: varchar("code", { length: 40 }).notNull().unique(),
   name: varchar("name", { length: 80 }).notNull(),
   priceMonthly: int("price_monthly").notNull().default(0),
+  // Pay as you go: orders bought with one purchase (price_monthly is then the price of that pack, never expires).
+  // null = a monthly plan.
+  orderPack: int("order_pack"),
   limits: json("limits").$type<Limits>().notNull(),
   features: json("features").$type<string[]>().notNull(),
   isActive: boolean("is_active").notNull().default(true),
@@ -61,6 +64,8 @@ export const shops = mysqlTable(
     planId: id("plan_id").notNull(),
     // End of a paid period (null: no end). After it, the shop is back on the free plan's limits.
     planExpiresAt: datetime("plan_expires_at"),
+    // Orders left on a pay-as-you-go plan (each order placed uses one; src/features/plans/locked.ts)
+    orderCredits: int("order_credits").notNull().default(0),
     status: mysqlEnum("status", ["active", "suspended"]).notNull().default("active"),
     defaultLocale: varchar("default_locale", { length: 5 }).notNull().default("ar"),
     currency: varchar("currency", { length: 3 }).notNull().default("DZD"),
@@ -593,6 +598,7 @@ export const planRequests = mysqlTable(
     id: id().primaryKey(),
     shopId: id("shop_id").notNull(),
     planId: id("plan_id").notNull(),
+    // Months of a monthly plan, or packs of a pay-as-you-go plan
     months: int("months").notNull(),
     amount: int("amount").notNull(),
     method: mysqlEnum("method", paymentMethods).notNull(),

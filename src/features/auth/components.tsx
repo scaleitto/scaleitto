@@ -19,7 +19,7 @@ export function AuthShell({ lang, t, title, subtitle, children }: { lang: Locale
       <div className="flex flex-col px-5 py-6 sm:px-10">
         <div className="flex items-center justify-between">
           <Link href={`/${lang}`} className="flex items-center gap-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#34d399] to-[#059669] font-bold text-white">{t.brand.charAt(0)}</span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7cf6] to-[#4f3bd6] font-bold text-white">{t.brand.charAt(0)}</span>
             <span className="text-lg font-bold tracking-tight">{t.brand}</span>
           </Link>
           <LanguageSwitcher current={lang} />
@@ -30,7 +30,7 @@ export function AuthShell({ lang, t, title, subtitle, children }: { lang: Locale
           {children}
         </div>
       </div>
-      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-sidebar to-[#06291d] p-12 text-white lg:flex lg:flex-col lg:justify-end" aria-hidden>
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-sidebar to-ink p-12 text-white lg:flex lg:flex-col lg:justify-end" aria-hidden>
         <div className="pointer-events-none absolute -top-32 -end-32 size-[28rem] rounded-full bg-accent-bright/20 blur-3xl" />
         <div className="relative max-w-md space-y-6">
           <p className="text-3xl leading-snug font-bold">{t.landing.title}</p>

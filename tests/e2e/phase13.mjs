@@ -39,14 +39,15 @@ export default async function phase13(browser) {
   });
 
   await step("plan and paid period set by the admin", async () => {
-    await a.selectOption("#sp-plan", { label: "Business" });
+    await a.selectOption("#sp-plan", { label: "Galaxy" });
     await a.fill("#sp-expires", "2030-06-30");
+    await a.fill("#sp-credits", "40");
     await a.locator("[data-testid=shop-plan-form] button[type=submit]").click();
     await a.locator("[data-testid=shop-plan-form]").getByText("تم الحفظ").waitFor();
-    const [[shop]] = await db.query("SELECT p.code, DATE_FORMAT(s.plan_expires_at, '%Y-%m-%d') AS until FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [merchant.shopId]);
-    expect(shop.code === "business" && shop.until === "2030-06-30", `business until 2030-06-30 (got ${shop.code} ${shop.until})`);
+    const [[shop]] = await db.query("SELECT p.code, s.order_credits AS credits, DATE_FORMAT(s.plan_expires_at, '%Y-%m-%d') AS until FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [merchant.shopId]);
+    expect(shop.code === "galaxy" && shop.until === "2030-06-30" && shop.credits === 40, `galaxy until 2030-06-30, balance 40 (got ${shop.code} ${shop.until} ${shop.credits})`);
     await a.reload();
-    expect((await a.locator("[data-meter=maxProducts]").innerText()).includes("غير محدود"), "unlimited products shown");
+    expect((await a.locator("[data-meter=maxProducts]").innerText()).includes("/ 200"), "the plan's products limit shown");
   });
 
   await step("contracts: dates checked, limits override the plan, ending one", async () => {
@@ -88,22 +89,22 @@ export default async function phase13(browser) {
 
   await step("plans editor: price, limits (required) and features", async () => {
     await a.goto(`${adminBase}/plans`);
-    const pro = a.locator("[data-plan-editor=pro]");
+    const pro = a.locator("[data-plan-editor=rocket]");
     await pro.waitFor();
-    await a.fill("#pe-price-pro", "4500");
-    await a.fill("#pe-pro-maxStaff", "");
+    await a.fill("#pe-price-rocket", "4500");
+    await a.fill("#pe-rocket-maxStaff", "");
     await pro.locator("button[type=submit]").click();
     await pro.getByText("تحقق من الحقول").waitFor();
-    await a.fill("#pe-pro-maxStaff", "8");
+    await a.fill("#pe-rocket-maxStaff", "8");
     await pro.locator("label", { hasText: "Google Sheets" }).locator("input").uncheck();
     await pro.locator("button[type=submit]").click();
     await pro.getByText("تم الحفظ").waitFor();
-    const [[plan]] = await db.query("SELECT price_monthly, limits, features FROM plans WHERE code = 'pro'");
+    const [[plan]] = await db.query("SELECT price_monthly, limits, features FROM plans WHERE code = 'rocket'");
     const limits = typeof plan.limits === "string" ? JSON.parse(plan.limits) : plan.limits;
     const features = typeof plan.features === "string" ? JSON.parse(plan.features) : plan.features;
     expect(plan.price_monthly === 4500 && limits.maxStaff === 8 && !features.includes("google_sheets") && features.includes("custom_domain"), "plan saved");
     // Back to the original values (other runs on the same database expect them)
-    await db.query("UPDATE plans SET price_monthly = 3900, limits = JSON_SET(limits, '$.maxStaff', 5), features = JSON_ARRAY_APPEND(features, '$', 'google_sheets') WHERE code = 'pro'");
+    await db.query("UPDATE plans SET price_monthly = 3500, limits = JSON_SET(limits, '$.maxStaff', 3), features = JSON_ARRAY_APPEND(features, '$', 'google_sheets') WHERE code = 'rocket'");
   });
 
   await step("system: settings status, migrations, AI check, error log", async () => {

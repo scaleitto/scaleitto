@@ -102,7 +102,7 @@ export function DashboardShell({
   const sidebar = (
     <nav className="flex h-full flex-col overflow-y-auto px-3 pt-4 pb-3" aria-label={labels.menu}>
       <div className="mb-6 flex items-center gap-3 rounded-xl px-2 py-1">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#34d399] to-[#059669] text-lg font-bold text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,.6)]">{brand.charAt(0)}</span>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7cf6] to-[#4f3bd6] text-lg font-bold text-white shadow-[0_6px_16px_-6px_rgba(124,108,242,.6)]">{brand.charAt(0)}</span>
         <span className="min-w-0">
           <span className="block text-[17px] leading-tight font-bold tracking-tight text-white">{brand}</span>
           <span className="block truncate text-xs text-white/55">{shopName}</span>
@@ -148,13 +148,13 @@ export function DashboardShell({
     <div className="min-h-screen md:flex" data-shell>
       {ping && <ActivityPing />}
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-[17rem] shrink-0 bg-gradient-to-b from-sidebar to-[#071c15] md:block">{sidebar}</aside>
+      <aside className="sticky top-0 hidden h-screen w-[17rem] shrink-0 bg-gradient-to-b from-sidebar to-ink md:block">{sidebar}</aside>
 
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <button className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" aria-label="close" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 start-0 w-[17rem] bg-gradient-to-b from-sidebar to-[#071c15] shadow-2xl">
+          <aside className="absolute inset-y-0 start-0 w-[17rem] bg-gradient-to-b from-sidebar to-ink shadow-2xl">
             <button className="absolute end-2 top-3 rounded-lg p-2 text-white/60 hover:text-white" onClick={() => setOpen(false)} aria-label="close">
               <X size={18} />
             </button>

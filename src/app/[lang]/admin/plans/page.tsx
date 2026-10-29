@@ -16,7 +16,7 @@ export default async function AdminPlans({ params }: PageProps<"/[lang]/admin/pl
       <PageHeader title={t.admin.nav.plans} description={t.admin.plansEditor.hint} />
       <div className="grid gap-6 xl:grid-cols-2">
         {plans.map((p) => (
-          <PlanEditor key={p.id} lang={lang} plan={{ id: p.id, code: p.code, name: p.name, priceMonthly: p.priceMonthly, isActive: p.isActive, limits: p.limits, features: p.features }} t={{ admin: t.admin, plans: t.plans, errors: t.errors, common: t.common }} />
+          <PlanEditor key={p.id} lang={lang} plan={{ id: p.id, code: p.code, name: p.name, priceMonthly: p.priceMonthly, orderPack: p.orderPack, isActive: p.isActive, limits: p.limits, features: p.features }} t={{ admin: t.admin, plans: t.plans, errors: t.errors, common: t.common }} />
         ))}
       </div>
     </>
