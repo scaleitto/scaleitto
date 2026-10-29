@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
 import { viewStatuses, type OrderFilters } from "./views";
@@ -23,6 +23,13 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
   if (f.status && (!statuses || statuses.includes(f.status))) filters.push(eq(o.status, f.status));
   else if (statuses) filters.push(inArray(o.status, statuses));
   if (f.view === "risk") filters.push(gte(o.risk, riskThreshold));
+  if (f.view === "returns") {
+    const back = and(eq(o.status, "shipped"), eq(sh.status, "returning"));
+    const returned = eq(o.status, "returned");
+    filters.push(
+      f.ret === "back" ? back : f.ret === "pending" ? and(returned, isNull(sh.returnReceivedAt)) : f.ret === "received" ? and(returned, isNotNull(sh.returnReceivedAt)) : or(back, returned),
+    );
+  }
   if (f.stage && isShipmentStatus(f.stage)) filters.push(eq(sh.status, f.stage));
   if (f.wilaya) filters.push(eq(o.wilayaCode, f.wilaya));
   if (f.delivery) filters.push(eq(o.deliveryType, f.delivery));
@@ -65,6 +72,8 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
         trackingNumber: sh.trackingNumber,
         stage: sh.status,
         labelUrl: sh.labelUrl,
+        returnReceivedAt: sh.returnReceivedAt,
+        checkedAt: sh.checkedAt,
         carrierPlatform: schema.carrierAccounts.platform,
         // First product of the order, for the list
         // (written as plain SQL: inside a select Drizzle drops table names, which made the columns ambiguous)
@@ -114,6 +123,34 @@ export async function stageCounts(viewer: OrderViewer) {
     .where(and(visibleOrders(viewer), eq(schema.orders.status, "shipped")))
     .groupBy(schema.shipments.status);
   return Object.fromEntries(rows.map((r) => [r.stage, r.n])) as Partial<Record<ShipmentStatus, number>>;
+}
+
+// Returns sub-section: parcels on their way back, returned and still at the courier, received by the merchant
+export async function returnCounts(viewer: OrderViewer) {
+  const o = schema.orders;
+  const sh = schema.shipments;
+  const [row] = await db
+    .select({
+      back: sql<number>`sum(case when ${o.status} = 'shipped' and ${sh.status} = 'returning' then 1 else 0 end)`,
+      pending: sql<number>`sum(case when ${o.status} = 'returned' and ${sh.returnReceivedAt} is null then 1 else 0 end)`,
+      received: sql<number>`sum(case when ${o.status} = 'returned' and ${sh.returnReceivedAt} is not null then 1 else 0 end)`,
+    })
+    .from(o)
+    .leftJoin(sh, eq(sh.orderId, o.id))
+    .where(and(visibleOrders(viewer), inArray(o.status, ["shipped", "returned"])));
+  const n = (v: unknown) => Number(v ?? 0);
+  return { back: n(row?.back), pending: n(row?.pending), received: n(row?.received) };
+}
+
+// Parcel tracking: when the automatic check last asked a courier, and how many parcels it follows
+export async function trackingOverview(shopId: string) {
+  const sh = schema.shipments;
+  const [row] = await db
+    .select({ last: sql<Date | null>`max(${sh.checkedAt})`, followed: sql<number>`sum(case when ${sh.carrierAccountId} is not null then 1 else 0 end)` })
+    .from(sh)
+    .innerJoin(schema.orders, eq(schema.orders.id, sh.orderId))
+    .where(and(eq(sh.shopId, shopId), eq(schema.orders.status, "shipped")));
+  return { last: row?.last ? new Date(row.last) : null, followed: Number(row?.followed ?? 0) };
 }
 
 export async function getOrder(viewer: OrderViewer, id: string) {

@@ -13,7 +13,7 @@ export default async function phase19(browser) {
   const card = owner.locator("[data-testid=app-whatsapp]");
 
   await step("Apps: connect the WhatsApp Business API, a wrong token is reported, then the right one works", async () => {
-    await owner.goto(`${dash}/apps`);
+    await owner.goto(`${dash}/integrations/apps`);
     await owner.fill("#wa-phone", "123456789012345");
     await owner.fill("#wa-token", "wa-wrong");
     await card.locator("button[type=submit]").click();
@@ -72,7 +72,7 @@ export default async function phase19(browser) {
   });
 
   await step("without the API: the WhatsApp link as before", async () => {
-    await owner.goto(`${dash}/apps`);
+    await owner.goto(`${dash}/integrations/apps`);
     await card.getByRole("button", { name: "فصل" }).click();
     await owner.waitForSelector("[data-testid=app-whatsapp][data-state=off]");
     const id = await order(1003, "0661234568");

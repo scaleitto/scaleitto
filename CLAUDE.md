@@ -22,9 +22,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `src/ui/` — shared UI kit (`Button`, `Card`, `Field`, `Input`, `Alert`, `PageHeader`…) and `ui/form.tsx`
   (`useActionForm` — forms never lose typed values after an error —, `SubmitButton`, `FormMessage`, `fieldError`).
   Colors are tokens in `src/app/globals.css` (light dashboard, green accent; `text-warning` / `text-info` instead of fixed amber/sky).
-- `src/lib/permissions.ts` — the ONLY place that says which role sees which sidebar section (sidebar order =
-  the owner's image: Overview, Products, Orders, Delivery, Store Design, Theme Store, Call Centers, Landing Pages,
-  Order form, Analytics, Pixels, Apps, Plans, Settings, Profile). Roles: owner / manager / agent (call center).
+- `src/lib/permissions.ts` — the ONLY place that says which role sees which page (`sections`: key, path, roles) and how
+  the sidebar groups them (`navGroups`; `navFor(role)`): Overview, Products, Inventory, Orders (list / send to couriers /
+  parcel tracking / returns / abandoned carts / protection / order analysis), Delivery, Finance (owner only), Store design
+  (design / themes / order form), Call centers, Landing pages, Analytics, Integrations (pixels / apps), Subscription plans,
+  Settings, Profile. `DashboardShell` shows a group's pages under it in the sidebar and as tabs (`section-tabs`) above
+  them. Roles: owner / manager / agent (call center).
 - `src/server/auth/` — sessions, passwords, `requireShop()`, `requireSection(lang, key)` (redirects to the
   member's home section when not allowed), `requirePlatformAdmin()`.
 - `src/server/errors.ts` — every server action is wrapped in `safeAction(where, fn)`: errors are logged to
@@ -229,6 +232,19 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `style` overrides the theme (font, header, hero, columns, image, cards, corners) through `storeTheme(design)` — use it instead of
   `findTheme` for storefront pages —, plus `showOrderSteps` and `floatingWhatsapp`. Logo: `ui/Logo.tsx`, `app/icon.svg`. The
   audit of what is still missing is `docs/next-round.md`.
+- Owner feedback round 7 (phase23.mjs): pages moved under groups (`/integrations/pixels|apps`, `/store-design/themes|order-form`,
+  old URLs redirect in next.config.ts); the admin area has "back to the dashboard" (`backLink`). Orders: one list component
+  (`orders/OrderListPage.tsx` → `OrderList` with `section` orders/shipping/tracking/returns; `?view=ship|transit` redirect),
+  Returns = returned orders + parcels "returning" (`handleReturn`: receive → `shipments.return_received_at`, resend → shipment
+  removed + order back to confirmed, cancel), a typed tracking number can belong to a connected courier (auto-tracked),
+  Order analysis (`orders/insights-math.ts`, pure: rates, median step times from order events, couriers; funnel/statuses/
+  wilayas moved here from Analytics). Inventory (`features/inventory/`): `stock_movements` written by `logStock` wherever
+  stock changes (place-order, `applyOrderStatus`, product form, adjustments), `stock.ts` (pure lines/totals),
+  `shops.low_stock` threshold + overview alert. Finance (`features/finance/`, owner): `compute.ts` (net = delivered products −
+  cost − expenses), `orders.paid_at` (COD received from the courier, bulk "money received"), `expenses`. Order form:
+  custom field types (text, textarea, number, email, date, select, radio, checkbox — `customFieldValid` on the server),
+  `blocks` (heading/text/image/divider/badges/notice, "el:<id>" in `order`), `stepper` (name + phone first), templates per
+  product (`form_templates`, `products.form_template_id`, `order-form/resolve.ts productForm`, `TemplatePicker`).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

@@ -11,6 +11,7 @@ import { pickAgent } from "@/features/team/assign";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
 import type { OrderInput } from "./validators";
+import { logStock } from "@/features/inventory/movements";
 import type { OrderTracking } from "@/server/db/schema";
 
 export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping";
@@ -63,6 +64,7 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
               .set({ stock: sql`${schema.products.stock} - ${input.quantity}` })
               .where(and(eq(schema.products.id, product.id), gte(schema.products.stock, input.quantity)));
         if (res.affectedRows === 0) throw new OutOfStock();
+        await logStock(tx, [{ shopId: shop.id, productId: product.id, variantId: variant?.id, delta: -input.quantity, reason: "order", orderId }]);
       }
 
       // Lock the shop row so two simultaneous orders never get the same number.

@@ -9,7 +9,7 @@ import { LOCKED, OLD_SCRIPT } from "@/features/apps/sync";
 import { WhatsappCard } from "@/features/messages/WhatsappCard";
 import { whatsappConfig } from "@/features/messages/whatsapp";
 
-export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/apps">) {
+export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/integrations/apps">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const a = t.apps;

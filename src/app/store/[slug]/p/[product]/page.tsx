@@ -12,7 +12,7 @@ import { formatPrice } from "@/lib/format";
 import { discountOf } from "@/features/storefront/blocks";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
-import { resolveForm } from "@/features/landing/types";
+import { productForm } from "@/features/order-form/resolve";
 
 const decode = (s: string) => {
   try {
@@ -82,7 +82,7 @@ export default async function ProductPage({ params }: PageProps<"/store/[slug]/p
           wilayas={wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}` }))}
           action={submitOrder.bind(null, shop.slug, product.id, null, false)}
           saveLead={saveLead.bind(null, shop.slug, product.id)}
-          settings={resolveForm(shop.orderForm)}
+          settings={await productForm(shop, product.formTemplateId)}
           whatsapp={{ phone: shop.phone ?? "", product: product.name }}
         />
         </PixelScope>

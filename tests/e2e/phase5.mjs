@@ -6,7 +6,7 @@ import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs
 export default async function phase5(browser) {
   const { shopId, context, tag } = await createShop(browser);
   const page = await context.newPage();
-  const gallery = `${BASE}/ar/dashboard/themes`;
+  const gallery = `${BASE}/ar/dashboard/store-design/themes`;
   const store = `${BASE}/store/shop-${tag}`;
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'ساعة', 'watch', 4500, '[]', '[]', '[]')", [randomUUID(), shopId]);
   const frameStyle = (p, prop) => p.locator("[data-testid=store-frame]").first().evaluate((el, name) => getComputedStyle(el).getPropertyValue(name).trim(), prop);

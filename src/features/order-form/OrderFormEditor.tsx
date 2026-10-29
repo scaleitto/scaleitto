@@ -14,6 +14,7 @@ import type { Theme } from "@/features/themes/themes";
 import type { RateMap } from "@/features/checkout/pricing";
 import { defaultForm, type FormSettings } from "@/features/landing/types";
 import { FormBuilder, type FormBuilderText } from "./FormBuilder";
+import { TemplatePicker, type ProductChoice, type TemplateInfo } from "./TemplatePicker";
 
 type Preview = {
   storeText: StoreText;
@@ -28,7 +29,22 @@ type Preview = {
 };
 
 // The Order form section: the builder beside a live preview of the form as customers see it (the store's language and theme).
-export function OrderFormEditor({ lang, initial, preview, action, t }: { lang: string; initial: FormSettings; preview: Preview; action: (form: FormSettings) => Promise<ActionState>; t: FormBuilderText & Pick<Dictionary, "errors" | "common"> }) {
+export function OrderFormEditor({
+  lang,
+  initial,
+  preview,
+  action,
+  templates,
+  t,
+}: {
+  lang: string;
+  initial: FormSettings;
+  preview: Preview;
+  action: (form: FormSettings) => Promise<ActionState>;
+  // The store's form or a product template is being edited (TemplatePicker)
+  templates: { base: string; list: TemplateInfo[]; current: string | null; products: ProductChoice[] };
+  t: FormBuilderText & Pick<Dictionary, "errors" | "common">;
+}) {
   const f = t.orderForm;
   const [form, setForm] = useState(initial);
   const [dirty, setDirty] = useState(false);
@@ -51,8 +67,8 @@ export function OrderFormEditor({ lang, initial, preview, action, t }: { lang: s
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]" data-lang={lang}>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel p-3">
-          <p className="me-auto text-sm text-muted">{f.storeHint}</p>
+        <TemplatePicker lang={lang} base={templates.base} templates={templates.list} current={templates.current} products={templates.products} form={form} dirty={dirty} t={t} />
+        <div className="flex flex-wrap items-center justify-end gap-3 rounded-xl border border-line bg-panel p-3">
           {dirty && <span className="text-xs font-semibold text-warning">{f.unsaved}</span>}
           <Button
             variant="ghost"

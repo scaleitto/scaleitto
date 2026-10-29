@@ -49,10 +49,10 @@ export default async function phase21(browser) {
     for (let i = 0; i < 3; i++) ready.push(await order({ phone: `066100000${i}`, delivery: i === 2 ? "office" : "home" }));
     ready.push(await order({ commune: "Nowhere", phone: "0661000009" }));
     await order({ status: "new", phone: "0661000010" });
-    await owner.goto(`${dash}/orders?view=ship`);
+    await owner.goto(`${dash}/orders/shipping`);
     await owner.locator("[data-testid=ship-panel]").waitFor();
     expect((await owner.locator("tr[data-order]").count()) === 4, "4 confirmed orders, the new one is not here");
-    expect((await owner.locator('[data-view="ship"]').innerText()).includes("4"), "the tab counts them");
+    expect((await owner.locator('[data-testid=section-tabs] [data-tab="shipping"]').getAttribute("aria-current")) === "page", "its own sub-section of Orders");
     await owner.locator("[data-testid=select-all]").click();
     await owner.locator("[data-testid=selected-count]").getByText("4 محددة").waitFor();
     await owner.locator("[data-testid=select-invert]").click();
@@ -88,7 +88,7 @@ export default async function phase21(browser) {
 
   await step("the Packers import sheet: the model's columns, OUI flags", async () => {
     const extra = await order({ phone: "0661000011", delivery: "office" });
-    await owner.goto(`${dash}/orders?view=ship`);
+    await owner.goto(`${dash}/orders/shipping`);
     await owner.locator(`tr[data-order="${extra.number}"] input[data-bulk-order]`).check();
     const [download] = await Promise.all([owner.waitForEvent("download"), owner.locator("[data-testid=packers-export]").click()]);
     const csv = await (await download.createReadStream()).toArray().then((chunks) => Buffer.concat(chunks).toString("utf8"));
@@ -100,7 +100,7 @@ export default async function phase21(browser) {
   });
 
   await step("at the courier: stages from Packers, bulk update, labels, the cron", async () => {
-    await owner.goto(`${dash}/orders?view=transit`);
+    await owner.goto(`${dash}/orders/tracking`);
     const chips = owner.locator("[data-testid=stage-chips]");
     await chips.locator('[data-stage="ready"]').getByText("4").waitFor();
     const [parcels] = await db.query("SELECT s.id, s.tracking_number AS t, o.id AS orderId, o.number FROM shipments s JOIN orders o ON o.id = s.order_id WHERE s.shop_id = ? ORDER BY o.number", [shopId]);

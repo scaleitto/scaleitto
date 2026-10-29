@@ -67,15 +67,16 @@ export default async function phase0(browser) {
     await other.close();
   });
 
-  await step("owner sees the 15 sections and every page opens", async () => {
-    const links = page.locator("aside nav a");
-    expect((await links.count()) === 15, `15 sidebar links (got ${await links.count()})`);
+  await step("owner sees the 14 sidebar entries and every page opens", async () => {
+    const links = page.locator("aside nav li[data-nav] > a");
+    expect((await links.count()) === 14, `14 sidebar links (got ${await links.count()})`);
     const hrefs = await links.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     for (const href of hrefs) {
       const res = await page.goto(`${BASE}${href}`);
       expect(res.status() === 200, `${href} → ${res.status()}`);
       expect(await page.locator("main h1").count(), `${href} has a title`);
-      const current = await page.locator('aside nav a[aria-current="page"]').getAttribute("href");
+      // The entry of the page (a group's first sub-section shares its link)
+      const current = await page.locator('aside nav li[data-nav] > a[aria-current="page"]').getAttribute("href");
       expect(current === href, `${href} is highlighted (got ${current})`);
       expect(!(await page.locator("text=Application error").count()), `${href} has no crash`);
     }
@@ -121,7 +122,7 @@ export default async function phase0(browser) {
     const p = await ctx.newPage();
     await p.goto(`${BASE}/ar/dashboard`);
     await p.waitForURL("**/ar/dashboard/orders");
-    const labels = await p.locator("aside nav a").allInnerTexts();
+    const labels = await p.locator("aside nav li[data-nav] > a").allInnerTexts();
     expect(labels.length === 3, `3 links (got ${labels.join(", ")})`);
     for (const blocked of ["products", "plans", "settings"]) {
       await p.goto(`${BASE}/ar/dashboard/${blocked}`);

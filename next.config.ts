@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Sections moved under a parent section (round 7): old links keep working
+  async redirects() {
+    return [
+      { source: "/:lang(ar|fr|en)/dashboard/pixels", destination: "/:lang/dashboard/integrations/pixels", permanent: true },
+      { source: "/:lang(ar|fr|en)/dashboard/apps", destination: "/:lang/dashboard/integrations/apps", permanent: true },
+      { source: "/:lang(ar|fr|en)/dashboard/themes", destination: "/:lang/dashboard/store-design/themes", permanent: true },
+      { source: "/:lang(ar|fr|en)/dashboard/order-form", destination: "/:lang/dashboard/store-design/order-form", permanent: true },
+    ];
+  },
   // Shown in /api/health and the admin panel so it is easy to tell which version a server runs.
   env: {
     BUILD_COMMIT: (process.env.GITHUB_SHA ?? "local").slice(0, 7),

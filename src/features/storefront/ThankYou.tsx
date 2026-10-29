@@ -15,7 +15,7 @@ export function ThankYou({ order, locale: storeLocale, storeForm, children }: { 
   const locale = order.landing ? interfaceLocale(pageLanguage(order.landing.language)) : storeLocale;
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
-  const message = resolveForm(order.landing ? order.landing.form : storeForm).thankYou;
+  const message = resolveForm(order.landing ? order.landing.form : (order.templateForm ?? storeForm)).thankYou;
   return (
     <div lang={locale} dir={dir(locale)} className="mx-auto max-w-lg space-y-5 py-6 text-center">
       <CircleCheckBig size={64} className="mx-auto text-brand-ink" />

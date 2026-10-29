@@ -7,7 +7,7 @@ import { productChoices } from "@/features/landing/queries";
 import { listPixels, recentPixelEvents } from "@/features/pixels/queries";
 import { PixelManager } from "@/features/pixels/PixelManager";
 
-export default async function PixelsPage({ params }: PageProps<"/[lang]/dashboard/pixels">) {
+export default async function PixelsPage({ params }: PageProps<"/[lang]/dashboard/integrations/pixels">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const px = t.pixels;

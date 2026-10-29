@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Building2, LoaderCircle, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
+import { BadgeCheck, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
@@ -10,7 +10,7 @@ import { intlPhone, isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
 import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
 import { useCheckoutStarted } from "@/features/pixels/PixelScope";
-import { defaultForm, type FormSettings, type TextField } from "@/features/landing/types";
+import { defaultForm, type CustomField, type FormBlock, type FormSettings, type TextField } from "@/features/landing/types";
 import { CommuneSelect } from "@/features/checkout/CommuneSelect";
 
 type Variant = { id: string; values: Record<string, string>; price: number | null; stock: number };
@@ -59,6 +59,8 @@ export function CheckoutForm({
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
   const err = (name: string) => {
+    const local = name === "name" || name === "phone" ? stepErrors[name] : undefined;
+    if (local) return local;
     const key = state.fieldErrors?.[name];
     return key ? (errors[key] ?? errors.invalid) : undefined;
   };
@@ -82,6 +84,17 @@ export function CheckoutForm({
   // Popup / drawer forms open from an order button (and from every link to #order-form on the page)
   const overlay = embedded ? null : settings.appearance === "direct" ? null : settings.appearance;
   const [open, setOpen] = useState(false);
+  // Two-step form: name and phone first (step 1 ends at the later of the two), the rest second
+  const stepper = settings.stepper;
+  const [step, setStep] = useState<1 | 2>(1);
+  const split = Math.max(settings.order.indexOf("name"), settings.order.indexOf("phone"));
+  const [stepErrors, setStepErrors] = useState<{ name?: string; phone?: string }>({});
+  // The server refused the name or phone: show the first step again (derived from the new answer, while rendering)
+  const [seenState, setSeenState] = useState(state);
+  if (seenState !== state) {
+    setSeenState(state);
+    if (state.fieldErrors?.name || state.fieldErrors?.phone) setStep(1);
+  }
 
   // The mobile sticky button is shown only while the form (or its order button) is off screen.
   useEffect(() => {
@@ -162,6 +175,18 @@ export function CheckoutForm({
   const error = (name: string) => err(name) && <p className="mt-1 text-sm text-red-600">{err(name)}</p>;
   const wide = settings.layout === "compact" ? "sm:col-span-2" : "";
 
+  const nextStep = () => {
+    const data = new FormData(formRef.current ?? undefined);
+    const problems = {
+      name: String(data.get("name") ?? "").trim().length < 2 ? errors.name : undefined,
+      phone: isValidDzPhone(normalizePhone(String(data.get("phone") ?? ""))) ? undefined : errors.phone,
+    };
+    setStepErrors(problems);
+    if (problems.name || problems.phone) return;
+    rememberLead();
+    setStep(2);
+  };
+
   const orderOnWhatsapp = () => {
     const form = formRef.current;
     if (!form || !whatsapp?.phone) return;
@@ -183,6 +208,75 @@ export function CheckoutForm({
   };
 
   const custom = new Map(settings.custom.map((c) => [`custom:${c.id}`, c]));
+  const blocks = new Map((settings.blocks ?? []).map((b) => [`el:${b.id}`, b]));
+  const customInput = (c: CustomField) => {
+    const common = { id: `custom_${c.id}`, name: `custom_${c.id}`, "aria-invalid": Boolean(err(`custom_${c.id}`)) };
+    switch (c.type) {
+      case "select":
+        return (
+          <select {...common} className={selectField} defaultValue="">
+            <option value="">{t.form.choose}</option>
+            {c.options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        );
+      case "radio":
+        return (
+          <div className="flex flex-wrap gap-2" role="radiogroup">
+            {c.options.map((o) => (
+              <label key={o} className="flex cursor-pointer items-center gap-2 rounded-[var(--s-radius-btn)] border-2 border-s-field-edge px-3.5 py-2 text-sm font-semibold has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+                <input type="radio" name={common.name} value={o} className="size-4 accent-[var(--brand)]" />
+                {o}
+              </label>
+            ))}
+          </div>
+        );
+      case "textarea":
+        return <textarea {...common} rows={3} maxLength={500} className={field} />;
+      case "number":
+        return <input {...common} inputMode="decimal" dir="ltr" maxLength={20} className={`${field} text-start`} />;
+      case "email":
+        return <input {...common} type="email" dir="ltr" maxLength={200} className={`${field} text-start`} />;
+      case "date":
+        return <input {...common} type="date" dir="ltr" className={field} />;
+      default:
+        return <input {...common} maxLength={200} className={field} />;
+    }
+  };
+  // The merchant's blocks between the fields
+  const formBlock = (b: FormBlock) => {
+    switch (b.kind) {
+      case "heading":
+        return <h3 className="text-lg font-extrabold">{b.text}</h3>;
+      case "text":
+        return <p className="text-sm leading-relaxed whitespace-pre-line text-s-muted">{b.text}</p>;
+      case "notice":
+        return <p className="rounded-[var(--s-radius-btn)] border border-brand/30 bg-brand/5 px-4 py-3 text-sm font-semibold whitespace-pre-line">{b.text}</p>;
+      case "divider":
+        return <hr className="border-s-edge" />;
+      case "image":
+        // eslint-disable-next-line @next/next/no-img-element
+        return b.image ? <img src={b.image} alt={b.text} className="w-full rounded-[var(--s-radius-btn)]" loading="lazy" /> : null;
+      case "badges":
+        return (
+          <ul className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+            {[
+              [<BadgeCheck key="i" size={18} />, t.cod],
+              [<Truck key="i" size={18} />, t.fastDelivery],
+              [<Zap key="i" size={18} />, t.easyOrder],
+            ].map(([icon, label], i) => (
+              <li key={i} className="flex flex-col items-center gap-1 rounded-[var(--s-radius-btn)] bg-s-bg p-2.5">
+                <span className="text-brand-ink">{icon}</span>
+                {label}
+              </li>
+            ))}
+          </ul>
+        );
+    }
+  };
   const element = (key: string): ReactNode => {
     switch (key) {
       case "variants":
@@ -429,26 +523,28 @@ export function CheckoutForm({
           </dl>
         );
     }
+    const b = blocks.get(key);
+    if (b) return <div className={wide}>{formBlock(b)}</div>;
     const c = custom.get(key);
     if (!c) return null;
+    // A box to tick: the label sits beside it
+    if (c.type === "checkbox")
+      return (
+        <div className={wide}>
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+            <input type="checkbox" id={`custom_${c.id}`} name={`custom_${c.id}`} value="1" className="mt-0.5 size-4 accent-[var(--brand)]" aria-invalid={Boolean(err(`custom_${c.id}`))} />
+            <span>{c.label}</span>
+          </label>
+          {error(`custom_${c.id}`)}
+        </div>
+      );
     return (
       <div>
         <label htmlFor={`custom_${c.id}`} className={label}>
           {c.label}
           {!c.required && <span className="font-normal"> ({t.form.optional})</span>}
         </label>
-        {c.type === "select" ? (
-          <select id={`custom_${c.id}`} name={`custom_${c.id}`} className={selectField} defaultValue="">
-            <option value="">{t.form.choose}</option>
-            {c.options.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input id={`custom_${c.id}`} name={`custom_${c.id}`} maxLength={200} className={field} />
-        )}
+        {customInput(c)}
         {error(`custom_${c.id}`)}
       </div>
     );
@@ -482,11 +578,24 @@ export function CheckoutForm({
       {/* Honeypot: invisible to people */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -start-[9999px] h-0 w-0 opacity-0" />
 
+      {stepper && (
+        <ol className="flex items-center gap-2 text-xs font-semibold text-s-muted" data-testid="form-steps" data-step={step}>
+          {[1, 2].map((n) => (
+            <li key={n} className={`flex flex-1 items-center gap-2 ${step >= n ? "text-brand-ink" : ""}`}>
+              <span className={`flex size-6 items-center justify-center rounded-full ${step >= n ? "bg-brand text-brand-fg" : "bg-s-bg"}`}>{n}</span>
+              {n === 1 ? t.form.stepContact : t.form.stepDelivery}
+            </li>
+          ))}
+        </ol>
+      )}
       <div className={`grid gap-4 ${settings.layout === "compact" ? "sm:grid-cols-2" : ""}`}>
-        {settings.order.map((key) => {
+        {settings.order.map((key, i) => {
           const node = element(key);
+          // Two steps: the second step's fields stay in the form (hidden) so everything is sent together
+          const later = stepper && step === 1 && i > split;
+          const earlier = stepper && step === 2 && i <= split;
           return node ? (
-            <div key={key} className={`contents`} data-element={key}>
+            <div key={key} className={later || earlier ? "hidden" : "contents"} data-element={key}>
               {node}
             </div>
           ) : null;
@@ -499,6 +608,11 @@ export function CheckoutForm({
         </p>
       )}
 
+      {stepper && step === 1 ? (
+        <button type="button" onClick={nextStep} disabled={soldOut} className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60" data-testid="form-next">
+          {soldOut ? t.outOfStock : t.form.next} <ChevronLeft size={20} className="ltr:rotate-180" />
+        </button>
+      ) : (
       <button
         type="submit"
         disabled={pending || soldOut}
@@ -507,6 +621,12 @@ export function CheckoutForm({
         {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
         {pending ? t.form.sending : submitLabel}
       </button>
+      )}
+      {stepper && step === 2 && (
+        <button type="button" onClick={() => setStep(1)} className="w-full text-center text-sm font-semibold text-s-muted hover:text-s-text" data-testid="form-back">
+          {t.form.previous}
+        </button>
+      )}
       {settings.whatsapp && whatsapp?.phone && !soldOut && (
         <button
           type="button"

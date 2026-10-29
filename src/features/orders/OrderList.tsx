@@ -7,48 +7,21 @@ import { wilayaName, wilayas } from "@/lib/wilayas";
 import type { ParcelDefaults } from "@/lib/enums";
 import { shipmentStatuses } from "@/server/db/schema";
 import { Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
-import { listOrders, riskCount, stageCounts, statusCounts } from "./queries";
+import { listOrders, returnCounts, riskCount, stageCounts, statusCounts } from "./queries";
 import { statusTone } from "./statuses";
-import { orderViews, pageSizes, viewStatuses, type OrderFilters, type OrderView } from "./views";
+import { listViews, pageSizes, returnStates, viewStatuses, type OrderFilters, type OrderView } from "./views";
 import type { OrderViewer } from "./access";
 import { BulkAssignBar, SelectAllOrders } from "./BulkAssign";
-import { SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
+import { ReturnsPanel, SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
 import { shipmentTone } from "@/features/delivery/status";
-
-type Tab = OrderView | "abandoned" | "protection";
 
 // The filter bar's controls keep their natural width (inputClass is full width)
 const filterInput = `${inputClass.replace("w-full", "w-auto")} min-w-0`;
 const filterSelect = `${filterInput} select-chevron appearance-none pe-9`;
 
-// The Orders section's sub-sections, shown on every orders page: the order's life (to confirm → ready to ship →
-// at the courier → finished), the suspicious ones, the abandoned carts and the fake-order protection settings.
-export function OrdersTabs({ lang, t, current, counts = {}, showProtection }: { lang: string; t: Dictionary; current: Tab; counts?: Partial<Record<Tab, number>>; showProtection: boolean }) {
-  const base = sectionHref(lang, "orders");
-  const v = t.orders.views;
-  const tabs: { key: Tab; href: string }[] = [
-    ...orderViews.map((key) => ({ key, href: key === "all" ? base : `${base}?view=${key}` })),
-    { key: "abandoned", href: `${base}/abandoned` },
-    ...(showProtection ? [{ key: "protection" as const, href: `${base}/protection` }] : []),
-  ];
-  return (
-    <nav className="mb-5 flex gap-1 overflow-x-auto border-b border-line text-sm" data-testid="order-views">
-      {tabs.map((tab) => (
-        <Link
-          key={tab.key}
-          href={tab.href}
-          aria-current={current === tab.key ? "page" : undefined}
-          data-view={tab.key}
-          className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 pb-2.5 font-semibold ${current === tab.key ? "border-accent text-accent" : "border-transparent text-muted hover:text-fg"}`}
-        >
-          {tab.key === "risk" && <ShieldAlert size={15} className={counts.risk ? "text-warning" : ""} />}
-          {v[tab.key]}
-          {counts[tab.key] !== undefined && <span className={`rounded-full px-1.5 text-xs ${tab.key === "risk" && counts.risk ? "bg-warning/10 text-warning" : "bg-bg"}`}>{counts[tab.key]}</span>}
-        </Link>
-      ))}
-    </nav>
-  );
-}
+// The order lists of the Orders group: the list itself and the parcel's life (send, track, returns)
+export type OrderListSection = "orders" | "shipping" | "tracking" | "returns";
+export const sectionView: Record<Exclude<OrderListSection, "orders">, OrderView> = { shipping: "ship", tracking: "transit", returns: "returns" };
 
 export async function OrderList({
   lang,
@@ -58,9 +31,10 @@ export async function OrderList({
   accounts,
   storeHref,
   deliveryHref,
-  canProtect,
   riskThreshold,
   filters: f,
+  section = "orders",
+  tracking,
 }: {
   lang: string;
   t: Dictionary;
@@ -71,27 +45,36 @@ export async function OrderList({
   accounts: { id: string; name: string; isDefault: boolean; options: Partial<ParcelDefaults> | null }[];
   storeHref: string;
   deliveryHref: string | null;
-  canProtect: boolean;
   riskThreshold: number;
   filters: OrderFilters;
+  section?: OrderListSection;
+  // Parcel tracking: the automatic check's last run and how many parcels it follows
+  tracking?: { last: string | null; followed: number };
 }) {
   const o = t.orders;
-  const base = sectionHref(lang, "orders");
-  const [{ rows, total, size }, counts, risky, stages] = await Promise.all([listOrders(viewer, f, riskThreshold), statusCounts(viewer), riskCount(viewer, riskThreshold), f.view === "transit" ? stageCounts(viewer) : Promise.resolve(null)]);
+  const base = sectionHref(lang, section);
+  const orderBase = sectionHref(lang, "orders");
+  const [{ rows, total, size }, counts, risky, stages, returns] = await Promise.all([
+    listOrders(viewer, f, riskThreshold),
+    statusCounts(viewer),
+    riskCount(viewer, riskThreshold),
+    f.view === "transit" ? stageCounts(viewer) : Promise.resolve(null),
+    f.view === "returns" ? returnCounts(viewer) : Promise.resolve(null),
+  ]);
   const sum = (view: OrderView) => (viewStatuses[view] ?? []).reduce((a, s) => a + (counts[s] ?? 0), 0);
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
-  const viewCounts: Partial<Record<Tab, number>> = { all, confirm: sum("confirm"), ship: sum("ship"), transit: sum("transit"), done: sum("done"), risk: risky };
+  const viewCounts: Record<(typeof listViews)[number], number> = { all, confirm: sum("confirm"), done: sum("done"), risk: risky };
   const href = (patch: Partial<Record<keyof OrderFilters, string | number | undefined>>) => {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...f, ...patch })) {
-      if (v === undefined || v === "" || (k === "page" && v === 1) || (k === "size" && v === pageSizes[0]) || (k === "view" && v === "all")) continue;
+      if (v === undefined || v === "" || (k === "page" && v === 1) || (k === "size" && v === pageSizes[0]) || (k === "view" && (v === "all" || section !== "orders"))) continue;
       params.set(k, String(v));
     }
     const s = params.toString();
     return s ? `${base}?${s}` : base;
   };
   const statuses = viewStatuses[f.view];
-  const shipping = f.view === "ship" || f.view === "transit";
+  const shipping = f.view === "ship" || f.view === "transit" || f.view === "returns";
   const managers = members.length > 0;
   const filtered = Boolean(f.q || f.wilaya || f.delivery || f.from || f.to || f.assignee || f.status || f.stage);
   const chip = (active: boolean) => `flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 font-medium ${active ? "bg-panel-2 text-fg" : "text-muted hover:text-fg"}`;
@@ -99,8 +82,8 @@ export async function OrderList({
   return (
     <>
       <PageHeader
-        title={t.sections.orders.title}
-        description={t.sections.orders.description}
+        title={t.sections[section].title}
+        description={t.sections[section].description}
         actions={
           viewer.role === "agent" ? undefined : (
             <a href={storeHref} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
@@ -109,9 +92,32 @@ export async function OrderList({
           )
         }
       />
-      <OrdersTabs lang={lang} t={t} current={f.view} counts={viewCounts} showProtection={canProtect} />
-      <p className="-mt-2 mb-4 text-sm text-muted" data-testid="view-hint">
+      {/* The list's views: everything, to confirm, suspicious, finished */}
+      {section === "orders" && (
+        <nav className="mb-3 flex gap-1 overflow-x-auto border-b border-line text-sm" data-testid="order-views">
+          {listViews.map((key) => (
+            <Link
+              key={key}
+              href={key === "all" ? base : `${base}?view=${key}`}
+              aria-current={f.view === key ? "page" : undefined}
+              data-view={key}
+              className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 pb-2.5 font-semibold ${f.view === key ? "border-accent text-accent" : "border-transparent text-muted hover:text-fg"}`}
+            >
+              {key === "risk" && <ShieldAlert size={15} className={risky ? "text-warning" : ""} />}
+              {o.views[key]}
+              <span className={`rounded-full px-1.5 text-xs ${key === "risk" && risky ? "bg-warning/10 text-warning" : "bg-bg"}`}>{viewCounts[key]}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
+      <p className="mb-4 text-sm text-muted" data-testid="view-hint">
         {o.viewHints[f.view]}
+        {/* The automatic check of the couriers (cron), so the merchant knows the stages are fresh */}
+        {tracking && (
+          <span className="mt-1 block text-xs" data-testid="auto-tracking">
+            {fmt(o.track.auto, { n: tracking.followed })} {tracking.last ? fmt(o.track.lastCheck, { at: tracking.last }) : o.track.neverChecked}
+          </span>
+        )}
       </p>
 
       {all === 0 ? (
@@ -122,7 +128,20 @@ export async function OrderList({
         <Card className="p-0">
           <div className="space-y-3 border-b border-line p-4">
             {/* The statuses of this sub-section, or the courier's stages for parcels on their way */}
-            {f.view === "transit" && stages ? (
+            {f.view === "returns" && returns ? (
+              <nav className="flex gap-1 overflow-x-auto pb-1 text-sm" aria-label={o.returns.title} data-testid="return-chips">
+                <Link href={href({ ret: undefined, page: 1 })} aria-current={!f.ret ? "page" : undefined} className={chip(!f.ret)}>
+                  {o.filters.allStages}
+                  <span className="rounded-full bg-bg px-1.5 text-xs">{returns.back + returns.pending + returns.received}</span>
+                </Link>
+                {returnStates.map((r) => (
+                  <Link key={r} href={href({ ret: r, page: 1 })} aria-current={f.ret === r ? "page" : undefined} className={chip(f.ret === r)} data-ret={r}>
+                    {o.returns.states[r]}
+                    <span className="rounded-full bg-bg px-1.5 text-xs">{returns[r]}</span>
+                  </Link>
+                ))}
+              </nav>
+            ) : f.view === "transit" && stages ? (
               <nav className="flex gap-1 overflow-x-auto pb-1 text-sm" aria-label={o.filters.stage} data-testid="stage-chips">
                 <Link href={href({ stage: undefined, page: 1 })} aria-current={!f.stage ? "page" : undefined} className={chip(!f.stage)}>
                   {o.filters.allStages}
@@ -155,7 +174,8 @@ export async function OrderList({
             )}
 
             <form action={base} className="flex flex-wrap gap-2" data-testid="order-filters">
-              {f.view !== "all" && <input type="hidden" name="view" value={f.view} />}
+              {section === "orders" && f.view !== "all" && <input type="hidden" name="view" value={f.view} />}
+              {f.ret && <input type="hidden" name="ret" value={f.ret} />}
               {f.status && <input type="hidden" name="status" value={f.status} />}
               {f.stage && <input type="hidden" name="stage" value={f.stage} />}
               <div className="relative w-full sm:w-72">
@@ -199,7 +219,7 @@ export async function OrderList({
                 {o.filters.apply}
               </button>
               {filtered && (
-                <Link href={href({ q: undefined, wilaya: undefined, delivery: undefined, from: undefined, to: undefined, assignee: undefined, status: undefined, stage: undefined, page: 1 })} className={buttonClass("ghost")}>
+                <Link href={href({ q: undefined, wilaya: undefined, delivery: undefined, from: undefined, to: undefined, assignee: undefined, status: undefined, stage: undefined, ret: undefined, page: 1 })} className={buttonClass("ghost")}>
                   {o.filters.clear}
                 </Link>
               )}
@@ -215,6 +235,7 @@ export async function OrderList({
                 <SelectionTools t={t} showCount={!(managers && !shipping)} />
                 {f.view === "ship" && <ShipPanel lang={lang} accounts={accounts} deliveryHref={deliveryHref} t={t} />}
                 {f.view === "transit" && <TrackPanel lang={lang} t={t} />}
+                {f.view === "returns" && <ReturnsPanel lang={lang} t={t} />}
               </div>
               {managers && !shipping && <BulkAssignBar lang={lang} members={members} t={{ orders: t.orders, errors: t.errors }} />}
               <div className="overflow-x-auto">
@@ -228,7 +249,7 @@ export async function OrderList({
                       <th className="p-3 text-start font-medium">{o.columns.customer}</th>
                       <th className="hidden p-3 text-start font-medium lg:table-cell">{o.columns.product}</th>
                       <th className="hidden p-3 text-start font-medium md:table-cell">{o.columns.wilaya}</th>
-                      {shipping && <th className="p-3 text-start font-medium">{f.view === "transit" ? o.extraColumns.stage : o.extraColumns.carrier}</th>}
+                      {shipping && <th className="p-3 text-start font-medium">{f.view === "ship" ? o.extraColumns.carrier : o.extraColumns.stage}</th>}
                       {managers && !shipping && <th className="hidden p-3 text-start font-medium xl:table-cell">{o.columns.assignee}</th>}
                       <th className="p-3 text-start font-medium">{o.columns.total}</th>
                       {!shipping && <th className="p-3 text-start font-medium">{o.columns.status}</th>}
@@ -243,7 +264,7 @@ export async function OrderList({
                         </td>
                         <td className="p-3 font-bold whitespace-nowrap">
                           {/* The whole row opens the order */}
-                          <Link href={`${base}/${r.id}`} className="after:absolute after:inset-0">
+                          <Link href={`${orderBase}/${r.id}`} className="after:absolute after:inset-0">
                             #{r.number}
                           </Link>
                         </td>
@@ -277,7 +298,12 @@ export async function OrderList({
                           <td className="p-3">
                             {r.shipmentId ? (
                               <>
-                                <Badge tone={shipmentTone[r.stage!]}>{t.delivery.statuses[r.stage!]}</Badge>
+                                <span className="flex flex-wrap items-center gap-1">
+                                  <Badge tone={shipmentTone[r.stage!]}>{t.delivery.statuses[r.stage!]}</Badge>
+                                  {f.view === "returns" && r.status === "returned" && (
+                                    <Badge tone={r.returnReceivedAt ? "accent" : "warning"}>{r.returnReceivedAt ? o.returns.states.received : o.returns.states.pending}</Badge>
+                                  )}
+                                </span>
                                 <span className="mt-1 flex items-center gap-2 text-xs text-muted">
                                   {r.carrierName}
                                   <span dir="ltr">{r.trackingNumber}</span>

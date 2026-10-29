@@ -3,9 +3,9 @@ import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mys
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 // Value lists shared with browser code live in a plain module (no database code in client bundles)
-import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
-export { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
-export type { LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
+import { expenseCategories, limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
+export { expenseCategories, limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
+export type { ExpenseCategory, LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
 
 const id = (name = "id") => varchar(name, { length: 36 });
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
@@ -103,6 +103,8 @@ export const shops = mysqlTable(
     // The store's order form (features/landing/types.ts FormSettings, read through resolveForm): product pages use it,
     // new landing pages start from it
     orderForm: json("order_form"),
+    // Inventory: a product or variant at or under this quantity is "low" (Inventory section, overview alert)
+    lowStock: int("low_stock").notNull().default(5),
     // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
     aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
@@ -192,6 +194,8 @@ export const products = mysqlTable(
     callGuide: json("call_guide"),
     // Where an imported product came from ("shopify:<store>:<id>", "youcan:<id>"), so it is never imported twice
     externalRef: varchar("external_ref", { length: 191 }),
+    // The order form template for this product (form_templates), null = the store's form
+    formTemplateId: id("form_template_id"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -264,6 +268,8 @@ export const orders = mysqlTable(
     // set back to 0 when someone marks the order as trusted
     risk: int("risk").notNull().default(0),
     riskReasons: json("risk_reasons").$type<string[] | null>(),
+    // Finance: when the cash-on-delivery money of this delivered order was received from the courier (null: still owed)
+    paidAt: datetime("paid_at"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -453,6 +459,8 @@ export const shipments = mysqlTable(
     status: mysqlEnum("status", shipmentStatuses).notNull().default("ready"),
     rawStatus: varchar("raw_status", { length: 120 }),
     checkedAt: timestamp("checked_at"),
+    // Returns: when the returned parcel was received back by the merchant
+    returnReceivedAt: datetime("return_received_at"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shipments_order_uq").on(t.orderId), index("shipments_shop_status_idx").on(t.shopId, t.status)],
@@ -645,4 +653,56 @@ export const planRequests = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [index("plan_requests_shop_idx").on(t.shopId, t.createdAt), index("plan_requests_status_idx").on(t.status, t.createdAt)],
+);
+
+// ─── Inventory, finance, form templates (round 7) ─────────
+
+// Every change of a product's (or variant's) stock and why: orders take it, cancellations/returns give it back,
+// the merchant restocks, corrects or writes off. delta < 0 = out.
+export const stockReasons = ["order", "cancel", "return", "reopen", "restock", "adjust", "damaged", "edit"] as const;
+export type StockReason = (typeof stockReasons)[number];
+export const stockMovements = mysqlTable(
+  "stock_movements",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    productId: id("product_id").notNull(),
+    variantId: id("variant_id"),
+    delta: int("delta").notNull(),
+    reason: mysqlEnum("reason", stockReasons).notNull(),
+    note: varchar("note", { length: 200 }),
+    orderId: id("order_id"),
+    userId: id("user_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("stock_movements_shop_idx").on(t.shopId, t.createdAt), index("stock_movements_product_idx").on(t.productId, t.createdAt)],
+);
+
+// Money the shop spends (entered by the merchant), for the net profit in Finance
+export const expenses = mysqlTable(
+  "expenses",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    category: mysqlEnum("category", expenseCategories).notNull(),
+    amount: int("amount").notNull(),
+    note: varchar("note", { length: 200 }),
+    createdBy: id("created_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("expenses_shop_day_idx").on(t.shopId, t.day)],
+);
+
+// Order form templates: a product with formTemplateId uses its template instead of the store's form
+export const formTemplates = mysqlTable(
+  "form_templates",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    form: json("form").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("form_templates_shop_idx").on(t.shopId)],
 );

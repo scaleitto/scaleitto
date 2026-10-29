@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, CircleCheck, Clock, Package, Palette, ScanLine, ShoppingCart, Truck, Wallet } from "lucide-react";
+import { Boxes, CalendarDays, ChevronLeft, CircleCheck, Clock, Package, Palette, ScanLine, ShoppingCart, Truck, Wallet } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
-import { formatPrice } from "@/lib/format";
+import { fmt, formatPrice } from "@/lib/format";
 import { Card, buttonClass } from "@/ui";
 import { overviewStats } from "@/features/analytics/overview";
+import { lowStockCount } from "@/features/inventory/queries";
 
 export default async function OverviewPage({ params }: PageProps<"/[lang]/dashboard">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const { user, shop } = await requireSection(lang, "overview");
-  const stats = await overviewStats(shop.id);
+  const [stats, lowStock] = await Promise.all([overviewStats(shop.id), lowStockCount(shop.id)]);
   const o = t.overview;
   const tiles = [
     { key: "today", icon: ShoppingCart, label: o.stats.today, value: String(stats.today), tone: "text-accent" },
@@ -54,6 +55,13 @@ export default async function OverviewPage({ params }: PageProps<"/[lang]/dashbo
           </div>
         ))}
       </Card>
+
+      {/* Products running out (Inventory) */}
+      {lowStock > 0 && (
+        <Link href={`${sectionHref(lang, "inventory")}`} className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm font-semibold text-warning hover:bg-warning/10" data-testid="low-stock-alert">
+          <Boxes size={18} /> {fmt(o.lowStock, { n: lowStock })}
+        </Link>
+      )}
 
       <Card>
         <h2 className="mb-4 flex items-center gap-2 font-semibold">

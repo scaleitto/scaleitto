@@ -183,6 +183,8 @@ export default async function phase3(browser) {
     const id = await placeOrder("ليلى", "0550998877", 9, "Blida");
     await page.goto(`${orders}/${id}`);
     await page.click("text=إدخال رقم التتبع يدوياً");
+    // A company that is not connected: no automatic tracking
+    await page.selectOption("#manualAccount", "");
     await page.fill("#carrierName", "Maystro Delivery");
     await page.fill("#trackingNumber", "MS-12345");
     await page.locator("form:has(#trackingNumber) button[type=submit]").click();

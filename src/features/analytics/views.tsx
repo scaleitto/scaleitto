@@ -10,7 +10,7 @@ import { statusTone } from "@/features/orders/statuses";
 import { change, pct, type Analytics } from "./compute";
 import { presets, type Range } from "./range";
 
-const rate = (v: number | null) => (v == null ? "—" : `${v}%`);
+export const rate = (v: number | null) => (v == null ? "—" : `${v}%`);
 
 export function PeriodBar({ base, range, t }: { base: string; range: Range; t: Dictionary }) {
   const a = t.analytics;
@@ -61,7 +61,7 @@ function Delta({ now, before, points = false, t }: { now: number | null; before:
   );
 }
 
-function Kpi({ id, label, value, hint, delta }: { id: string; label: string; value: ReactNode; hint?: string; delta?: ReactNode }) {
+export function Kpi({ id, label, value, hint, delta }: { id: string; label: string; value: ReactNode; hint?: string; delta?: ReactNode }) {
   return (
     <Card className="space-y-1.5 p-4" data-kpi={id}>
       <p className="text-xs font-medium text-muted">{label}</p>
@@ -248,7 +248,7 @@ export function StatusList({ data, t }: { data: Analytics; t: Dictionary }) {
   );
 }
 
-function Table({ title, head, rows, testId }: { title: string; head: string[]; rows: { key: string; cells: ReactNode[] }[]; testId: string }) {
+export function Table({ title, head, rows, testId }: { title: string; head: string[]; rows: { key: string; cells: ReactNode[] }[]; testId: string }) {
   return (
     <Card className="overflow-x-auto p-0" data-testid={testId}>
       <h2 className="p-4 pb-2 font-semibold">{title}</h2>
@@ -278,7 +278,7 @@ function Table({ title, head, rows, testId }: { title: string; head: string[]; r
   );
 }
 
-const tone = (v: number | null) => (v == null ? "text-muted" : v >= 70 ? "text-accent" : v >= 50 ? "text-warning" : "text-danger");
+export const tone = (v: number | null) => (v == null ? "text-muted" : v >= 70 ? "text-accent" : v >= 50 ? "text-warning" : "text-danger");
 
 export function ProductsTable({ data, t }: { data: Analytics; t: Dictionary }) {
   const c = t.analytics.columns;

@@ -6,7 +6,7 @@ import { resolveDesign } from "@/features/design/types";
 import { listStoreProducts } from "@/features/storefront/queries";
 import { ThemeGallery } from "@/features/themes/ThemeGallery";
 
-export default async function ThemesPage({ params }: PageProps<"/[lang]/dashboard/themes">) {
+export default async function ThemesPage({ params }: PageProps<"/[lang]/dashboard/store-design/themes">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const { shop } = await requireSection(lang, "themes");

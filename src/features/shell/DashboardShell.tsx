@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
+  ArrowRight,
   Blocks,
+  Boxes,
+  Wallet,
   Building2,
   ClipboardCheck,
-  ClipboardList,
   Gauge,
   ServerCog,
   ChartColumn,
@@ -21,36 +23,33 @@ import {
   Menu,
   Package,
   Palette,
-  ScanLine,
   Settings,
   ShoppingCart,
   Truck,
-  WandSparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import type { SectionKey } from "@/lib/permissions";
+import type { NavGroupKey } from "@/lib/permissions";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { ActivityPing } from "./ActivityPing";
 import { LogoMark } from "@/ui/Logo";
 
 // Merchant sections and the platform admin's pages
-export type ShellKey = SectionKey | "adminOverview" | "adminShops" | "adminRequests" | "adminPlans" | "adminSystem";
+export type ShellKey = NavGroupKey | "adminOverview" | "adminShops" | "adminRequests" | "adminPlans" | "adminSystem";
 
 const icons: Record<ShellKey, LucideIcon> = {
   overview: House,
   products: Package,
+  inventory: Boxes,
   orders: ShoppingCart,
   delivery: Truck,
+  finance: Wallet,
   storeDesign: Palette,
-  themes: WandSparkles,
   callCenters: Headset,
   landingPages: LayoutTemplate,
-  orderForm: ClipboardList,
   analytics: ChartColumn,
-  pixels: ScanLine,
-  apps: Blocks,
+  integrations: Blocks,
   plans: DollarSign,
   settings: Settings,
   profile: CircleUser,
@@ -61,7 +60,8 @@ const icons: Record<ShellKey, LucideIcon> = {
   adminSystem: ServerCog,
 };
 
-export type NavItem = { key: ShellKey; href: string; label: string };
+// A sidebar entry; a group lists its sub-sections (shown under it in the sidebar and as tabs above its pages)
+export type NavItem = { key: ShellKey; href: string; label: string; children?: { key: string; href: string; label: string }[] };
 
 export function DashboardShell({
   lang,
@@ -69,6 +69,7 @@ export function DashboardShell({
   shopName,
   userName,
   topLink,
+  backLink,
   adminLink,
   items,
   labels,
@@ -80,8 +81,10 @@ export function DashboardShell({
   brand: string;
   shopName: string;
   userName: string;
-  // The link at the top (the store, or the merchant dashboard from the admin)
+  // The link at the top (the store)
   topLink?: { href: string; label: string; external?: boolean };
+  // A way back (the platform admin area → the merchant dashboard), first in the sidebar and in the header
+  backLink?: { href: string; label: string };
   // Shown to the platform admin only
   adminLink?: { href: string; label: string };
   items: NavItem[];
@@ -97,8 +100,12 @@ export function DashboardShell({
   const open = openOn === pathname;
   const setOpen = (value: boolean) => setOpenOn(value ? pathname : null);
 
-  // The longest matching href wins, so /dashboard does not stay active on /dashboard/orders.
-  const active = items.filter((i) => pathname === i.href || pathname.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.key;
+  // The longest matching href wins, so /dashboard does not stay active on /dashboard/orders (nor orders on orders/shipping).
+  const pages = items.flatMap((i) => (i.children?.length ? i.children.map((c) => ({ group: i.key, key: c.key, href: c.href })) : [{ group: i.key, key: i.key as string, href: i.href }]));
+  const current = pages.filter((p) => pathname === p.href || pathname.startsWith(`${p.href}/`)).sort((a, b) => b.href.length - a.href.length)[0];
+  const active = current?.group;
+  const activeGroup = items.find((i) => i.key === active);
+  const tabs = activeGroup?.children && activeGroup.children.length > 1 ? activeGroup.children : null;
 
   const initials = userName.trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0)).join("").toUpperCase() || "•";
 
@@ -111,12 +118,22 @@ export function DashboardShell({
           <span className="block truncate text-xs text-white/55">{shopName}</span>
         </span>
       </div>
+      {backLink && (
+        <Link
+          href={backLink.href}
+          className="mb-4 flex items-center gap-2 rounded-[10px] bg-white/[0.08] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.14]"
+          data-testid="back-to-dashboard"
+        >
+          <ArrowRight size={16} className="ltr:rotate-180" /> {backLink.label}
+        </Link>
+      )}
       <ul className="flex flex-col gap-0.5">
         {items.map((item) => {
           const Icon = icons[item.key];
           const isActive = item.key === active;
+          const sub = item.children && item.children.length > 1 ? item.children : null;
           return (
-            <li key={item.key}>
+            <li key={item.key} data-nav={item.key}>
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
@@ -129,6 +146,25 @@ export function DashboardShell({
                 <Icon size={18} strokeWidth={isActive ? 2.2 : 1.9} aria-hidden className={isActive ? "text-accent-bright" : "text-white/55"} />
                 {item.label}
               </Link>
+              {/* The group's sub-sections, open under the active group */}
+              {sub && isActive && (
+                <ul className="ms-[1.35rem] mt-0.5 mb-1 border-s border-white/10 ps-2.5" data-testid="nav-children">
+                  {sub.map((c) => {
+                    const here = current?.key === c.key;
+                    return (
+                      <li key={c.key}>
+                        <Link
+                          href={c.href}
+                          aria-current={here ? "page" : undefined}
+                          className={`block rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${here ? "font-semibold text-white" : "text-white/55 hover:text-white"}`}
+                        >
+                          {c.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           );
         })}
@@ -172,6 +208,11 @@ export function DashboardShell({
             <button className="flex size-10 items-center justify-center rounded-[10px] text-muted hover:bg-panel-2 hover:text-fg md:hidden" onClick={() => setOpen(true)} aria-label={labels.menu}>
               <Menu size={20} />
             </button>
+            {backLink && (
+              <Link href={backLink.href} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:border-accent/40 hover:text-accent" data-testid="top-back">
+                <ArrowRight size={14} className="ltr:rotate-180" /> {backLink.label}
+              </Link>
+            )}
             {topLink && (
               <a
                 href={topLink.href}
@@ -204,7 +245,28 @@ export function DashboardShell({
             </form>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
+          {/* The active group's sub-sections */}
+          {tabs && (
+            <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-line bg-panel p-1 text-sm shadow-sm" aria-label={activeGroup?.label} data-testid="section-tabs">
+              {tabs.map((c) => {
+                const here = current?.key === c.key;
+                return (
+                  <Link
+                    key={c.key}
+                    href={c.href}
+                    aria-current={here ? "page" : undefined}
+                    data-tab={c.key}
+                    className={`shrink-0 rounded-lg px-3.5 py-2 font-semibold whitespace-nowrap transition-colors ${here ? "bg-accent text-accent-fg shadow-sm" : "text-muted hover:bg-panel-2 hover:text-fg"}`}
+                  >
+                    {c.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

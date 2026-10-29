@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Download, FlipHorizontal2, RefreshCw, Send, SlidersHorizontal, Square, X } from "lucide-react";
+import { Ban, CheckSquare, Download, FlipHorizontal2, PackageCheck, RefreshCw, Send, SlidersHorizontal, Square, Undo2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { defaultParcelOptions, type ParcelDefaults, type ParcelOptions } from "@/lib/enums";
 import { fmt } from "@/lib/format";
 import { Button, Select } from "@/ui";
 import { ParcelOptionsFields } from "@/features/delivery/ParcelOptions";
-import { refreshTracking, sendToCarrier } from "@/features/delivery/actions";
+import { handleReturn, refreshTracking, sendToCarrier } from "@/features/delivery/actions";
 
 type Text = Pick<Dictionary, "orders" | "errors" | "delivery" | "common">;
 
@@ -68,7 +68,7 @@ type Result = { id: string; number: string; ok: boolean; text: string };
 
 // Runs one action per selected order (one request each: nothing times out on shared hosting), with progress,
 // a stop button and a report of what happened to every order.
-function useBatch(t: Text) {
+export function useBatch(t: Text) {
   const router = useRouter();
   const stop = useRef(false);
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
@@ -96,7 +96,7 @@ function useBatch(t: Text) {
   return { running, results, setResults, run, stop: () => (stop.current = true) };
 }
 
-function BatchReport({ results, summary, onRetry, onClose, retryLabel, t }: { results: Result[]; summary: string; onRetry?: () => void; onClose: () => void; retryLabel: string; t: Text }) {
+export function BatchReport({ results, summary, onRetry, onClose, retryLabel, t }: { results: Result[]; summary: string; onRetry?: () => void; onClose: () => void; retryLabel: string; t: Text }) {
   const failed = results.filter((r) => !r.ok);
   return (
     <div className="space-y-2 rounded-lg border border-line bg-panel p-3" data-testid="batch-report">
@@ -125,7 +125,7 @@ function BatchReport({ results, summary, onRetry, onClose, retryLabel, t }: { re
   );
 }
 
-function Progress({ done, total, label, onStop, stopLabel }: { done: number; total: number; label: string; onStop: () => void; stopLabel: string }) {
+export function Progress({ done, total, label, onStop, stopLabel }: { done: number; total: number; label: string; onStop: () => void; stopLabel: string }) {
   return (
     <div className="flex items-center gap-3" data-testid="batch-progress">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-panel-2">
@@ -264,6 +264,41 @@ export function TrackPanel({ lang, t }: { lang: string; t: Text }) {
       {!batch.running && batch.results.length > 0 && (
         <BatchReport results={batch.results} summary={fmt(s.done, { ok, failed: batch.results.length - ok })} retryLabel="" onClose={() => batch.setResults([])} t={t} />
       )}
+    </div>
+  );
+}
+
+// "Returns": receive the selected returned parcels, send them again, or cancel the orders
+export function ReturnsPanel({ lang, t }: { lang: string; t: Text }) {
+  const r = t.orders.returns;
+  const count = useSelectedCount();
+  const batch = useBatch(t);
+  const [, startTransition] = useTransition();
+  const [kind, setKind] = useState<"receive" | "resend" | "cancel">("receive");
+  const done = { receive: r.receiveDone, resend: r.resendDone, cancel: r.cancelDone };
+  const run = (k: typeof kind) => {
+    if (k === "resend" && !confirm(r.resendConfirm)) return;
+    if (k === "cancel" && !confirm(r.cancelConfirm)) return;
+    setKind(k);
+    startTransition(() => batch.run(selectedRows(), (id) => handleReturn(lang, id, k), () => done[k]));
+  };
+  const ok = batch.results.filter((x) => x.ok).length;
+  const busy = !count || Boolean(batch.running);
+  return (
+    <div className="space-y-3" data-testid="returns-panel" data-kind={kind}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={busy} onClick={() => run("receive")} data-testid="return-receive">
+          <PackageCheck size={15} /> {fmt(r.receive, { n: count })}
+        </Button>
+        <Button variant="secondary" disabled={busy} onClick={() => run("resend")} data-testid="return-resend">
+          <Undo2 size={15} /> {fmt(r.resend, { n: count })}
+        </Button>
+        <Button variant="ghost" className="hover:text-danger" disabled={busy} onClick={() => run("cancel")} data-testid="return-cancel">
+          <Ban size={15} /> {fmt(r.cancel, { n: count })}
+        </Button>
+      </div>
+      {batch.running && <Progress done={batch.running.done} total={batch.running.total} label={fmt(r.running, batch.running)} onStop={batch.stop} stopLabel={t.orders.ship.stop} />}
+      {!batch.running && batch.results.length > 0 && <BatchReport results={batch.results} summary={fmt(r.report, { ok, failed: batch.results.length - ok })} retryLabel="" onClose={() => batch.setResults([])} t={t} />}
     </div>
   );
 }

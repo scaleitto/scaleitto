@@ -20,7 +20,7 @@ export default async function phase10(browser) {
   const { shopId, context, tag } = await createShop(browser);
   const owner = await context.newPage();
   owner.on("dialog", (d) => d.accept());
-  const section = `${BASE}/ar/dashboard/apps`;
+  const section = `${BASE}/ar/dashboard/integrations/apps`;
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'قميص', 'shirt', 2000, '[]', '[]', '[]')", [productId, shopId]);
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 400, 300)", [shopId]);

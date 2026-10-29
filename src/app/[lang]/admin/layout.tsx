@@ -22,7 +22,7 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
       brand={t.brand}
       shopName={n.adminLink}
       userName={user.name}
-      topLink={{ href: `/${lang}/dashboard`, label: n.toDashboard }}
+      backLink={{ href: `/${lang}/dashboard`, label: n.toDashboard }}
       items={items.map((i) => ({ key: i.key, href: `/${lang}/admin${i.path}`, label: i.label }))}
       labels={{ logout: t.nav.logout, menu: t.nav.menu }}
       logout={logout.bind(null, lang)}

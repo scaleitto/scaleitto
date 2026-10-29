@@ -188,11 +188,13 @@ export async function saveCarrierDefaults(lang: string, accountId: string, optio
 }
 
 const manualSchema = z.object({
-  carrierName: z.string().trim().min(2, "e:tooShort").max(80, "e:invalid"),
+  accountId: z.string().optional().default(""),
+  carrierName: z.string().trim().max(80, "e:invalid").optional().default(""),
   trackingNumber: z.string().trim().min(3, "e:tooShort").max(80, "e:invalid"),
 });
 
-// For companies without an integration: the tracking number is typed by hand.
+// A tracking number typed by hand: with a connected company the parcel is then followed automatically (like a parcel
+// sent from here); with another company only the name and number are kept.
 export async function addManualShipment(lang: string, orderId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("delivery/manual", async () => {
     const ctx = await requireSection(asLocale(lang), "orders");
@@ -200,13 +202,24 @@ export async function addManualShipment(lang: string, orderId: string, _prev: Ac
     if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
     const parsed = manualSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const d = parsed.data;
+    const [account] = d.accountId ? await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, d.accountId))) : [];
+    if (d.accountId && !account) return { ok: false, error: "notFound" };
+    const carrierName = account ? (findCarrier(account.carrier)?.name ?? account.carrier) : d.carrierName;
+    if (carrierName.length < 2) return { ok: false, error: "checkFields", fieldErrors: { carrierName: "tooShort" } };
     const found = await db.$count(schema.orders, and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
     if (!found) return { ok: false, error: "notFound" };
     if (await db.$count(schema.shipments, eq(schema.shipments.orderId, orderId))) return { ok: false, error: "alreadyShipped" };
+    const id = newId();
     await db.transaction(async (tx) => {
-      await tx.insert(schema.shipments).values({ id: newId(), shopId: shop.id, orderId, carrierName: parsed.data.carrierName, trackingNumber: parsed.data.trackingNumber });
-      await applyOrderStatus(tx, shop.id, orderId, "shipped", user.id, `${parsed.data.carrierName}: ${parsed.data.trackingNumber}`);
+      await tx.insert(schema.shipments).values({ id, shopId: shop.id, orderId, carrierAccountId: account?.id ?? null, carrierName, trackingNumber: d.trackingNumber });
+      await applyOrderStatus(tx, shop.id, orderId, "shipped", user.id, `${carrierName}: ${d.trackingNumber}`);
     });
+    // First look at the company right away (its answer may already close the order); a silent failure waits for the cron
+    if (account) {
+      const [shipment] = await db.select().from(schema.shipments).where(eq(schema.shipments.id, id));
+      await trackShipment(shipment, user.id).catch(() => null);
+    }
     refresh();
     return { ok: true };
   });
@@ -243,6 +256,38 @@ export async function removeShipment(lang: string, orderId: string): Promise<Act
       await tx.delete(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
       const [order] = await tx.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
       if (order?.status === "shipped") await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id);
+    });
+    refresh();
+    return { ok: true };
+  });
+}
+
+// ─── Returns ──────────────────────────────────────────────
+
+// One action on a returned parcel (the Returns sub-section runs it order by order on the selection):
+// receive = the merchant has the parcel back; resend = the order goes back to "confirmed" to be sent again (the old
+// parcel is noted in the history); cancel = the order is closed as cancelled.
+export async function handleReturn(lang: string, orderId: string, kind: "receive" | "resend" | "cancel"): Promise<ActionState> {
+  return safeAction("delivery/return", async () => {
+    const ctx = await requireSection(asLocale(lang), "returns");
+    const { shop, user } = ctx;
+    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
+    const [order] = await db.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
+    if (!order) return { ok: false, error: "notFound" };
+    if (order.status !== "returned") return { ok: false, error: "notReturned" };
+    const [shipment] = await db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
+    await db.transaction(async (tx) => {
+      if (kind === "receive") {
+        if (shipment && !shipment.returnReceivedAt) {
+          await tx.update(schema.shipments).set({ returnReceivedAt: new Date() }).where(eq(schema.shipments.id, shipment.id));
+          await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "note", note: `↩ ${shipment.carrierName} ${shipment.trackingNumber}` });
+        }
+      } else if (kind === "resend") {
+        if (shipment) await tx.delete(schema.shipments).where(eq(schema.shipments.id, shipment.id));
+        await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id, shipment ? `↩ ${shipment.carrierName}: ${shipment.trackingNumber}` : undefined);
+      } else {
+        await applyOrderStatus(tx, shop.id, orderId, "cancelled", user.id);
+      }
     });
     refresh();
     return { ok: true };

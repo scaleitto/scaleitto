@@ -1,6 +1,6 @@
 import { getDictionary, asLocale } from "@/i18n";
 import { requireShop } from "@/server/auth/context";
-import { sectionHref, sectionsFor } from "@/lib/permissions";
+import { navFor, sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { logout } from "@/features/auth/actions";
 import { DashboardShell } from "@/features/shell/DashboardShell";
@@ -22,7 +22,12 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
       // Call center agents work on orders only: no link to the store they do not manage
       topLink={role === "agent" ? undefined : { href: storeUrl(shop), label: t.nav.viewStore, external: true }}
       adminLink={user.isPlatformAdmin ? { href: `/${lang}/admin`, label: t.admin.nav.adminLink } : undefined}
-      items={sectionsFor(role).map((s) => ({ key: s.key, href: sectionHref(lang, s.key), label: t.nav[s.key] }))}
+      items={navFor(role).map((g) => ({
+        key: g.key,
+        href: sectionHref(lang, g.children[0]),
+        label: t.nav[g.key],
+        children: g.children.map((k) => ({ key: k, href: sectionHref(lang, k), label: t.subnav[k] })),
+      }))}
       labels={{ logout: t.nav.logout, menu: t.nav.menu }}
       logout={logout.bind(null, lang)}
     >

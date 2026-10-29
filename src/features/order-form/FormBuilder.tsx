@@ -17,6 +17,7 @@ import {
   Phone,
   Plus,
   RectangleHorizontal,
+  Shapes,
   Settings2,
   Signpost,
   SquareStack,
@@ -28,8 +29,14 @@ import {
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { Card, Field, Input, Select, Textarea } from "@/ui";
+import { ImageManager } from "@/ui/ImageManager";
 import {
   MAX_CUSTOM_FIELDS,
+  MAX_FORM_BLOCKS,
+  choiceTypes,
+  customFieldTypes,
+  formBlockKinds,
+  type FormBlock,
   buttonEffects,
   formAppearances,
   newSectionId,
@@ -40,7 +47,7 @@ import {
   type TextField,
 } from "@/features/landing/types";
 
-export type FormBuilderText = Pick<Dictionary, "orderForm">;
+export type FormBuilderText = Pick<Dictionary, "orderForm" | "media">;
 type Tab = "elements" | "settings" | "delivery" | "thanks";
 
 function Toggle({ checked, onChange, label, testId }: { checked: boolean; onChange: (v: boolean) => void; label: string; testId?: string }) {
@@ -84,6 +91,16 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
   const setCustom = (id: string, patch: Partial<CustomField>) => set({ custom: form.custom.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
   const setLabel = (key: TextField, patch: Partial<{ label: string; placeholder: string }>) =>
     set({ labels: { ...form.labels, [key]: { label: "", placeholder: "", ...form.labels[key], ...patch } } });
+  const setBlock = (id: string, patch: Partial<FormBlock>) => set({ blocks: form.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
+  const [newBlock, setNewBlock] = useState<FormBlock["kind"]>("heading");
+  const addBlock = () => {
+    const id = newSectionId();
+    const order = [...form.order];
+    const summary = order.indexOf("summary");
+    order.splice(summary >= 0 ? summary : order.length, 0, `el:${id}`);
+    set({ blocks: [...form.blocks, { id, kind: newBlock, text: "", image: "" }], order });
+    setOpenKey(`el:${id}`);
+  };
   const addCustom = () => {
     const id = newSectionId();
     const order = [...form.order];
@@ -147,6 +164,25 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
         </div>
       );
     if ((textFields as readonly string[]).includes(key)) return textSettings(key as TextField);
+    const b = form.blocks.find((x) => `el:${x.id}` === key);
+    if (b)
+      return (
+        <div className="space-y-3" data-form-block={form.blocks.indexOf(b)}>
+          {b.kind === "image" ? (
+            <ImageManager t={t.media} value={b.image ? [b.image] : []} onChange={(imgs) => setBlock(b.id, { image: imgs[0] ?? "" })} max={1} />
+          ) : null}
+          {b.kind !== "divider" && b.kind !== "badges" && (
+            <Field label={b.kind === "image" ? f.blockAlt : f.blockText}>
+              {b.kind === "text" || b.kind === "notice" ? (
+                <Textarea rows={2} maxLength={400} value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} aria-label={f.blockText} />
+              ) : (
+                <Input maxLength={120} value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} aria-label={b.kind === "image" ? f.blockAlt : f.blockText} />
+              )}
+            </Field>
+          )}
+          {(b.kind === "divider" || b.kind === "badges") && <p className="text-sm text-muted">{f.blockHints[b.kind]}</p>}
+        </div>
+      );
     const c = form.custom.find((x) => `custom:${x.id}` === key);
     if (!c) return null;
     return (
@@ -154,12 +190,15 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
         <div className="flex flex-wrap items-center gap-2">
           <Input aria-label={f.fieldLabel} placeholder={f.fieldLabel} className="min-w-40 flex-1" value={c.label} maxLength={60} onChange={(e) => setCustom(c.id, { label: e.target.value })} />
           <Select aria-label={f.fieldType} className="w-auto" value={c.type} onChange={(e) => setCustom(c.id, { type: e.target.value as CustomField["type"] })}>
-            <option value="text">{f.fieldTypes.text}</option>
-            <option value="select">{f.fieldTypes.select}</option>
+            {customFieldTypes.map((type) => (
+              <option key={type} value={type}>
+                {f.fieldTypes[type]}
+              </option>
+            ))}
           </Select>
           <Toggle checked={c.required} onChange={(required) => setCustom(c.id, { required })} label={f.required} />
         </div>
-        {c.type === "select" && (
+        {choiceTypes.includes(c.type) && (
           <Field label={f.fieldOptions}>
             <Textarea rows={3} value={c.options.join("\n")} onChange={(e) => setCustom(c.id, { options: e.target.value.split("\n") })} aria-label={f.fieldOptions} />
           </Field>
@@ -219,17 +258,34 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
                 <h3 className="font-semibold">{f.elements}</h3>
                 <p className="mt-0.5 text-xs text-muted">{f.elementsHint}</p>
               </div>
-              {form.custom.length < MAX_CUSTOM_FIELDS && (
-                <button type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:opacity-90" onClick={addCustom}>
-                  <Plus size={15} /> {f.addField}
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {form.custom.length < MAX_CUSTOM_FIELDS && (
+                  <button type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:opacity-90" onClick={addCustom}>
+                    <Plus size={15} /> {f.addField}
+                  </button>
+                )}
+                {form.blocks.length < MAX_FORM_BLOCKS && (
+                  <span className="inline-flex items-center overflow-hidden rounded-lg border border-line">
+                    <select aria-label={f.blockKind} value={newBlock} onChange={(e) => setNewBlock(e.target.value as FormBlock["kind"])} className="select-chevron appearance-none bg-panel py-2 ps-3 pe-8 text-sm" data-testid="block-kind">
+                      {formBlockKinds.map((k) => (
+                        <option key={k} value={k}>
+                          {f.blockKinds[k]}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="inline-flex items-center gap-1.5 border-s border-line bg-ink px-3 py-2 text-sm font-semibold text-white hover:opacity-90" onClick={addBlock} data-testid="add-block">
+                      <Plus size={15} /> {f.addElement}
+                    </button>
+                  </span>
+                )}
+              </div>
             </div>
             <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line" data-testid="form-elements">
               {form.order.map((key, i) => {
                 const custom = form.custom.find((c) => `custom:${c.id}` === key);
-                const name = custom ? custom.label || f.fieldLabel : f.names[key as FormElement];
-                const icon = custom ? <TextCursorInput size={17} /> : elementIcons[key as FormElement];
+                const block = form.blocks.find((b) => `el:${b.id}` === key);
+                const name = block ? `${f.blockKinds[block.kind]}${block.text ? `: ${block.text.slice(0, 40)}` : ""}` : custom ? custom.label || f.fieldLabel : f.names[key as FormElement];
+                const icon = block ? <Shapes size={17} /> : custom ? <TextCursorInput size={17} /> : elementIcons[key as FormElement];
                 const v = visibility(key);
                 const hidden = v ? !v.visible : false;
                 const isOpen = openKey === key;
@@ -264,12 +320,14 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
                         <button type="button" title={v.visible ? f.hide : f.show} aria-label={`${v.visible ? f.hide : f.show}: ${name}`} aria-pressed={!v.visible} onClick={v.toggle} className="rounded-md p-1.5 text-muted hover:bg-panel-2 hover:text-fg" data-testid="element-visibility">
                           {v.visible ? <Eye size={15} /> : <EyeOff size={15} />}
                         </button>
-                      ) : custom ? (
+                      ) : custom || block ? (
                         <button
                           type="button"
                           title={f.remove}
                           aria-label={`${f.remove}: ${name}`}
-                          onClick={() => set({ custom: form.custom.filter((c) => c.id !== custom.id), order: form.order.filter((k) => k !== key) })}
+                          onClick={() =>
+                            set({ custom: form.custom.filter((c) => c.id !== custom?.id), blocks: form.blocks.filter((b) => b.id !== block?.id), order: form.order.filter((k) => k !== key) })
+                          }
                           className="rounded-md p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
                         >
                           <Trash2 size={15} />
@@ -324,6 +382,8 @@ export function FormBuilder({ form, set, t, defaults }: { form: FormSettings; se
             </Field>
             <div className="space-y-2 sm:col-span-2">
               <Toggle checked={form.icons} onChange={(icons) => set({ icons })} label={f.icons} testId="form-icons" />
+              <Toggle checked={form.stepper} onChange={(stepper) => set({ stepper })} label={f.stepper} testId="form-stepper" />
+              <p className="ps-6 text-xs text-muted">{f.stepperHint}</p>
               <Toggle checked={form.stickyButton} onChange={(stickyButton) => set({ stickyButton })} label={f.stickyButton} />
               <Toggle checked={form.showOffers} onChange={(showOffers) => set({ showOffers })} label={f.showOffers} />
               <Toggle checked={form.whatsapp} onChange={(whatsapp) => set({ whatsapp })} label={f.whatsapp} testId="form-whatsapp" />

@@ -13,7 +13,8 @@ import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
-import { resolveForm } from "@/features/landing/types";
+import { customFieldValid, resolveForm } from "@/features/landing/types";
+import { productForm } from "@/features/order-form/resolve";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
@@ -33,6 +34,12 @@ async function adTracking(): Promise<OrderTracking> {
   return { url: (await headers()).get("referer")?.slice(0, 500) || undefined, fbp: get("_fbp"), fbc: get("_fbc"), ttp: get("_ttp"), ttclid: get("sc_ttclid"), gaClientId: ga };
 }
 
+// The order form template of a product (null: the store's form)
+async function templateOf(shopId: string, productId: string) {
+  const [p] = await db.select({ t: schema.products.formTemplateId }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
+  return p?.t ?? null;
+}
+
 // The settings of a published landing page form, or null.
 async function landingForm(shopId: string, landingPageId: string, productId: string) {
   const [page] = await db
@@ -49,7 +56,7 @@ export async function submitOrder(slug: string, productId: string, landingPageId
   if (!shop) return { ok: false, error: "unavailable" };
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
-    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : resolveForm(shop.orderForm);
+    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : await productForm(shop, await templateOf(shop.id, productId));
     if (!settings) return { ok: false, error: "unavailable" };
 
     // What the landing page's form asks on top of the standard fields
@@ -59,8 +66,11 @@ export async function submitOrder(slug: string, productId: string, landingPageId
     if (settings.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";
     const extra: { label: string; value: string }[] = [];
     for (const c of settings.custom) {
-      const value = String(formData.get(`custom_${c.id}`) ?? "").trim().slice(0, 200);
-      if (c.type === "select" && value && !c.options.includes(value)) fieldErrors[`custom_${c.id}`] = "invalid";
+      const raw = String(formData.get(`custom_${c.id}`) ?? "").trim();
+      // A ticked box is saved as ✓
+      const value = c.type === "checkbox" ? (raw ? "✓" : "") : raw.slice(0, c.type === "textarea" ? 500 : 200);
+      const valid = !value || customFieldValid(c, value);
+      if (!valid) fieldErrors[`custom_${c.id}`] = "invalid";
       else if (c.required && !value) fieldErrors[`custom_${c.id}`] = "custom";
       else if (value) extra.push({ label: c.label, value });
     }

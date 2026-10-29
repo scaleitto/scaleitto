@@ -53,7 +53,8 @@ test("form settings keep only allowed choices", () => {
   assert.equal(f.layout, "compact");
   assert.equal(f.address, "required");
   assert.equal(f.delivery, "office");
-  assert.equal(f.custom.length, 4);
+  // The two invalid ones are dropped (up to MAX_CUSTOM_FIELDS = 8 are kept)
+  assert.equal(f.custom.length, 5);
   assert.deepEqual(f.custom[1].options, ["Noir", "Blanc"]);
   assert.equal(f.custom[0].required, true);
 });

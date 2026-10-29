@@ -32,7 +32,7 @@ export default async function phase9(browser) {
   await blockTrackers(context);
   const owner = await context.newPage();
   owner.on("dialog", (d) => d.accept());
-  const section = `${BASE}/ar/dashboard/pixels`;
+  const section = `${BASE}/ar/dashboard/integrations/pixels`;
   const store = `${BASE}/store/shop-${tag}`;
   const watch = randomUUID();
   const bag = randomUUID();

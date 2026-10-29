@@ -1,10 +1,7 @@
-import { redirect } from "next/navigation";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { sectionHref } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { PageHeader } from "@/ui";
-import { OrdersTabs } from "@/features/orders/OrderList";
 import { BlockedPhones, ProtectionForm } from "@/features/orders/ProtectionPanel";
 import { protectionOverview } from "@/features/orders/queries";
 import { protectionFor } from "@/features/checkout/protection";
@@ -13,16 +10,14 @@ import { protectionFor } from "@/features/checkout/protection";
 export default async function ProtectionPage({ params }: PageProps<"/[lang]/dashboard/orders/protection">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const { shop, role } = await requireSection(lang, "orders");
-  if (role === "agent") redirect(sectionHref(lang, "orders"));
+  const { shop } = await requireSection(lang, "protection");
   const settings = await protectionFor(shop.id);
   const overview = await protectionOverview(shop.id, settings.riskThreshold);
   const p = t.orders.protection;
   const text = { orders: t.orders, errors: t.errors, common: t.common };
   return (
     <>
-      <PageHeader title={t.sections.orders.title} description={t.sections.orders.description} />
-      <OrdersTabs lang={lang} t={t} current="protection" showProtection />
+      <PageHeader title={t.sections.protection.title} description={t.sections.protection.description} />
       <div className="space-y-5">
         <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1">

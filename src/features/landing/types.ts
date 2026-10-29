@@ -40,7 +40,34 @@ export type LandingSection = Base &
     | { type: "form" }
   );
 
-export type CustomField = { id: string; label: string; type: "text" | "select"; options: string[]; required: boolean };
+// Extra questions of the order form (answers saved in orders.extra). checkbox = one box to tick (e.g. accept the terms).
+export const customFieldTypes = ["text", "textarea", "number", "email", "date", "select", "radio", "checkbox"] as const;
+export type CustomFieldType = (typeof customFieldTypes)[number];
+export const choiceTypes: readonly CustomFieldType[] = ["select", "radio"];
+export type CustomField = { id: string; label: string; type: CustomFieldType; options: string[]; required: boolean };
+
+// Decorative blocks between the fields ("el:<id>" in the order): a heading, a short text, an image, a separator,
+// the store's trust badges, or a highlighted notice
+export const formBlockKinds = ["heading", "text", "image", "divider", "badges", "notice"] as const;
+export type FormBlock = { id: string; kind: (typeof formBlockKinds)[number]; text: string; image: string };
+export const MAX_FORM_BLOCKS = 6;
+
+// An answer the field accepts (checked again on the server for every order)
+export function customFieldValid(c: Pick<CustomField, "type" | "options">, value: string) {
+  switch (c.type) {
+    case "select":
+    case "radio":
+      return c.options.includes(value);
+    case "number":
+      return /^-?\d+([.,]\d+)?$/.test(value);
+    case "email":
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    case "date":
+      return /^\d{4}-\d{2}-\d{2}$/.test(value);
+    default:
+      return true;
+  }
+}
 
 // The order form's elements, in their default order. Custom fields are "custom:<id>" entries in `order`.
 export const formElements = ["variants", "quantity", "name", "phone", "wilaya", "commune", "delivery", "address", "note", "summary"] as const;
@@ -82,6 +109,9 @@ export type FormSettings = {
   preferDelivery: "home" | "office";
   // A second button that sends the order to the store's WhatsApp
   whatsapp: boolean;
+  blocks: FormBlock[];
+  // Two steps: the name and phone first, then the rest
+  stepper: boolean;
 };
 
 export const defaultForm: FormSettings = {
@@ -107,23 +137,25 @@ export const defaultForm: FormSettings = {
   officeLabel: "",
   preferDelivery: "home",
   whatsapp: false,
+  blocks: [],
+  stepper: false,
 };
 
 // Every built-in element exactly once and every custom field once (new ones before the summary), in the saved order
-function resolveOrder(input: unknown, custom: CustomField[]): string[] {
-  const wanted = [...formElements, ...custom.map((c) => `custom:${c.id}`)];
+function resolveOrder(input: unknown, custom: CustomField[], blocks: FormBlock[]): string[] {
+  const wanted = [...formElements, ...custom.map((c) => `custom:${c.id}`), ...blocks.map((b) => `el:${b.id}`)];
   const out = [...new Set(Array.isArray(input) ? input.filter((k): k is string => typeof k === "string" && wanted.includes(k)) : [])];
   for (const k of wanted) {
     if (out.includes(k)) continue;
     const summary = out.indexOf("summary");
-    if (k.startsWith("custom:") && summary >= 0) out.splice(summary, 0, k);
+    if ((k.startsWith("custom:") || k.startsWith("el:")) && summary >= 0) out.splice(summary, 0, k);
     else out.push(k);
   }
   return out;
 }
 
 export const MAX_SECTIONS = 40;
-export const MAX_CUSTOM_FIELDS = 4;
+export const MAX_CUSTOM_FIELDS = 8;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const opt = (v: unknown, max: number) => str(v, max) || undefined;
@@ -285,13 +317,25 @@ export function resolveForm(input: unknown): FormSettings {
       const c = x as Record<string, unknown>;
       const label = str(c?.label, 60);
       if (!label) return null;
-      const type = oneOf(c?.type, ["text", "select"] as const, "text");
-      const options = type === "select" ? [...new Set(list(c?.options, 10, 60))] : [];
-      if (type === "select" && options.length < 2) return null;
+      const type = oneOf(c?.type, customFieldTypes, "text");
+      const options = choiceTypes.includes(type) ? [...new Set(list(c?.options, 10, 60))] : [];
+      if (choiceTypes.includes(type) && options.length < 2) return null;
       return { id: typeof c?.id === "string" && /^[\w-]{1,40}$/.test(c.id) ? c.id : newSectionId(), label, type, options, required: c?.required === true };
     })
     .filter((x): x is CustomField => x !== null)
     .slice(0, MAX_CUSTOM_FIELDS);
+  const blocks = (Array.isArray(f.blocks) ? f.blocks : [])
+    .map((x): FormBlock | null => {
+      const b = x as Record<string, unknown>;
+      const kind = oneOf(b?.kind, formBlockKinds, "text");
+      const text = str(b?.text, kind === "heading" ? 120 : 400);
+      const img = image(b?.image) ?? "";
+      if ((kind === "heading" || kind === "text" || kind === "notice") && !text) return null;
+      if (kind === "image" && !img) return null;
+      return { id: typeof b?.id === "string" && /^[\w-]{1,40}$/.test(b.id) ? b.id : newSectionId(), kind, text, image: img };
+    })
+    .filter((x): x is FormBlock => x !== null)
+    .slice(0, MAX_FORM_BLOCKS);
   return {
     title: str(f.title, 120),
     subtitle: str(f.subtitle, 300),
@@ -305,7 +349,7 @@ export function resolveForm(input: unknown): FormSettings {
     custom,
     thankYou: str(f.thankYou, 500),
     stickyButton: bool(f.stickyButton, defaultForm.stickyButton),
-    order: resolveOrder(f.order, custom),
+    order: resolveOrder(f.order, custom, blocks),
     labels: Object.fromEntries(
       textFields
         .map((k) => {
@@ -322,6 +366,8 @@ export function resolveForm(input: unknown): FormSettings {
     officeLabel: str(f.officeLabel, 40),
     preferDelivery: oneOf(f.preferDelivery, ["home", "office"] as const, defaultForm.preferDelivery),
     whatsapp: bool(f.whatsapp, defaultForm.whatsapp),
+    blocks,
+    stepper: bool(f.stepper, defaultForm.stepper),
   };
 }
 

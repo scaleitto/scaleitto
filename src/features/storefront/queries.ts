@@ -65,7 +65,16 @@ export async function getOrderSummary(shopId: string, orderId: string) {
   const [landing] = order.landingPageId
     ? await db.select({ language: schema.landingPages.language, form: schema.landingPages.form }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId))
     : [];
-  return { ...order, items, landing: landing ?? null };
+  // Product page orders: the form template of the product, when it has one (its own thank-you message)
+  const productId = !landing ? items[0]?.productId : null;
+  const [template] = productId
+    ? await db
+        .select({ form: schema.formTemplates.form })
+        .from(schema.products)
+        .innerJoin(schema.formTemplates, eq(schema.formTemplates.id, schema.products.formTemplateId))
+        .where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)))
+    : [];
+  return { ...order, items, landing: landing ?? null, templateForm: template?.form ?? null };
 }
 
 // A published landing page by its link, with its product (and the product's variants).

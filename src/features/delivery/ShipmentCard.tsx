@@ -37,6 +37,7 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
   const [options, setOptions] = useState(() => startOptions(firstAccount));
   const [showOptions, setShowOptions] = useState(false);
   const [manual, setManual] = useState(false);
+  const [manualAccount, setManualAccount] = useState(firstAccount?.id ?? "");
   const manualForm = useActionForm(addManualShipment.bind(null, lang, orderId));
   const run = (fn: () => Promise<ActionState>) =>
     startTransition(async () => {
@@ -154,10 +155,25 @@ export function ShipmentCard({ lang, orderId, orderStatus, shipment, accounts, d
       {error && <Alert>{error}</Alert>}
 
       {manual ? (
-        <form onSubmit={manualForm.onSubmit} noValidate className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
-          <Field label={d.carrierName} htmlFor="carrierName" error={fieldError(manualForm.state, e, "carrierName")}>
-            <Input id="carrierName" name="carrierName" />
-          </Field>
+        <form onSubmit={manualForm.onSubmit} noValidate className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2" data-testid="manual-shipment">
+          {/* A connected company: its parcel is then followed automatically like the ones sent from here */}
+          {accounts.length > 0 && (
+            <Field label={d.manualCompany} htmlFor="manualAccount" hint={manualAccount ? d.manualTracked : d.manualNotTracked}>
+              <Select id="manualAccount" name="accountId" value={manualAccount} onChange={(ev) => setManualAccount(ev.target.value)}>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+                <option value="">{d.manualOther}</option>
+              </Select>
+            </Field>
+          )}
+          {!manualAccount && (
+            <Field label={d.carrierName} htmlFor="carrierName" error={fieldError(manualForm.state, e, "carrierName")}>
+              <Input id="carrierName" name="carrierName" />
+            </Field>
+          )}
           <Field label={d.trackingNumber} htmlFor="trackingNumber" error={fieldError(manualForm.state, e, "trackingNumber")}>
             <Input id="trackingNumber" name="trackingNumber" dir="ltr" />
           </Field>
