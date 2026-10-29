@@ -107,7 +107,13 @@ export default async function phase11(browser) {
     await row.locator("button", { hasText: "قبول وتفعيل" }).click();
     await row.getByText("مقبول").waitFor();
     await adminContext.close();
-    const [[shop]] = await db.query("SELECT p.code, s.plan_expires_at FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [shopId]);
+    // The row can change a moment before the server's write is visible here
+    let shop;
+    for (let i = 0; i < 25; i++) {
+      [[shop]] = await db.query("SELECT p.code, s.plan_expires_at FROM shops s JOIN plans p ON p.id = s.plan_id WHERE s.id = ?", [shopId]);
+      if (shop.code === "rocket") break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
     const days = (new Date(shop.plan_expires_at) - Date.now()) / 86400_000;
     expect(shop.code === "rocket" && days > 85 && days < 95, `rocket for 3 months (got ${shop.code}, ${Math.round(days)} days)`);
     await owner.goto(plans);
