@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { fontVariables } from "../fonts";
-import { uiFont } from "../ui-font";
+import { uiFont, uiFontAr } from "../ui-font";
 import { notFound } from "next/navigation";
 import { dir, isLocale, locales } from "@/i18n/config";
 import "../globals.css";
@@ -18,7 +18,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   return (
-    <html lang={lang} dir={dir(lang)} className={`${fontVariables} ${uiFont.variable} bg-bg`}>
+    <html lang={lang} dir={dir(lang)} className={`${fontVariables} ${uiFont.variable} ${uiFontAr.variable} bg-bg`}>
       <body className="min-h-screen bg-bg font-sans text-fg">{children}</body>
     </html>
   );

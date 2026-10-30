@@ -3,26 +3,37 @@
 /* Dashboard design tokens: design-system/scaleitto/MASTER.md (white + deep indigo/violet after ayor, Arabic first).
    Storefronts set their own --brand. */
 @theme inline {
-  --font-sans: var(--font-ui), var(--font-cairo), system-ui, sans-serif;
-  --color-bg: #f6f6fb;
-  --color-panel: #ffffff;
-  --color-panel-2: #f7f6fd;
-  --color-line: #e2e0ef;
-  /* Form fields: a tinted fill and a firmer edge so they stand out on white cards */
-  --color-field: #f8f7fd;
-  --color-field-line: #c7c3dd;
-  --color-fg: #0b0820;
-  --color-muted: #5f5b78;
-  /* Primary actions: white text on it is 7.6:1; the bright violet is for indicators and charts only.
-     ink = ayor's near-black indigo of the big marketing buttons and headings */
-  --color-accent: #4f3bd6;
-  --color-accent-bright: #7c6cf2;
-  --color-ink: #080529;
+  --font-sans: var(--font-ui), var(--font-ui-ar), var(--font-cairo), system-ui, sans-serif;
+  /* Dashboard tokens (Zimam's layout: slate surfaces, emerald accent). Each reads a --d-* variable so the dark mode
+     ([data-theme=dark] on the shell) swaps them all at once. */
+  --color-bg: var(--d-bg);
+  --color-panel: var(--d-panel);
+  --color-panel-2: var(--d-panel-2);
+  --color-line: var(--d-line);
+  --color-line-soft: var(--d-line-soft);
+  --color-field: var(--d-field);
+  --color-field-line: var(--d-field-line);
+  --color-fg: var(--d-fg);
+  --color-fg-2: var(--d-fg-2);
+  --color-muted: var(--d-muted);
+  --color-accent: var(--d-accent);
+  --color-accent-bright: var(--d-accent);
+  --color-accent-ink: var(--d-accent-ink);
+  --color-accent-soft: var(--d-accent-soft);
+  --color-accent-tint: var(--d-accent-tint);
+  --color-ink: var(--d-fg);
   --color-accent-fg: #ffffff;
-  --color-danger: #dc2626;
-  --color-warning: #b53d0b;
-  --color-info: #0369a1;
-  --color-sidebar: #0d0a2b;
+  --color-danger: var(--d-rose);
+  --color-danger-soft: var(--d-rose-soft);
+  --color-warning: var(--d-amber);
+  --color-warning-soft: var(--d-amber-soft);
+  --color-info: var(--d-sky);
+  --color-info-soft: var(--d-sky-soft);
+  --color-violet: var(--d-violet);
+  --color-violet-soft: var(--d-violet-soft);
+  --color-sidebar: var(--d-panel);
+  --shadow-card: var(--d-shadow-card);
+  --shadow-lift: var(--d-shadow-lift);
   --color-brand: var(--brand, #22c55e);
   /* Set by themeStyle(): text on the merchant's color, and the color made readable as text */
   --color-brand-fg: var(--brand-fg, #ffffff);
@@ -42,6 +53,59 @@
 
 :root {
   --brand: #22c55e;
+  --d-bg: #f8fafc;
+  --d-panel: #ffffff;
+  --d-panel-2: #f1f5f9;
+  --d-line: #e2e8f0;
+  --d-line-soft: #eef2f7;
+  --d-field: #ffffff;
+  --d-field-line: #e2e8f0;
+  --d-fg: #0f172a;
+  --d-fg-2: #475569;
+  --d-muted: #64748b;
+  --d-accent: #059669;
+  --d-accent-ink: #046a4e;
+  --d-accent-soft: #e4f5ec;
+  --d-accent-tint: #f0f9f6;
+  --d-amber: #d97706;
+  --d-amber-soft: #fef3c7;
+  --d-sky: #2a86c9;
+  --d-sky-soft: #e2f0fa;
+  --d-rose: #d2564a;
+  --d-rose-soft: #fbe7e3;
+  --d-violet: #5b54d6;
+  --d-violet-soft: #ecebfb;
+  --d-shadow-card: 0 1px 2px #0f172a0d, 0 8px 24px -12px #0f172a29;
+  --d-shadow-lift: 0 2px 6px #0f172a12, 0 20px 40px -20px #0f172a42;
+}
+
+/* The dashboard's dark mode (the moon button in the top bar) */
+[data-theme="dark"] {
+  --d-bg: #0b1120;
+  --d-panel: #111827;
+  --d-panel-2: #1a2333;
+  --d-line: #253045;
+  --d-line-soft: #1c2638;
+  --d-field: #0f172a;
+  --d-field-line: #2c3a52;
+  --d-fg: #e5e9f0;
+  --d-fg-2: #b4bdcc;
+  --d-muted: #8b96a8;
+  --d-accent: #10b981;
+  --d-accent-ink: #34d399;
+  --d-accent-soft: #10b98126;
+  --d-accent-tint: #10b98114;
+  --d-amber: #f59e0b;
+  --d-amber-soft: #f59e0b24;
+  --d-sky: #38bdf8;
+  --d-sky-soft: #38bdf824;
+  --d-rose: #f87171;
+  --d-rose-soft: #f8717124;
+  --d-violet: #8b85f0;
+  --d-violet-soft: #8b85f024;
+  --d-shadow-card: 0 1px 2px #0006, 0 8px 24px -12px #000a;
+  --d-shadow-lift: 0 2px 6px #0008, 0 20px 40px -20px #000c;
+  color-scheme: dark;
 }
 
 body {

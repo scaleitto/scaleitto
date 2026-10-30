@@ -30,12 +30,13 @@ export default async function phase23(browser) {
   };
   const parcel = (orderId, stage) => db.query("INSERT INTO shipments (id, shop_id, order_id, carrier_name, tracking_number, status) VALUES (?, ?, ?, 'Yalidine', ?, ?)", [randomUUID(), shopId, orderId, `YAL-${number}`, stage]);
 
-  await step("sidebar groups: Orders, Store design and Integrations show their sub-sections; renamed entries", async () => {
+  await step("sidebar (Zimam's layout): sell / grow / storefront / account groups; Orders opens its sub-sections", async () => {
     await owner.goto(dash);
-    const entries = await owner.locator("aside nav li[data-nav] > a, aside nav li[data-nav] > button").allInnerTexts();
-    expect(entries.includes("المخزون") && entries.includes("المالية") && entries.includes("الربط والتطبيقات") && entries.includes("باقات الاشتراك"), `new entries (got ${entries.join(", ")})`);
-    expect(!entries.includes("البكسل") && !entries.includes("الثيمات"), "pixels and themes are sub-sections now");
-    // A group opens and closes; its sub-sections slide under it
+    const groups = await owner.locator("aside [data-section]").evaluateAll((els) => els.map((e) => e.dataset.section));
+    expect(groups.join() === "main,sell,grow,storefront,account", `groups (got ${groups.join()})`);
+    const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
+    expect(order.join() === "overview,products,orders,delivery,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,plans,profile", `entries (got ${order.join()})`);
+    // An entry with sub-pages opens and closes; its sub-pages slide under it
     const group = owner.locator("aside li[data-nav=orders]");
     await group.locator(":scope > button").click();
     expect((await group.getAttribute("data-open")) === "true", "opened");
@@ -46,15 +47,20 @@ export default async function phase23(browser) {
     expect((await group.locator("[data-testid=nav-children] a").count()) === 6, "sub-sections under Orders in the sidebar");
     await group.locator(":scope > button").click();
     expect((await group.getAttribute("data-open")) === "false", "closed again");
-    // The order of the sidebar: daily work first
-    const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
-    expect(order.slice(0, 4).join() === "overview,orders,products,inventory", `logical order (got ${order.join()})`);
-    await owner.goto(`${dash}/store-design`);
-    expect((await owner.locator("[data-testid=section-tabs] a").allInnerTexts()).join("|") === "التصميم|الثيمات|فورم الطلب", "store design tabs");
+    // Quick search (⌘K) jumps to a page
+    await owner.locator("[data-testid=quick-search]").click();
+    await owner.locator("[data-testid=command-palette] input").fill("الثيمات");
+    await owner.keyboard.press("Enter");
+    await owner.waitForURL("**/dashboard/store-design/themes");
+    // Dark mode is remembered
+    await owner.locator("[data-testid=theme-toggle]").click();
+    expect((await owner.evaluate(() => document.documentElement.dataset.theme)) === "dark", "dark mode on");
+    await owner.reload();
+    expect((await owner.evaluate(() => document.documentElement.dataset.theme)) === "dark", "dark mode remembered");
+    await owner.locator("[data-testid=theme-toggle]").click();
     // Old addresses still work
     await owner.goto(`${dash}/pixels`);
     await owner.waitForURL("**/dashboard/integrations/pixels");
-    expect((await owner.locator("[data-testid=section-tabs] a").allInnerTexts()).join("|") === "البكسل|التطبيقات", "integrations tabs");
   });
 
   await step("platform admin: a clear way back to the dashboard", async () => {

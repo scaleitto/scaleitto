@@ -18,7 +18,10 @@ const en: Dictionary = {
     previous: "Previous",
     next: "Next",
   },
+  shell: { search: "Jump to a section…", searchEmpty: "No results", visitStore: "Visit store", support: "Support", profile: "Profile", notifications: "Notifications", noNotifications: "Nothing new.", dark: "Dark mode", light: "Light mode", collapse: "Fold the menu", expand: "Open the menu", storeSettings: "Store settings", usage: "{n} of {limit} orders this month", usageUnlimited: "{n} orders this month · unlimited", usageCredits: "Balance: {n} orders", waitingOrders: "{n} order(s) waiting for a call" },
   nav: {
+    groups: { main: "", sell: "Sell", grow: "Grow", storefront: "Storefront", account: "Account" },
+    items: { overview: "Overview", products: "Products", orders: "Orders", delivery: "Delivery", callCenters: "Call Center", landingPages: "Landing Pages", analytics: "Analytics", pixels: "Pixels", apps: "Apps", storeDesign: "Design", themes: "Themes", settings: "Store settings", plans: "Plans", profile: "Profile" },
     overview: "Overview",
     products: "Products",
     inventory: "Inventory",

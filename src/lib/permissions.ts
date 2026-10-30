@@ -35,28 +35,19 @@ export const sections = [
 
 export type SectionKey = (typeof sections)[number]["key"];
 
-// The sidebar, in the owner's order: a group is one entry whose pages show as sub-sections (under it in the
-// sidebar and as tabs on its pages). A single-page entry has the page's own key.
+// The sidebar (Zimam's layout): the overview, then four labelled groups — selling, growing, the storefront, the account.
+// An entry is one page, or a page with sub-pages (shown under it in the sidebar and as tabs above its pages).
+type NavEntry = { key: SectionKey; children?: readonly SectionKey[] };
 export const navGroups = [
-  // Daily work first: orders, then what is sold and its stock, delivery and the team
-  { key: "overview", children: ["overview"] },
-  { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection"] },
-  { key: "products", children: ["products"] },
-  { key: "inventory", children: ["inventory"] },
-  { key: "delivery", children: ["delivery"] },
-  { key: "callCenters", children: ["callCenters"] },
-  // Selling: the store, landing pages, ads and connected tools
-  { key: "storeDesign", children: ["storeDesign", "themes", "orderForm"] },
-  { key: "landingPages", children: ["landingPages"] },
-  { key: "integrations", children: ["pixels", "apps"] },
-  // Numbers and money
-  { key: "analytics", children: ["analytics"] },
-  { key: "finance", children: ["finance"] },
-  // Account
-  { key: "plans", children: ["plans"] },
-  { key: "settings", children: ["settings"] },
-  { key: "profile", children: ["profile"] },
-] as const satisfies readonly { key: string; children: readonly SectionKey[] }[];
+  { key: "main", items: [{ key: "overview" }] },
+  {
+    key: "sell",
+    items: [{ key: "products" }, { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection"] }, { key: "delivery" }, { key: "callCenters" }],
+  },
+  { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps" }] },
+  { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },
+  { key: "account", items: [{ key: "plans" }, { key: "profile" }] },
+] as const satisfies readonly { key: string; items: readonly NavEntry[] }[];
 
 export type NavGroupKey = (typeof navGroups)[number]["key"];
 
@@ -68,15 +59,21 @@ export function sectionsFor(role: MemberRole) {
   return sections.filter((s) => (s.roles as readonly MemberRole[]).includes(role));
 }
 
-// The sidebar of a member: groups with at least one page they may open, and those pages
+// The sidebar of a member: the groups and entries with at least one page they may open
 export function navFor(role: MemberRole) {
   return navGroups
-    .map((g) => ({ key: g.key as NavGroupKey, children: (g.children as readonly SectionKey[]).filter((k) => canAccess(role, k)) }))
-    .filter((g) => g.children.length > 0);
+    .map((g) => ({
+      key: g.key as NavGroupKey,
+      items: (g.items as readonly NavEntry[])
+        .map((e) => ({ key: e.key, children: (e.children ?? []).filter((k) => canAccess(role, k)) }))
+        .filter((e) => canAccess(role, e.key) || e.children.length > 0),
+    }))
+    .filter((g) => g.items.length > 0);
 }
 
-// The sidebar group a page belongs to
-export const groupOf = (key: SectionKey) => navGroups.find((g) => (g.children as readonly SectionKey[]).includes(key))!.key as NavGroupKey;
+// The sidebar entry a page belongs to (an entry's own page, or one of its sub-pages)
+export const entryOf = (key: SectionKey) =>
+  navGroups.flatMap((g) => g.items as readonly NavEntry[]).find((e) => e.key === key || e.children?.includes(key))?.key ?? null;
 
 // Where a member lands after signing in.
 export function homeSection(role: MemberRole) {

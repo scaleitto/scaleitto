@@ -16,7 +16,10 @@ const ar = {
     previous: "السابق",
     next: "التالي",
   },
+  shell: { search: "انتقل إلى قسم…", searchEmpty: "لا توجد نتائج", visitStore: "زيارة المتجر", support: "الدعم", profile: "الملف الشخصي", notifications: "الإشعارات", noNotifications: "لا جديد الآن.", dark: "الوضع الليلي", light: "الوضع النهاري", collapse: "طيّ القائمة", expand: "فتح القائمة", storeSettings: "إعدادات المتجر", usage: "{n} من {limit} طلبية هذا الشهر", usageUnlimited: "{n} طلبية هذا الشهر · بلا حد", usageCredits: "رصيد {n} طلبية", waitingOrders: "{n} طلبية تنتظر الاتصال" },
   nav: {
+    groups: { main: "", sell: "البيع", grow: "النمو", storefront: "واجهة المتجر", account: "الحساب" },
+    items: { overview: "الرئيسية", products: "المنتجات", orders: "الطلبات", delivery: "التوصيل", callCenters: "مركز الاتصال", landingPages: "صفحات الهبوط", analytics: "التحليلات", pixels: "البكسل", apps: "التطبيقات", storeDesign: "التصميم", themes: "الثيمات", settings: "إعدادات المتجر", plans: "الباقات", profile: "الملف الشخصي" },
     overview: "الرئيسية",
     products: "المنتجات",
     inventory: "المخزون",

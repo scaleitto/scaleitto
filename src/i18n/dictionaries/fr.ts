@@ -18,7 +18,10 @@ const fr: Dictionary = {
     previous: "Précédent",
     next: "Suivant",
   },
+  shell: { search: "Aller à une section…", searchEmpty: "Aucun résultat", visitStore: "Voir la boutique", support: "Support", profile: "Profil", notifications: "Notifications", noNotifications: "Rien de nouveau.", dark: "Mode sombre", light: "Mode clair", collapse: "Réduire le menu", expand: "Ouvrir le menu", storeSettings: "Paramètres de la boutique", usage: "{n} sur {limit} commandes ce mois", usageUnlimited: "{n} commandes ce mois · illimité", usageCredits: "Solde : {n} commandes", waitingOrders: "{n} commande(s) à appeler" },
   nav: {
+    groups: { main: "", sell: "Vendre", grow: "Croître", storefront: "Boutique", account: "Compte" },
+    items: { overview: "Vue d'ensemble", products: "Produits", orders: "Commandes", delivery: "Livraison", callCenters: "Centre d'appels", landingPages: "Pages de destination", analytics: "Statistiques", pixels: "Pixels", apps: "Applications", storeDesign: "Design", themes: "Thèmes", settings: "Paramètres de la boutique", plans: "Abonnements", profile: "Profil" },
     overview: "Accueil",
     products: "Produits",
     inventory: "Stock",

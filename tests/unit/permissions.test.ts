@@ -1,18 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canAccess, groupOf, homeSection, navFor, sectionHref, sections, sectionsFor } from "../../src/lib/permissions";
+import { canAccess, entryOf, homeSection, navFor, sectionHref, sections, sectionsFor } from "../../src/lib/permissions";
 
-test("sidebar follows the agreed order, with sub-sections grouped", () => {
-  assert.deepEqual(
-    navFor("owner").map((g) => g.key),
-    ["overview", "orders", "products", "inventory", "delivery", "callCenters", "storeDesign", "landingPages", "integrations", "analytics", "finance", "plans", "settings", "profile"],
-  );
-  const orders = navFor("owner").find((g) => g.key === "orders")!;
-  assert.deepEqual(orders.children, ["orders", "shipping", "tracking", "returns", "abandoned", "protection"]);
-  assert.deepEqual(navFor("owner").find((g) => g.key === "storeDesign")!.children, ["storeDesign", "themes", "orderForm"]);
-  assert.deepEqual(navFor("owner").find((g) => g.key === "integrations")!.children, ["pixels", "apps"]);
-  // Every page belongs to exactly one group
-  for (const s of sections) assert.ok(groupOf(s.key), s.key);
+test("sidebar: the overview, then the sell / grow / storefront / account groups (Zimam's layout)", () => {
+  const nav = navFor("owner");
+  assert.deepEqual(nav.map((g) => g.key), ["main", "sell", "grow", "storefront", "account"]);
+  assert.deepEqual(nav.find((g) => g.key === "sell")!.items.map((e) => e.key), ["products", "orders", "delivery", "callCenters"]);
+  assert.deepEqual(nav.find((g) => g.key === "grow")!.items.map((e) => e.key), ["landingPages", "analytics", "pixels", "apps"]);
+  assert.deepEqual(nav.find((g) => g.key === "storefront")!.items.map((e) => e.key), ["storeDesign", "themes", "settings"]);
+  assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["plans", "profile"]);
+  assert.deepEqual(nav.find((g) => g.key === "sell")!.items.find((e) => e.key === "orders")!.children, ["orders", "shipping", "tracking", "returns", "abandoned", "protection"]);
+  assert.equal(entryOf("tracking"), "orders");
+  assert.equal(entryOf("themes"), "themes");
 });
 
 test("owners see everything; managers all but plans and finance", () => {
@@ -24,8 +23,10 @@ test("owners see everything; managers all but plans and finance", () => {
 });
 
 test("call center agents only get orders (list, parcels, returns, carts), call centers and profile", () => {
-  assert.deepEqual(navFor("agent").map((g) => g.key), ["orders", "callCenters", "profile"]);
-  assert.deepEqual(navFor("agent")[0].children, ["orders", "shipping", "tracking", "returns", "abandoned"]);
+  const nav = navFor("agent");
+  assert.deepEqual(nav.map((g) => g.key), ["sell", "account"]);
+  assert.deepEqual(nav[0].items.map((e) => e.key), ["orders", "callCenters"]);
+  assert.deepEqual(nav[0].items[0].children, ["orders", "shipping", "tracking", "returns", "abandoned"]);
   assert.ok(!canAccess("agent", "protection"));
   assert.equal(homeSection("agent").key, "orders");
   assert.equal(homeSection("owner").key, "overview");

@@ -21,7 +21,8 @@ export default async function phase13(browser) {
     await m.waitForLoadState("networkidle");
     expect(!(await m.locator("[data-tile]").count()), "merchants cannot open it");
     await a.goto(`${BASE}/ar/dashboard/products`);
-    await a.locator("[data-testid=admin-link]").click();
+    await a.locator("aside [data-testid=user-chip]:visible").first().click();
+    await a.locator("[data-testid=admin-link]:visible").click();
     await a.waitForSelector("[data-tile=shops]");
     expect(Number(await a.locator("[data-tile=shops] [data-value]").innerText()) >= 2, "stores counted");
   });

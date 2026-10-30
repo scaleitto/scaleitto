@@ -23,12 +23,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (`useActionForm` — forms never lose typed values after an error —, `SubmitButton`, `FormMessage`, `fieldError`).
   Colors are tokens in `src/app/globals.css` (light dashboard, green accent; `text-warning` / `text-info` instead of fixed amber/sky).
 - `src/lib/permissions.ts` — the ONLY place that says which role sees which page (`sections`: key, path, roles) and how
-  the sidebar groups them (`navGroups`; `navFor(role)`), daily work first: Overview, Orders (order list / send to couriers /
-  parcel tracking / returns / abandoned carts / protection), Products, Inventory, Delivery, Call centers,
-  Store design (design / themes / order form), Landing pages, Integrations (pixels / apps), Analytics, Finance (owner only),
-  Subscription plans, Settings, Profile. `DashboardShell`: a group's header is a button that slides its sub-sections open
-  and closed (one open at a time, the current page's group by default; icons in `subIcons`), and the same pages show as
-  icon tabs (`section-tabs`) above the page. Roles: owner / manager / agent (call center).
+  the sidebar groups them. Since the Zimam parity work (`docs/zimam-parity.md`) the sidebar follows Zimam's layout:
+  `navGroups` = main (overview) / sell / grow / storefront / account, each entry a page or a page with sub-pages
+  (`navFor(role)`, `entryOf(key)`). `DashboardShell` (white sidebar with the store card, labelled groups, support and the user
+  menu; top bar with ⌘K quick search `CommandPalette`, the plan's usage pill, language, visit store, the bell = new orders,
+  dark mode = `[data-theme=dark]` on <html> set before paint by `THEME_SCRIPT`). Dashboard colors are `--d-*` variables
+  (globals.css; slate + emerald, dark values under `[data-theme=dark]`), fonts Space Grotesk + IBM Plex Sans Arabic.
+  Roles: owner / manager / agent (call center).
 - `src/server/auth/` — sessions, passwords, `requireShop()`, `requireSection(lang, key)` (redirects to the
   member's home section when not allowed), `requirePlatformAdmin()`.
 - `src/server/errors.ts` — every server action is wrapped in `safeAction(where, fn)`: errors are logged to

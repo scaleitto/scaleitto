@@ -87,7 +87,7 @@ export default async function phase0(browser) {
     await page.goto(`${BASE}/ar/dashboard/store-design`);
     await Promise.all([page.waitForURL("**/en/dashboard/store-design"), page.locator("[data-testid=lang-switch] summary").click().then(() => page.click("[data-testid=lang-switch] >> text=English"))]);
     expect((await page.locator("html").getAttribute("dir")) === "ltr", "english is LTR");
-    expect(await page.locator("aside nav >> text=Store Design").count(), "english labels");
+    expect(await page.locator("aside nav >> text=Store settings").count(), "english labels");
   });
 
   await step("profile: update name, wrong password refused, change password", async () => {
@@ -106,7 +106,7 @@ export default async function phase0(browser) {
   });
 
   await step("logout, old password refused, new password works", async () => {
-    await Promise.all([page.waitForURL("**/ar/login"), page.locator("[data-testid=logout]:visible").first().click()]);
+    await Promise.all([page.waitForURL("**/ar/login"), page.locator("aside [data-testid=user-chip]:visible").first().click().then(() => page.locator("[data-testid=logout]:visible").first().click())]);
     await page.fill("#email", owner.email);
     await page.fill("#password", owner.password);
     await page.click("button[type=submit]");
