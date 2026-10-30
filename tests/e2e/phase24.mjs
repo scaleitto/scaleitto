@@ -80,7 +80,8 @@ export default async function phase24(browser) {
     await expectSoon(async () => (await statusOf(o.id)).fault === "customer", "Remarque = Erreur du client");
     // The tracking list shows the follow-up next to the courier's stage
     await owner.goto(`${dash}/orders/tracking?ds=postponed`);
-    await owner.locator(`tr[data-order="${o.number}"] [data-ds=postponed]`).waitFor();
+    // (distinct timeouts tell in CI's one-line report which wait failed)
+    await owner.locator(`tr[data-order="${o.number}"] [data-ds=postponed]`).waitFor({ timeout: 30_001 });
     // Livraison finale = Retour closes the order like the courier would
     await owner.goto(`${dash}/orders/${o.id}`);
     await owner.locator("[data-testid=order-status] select[data-section=final]").selectOption("returned");
@@ -88,11 +89,11 @@ export default async function phase24(browser) {
     await owner.reload();
     expect((await owner.locator("[data-testid=order-status] select[data-section=delivery]").inputValue()) === "returned", "Livraison follows");
     await owner.goto(`${dash}/orders/returns`);
-    await owner.locator(`tr[data-order="${o.number}"]`).waitFor();
+    await owner.locator(`tr[data-order="${o.number}"]`).waitFor({ timeout: 30_002 });
     owner.once("dialog", (d) => d.accept());
     await owner.locator(`tr[data-order="${o.number}"] input[data-bulk-order]`).check();
     await owner.locator("[data-testid=return-resend]").click();
-    await owner.locator("[data-testid=batch-report] [data-result=ok]").waitFor();
+    await owner.locator("[data-testid=batch-report] [data-result=ok]").waitFor({ timeout: 30_003 });
     const after = await statusOf(o.id);
     expect(after.status === "confirmed" && after.processing === "reinjected" && after.state === null, `back to send, Traitement = Injectée (got ${JSON.stringify(after)})`);
     const [[event]] = await db.query("SELECT COUNT(*) AS n FROM order_events WHERE order_id = ? AND type = 'followup'", [o.id]);
