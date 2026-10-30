@@ -1,4 +1,5 @@
 import "server-only";
+import { formFor } from "@/features/order-form/resolve";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -61,20 +62,18 @@ export async function getOrderSummary(shopId: string, orderId: string) {
   const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
   if (!order) return null;
   const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
-  // Landing page orders show the page's own thank-you message, in the page's language
+  // Landing page orders are shown in the page's language; the thank-you message is the form's (the page's template,
+  // else the product's, else the store's — the same form the customer filled)
   const [landing] = order.landingPageId
-    ? await db.select({ language: schema.landingPages.language, form: schema.landingPages.form }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId))
+    ? await db.select({ language: schema.landingPages.language, templateId: schema.landingPages.formTemplateId }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId))
     : [];
-  // Product page orders: the form template of the product, when it has one (its own thank-you message)
-  const productId = !landing ? items[0]?.productId : null;
-  const [template] = productId
-    ? await db
-        .select({ form: schema.formTemplates.form })
-        .from(schema.products)
-        .innerJoin(schema.formTemplates, eq(schema.formTemplates.id, schema.products.formTemplateId))
-        .where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)))
-    : [];
-  return { ...order, items, landing: landing ?? null, templateForm: template?.form ?? null };
+  const productId = items[0]?.productId;
+  const [[product], [shop]] = await Promise.all([
+    productId ? db.select({ templateId: schema.products.formTemplateId }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId))) : Promise.resolve([]),
+    db.select({ id: schema.shops.id, orderForm: schema.shops.orderForm }).from(schema.shops).where(eq(schema.shops.id, shopId)),
+  ]);
+  const form = await formFor(shop, landing?.templateId, product?.templateId);
+  return { ...order, items, landing: landing ? { language: landing.language } : null, thankYou: form.thankYou };
 }
 
 // A published landing page by its link, with its product (and the product's variants).

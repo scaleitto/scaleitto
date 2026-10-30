@@ -3,19 +3,18 @@ import { CircleCheckBig } from "lucide-react";
 import { dir, type Locale } from "@/i18n/config";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { fmt, formatPrice } from "@/lib/format";
-import { interfaceLocale, resolveForm } from "@/features/landing/types";
+import { interfaceLocale } from "@/features/landing/types";
 import { pageLanguage } from "@/features/landing/PublicLanding";
 import type { getOrderSummary } from "./queries";
 
 type Order = NonNullable<Awaited<ReturnType<typeof getOrderSummary>>>;
 
 // The thank-you content after an order (store page, landing page and embedded form).
-// storeForm = the store's order form (its thank-you message for orders from product pages)
-export function ThankYou({ order, locale: storeLocale, storeForm, children }: { order: Order; locale: Locale; storeForm?: unknown; children?: ReactNode }) {
+export function ThankYou({ order, locale: storeLocale, children }: { order: Order; locale: Locale; children?: ReactNode }) {
   const locale = order.landing ? interfaceLocale(pageLanguage(order.landing.language)) : storeLocale;
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
-  const message = resolveForm(order.landing ? order.landing.form : (order.templateForm ?? storeForm)).thankYou;
+  const message = order.thankYou;
   return (
     <div lang={locale} dir={dir(locale)} className="mx-auto max-w-lg space-y-5 py-6 text-center">
       <CircleCheckBig size={64} className="mx-auto text-brand-ink" />

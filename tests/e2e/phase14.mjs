@@ -2,7 +2,7 @@
 // (situation from the order status, WhatsApp/SMS links, kept in the history, editable and rewritable by AI),
 // AI product descriptions, the monthly AI quota, agents.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 
 export default async function phase14(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -28,8 +28,7 @@ export default async function phase14(browser) {
 
   await step("message card: the situation follows the status, filled with the order, sent and logged", async () => {
     await owner.goto(orderPage);
-    await owner.click('[data-testid=status-picker] button:has-text("لا يرد")');
-    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true]:has-text("لا يرد")');
+    await setCallStatus(owner, "no_answer");
     await owner.reload();
     const card = owner.locator("[data-testid=message-card]");
     await card.waitFor();

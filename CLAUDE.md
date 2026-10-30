@@ -84,7 +84,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Landing pages (`src/features/landing/`): `landing_pages.sections` (typed in `types.ts`, always read through
   `sanitizeSections`) and `.form` (`FormSettings`, read through `resolveForm`: title/button texts, layout, address
   hidden/optional/required — home delivery only —, note, delivery both/home/office, custom fields `custom_<id>` saved in
-  `orders.extra`, thank-you message, sticky button). `blocks.tsx` draws the sections for the public page
+  `orders.extra`, thank-you message, sticky button — since round 9 a store template chosen by the page, see below). `blocks.tsx` draws the sections for the public page
   (`/store/<slug>/lp/<page>`) and the editor preview (`LandingEditor.tsx`); the form is the shared `CheckoutForm`, validated
   again in `checkout/actions.ts`. Embeddable form: `/embed/<slug>/<page>` (own root layout, `HeightReporter` posts its
   height to the parent). Visits: `/api/lp/view` once per browser session.
@@ -267,6 +267,21 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `strategy.ts` (auto = exactly 5 required + 1–2 optional; manual = exactly the merchant's ticks, wizard step 6), enforced again by
   `landing/angles.ts cleanStrategy` (pure). Store design preview: the scrolling box is never `inert`/`pointer-events-none`, its
   child is. Admin → plans shows the active plans (= the subscription page), older ones folded.
+- Owner feedback round 9 (phase25.mjs): the order page's status card (`OrderStatusCard`) = the owner's five sections as
+  dropdowns, in his order: 1 Statut (`callStatuses`, a sent order shows "confirmed"), 2 Injection (pending/done: done by hand
+  = shipped without a courier parcel; back to pending only without a parcel), 3 Livraison (`deliveryOrder`) + 3.1 Remarque,
+  4 Traitement, 5 Livraison finale — all read through `orderModel()` (statuses.ts) so the order page and the orders list
+  (`modelCounts`, grouped chips `call-*`, `inj-*`, `ds-*`, `fault-*`, `proc-*`, `fin-*`, zeros hidden; filters status/inj/ds/
+  fault/proc/fin) always agree. Calls: `orders.call_attempts` / `last_call_at`, every call status chosen counts, the same
+  outcome again = event "call" ("call again" button); after `MAX_CALLS` (3) without a decision the card says to send a message.
+  Distribution happens only in Call centers → distribution tab (`team/OpenOrders.tsx` + `BulkAssignBar`); the orders list has
+  none (the order page keeps assigning one order). Abandoned carts (`orders/recovery.ts`, pure): `suggestedStep` (fresh → call,
+  older → message, contacted → offer), WhatsApp recovery/offer messages in the store's message language with the product link,
+  "take the order" = `convertLead` → `placeOrder(…, { memberId })` (protection checks and risk skipped, event by the member),
+  `recoveryStats`. One order form system: landing pages have no form of their own (`landing_pages.form` dropped) — they pick a
+  template (`landing_pages.form_template_id`, null = the product's form); `order-form/resolve.ts formFor(shop, ...templateIds)`
+  is used by every form, thank-you page and checkout validation. Embed codes live in Store design → Order form (`EmbedCode`:
+  products → `/embed/<slug>/p/<product>`, published landing pages → `/embed/<slug>/<page>`).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

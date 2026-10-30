@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, ArrowUp, ChevronDown, Copy, ExternalLink, Eye, EyeOff, Monitor, Smartphone, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, ChevronDown, ExternalLink, Eye, EyeOff, Monitor, Smartphone, Trash2 } from "lucide-react";
 import { currencyLabel, type StoreText } from "@/i18n/store";
 import type { RateMap } from "@/features/checkout/pricing";
 import type { ActionState } from "@/lib/action";
@@ -13,14 +13,15 @@ import type { Theme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
 import { LandingSections, isImagePage } from "./blocks";
 import { PriceTag } from "./PriceTag";
-import { FormBuilder, type FormBuilderText } from "@/features/order-form/FormBuilder";
 import { SectionFields, type EditorText } from "./SectionFields";
 import { saveLandingPage, type LandingDraft } from "./actions";
-import { interfaceLocale, newSectionId, pageLanguages, resolveForm, sanitizeSections, sectionTypes, type FormSettings, type LandingSection, type PageLanguage, type SectionType } from "./types";
+import { interfaceLocale, newSectionId, pageLanguages, sanitizeSections, sectionTypes, type FormSettings, type LandingSection, type PageLanguage, type SectionType } from "./types";
 
 type Product = Parameters<typeof CheckoutForm>[0]["product"] & { name: string; compareAtPrice: number | null; images: string[] };
 type Variant = Parameters<typeof CheckoutForm>[0]["variants"][number];
-type Initial = { title: string; slug: string; language: PageLanguage; color: string | null; status: "draft" | "published"; sections: LandingSection[]; form: FormSettings };
+type Initial = { title: string; slug: string; language: PageLanguage; color: string | null; status: "draft" | "published"; sections: LandingSection[]; formTemplateId: string | null };
+// The forms the page can use (all made in Store design → Order form): the product's own form and the store's templates
+type Forms = { product: FormSettings; templates: { id: string; name: string; form: FormSettings }[]; editHref: string };
 
 function newSection(type: SectionType, t: StoreText): LandingSection {
   const id = newSectionId();
@@ -103,8 +104,8 @@ export function LandingEditor({
   theme,
   shopColor,
   pageUrl,
-  embedUrl,
   backHref,
+  forms,
   t,
 }: {
   lang: string;
@@ -117,21 +118,21 @@ export function LandingEditor({
   theme: Theme;
   shopColor: string;
   pageUrl: string;
-  embedUrl: string;
   backHref: string;
-  t: EditorText & FormBuilderText;
+  forms: Forms;
+  t: EditorText;
 }) {
   const ed = t.landingPages.editor;
   const lp = t.landingPages;
   const [meta, setMeta] = useState({ title: initial.title, slug: initial.slug, language: initial.language, color: initial.color ?? "", status: initial.status });
   const [sections, setSections] = useState(initial.sections);
-  const [form, setForm] = useState(initial.form);
+  const [formTemplateId, setFormTemplateId] = useState(initial.formTemplateId ?? "");
+  const form = forms.templates.find((x) => x.id === formTemplateId)?.form ?? forms.product;
   const [tab, setTab] = useState<"sections" | "form" | "settings">("sections");
   const [open, setOpen] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("mobile");
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
   const touch = () => {
     setDirty(true);
@@ -158,7 +159,7 @@ export function LandingEditor({
 
   const save = (status = meta.status) =>
     startTransition(async () => {
-      const draft: LandingDraft = { ...meta, status, sections, form };
+      const draft: LandingDraft = { ...meta, status, sections, formTemplateId: formTemplateId || null };
       const r: ActionState = await saveLandingPage(lang, pageId, draft).catch(() => ({ ok: false, error: "unexpected" }));
       const e = t.errors as Record<string, string>;
       if (r.ok) {
@@ -168,7 +169,6 @@ export function LandingEditor({
       } else setMessage({ ok: false, text: e[r.error ?? "unexpected"] ?? e.unexpected });
     });
 
-  const embedCode = `<iframe id="scaleitto-${pageId}" src="${embedUrl}" style="width:100%;border:0;min-height:760px" loading="lazy" title="${meta.title.replace(/"/g, "")}"></iframe>\n<script>window.addEventListener("message",function(e){if(e.data&&e.data.type==="scaleitto:height"&&e.data.id==="${pageId}"){document.getElementById("scaleitto-${pageId}").style.height=e.data.height+"px"}});</script>`;
   const hasForm = sections.some((s) => s.type === "form");
 
   return (
@@ -275,16 +275,30 @@ export function LandingEditor({
             </div>
           )}
 
+          {/* One form system: the page picks a form made in Store design → Order form (no separate copy here) */}
           {tab === "form" && (
-            <FormBuilder
-              form={form}
-              set={(patch) => {
-                setForm((f) => ({ ...f, ...patch }));
-                touch();
-              }}
-              t={t}
-              defaults={{ title: storeText.form.title, subtitle: storeText.form.subtitle, button: storeText.form.submit }}
-            />
+            <Card className="space-y-3" data-testid="landing-form-choice">
+              <Field label={ed.formChoice} hint={ed.formChoiceHint}>
+                <Select
+                  value={formTemplateId}
+                  onChange={(e) => {
+                    setFormTemplateId(e.target.value);
+                    touch();
+                  }}
+                  data-testid="landing-form-template"
+                >
+                  <option value="">{ed.productForm}</option>
+                  {forms.templates.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Link href={formTemplateId ? `${forms.editHref}?template=${formTemplateId}` : forms.editHref} className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
+                <ExternalLink size={14} /> {ed.editForm}
+              </Link>
+            </Card>
           )}
 
           {tab === "settings" && (
@@ -358,21 +372,6 @@ export function LandingEditor({
                   </div>
                 </Field>
               </Card>
-              <Card className="space-y-3">
-                <h3 className="font-semibold">{ed.embed}</h3>
-                <p className="text-xs text-muted">{ed.embedHint}</p>
-                {meta.status !== "published" && <Alert variant="info">{ed.publishFirst}</Alert>}
-                <textarea readOnly dir="ltr" rows={5} value={embedCode} className="w-full rounded-lg border border-line bg-bg p-2 font-mono text-xs text-muted" data-testid="embed-code" />
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(embedCode).catch(() => {});
-                    setCopied(true);
-                  }}
-                >
-                  <Copy size={15} /> {copied ? ed.copied : ed.copy}
-                </Button>
-              </Card>
             </div>
           )}
         </div>
@@ -409,7 +408,7 @@ export function LandingEditor({
                         wilayas={[]}
                         action={async () => ({ ok: false })}
                         saveLead={async () => {}}
-                        settings={resolveForm(form)}
+                        settings={form}
                         embedded
                       />
                     }

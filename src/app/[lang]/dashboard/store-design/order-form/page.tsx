@@ -8,6 +8,7 @@ import { resolveForm } from "@/features/landing/types";
 import { resolveDesign, storeTheme } from "@/features/design/types";
 import { getShippingRates } from "@/features/storefront/queries";
 import { OrderFormEditor } from "@/features/order-form/OrderFormEditor";
+import { EmbedCode } from "@/features/order-form/EmbedCode";
 import { saveOrderForm } from "@/features/order-form/actions";
 import { wilayas } from "@/lib/wilayas";
 import { sectionHref } from "@/lib/permissions";
@@ -26,8 +27,14 @@ export default async function OrderFormPage({ params, searchParams }: PageProps<
       .where(eq(schema.formTemplates.shopId, shop.id))
       .groupBy(schema.formTemplates.id)
       .orderBy(asc(schema.formTemplates.createdAt)),
-    db.select({ id: schema.products.id, name: schema.products.name, templateId: schema.products.formTemplateId }).from(schema.products).where(eq(schema.products.shopId, shop.id)).orderBy(asc(schema.products.name)),
+    db.select({ id: schema.products.id, name: schema.products.name, slug: schema.products.slug, status: schema.products.status, templateId: schema.products.formTemplateId }).from(schema.products).where(eq(schema.products.shopId, shop.id)).orderBy(asc(schema.products.name)),
   ]);
+  // The embed code: any active product's form, or a published landing page's form
+  const pages = await db
+    .select({ id: schema.landingPages.id, title: schema.landingPages.title, slug: schema.landingPages.slug })
+    .from(schema.landingPages)
+    .where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.status, "published")));
+  const embedBase = `${(process.env.APP_URL ?? "").replace(/\/$/, "")}/embed/${shop.slug}`;
   const current = templates.find((x) => x.id === wanted) ?? null;
   // The preview speaks the store's language (what customers see)
   const storeLocale = isLocale(shop.defaultLocale) ? shop.defaultLocale : "ar";
@@ -45,7 +52,7 @@ export default async function OrderFormPage({ params, searchParams }: PageProps<
         // A fresh editor for each template
         key={current?.id ?? "store"}
         initial={resolveForm(current ? current.form : shop.orderForm)}
-        templates={{ base: sectionHref(lang, "orderForm"), list: templates.map(({ id, name, products: n }) => ({ id, name, products: n })), current: current?.id ?? null, products }}
+        templates={{ base: sectionHref(lang, "orderForm"), list: templates.map(({ id, name, products: n }) => ({ id, name, products: n })), current: current?.id ?? null, products: products.map(({ id, name, templateId }) => ({ id, name, templateId })) }}
         t={{ orderForm: t.orderForm, media: t.media, errors: t.errors, common: t.common }}
         preview={{
           storeText: getStoreText(storeLocale),
@@ -60,6 +67,13 @@ export default async function OrderFormPage({ params, searchParams }: PageProps<
         }}
         action={saveOrderForm.bind(null, lang, current?.id ?? null)}
       />
+      <div className="mt-6">
+        <EmbedCode
+          products={products.filter((p) => p.status === "active").map((p) => ({ id: p.id, name: p.name, url: `${embedBase}/p/${encodeURIComponent(p.slug)}` }))}
+          pages={pages.map((p) => ({ id: p.id, name: p.title, url: `${embedBase}/${encodeURIComponent(p.slug)}` }))}
+          t={t.orderForm.embed}
+        />
+      </div>
     </>
   );
 }

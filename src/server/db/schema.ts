@@ -291,6 +291,9 @@ export const orders = mysqlTable(
     deliveryState: mysqlEnum("delivery_state", deliveryStates),
     deliveryFault: mysqlEnum("delivery_fault", deliveryFaults),
     processing: mysqlEnum("processing", processingStates),
+    // Confirmation calls made (each call status chosen, or "another attempt"), and the last one
+    callAttempts: int("call_attempts").notNull().default(0),
+    lastCallAt: datetime("last_call_at"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -345,7 +348,9 @@ export const landingPages = mysqlTable(
     // null → the shop's color
     color: varchar("color", { length: 9 }),
     sections: json("sections").notNull(),
-    form: json("form").notNull(),
+    // The order form: one of the store's form templates (null → the product's form, else the store's form;
+    // src/features/order-form/resolve.ts). Forms are edited in one place: Store design → Order form.
+    formTemplateId: id("form_template_id"),
     // What the AI chose for this page (audience, marketing angles and why), shown in the editor
     strategy: json("strategy").$type<PageStrategy | null>(),
     views: int("views").notNull().default(0),
@@ -390,7 +395,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk", "followup"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk", "followup", "call"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),

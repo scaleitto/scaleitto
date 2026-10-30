@@ -69,6 +69,7 @@ export async function deleteTemplate(lang: string, templateId: string): Promise<
     const { shop } = await requireSection(asLocale(lang), "orderForm");
     await db.transaction(async (tx) => {
       await tx.update(schema.products).set({ formTemplateId: null }).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.formTemplateId, templateId)));
+      await tx.update(schema.landingPages).set({ formTemplateId: null }).where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.formTemplateId, templateId)));
       await tx.delete(schema.formTemplates).where(and(eq(schema.formTemplates.shopId, shop.id), eq(schema.formTemplates.id, templateId)));
     });
     refresh();

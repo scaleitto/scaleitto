@@ -9,9 +9,9 @@ import { CommuneSelect } from "@/features/checkout/CommuneSelect";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { assignOrder, changeOrderStatus, markOrderTrusted, setPhoneBlocked } from "./actions";
 import { setFollowUp, type FollowUpField } from "./followup";
-import { deliveryFaults, deliveryStates, processingStates, type DeliveryFault, type DeliveryState, type ProcessingState } from "@/server/db/schema";
+import { deliveryFaults, processingStates } from "@/server/db/schema";
 import { fmt } from "@/lib/format";
-import { REJECTED_STATUSES, callStatuses, type OrderStatus } from "./statuses";
+import { ATTEMPT_STATUSES, MAX_CALLS, callStatuses, deliveryOrder, type orderModel } from "./statuses";
 
 export type OrderText = Pick<Dictionary, "orders" | "errors" | "common">;
 type FormAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -28,43 +28,6 @@ function useButtonAction(t: OrderText) {
       if (!r.ok) setError(errors[r.error ?? "unexpected"] ?? errors.unexpected);
     });
   return { pending, error, run };
-}
-
-const statusStyle = (s: OrderStatus) =>
-  s === "confirmed"
-    ? "border-accent/50 text-accent hover:bg-accent/10"
-    : (REJECTED_STATUSES as readonly OrderStatus[]).includes(s)
-      ? "border-danger/40 text-danger hover:bg-danger/10"
-      : "border-line text-fg hover:bg-panel-2";
-
-// Statut de la commande: the outcome of the confirmation call. Once a parcel exists, the order follows the parcel
-// (Delivery follow-up card) and the call statuses wait until the parcel is removed.
-export function StatusPicker({ lang, orderId, status, parcel, t }: { lang: string; orderId: string; status: OrderStatus; parcel: boolean; t: OrderText }) {
-  const { pending, error, run } = useButtonAction(t);
-  return (
-    <Card className="space-y-3">
-      <h2 className="font-semibold">{t.orders.statusGroups.call}</h2>
-      {parcel && <p className="text-sm text-muted">{t.errors.parcelExists}</p>}
-      <div className="flex flex-wrap gap-2" data-testid="status-picker">
-        {callStatuses.map((s) => (
-          <button
-            key={s}
-            type="button"
-            data-status={s}
-            disabled={pending || parcel || s === status}
-            aria-pressed={s === status}
-            onClick={() => run(() => changeOrderStatus(lang, orderId, s))}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition disabled:cursor-default ${
-              s === status ? "border-transparent bg-fg text-bg" : statusStyle(s)
-            } ${(pending || parcel) && s !== status ? "opacity-50" : ""}`}
-          >
-            {t.orders.statuses[s]}
-          </button>
-        ))}
-      </div>
-      {error && <Alert>{error}</Alert>}
-    </Card>
-  );
 }
 
 type Customer = { customerName: string; phone: string; wilayaCode: number; commune: string; address: string | null; deliveryType: "home" | "office"; shippingPrice: number };
@@ -323,73 +286,97 @@ export function RiskCard({ lang, orderId, risk, reasons, threshold, held, t }: {
   );
 }
 
-// Suivi de livraison, after the confirmation: Injection (a parcel exists), Livraison (tracking sets it, the team can
-// change it: delivered / returned close the order), Remarque sur la livraison, Traitement, Livraison finale.
-export function FollowUpCard({
+type Model = ReturnType<typeof orderModel>;
+
+// The order's status in the owner's five sections, each a dropdown, in his order: 1 Statut de la commande, 2 Injection,
+// 3 Livraison (+ 3.1 Remarque sur la livraison), 4 Traitement, 5 Livraison finale. The orders list shows the same sections
+// with the same names. Calls are counted: 3 attempts at different times, then a message.
+export function OrderStatusCard({
   lang,
   orderId,
-  status,
-  injected,
-  state,
-  fault,
-  processing,
+  model,
+  calls,
   t,
 }: {
   lang: string;
   orderId: string;
-  status: OrderStatus;
-  injected: boolean;
-  state: DeliveryState | null;
-  fault: DeliveryFault | null;
-  processing: ProcessingState | null;
+  model: Model;
+  // Calls made, per outcome, and how long ago the last one was (minutes)
+  calls: { total: number; byStatus: Partial<Record<string, number>>; lastMinutes: number | null };
   t: OrderText;
 }) {
-  const f = t.orders.followup;
+  const o = t.orders;
+  const f = o.followup;
+  const m = o.model;
   const { pending, error, run } = useButtonAction(t);
-  const sent = status === "shipped" || status === "delivered" || status === "returned";
-  const change = (field: FollowUpField) => (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    run(() => setFollowUp(lang, orderId, field, value));
-  };
-  const row = (label: string, value: React.ReactNode) => (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-sm font-semibold">{value}</dd>
-    </div>
-  );
-  const select = (field: FollowUpField, value: string | null, options: readonly string[], labels: Record<string, string>, allowEmpty: boolean) => (
+  const sent = model.injection === "done";
+  const call = (value: string) => run(() => changeOrderStatus(lang, orderId, value));
+  const follow = (field: FollowUpField) => (value: string) => run(() => setFollowUp(lang, orderId, field, value));
+  const attempt = (ATTEMPT_STATUSES as readonly string[]).includes(model.call);
+  const select = (key: string, value: string | null, options: readonly string[], labels: Record<string, string>, onChange: (v: string) => void, opts: { disabled?: boolean; empty?: string; emptySelectable?: boolean } = {}) => (
     <select
       value={value ?? ""}
-      onChange={change(field)}
-      disabled={pending || !sent}
-      aria-label={field === "state" ? f.state : field === "fault" ? f.fault : f.processing}
-      data-followup={field}
-      className={`${inputClass.replace("w-full", "w-44")} select-chevron appearance-none pe-9 py-1.5 text-sm`}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={pending || opts.disabled}
+      aria-label={m.titles[key as keyof typeof m.titles]}
+      data-section={key}
+      data-value={value ?? ""}
+      className={`${inputClass} select-chevron appearance-none pe-9 py-2 text-sm disabled:opacity-60`}
     >
-      {(allowEmpty || !value) && <option value="">{f.none}</option>}
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {labels[o]}
+      {(opts.emptySelectable || !value) && (
+        <option value="" disabled={!opts.emptySelectable}>
+          {opts.empty ?? f.none}
+        </option>
+      )}
+      {options.map((x) => (
+        <option key={x} value={x}>
+          {labels[x]}
         </option>
       ))}
     </select>
   );
+  const row = (n: string, key: keyof typeof m.titles, control: React.ReactNode, note?: React.ReactNode) => (
+    <div className="grid gap-1.5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center" data-row={key}>
+      <span className={`text-sm font-semibold ${n.includes(".") ? "ps-4 text-muted" : ""}`}>{m.titles[key]}</span>
+      <div className="space-y-1.5">
+        {control}
+        {note}
+      </div>
+    </div>
+  );
   return (
-    <Card className="space-y-2" data-testid="follow-up-card">
-      <h2 className="font-semibold">{f.title}</h2>
-      {!sent && <p className="text-sm text-muted">{f.notShipped}</p>}
-      <dl className="divide-y divide-line">
-        {row(f.injection, <span className={injected ? "text-accent" : "text-muted"} data-testid="injection">{injected ? f.injected : f.notInjected}</span>)}
-        {row(f.state, select("state", state, deliveryStates, f.states, false))}
-        {row(f.fault, select("fault", fault, deliveryFaults, f.faults, true))}
-        {row(f.processing, select("processing", processing, processingStates, f.processingStates, true))}
+    <Card className="space-y-1" data-testid="order-status">
+      <h2 className="font-semibold">{m.title}</h2>
+      <div className="divide-y divide-line">
         {row(
-          f.final,
-          <span data-testid="final-delivery" className={status === "delivered" ? "text-accent" : status === "returned" ? "text-danger" : "text-muted"}>
-            {status === "delivered" || status === "returned" ? f.states[status] : f.finalPending}
-          </span>,
+          "1",
+          "call",
+          select("call", model.call === "new" ? null : model.call, callStatuses.filter((x) => x !== "new"), o.statuses, call, { empty: o.statuses.new }),
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" data-testid="call-attempts" data-calls={calls.total}>
+            <span className="inline-flex items-center gap-1 font-semibold text-fg">
+              <Phone size={13} /> {fmt(m.calls, { n: calls.total })}
+            </span>
+            {Object.entries(calls.byStatus).map(([k, n]) => (
+              <span key={k}>
+                {o.statuses[k as keyof typeof o.statuses]} ×{n}
+              </span>
+            ))}
+            {calls.lastMinutes !== null && <span>{fmt(m.lastCall, { n: calls.lastMinutes })}</span>}
+            {attempt && (
+              <button type="button" disabled={pending} onClick={() => call(model.call)} className="font-semibold text-accent hover:underline disabled:opacity-50" data-testid="call-again">
+                {fmt(m.again, { status: o.statuses[model.call] })}
+              </button>
+            )}
+            {attempt && calls.total >= MAX_CALLS && <span className="basis-full rounded-md bg-warning/10 px-2 py-1 font-semibold text-warning" data-testid="send-message-hint">{m.sendMessage}</span>}
+            {attempt && calls.total < MAX_CALLS && calls.lastMinutes !== null && calls.lastMinutes < 60 && <span className="basis-full text-warning">{m.laterTime}</span>}
+          </div>,
         )}
-      </dl>
+        {row("2", "injection", select("injection", model.injection, ["pending", "done"], o.injection, follow("injection"), { disabled: !model.injection }), !model.injection && <p className="text-xs text-muted">{m.afterConfirm}</p>)}
+        {row("3", "delivery", select("delivery", model.delivery, deliveryOrder, f.states, follow("state"), { disabled: !sent }))}
+        {row("3.1", "fault", select("fault", model.fault, deliveryFaults, f.faults, follow("fault"), { disabled: !sent, emptySelectable: true }))}
+        {row("4", "processing", select("processing", model.processing, processingStates, f.processingStates, follow("processing"), { disabled: !sent, emptySelectable: true }))}
+        {row("5", "final", select("final", model.final, ["delivered", "returned"], f.states, follow("final"), { disabled: !sent, empty: f.finalPending }))}
+      </div>
       {error && <Alert>{error}</Alert>}
     </Card>
   );

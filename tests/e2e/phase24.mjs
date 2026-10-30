@@ -4,7 +4,7 @@
 // design preview that scrolls, the 11 landing page angles (automatic / chosen) and the admin plans matching the
 // subscription page.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step, wizardGenerate } from "./helpers.mjs";
+import { BASE, createShop, db, expect, setCallStatus, step, wizardGenerate } from "./helpers.mjs";
 import { requests } from "./mock-openai.mjs";
 
 const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -31,31 +31,23 @@ export default async function phase24(browser) {
   const parcel = (orderId, stage) => db.query("INSERT INTO shipments (id, shop_id, order_id, carrier_name, tracking_number, status) VALUES (?, ?, ?, 'Yalidine', ?, ?)", [randomUUID(), shopId, orderId, `YAL-${number}`, stage]);
   const statusOf = async (id) => (await db.query("SELECT status, delivery_state AS state, delivery_fault AS fault, processing FROM orders WHERE id = ?", [id]))[0][0];
 
-  await step("orders list: one row of chips with the owner's statuses (no second list)", async () => {
+  await step("orders list: the order page's sections, only the statuses that have orders", async () => {
     await order({ status: "callback" });
     await order({ status: "voicemail" });
     await order({ status: "duplicate" });
     await owner.goto(`${dash}/orders`);
-    expect((await owner.locator("[data-testid=order-chips]").count()) === 1 && !(await owner.locator("[data-testid=order-views]").count()), "a single list of chips");
     const chips = await owner.locator("[data-testid=order-chips] [data-chip]").evaluateAll((els) => els.map((e) => e.dataset.chip));
-    expect(
-      chips.join() === "all,new,confirmed,callback,no_answer,voicemail,remark,cancelled,fake,wrong_number,duplicate,shipped,delivered,returned,risk",
-      `chips in the owner's order (got ${chips.join()})`,
-    );
-    await owner.locator("[data-testid=order-chips] [data-chip=voicemail]").click();
+    expect(chips.join() === "all,call-callback,call-voicemail,call-duplicate", `non-zero chips only (got ${chips.join()})`);
+    await owner.locator("[data-testid=order-chips] [data-chip=call-voicemail]").click();
     await owner.waitForURL(/status=voicemail/);
     expect((await owner.locator("tr[data-order]").count()) === 1, "filtered by status");
-    expect((await owner.locator("[data-testid=order-chips] [data-chip=callback]").innerText()).includes("إعادة الاتصال"), "Rappel = إعادة الاتصال");
   });
 
-  await step("status picker: the call's outcome only; fake orders block the phone when Protection says so", async () => {
+  await step("status: the call's outcome only; fake orders block the phone when Protection says so", async () => {
     await db.query("UPDATE shops SET protection = JSON_OBJECT('autoBlockFake', 1) WHERE id = ?", [shopId]);
     const o = await order({ status: "new", phone: "0770123456" });
     await owner.goto(`${dash}/orders/${o.id}`);
-    const buttons = await owner.locator("[data-testid=status-picker] button").evaluateAll((els) => els.map((e) => e.dataset.status));
-    expect(buttons.join() === "new,confirmed,callback,no_answer,voicemail,remark,cancelled,fake,wrong_number,duplicate", `call statuses (got ${buttons.join()})`);
-    await owner.click('[data-testid=status-picker] button[data-status="fake"]');
-    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true][data-status="fake"]');
+    await setCallStatus(owner, "fake");
     const [[blocked]] = await db.query("SELECT COUNT(*) AS n FROM blocked_phones WHERE shop_id = ? AND phone = '0770123456'", [shopId]);
     expect(blocked.n === 1, "phone blocked after the fake order");
   });
@@ -79,22 +71,22 @@ export default async function phase24(browser) {
     const o = await order({ status: "shipped" });
     await parcel(o.id, "suspended");
     await owner.goto(`${dash}/orders/${o.id}`);
-    const card = owner.locator("[data-testid=follow-up-card]");
-    expect((await card.locator("[data-testid=injection]").innerText()) === "تم الإدخال", "injected");
-    expect(await owner.locator('[data-testid=status-picker] button[data-status="cancelled"]').isDisabled(), "call statuses wait while a parcel exists");
-    await card.locator("select[data-followup=state]").selectOption("postponed");
+    const card = owner.locator("[data-testid=order-status]");
+    expect((await card.locator("select[data-section=injection]").inputValue()) === "done", "injected");
+    expect((await card.locator("select[data-section=call]").inputValue()) === "confirmed", "a sent order stays confirmed");
+    await card.locator("select[data-section=delivery]").selectOption("postponed");
     await expectSoon(async () => (await statusOf(o.id)).state === "postponed", "Livraison = Reportée");
-    await card.locator("select[data-followup=fault]").selectOption("customer");
+    await card.locator("select[data-section=fault]").selectOption("customer");
     await expectSoon(async () => (await statusOf(o.id)).fault === "customer", "Remarque = Erreur du client");
     // The tracking list shows the follow-up next to the courier's stage
     await owner.goto(`${dash}/orders/tracking?ds=postponed`);
     await owner.locator(`tr[data-order="${o.number}"] [data-ds=postponed]`).waitFor();
-    // Delivery = returned closes the order like the courier would
+    // Livraison finale = Retour closes the order like the courier would
     await owner.goto(`${dash}/orders/${o.id}`);
-    await owner.locator("[data-testid=follow-up-card] select[data-followup=state]").selectOption("returned");
+    await owner.locator("[data-testid=order-status] select[data-section=final]").selectOption("returned");
     await expectSoon(async () => (await statusOf(o.id)).status === "returned", "order returned");
     await owner.reload();
-    expect((await owner.locator("[data-testid=final-delivery]").innerText()) === "مرتجع", "Livraison finale = Retour");
+    expect((await owner.locator("[data-testid=order-status] select[data-section=delivery]").inputValue()) === "returned", "Livraison follows");
     await owner.goto(`${dash}/orders/returns`);
     await owner.locator(`tr[data-order="${o.number}"]`).waitFor();
     owner.once("dialog", (d) => d.accept());

@@ -4,7 +4,7 @@ import { db, schema } from "@/server/db";
 import type { PageStrategy } from "@/server/db/schema";
 import { newId } from "@/server/auth/context";
 import { nextFreeSlug, slugify } from "@/lib/format";
-import { defaultForm, resolveForm, sanitizeSections } from "./types";
+import { sanitizeSections } from "./types";
 
 // Landing page writes shared by the editor actions and the AI generator (not server actions themselves).
 export async function freeSlug(shopId: string, wanted: string, exceptId?: string) {
@@ -22,7 +22,7 @@ export async function shopProduct(shopId: string, productId: string) {
 }
 
 // Inserts a page (used by manual creation and by the AI).
-export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; form?: unknown; status?: "draft" | "published"; strategy?: PageStrategy | null }) {
+export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; status?: "draft" | "published"; strategy?: PageStrategy | null; formTemplateId?: string | null }) {
   const id = newId();
   await db.insert(schema.landingPages).values({
     id,
@@ -34,9 +34,8 @@ export async function insertLandingPage(shopId: string, data: { productId: strin
     color: data.color ?? null,
     status: data.status ?? "draft",
     sections: sanitizeSections(data.sections),
-    // New pages start from the store's own order form
-    form: resolveForm(data.form ?? (await db.select({ form: schema.shops.orderForm }).from(schema.shops).where(eq(schema.shops.id, shopId)))[0]?.form ?? defaultForm),
     strategy: data.strategy ?? null,
+    formTemplateId: data.formTemplateId ?? null,
   });
   return id;
 }

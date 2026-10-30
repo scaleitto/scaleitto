@@ -1,6 +1,8 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { placeOrder } from "@/features/checkout/place-order";
+import type { OrderInput } from "@/features/checkout/validators";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -12,7 +14,7 @@ import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { wilayas } from "@/lib/wilayas";
 import type { ActionState } from "@/lib/action";
 import { deliveryTypes } from "@/server/db/schema";
-import { callStatuses, type OrderStatus } from "./statuses";
+import { PARCEL_STATUSES, callStatuses, type OrderStatus } from "./statuses";
 import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
 import { scheduleOrderSync } from "@/features/apps/sync";
@@ -30,10 +32,20 @@ export async function changeOrderStatus(lang: string, orderId: string, status: s
     // The call's outcome only: shipped comes from sending, delivered / returned from tracking or the delivery follow-up
     if (!(callStatuses as readonly string[]).includes(status)) return { ok: false, error: "invalid" };
     if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    // A parcel at the courier: remove it first (the order goes back to confirmed), so the lists never disagree
-    const [parcel] = await db.select({ id: schema.shipments.id }).from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
-    if (parcel) return { ok: false, error: "parcelExists" };
-    await db.transaction((tx) => applyOrderStatus(tx, shop.id, orderId, status as OrderStatus, user.id));
+    const where = and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId));
+    const [order] = await db.select({ status: schema.orders.status }).from(schema.orders).where(where);
+    if (!order) return { ok: false, error: "notFound" };
+    // A sent order is already confirmed; any other call status waits until its parcel is removed (Injection → not injected)
+    if ((PARCEL_STATUSES as readonly string[]).includes(order.status)) return status === "confirmed" ? { ok: true } : { ok: false, error: "parcelExists" };
+    await db.transaction(async (tx) => {
+      const changed = await applyOrderStatus(tx, shop.id, orderId, status as OrderStatus, user.id);
+      // Each call is counted (the rule: 3 calls at different times, then a message); the same outcome again
+      // ("no answer" a second time) is a new attempt, recorded as its own event
+      if (status !== "new") {
+        await tx.update(schema.orders).set({ callAttempts: sql`${schema.orders.callAttempts} + 1`, lastCallAt: new Date() }).where(where);
+        if (!changed) await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "call", note: status });
+      }
+    });
     // Fake orders / wrong numbers can block the phone (Protection → automatic block)
     if (status === "fake" || status === "wrong_number") {
       const [order] = await db.select({ phone: schema.orders.phone }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
@@ -251,5 +263,36 @@ export async function markOrderTrusted(lang: string, orderId: string): Promise<A
     });
     refresh();
     return { ok: true };
+  });
+}
+
+const convertSchema = z.object({
+  name: z.string().trim().min(2, "e:tooShort").max(120, "e:invalid"),
+  wilaya: z.coerce.number().int().refine((c) => wilayas.some((w) => w.code === c), "e:invalid"),
+  commune: z.string().trim().min(2, "e:tooShort").max(120, "e:invalid"),
+  address: z.string().trim().max(255, "e:invalid").optional().default(""),
+  deliveryType: z.enum(deliveryTypes),
+  quantity: z.coerce.number().int().min(1).max(20),
+});
+
+// An abandoned cart recovered by phone: the order is created by the member (through placeOrder: stock, number, offers,
+// delivery price, assignment) and the cart becomes "converted". Returns the new order's id in message.
+export async function convertLead(lang: string, leadId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("leads/convert", async () => {
+    const { shop, user } = await guard(lang);
+    const parsed = convertSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const [lead] = await db.select().from(schema.leads).where(and(eq(schema.leads.shopId, shop.id), eq(schema.leads.id, leadId)));
+    if (!lead || lead.status === "converted") return { ok: false, error: "notFound" };
+    const d = parsed.data;
+    const result = await placeOrder(
+      shop,
+      lead.productId,
+      { name: d.name, phone: lead.phone, wilaya: d.wilaya, commune: d.commune, address: d.address, deliveryType: d.deliveryType, quantity: d.quantity, variantId: lead.variantId ?? "", note: "", fill: null, website: "" } as OrderInput,
+      { ip: null, userAgent: null, memberId: user.id },
+    );
+    if (!result.ok) return { ok: false, error: result.error === "stock" ? "outOfStock" : result.error === "shipping" ? "noShipping" : "unavailable" };
+    refresh();
+    return { ok: true, message: result.orderId };
   });
 }

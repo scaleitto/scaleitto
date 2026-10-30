@@ -11,6 +11,9 @@ import { LandingEditor } from "@/features/landing/LandingEditor";
 import { StrategyCard } from "@/features/landing/StrategyCard";
 import { pageLanguage } from "@/features/landing/PublicLanding";
 import { resolveForm, sanitizeSections } from "@/features/landing/types";
+import { productForm } from "@/features/order-form/resolve";
+import { db, schema } from "@/server/db";
+import { eq } from "drizzle-orm";
 
 export default async function EditLandingPage({
   params,
@@ -23,7 +26,7 @@ export default async function EditLandingPage({
   if (!page) notFound();
   const product = await landingProduct(shop.id, page.productId);
   if (!product) notFound();
-  const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
+  const templates = await db.select({ id: schema.formTemplates.id, name: schema.formTemplates.name, form: schema.formTemplates.form }).from(schema.formTemplates).where(eq(schema.formTemplates.shopId, shop.id));
   return (
     <>
       <StrategyCard strategy={page.strategy} t={t.landingPages.strategy} names={t.landingPages.angles.names} />
@@ -38,7 +41,7 @@ export default async function EditLandingPage({
           color: page.color,
           status: page.status,
           sections: sanitizeSections(page.sections),
-          form: resolveForm(page.form),
+          formTemplateId: page.formTemplateId,
         }}
         product={{
           name: product.name,
@@ -65,11 +68,14 @@ export default async function EditLandingPage({
         theme={storeTheme(resolveDesign(shop.design))}
         shopColor={shop.primaryColor}
         pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
-        embedUrl={`${appUrl}/embed/${shop.slug}/${encodeURIComponent(page.slug)}`}
         backHref={sectionHref(lang, "landingPages")}
+        forms={{
+          product: await productForm(shop, product.formTemplateId),
+          templates: templates.map((x) => ({ id: x.id, name: x.name, form: resolveForm(x.form) })),
+          editHref: sectionHref(lang, "orderForm"),
+        }}
         t={{
           landingPages: t.landingPages,
-          orderForm: t.orderForm,
           media: t.media,
           errors: t.errors,
           common: t.common,

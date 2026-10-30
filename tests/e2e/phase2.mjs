@@ -1,7 +1,7 @@
 // Phase 2: storefront ordering (cash on delivery), fake-order protection, abandoned carts,
 // and the merchant's order management (status, stock, edits, notes, blocking, roles, isolation).
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 
 export default async function phase2(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -101,10 +101,10 @@ export default async function phase2(browser) {
   await step("cancelling returns the stock, reconfirming takes it again, history records it", async () => {
     await owner.goto(`${orders}/${orderId}`);
     await owner.waitForSelector("text=طلب #1001");
-    await owner.click('[data-testid=status-picker] button:has-text("ملغى")');
+    await setCallStatus(owner, "cancelled");
     await owner.waitForSelector('[data-testid=history] >> text=تغيير الحالة: جديد ← ملغى');
     expect((await stockOf(black)) === 10, "stock back to 10");
-    await owner.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(owner, "confirmed");
     await owner.waitForSelector('[data-testid=history] >> text=تغيير الحالة: ملغى ← مؤكد');
     expect((await stockOf(black)) === 8, "stock taken again");
     expect(await owner.locator('[data-testid=history] >> text=Owner').count(), "history shows who changed it");
@@ -150,7 +150,7 @@ export default async function phase2(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${orders}/${orderId}`);
-    await p.click('[data-testid=status-picker] button:has-text("إعادة الاتصال")');
+    await setCallStatus(p, "callback");
     await p.waitForSelector("[data-testid=history] >> text=Test agent");
     await ctx.close();
   });

@@ -2,7 +2,7 @@
 // server-side purchases (Conversions API / Events API / Measurement Protocol) at order, confirmation or delivery,
 // sent once per order, the test button, the log, roles and tenant isolation.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 import { received } from "./mock-pixels.mjs";
 
 const META = "123456789012345";
@@ -169,15 +169,13 @@ export default async function phase9(browser) {
 
   await step("confirming the order sends the TikTok purchase once", async () => {
     await owner.goto(`${BASE}/ar/dashboard/orders/${bagOrder}`);
-    await owner.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(owner, "confirmed");
     const tt = await waitFor(() => received.find((r) => r.platform === "tiktok"), "server TikTok event");
     const ev = tt.body.data[0];
     expect(tt.headers["access-token"] === "good-token" && tt.body.event_source_id === TIKTOK && tt.body.test_event_code === "TEST1", "TikTok Events API call");
     expect(ev.event === "CompletePayment" && ev.event_id === bagOrder && ev.user.ttclid === "click-42" && ev.properties.value === 5500, "purchase with click id and total");
-    await owner.click('[data-testid=status-picker] button:has-text("جديد")');
-    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true]:has-text("جديد")');
-    await owner.click('[data-testid=status-picker] button:has-text("مؤكد")');
-    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true]:has-text("مؤكد")');
+    await setCallStatus(owner, "callback");
+    await setCallStatus(owner, "confirmed");
     await owner.waitForTimeout(700);
     expect(received.filter((r) => r.platform === "tiktok").length === 1, "not sent a second time");
   });

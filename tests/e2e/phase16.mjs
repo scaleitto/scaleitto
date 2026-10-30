@@ -58,8 +58,10 @@ export default async function phase16(browser) {
     expect((await owner.locator("[data-agent] [data-open]").allInnerTexts()).map(Number).sort().join() === "2,3", "each agent's open orders");
   });
 
-  await step("orders list: select orders, give them to one member, take one back", async () => {
+  await step("call centers → distribution: select orders, give them to one member, take one back (the only place)", async () => {
     await owner.goto(`${dash}/orders`);
+    expect(!(await owner.locator("[data-testid=bulk-assign]").count()), "no distribution in the orders list");
+    await owner.goto(`${dash}/call-centers/settings`);
     const bar = owner.locator("[data-testid=bulk-assign]");
     await bar.waitFor();
     await owner.locator('tr[data-order="2001"] input[data-bulk-order]').check();

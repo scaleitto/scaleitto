@@ -19,7 +19,7 @@ export default async function phase8(browser) {
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, cost_price, images, options, offers) VALUES (?, ?, 'حذاء رياضي', 'shoe', 4000, 1500, '[]', '[]', '[]')", [productId, shopId]);
   const pageId = randomUUID();
-  await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, sections, form) VALUES (?, ?, ?, 'shoe-lp', 'صفحة الحذاء', '[]', '{}')", [pageId, shopId, productId]);
+  await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, sections) VALUES (?, ?, ?, 'shoe-lp', 'صفحة الحذاء', '[]')", [pageId, shopId, productId]);
   let number = 1000;
   const addOrder = async ({ when, status, wilaya = 16, landing = null, quantity = 1 }) => {
     const id = randomUUID();

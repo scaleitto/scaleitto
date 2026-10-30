@@ -12,7 +12,7 @@ import { asLocale } from "@/i18n";
 import { sectionHref } from "@/lib/permissions";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
-import { pageLanguages, resolveForm, sanitizeSections } from "./types";
+import { pageLanguages, sanitizeSections } from "./types";
 import { freeSlug, insertLandingPage, shopProduct } from "./store";
 import { starterImageSections, starterSections } from "./template";
 
@@ -53,7 +53,8 @@ const saveSchema = z.object({
     .transform((v) => v.toLowerCase() || null),
   status: z.enum(["draft", "published"]),
   sections: z.unknown(),
-  form: z.unknown(),
+  // One of the store's form templates (null: the product's form)
+  formTemplateId: z.string().max(36).nullable().optional().default(null),
 });
 
 export type LandingDraft = z.input<typeof saveSchema>;
@@ -67,9 +68,14 @@ export async function saveLandingPage(lang: string, pageId: string, draft: Landi
     const [page] = await db.select({ id: schema.landingPages.id }).from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.id, pageId)));
     if (!page) return { ok: false, error: "notFound" };
     const sections = sanitizeSections(d.sections);
+    // Never trust a template id from the browser: it must be one of this store's
+    if (d.formTemplateId) {
+      const [tpl] = await db.select({ id: schema.formTemplates.id }).from(schema.formTemplates).where(and(eq(schema.formTemplates.shopId, shop.id), eq(schema.formTemplates.id, d.formTemplateId)));
+      if (!tpl) return { ok: false, error: "notFound" };
+    }
     await db
       .update(schema.landingPages)
-      .set({ title: d.title, slug: await freeSlug(shop.id, d.slug || d.title, pageId), language: d.language, color: d.color, status: d.status, sections, form: resolveForm(d.form) })
+      .set({ title: d.title, slug: await freeSlug(shop.id, d.slug || d.title, pageId), language: d.language, color: d.color, status: d.status, sections, formTemplateId: d.formTemplateId })
       .where(eq(schema.landingPages.id, pageId));
     refresh();
     return { ok: true };

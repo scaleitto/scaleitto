@@ -1,4 +1,5 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { formFor } from "@/features/order-form/resolve";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getShippingRates, getShopBySlug, getStoreLanding } from "@/features/storefront/queries";
@@ -39,6 +40,7 @@ export default async function LandingPage({ params }: PageProps<"/store/[slug]/l
     <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
     <PublicLanding
       page={page}
+        settings={await formFor(shop, page.formTemplateId, product.formTemplateId)}
       product={{ price: product.price, compareAtPrice: product.compareAtPrice, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
       variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
       rates={await getShippingRates(shop.id)}

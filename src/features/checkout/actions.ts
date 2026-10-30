@@ -13,8 +13,8 @@ import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
-import { customFieldValid, resolveForm } from "@/features/landing/types";
-import { productForm } from "@/features/order-form/resolve";
+import { customFieldValid } from "@/features/landing/types";
+import { formFor, productForm } from "@/features/order-form/resolve";
 import { placeOrder } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
@@ -40,13 +40,13 @@ async function templateOf(shopId: string, productId: string) {
   return p?.t ?? null;
 }
 
-// The settings of a published landing page form, or null.
-async function landingForm(shopId: string, landingPageId: string, productId: string) {
+// The form of a published landing page (its template, else the product's, else the store's), or null.
+async function landingForm(shop: { id: string; orderForm: unknown }, landingPageId: string, productId: string) {
   const [page] = await db
-    .select({ form: schema.landingPages.form })
+    .select({ templateId: schema.landingPages.formTemplateId })
     .from(schema.landingPages)
-    .where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, landingPageId), eq(schema.landingPages.productId, productId), eq(schema.landingPages.status, "published")));
-  return page ? resolveForm(page.form) : null;
+    .where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.id, landingPageId), eq(schema.landingPages.productId, productId), eq(schema.landingPages.status, "published")));
+  return page ? formFor(shop, page.templateId, await templateOf(shop.id, productId)) : null;
 }
 
 // The customer's order form (store product page, landing page or embedded form).
@@ -56,7 +56,7 @@ export async function submitOrder(slug: string, productId: string, landingPageId
   if (!shop) return { ok: false, error: "unavailable" };
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
-    const settings = landingPageId ? await landingForm(shop.id, landingPageId, productId) : await productForm(shop, await templateOf(shop.id, productId));
+    const settings = landingPageId ? await landingForm(shop, landingPageId, productId) : await productForm(shop, await templateOf(shop.id, productId));
     if (!settings) return { ok: false, error: "unavailable" };
 
     // What the landing page's form asks on top of the standard fields

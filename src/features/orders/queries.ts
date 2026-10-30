@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, like, lt, o
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
 import { stageShipments, viewStatuses, type OrderFilters, type TrackingStage } from "./views";
-import { PARCEL_STATUSES } from "./statuses";
+import { CONFIRMED_STATUSES, PARCEL_STATUSES, orderModel } from "./statuses";
 import type { ShipmentStatus } from "@/server/db/schema";
 import { addDays } from "@/lib/time";
 import { visibleOrders, type OrderViewer } from "./access";
@@ -20,8 +20,13 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
   const sh = schema.shipments;
   const filters: (SQL | undefined)[] = [visibleOrders(viewer)];
   const statuses = viewStatuses[f.view];
-  if (f.status && (!statuses || statuses.includes(f.status))) filters.push(eq(o.status, f.status));
+  // The call status of a sent order is "confirmed" (orderModel): the "confirmed" chip counts every confirmed order
+  if (f.status && (!statuses || statuses.includes(f.status))) filters.push(f.status === "confirmed" ? inArray(o.status, [...CONFIRMED_STATUSES]) : eq(o.status, f.status));
   else if (statuses) filters.push(inArray(o.status, [...statuses]));
+  if (f.view === "all" && f.inj) filters.push(f.inj === "done" ? inArray(o.status, [...PARCEL_STATUSES]) : eq(o.status, "confirmed"));
+  if (f.fault) filters.push(eq(o.deliveryFault, f.fault));
+  if (f.proc) filters.push(eq(o.processing, f.proc));
+  if (f.fin) filters.push(eq(o.status, f.fin));
   if (f.view === "risk") filters.push(gte(o.risk, riskThreshold));
   // Injection: confirmed orders waiting to be sent, or sent (a parcel exists) and still on their way
   if (f.view === "ship") filters.push(f.inj === "done" ? and(eq(o.status, "shipped"), isNotNull(sh.id)) : eq(o.status, "confirmed"));
@@ -71,6 +76,7 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
         locked: o.locked,
         risk: o.risk,
         deliveryState: o.deliveryState,
+        callAttempts: o.callAttempts,
         deliveryFault: o.deliveryFault,
         processing: o.processing,
         assigneeName: schema.users.name,
@@ -105,6 +111,25 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
     total,
     size,
   };
+}
+
+// The orders list's chips: how many orders sit in each value of the five sections (orderModel), zeros left out
+export async function modelCounts(viewer: OrderViewer) {
+  const o = schema.orders;
+  const rows = await db
+    .select({ status: o.status, deliveryState: o.deliveryState, deliveryFault: o.deliveryFault, processing: o.processing, n: count() })
+    .from(o)
+    .where(visibleOrders(viewer))
+    .groupBy(o.status, o.deliveryState, o.deliveryFault, o.processing);
+  const out = { call: {}, injection: {}, delivery: {}, fault: {}, processing: {}, final: {} } as Record<"call" | "injection" | "delivery" | "fault" | "processing" | "final", Record<string, number>>;
+  for (const r of rows) {
+    const m = orderModel(r);
+    for (const key of Object.keys(out) as (keyof typeof out)[]) {
+      const v = m[key];
+      if (v) out[key][v] = (out[key][v] ?? 0) + r.n;
+    }
+  }
+  return out;
 }
 
 export async function statusCounts(viewer: OrderViewer) {
@@ -229,6 +254,7 @@ export async function listLeads(shopId: string, page = 1) {
         status: l.status,
         updatedAt: l.updatedAt,
         productName: schema.products.name,
+        productSlug: schema.products.slug,
         variantTitle: schema.productVariants.title,
       })
       .from(l)
@@ -256,4 +282,13 @@ export async function protectionOverview(shopId: string, riskThreshold: number) 
       .limit(300),
   ]);
   return { suspicious: suspicious.n, blocked };
+}
+
+// The recovery of abandoned carts over the last 30 days: carts left, contacted, turned into orders
+export async function recoveryStats(shopId: string, since: Date) {
+  const l = schema.leads;
+  const rows = await db.select({ status: l.status, n: count() }).from(l).where(and(eq(l.shopId, shopId), gte(l.createdAt, since))).groupBy(l.status);
+  const by = (s: string) => rows.find((r) => r.status === s)?.n ?? 0;
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  return { total, abandoned: by("abandoned"), contacted: by("contacted"), converted: by("converted"), rate: total ? Math.round((by("converted") / total) * 100) : 0 };
 }

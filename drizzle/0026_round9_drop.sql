@@ -1,0 +1,1 @@
+ALTER TABLE `landing_pages` DROP COLUMN `form`;

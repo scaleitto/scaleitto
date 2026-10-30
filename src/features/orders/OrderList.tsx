@@ -5,13 +5,13 @@ import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import type { ParcelDefaults } from "@/lib/enums";
-import { deliveryStates } from "@/server/db/schema";
+import { deliveryFaults, deliveryStates, processingStates } from "@/server/db/schema";
 import { Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
-import { listOrders, returnCounts, riskCount, stageCounts, statusCounts } from "./queries";
-import { PARCEL_STATUSES, callStatuses, statusTone } from "./statuses";
+import { listOrders, modelCounts, returnCounts, riskCount, stageCounts, statusCounts } from "./queries";
+import { callStatuses, deliveryOrder, orderModel, statusTone } from "./statuses";
 import { injectionStates, pageSizes, returnStates, stageNames, trackingStages, type OrderFilters, type OrderView } from "./views";
 import type { OrderViewer } from "./access";
-import { BulkAssignBar, SelectAllOrders } from "./BulkAssign";
+import { SelectAllOrders } from "./BulkAssign";
 import { ReturnsPanel, SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
 import { shipmentTone } from "@/features/delivery/status";
 
@@ -52,8 +52,9 @@ export async function OrderList({
   const o = t.orders;
   const base = sectionHref(lang, section);
   const orderBase = sectionHref(lang, "orders");
-  const [{ rows, total, size }, counts, risky, stages, returns] = await Promise.all([
+  const [{ rows, total, size }, model, counts, risky, stages, returns] = await Promise.all([
     listOrders(viewer, f, riskThreshold),
+    section === "orders" ? modelCounts(viewer) : Promise.resolve(null),
     statusCounts(viewer),
     riskCount(viewer, riskThreshold),
     f.view === "transit" ? stageCounts(viewer) : Promise.resolve(null),
@@ -72,29 +73,52 @@ export async function OrderList({
   const shipping = section !== "orders";
   const managers = members.length > 0;
   const filtered = Boolean(f.q || f.wilaya || f.delivery || f.from || f.to || f.assignee || f.ds);
-  const reset = { status: undefined, stage: undefined, ret: undefined, inj: undefined, page: 1 } as const;
+  const reset = { status: undefined, stage: undefined, ret: undefined, inj: undefined, ds: undefined, fault: undefined, proc: undefined, fin: undefined, page: 1 } as const;
 
-  // One row of chips per sub-section: the order's status (list), injection (send), the courier's stage (tracking),
-  // the return's state (returns)
+  // One row of chips per sub-section. The orders list: the five sections of the order page (same names, same order),
+  // only the values that have orders; the other lists: injection (send), the courier's stage (tracking), the return's state
   type Chip = { key: string; label: string; sub?: string; n: number; active: boolean; href: string; warn?: boolean };
-  const chips: Chip[] =
-    section === "orders"
+  type Group = { key: string; title?: string; chips: Chip[] };
+  const nonZero = (list: Chip[]) => list.filter((c) => c.n > 0);
+  const f2 = o.followup;
+  const groups: Group[] =
+    section === "orders" && model
       ? [
-          { key: "all", label: o.all, n: all, active: f.view === "all" && !f.status, href: href({ ...reset, view: "all" }) },
-          ...[...callStatuses, ...PARCEL_STATUSES].map((s) => ({ key: s, label: o.statuses[s], n: counts[s] ?? 0, active: f.view === "all" && f.status === s, href: href({ ...reset, view: "all", status: s }) })),
-          { key: "risk", label: o.views.risk, n: risky, active: f.view === "risk", href: href({ ...reset, view: "risk" }), warn: risky > 0 },
-        ]
+          {
+            key: "all",
+            chips: [
+              { key: "all", label: o.all, n: all, active: f.view === "all" && !Object.values({ ...f, view: undefined, q: undefined, page: undefined, size: undefined, wilaya: undefined, delivery: undefined, from: undefined, to: undefined, assignee: undefined }).some(Boolean), href: href({ ...reset, view: "all" }) },
+              ...(risky > 0 ? [{ key: "risk", label: o.views.risk, n: risky, active: f.view === "risk", href: href({ ...reset, view: "risk" }), warn: true }] : []),
+            ],
+          },
+          { key: "call", title: o.model.titles.call, chips: nonZero(callStatuses.map((s) => ({ key: `call-${s}`, label: o.statuses[s], n: model.call[s] ?? 0, active: f.status === s, href: href({ ...reset, view: "all", status: s }) }))) },
+          { key: "injection", title: o.model.titles.injection, chips: nonZero(injectionStates.map((k) => ({ key: `inj-${k}`, label: o.injection[k], n: model.injection[k] ?? 0, active: f.view === "all" && f.inj === k, href: href({ ...reset, view: "all", inj: k }) }))) },
+          { key: "delivery", title: o.model.titles.delivery, chips: nonZero(deliveryOrder.map((k) => ({ key: `ds-${k}`, label: f2.states[k], n: model.delivery[k] ?? 0, active: f.ds === k, href: href({ ...reset, view: "all", ds: k }) }))) },
+          { key: "fault", title: o.model.titles.fault, chips: nonZero(deliveryFaults.map((k) => ({ key: `fault-${k}`, label: f2.faults[k], n: model.fault[k] ?? 0, active: f.fault === k, href: href({ ...reset, view: "all", fault: k }) }))) },
+          { key: "processing", title: o.model.titles.processing, chips: nonZero(processingStates.map((k) => ({ key: `proc-${k}`, label: f2.processingStates[k], n: model.processing[k] ?? 0, active: f.proc === k, href: href({ ...reset, view: "all", proc: k }) }))) },
+          { key: "final", title: o.model.titles.final, chips: nonZero((["delivered", "returned"] as const).map((k) => ({ key: `fin-${k}`, label: f2.states[k], n: model.final[k] ?? 0, active: f.fin === k, href: href({ ...reset, view: "all", fin: k }) }))) },
+        ].filter((g) => g.chips.length > 0)
       : section === "shipping"
-        ? injectionStates.map((k) => ({ key: k, label: o.injection[k], n: (k === "done" ? counts.shipped : counts.confirmed) ?? 0, active: (f.inj ?? "pending") === k, href: href({ ...reset, inj: k === "pending" ? undefined : k }) }))
+        ? [{ key: "inj", chips: injectionStates.map((k) => ({ key: k, label: o.injection[k], n: (k === "done" ? counts.shipped : counts.confirmed) ?? 0, active: (f.inj ?? "pending") === k, href: href({ ...reset, inj: k === "pending" ? undefined : k }) })) }]
         : section === "tracking" && stages
           ? [
-              { key: "all", label: o.filters.allStages, n: stages.all, active: !f.stage, href: href(reset) },
-              ...trackingStages.map((k) => ({ key: k, label: stageNames[k], sub: lang === "fr" ? undefined : o.stageLabels[k], n: stages[k] ?? 0, active: f.stage === k, href: href({ ...reset, stage: k }) })),
+              {
+                key: "stages",
+                chips: [
+                  { key: "all", label: o.filters.allStages, n: stages.all, active: !f.stage, href: href(reset) },
+                  ...trackingStages.map((k) => ({ key: k, label: stageNames[k], sub: lang === "fr" ? undefined : o.stageLabels[k], n: stages[k] ?? 0, active: f.stage === k, href: href({ ...reset, stage: k }) })),
+                ],
+              },
             ]
           : returns
             ? [
-                { key: "all", label: o.filters.allStages, n: returns.back + returns.pending + returns.received, active: !f.ret, href: href(reset) },
-                ...returnStates.map((r) => ({ key: r, label: o.returns.states[r], n: returns[r], active: f.ret === r, href: href({ ...reset, ret: r }) })),
+                {
+                  key: "returns",
+                  chips: [
+                    { key: "all", label: o.filters.allStages, n: returns.back + returns.pending + returns.received, active: !f.ret, href: href(reset) },
+                    ...returnStates.map((r) => ({ key: r, label: o.returns.states[r], n: returns[r], active: f.ret === r, href: href({ ...reset, ret: r }) })),
+                  ],
+                },
               ]
             : [];
   const chip = (active: boolean) => `flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition ${active ? "border-accent/40 bg-accent/10 text-accent" : "border-line text-muted hover:border-accent/30 hover:text-fg"}`;
@@ -119,18 +143,23 @@ export async function OrderList({
       ) : (
         <Card className="p-0">
           <div className="space-y-3 border-b border-line p-4">
-            <nav className="flex gap-1.5 overflow-x-auto pb-1 text-sm" aria-label={t.sections[section].title} data-testid="order-chips" data-section={section}>
-              {chips.map((c) => (
-                <Link key={c.key} href={c.href} aria-current={c.active ? "page" : undefined} className={chip(c.active)} data-chip={c.key}>
-                  {c.key === "risk" && <ShieldAlert size={14} className={c.warn ? "text-warning" : ""} />}
-                  <span className="flex flex-col leading-tight">
-                    <span dir={c.sub ? "ltr" : undefined}>{c.label}</span>
-                    {c.sub && <span className="text-[11px] font-normal opacity-80">{c.sub}</span>}
-                  </span>
-                  <span className={`rounded-full px-1.5 text-xs tabular-nums ${c.warn ? "bg-warning/10 text-warning" : "bg-bg"}`}>{c.n}</span>
-                </Link>
+            <div className="space-y-2 text-sm" data-testid="order-chips" data-section={section}>
+              {groups.map((g) => (
+                <div key={g.key} className="flex flex-wrap items-center gap-1.5" data-group={g.key}>
+                  {g.title && <span className="me-1 w-full text-xs font-semibold text-muted sm:w-40 sm:shrink-0">{g.title}</span>}
+                  {g.chips.map((c) => (
+                    <Link key={c.key} href={c.href} aria-current={c.active ? "page" : undefined} className={chip(c.active)} data-chip={c.key}>
+                      {c.key === "risk" && <ShieldAlert size={14} className="text-warning" />}
+                      <span className="flex flex-col leading-tight">
+                        <span dir={c.sub ? "ltr" : undefined}>{c.label}</span>
+                        {c.sub && <span className="text-[11px] font-normal opacity-80">{c.sub}</span>}
+                      </span>
+                      <span className={`rounded-full px-1.5 text-xs tabular-nums ${c.warn ? "bg-warning/10 text-warning" : "bg-bg"}`}>{c.n}</span>
+                    </Link>
+                  ))}
+                </div>
               ))}
-            </nav>
+            </div>
 
             <form action={base} className="flex flex-wrap gap-2" data-testid="order-filters">
               {section === "orders" && f.view !== "all" && <input type="hidden" name="view" value={f.view} />}
@@ -203,12 +232,11 @@ export async function OrderList({
             <>
               {/* Tools for the selected orders: what makes sense in this sub-section */}
               <div className="space-y-3 border-b border-line bg-panel-2/50 p-3">
-                <SelectionTools t={t} showCount={!(managers && !shipping)} />
+                <SelectionTools t={t} showCount />
                 {f.view === "ship" && <ShipPanel lang={lang} accounts={accounts} deliveryHref={deliveryHref} t={t} />}
                 {f.view === "transit" && <TrackPanel lang={lang} t={t} />}
                 {f.view === "returns" && <ReturnsPanel lang={lang} t={t} />}
               </div>
-              {managers && !shipping && <BulkAssignBar lang={lang} members={members} t={{ orders: t.orders, errors: t.errors }} />}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-xs text-muted">
@@ -302,7 +330,16 @@ export async function OrderList({
                         <td className="p-3 font-semibold whitespace-nowrap">{formatPrice(r.total, t.common.currency)}</td>
                         {!shipping && (
                           <td className="p-3">
-                            <Badge tone={statusTone[r.status]}>{o.statuses[r.status]}</Badge>
+                            {/* The same names as the order page: the call status, then the delivery once sent */}
+                            <span className="flex flex-wrap items-center gap-1" data-status={orderModel(r).call}>
+                              <Badge tone={statusTone[orderModel(r).call]}>{o.statuses[orderModel(r).call]}</Badge>
+                              {r.deliveryState && <Badge tone={r.deliveryState === "delivered" ? "accent" : r.deliveryState === "returned" ? "danger" : "info"}>{o.followup.states[r.deliveryState]}</Badge>}
+                              {r.callAttempts > 0 && !r.deliveryState && (
+                                <span className="text-[11px] text-muted tabular-nums" title={fmt(o.model.calls, { n: r.callAttempts })} data-calls={r.callAttempts}>
+                                  📞{r.callAttempts}
+                                </span>
+                              )}
+                            </span>
                           </td>
                         )}
                         <td className="hidden p-3 text-xs whitespace-nowrap text-muted sm:table-cell">{formatDate(r.createdAt, lang)}</td>

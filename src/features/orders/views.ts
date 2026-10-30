@@ -1,4 +1,4 @@
-import type { DeliveryState, ShipmentStatus } from "@/server/db/schema";
+import type { DeliveryFault, DeliveryState, ProcessingState, ShipmentStatus } from "@/server/db/schema";
 import { PARCEL_STATUSES, PENDING_STATUSES, type OrderStatus } from "./statuses";
 
 // The order lists of the Orders section, one per sub-section, each feeding the next:
@@ -59,6 +59,9 @@ export type OrderFilters = {
   ret?: ReturnState;
   inj?: InjectionState;
   ds?: DeliveryState;
+  fault?: DeliveryFault;
+  proc?: ProcessingState;
+  fin?: "delivered" | "returned";
   wilaya?: number;
   delivery?: "home" | "office";
   from?: string;

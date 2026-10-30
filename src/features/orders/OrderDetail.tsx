@@ -6,9 +6,9 @@ import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import { Alert, Badge, Card, PageHeader, buttonClass } from "@/ui";
 import { addOrderNote, updateOrderCustomer } from "./actions";
-import { AssignCard, CustomerCard, FollowUpCard, NoteForm, PhoneBlockButton, RiskCard, StatusPicker, type OrderText } from "./OrderPanels";
+import { AssignCard, CustomerCard, NoteForm, OrderStatusCard, PhoneBlockButton, RiskCard, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
-import { isOrderStatus, statusTone } from "./statuses";
+import { callStatuses, isOrderStatus, orderModel, statusTone } from "./statuses";
 import { ShipmentCard } from "@/features/delivery/ShipmentCard";
 import { findCarrier } from "@/features/delivery/carriers";
 import type { CarrierAccountRow } from "@/features/delivery/queries";
@@ -28,6 +28,7 @@ export function OrderDetail({
   shop,
   whatsappApi,
   protection,
+  now,
 }: {
   lang: string;
   t: Dictionary;
@@ -42,10 +43,20 @@ export function OrderDetail({
   whatsappApi: boolean;
   // The store's fake-order protection (risk threshold, suspicious orders held)
   protection: { riskThreshold: number; holdSuspicious: boolean };
+  // The request's time (how long ago the last call was)
+  now: Date;
 }) {
   const o = t.orders;
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
   const cur = t.common.currency;
+  // The five sections of the order, and its calls (each call status chosen by a member, or the same one again)
+  const model = orderModel(order);
+  const byStatus: Partial<Record<string, number>> = {};
+  for (const { event } of order.events) {
+    const k = event.type === "call" ? event.note : event.type === "status" && event.userId ? event.toStatus : null;
+    if (k && k !== "new" && (callStatuses as readonly string[]).includes(k)) byStatus[k] = (byStatus[k] ?? 0) + 1;
+  }
+  const calls = { total: order.callAttempts, byStatus, lastMinutes: order.lastCallAt ? Math.max(0, Math.round((now.getTime() - order.lastCallAt.getTime()) / 60_000)) : null };
   const statusLabel = (s: string | null) => (s && isOrderStatus(s) ? o.statuses[s] : (s ?? ""));
   // "state:postponed" → "التوصيل: مؤجل"
   const followupNote = (note: string | null) => {
@@ -88,7 +99,7 @@ export function OrderDetail({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {/* A locked order (over the plan's limit) can only be looked at: no actions, no customer details */}
-          {!order.locked && <StatusPicker lang={lang} orderId={order.id} status={order.status} parcel={Boolean(shipment)} t={text} />}
+          {!order.locked && <OrderStatusCard lang={lang} orderId={order.id} model={model} calls={calls} t={text} />}
           {!order.locked && <ShipmentCard
             lang={lang}
             orderId={order.id}
@@ -188,18 +199,6 @@ export function OrderDetail({
         </div>
 
         <div className="space-y-6">
-          {!order.locked && (order.status === "confirmed" || shipment) && (
-            <FollowUpCard
-              lang={lang}
-              orderId={order.id}
-              status={order.status}
-              injected={Boolean(shipment)}
-              state={order.deliveryState}
-              fault={order.deliveryFault}
-              processing={order.processing}
-              t={text}
-            />
-          )}
           {!order.locked && (order.risk > 0 || (order.riskReasons ?? []).length > 0) && (
             <RiskCard lang={lang} orderId={order.id} risk={order.risk} reasons={order.riskReasons ?? []} threshold={protection.riskThreshold} held={protection.holdSuspicious && !order.assignedTo} t={text} />
           )}

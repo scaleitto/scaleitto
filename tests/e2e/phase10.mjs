@@ -2,7 +2,7 @@
 // last 30 days sent on demand), Ecomanager through the sheet, signed webhooks, product import from
 // Shopify and YouCan, the log, roles and tenant isolation.
 import { createHmac, randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 import { hooks, sheet } from "./mock-apps.mjs";
 
 const FAKE = process.env.E2E_APPS_URL;
@@ -61,7 +61,7 @@ export default async function phase10(browser) {
     const col = (name) => row[sheet.headers.indexOf(name)];
     expect(col("الهاتف") === "0555443322" && col("الحالة") === "جديد" && col("المجموع") === "2400" && col("المنتجات").includes("قميص × 1"), `row content (got ${row.join(" | ")})`);
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
-    await owner.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(owner, "confirmed");
     await waitFor(() => sheet.rows.get("1001")?.[sheet.headers.indexOf("الحالة")] === "مؤكد", "row updated to confirmed");
     expect([...sheet.rows.keys()].filter((k) => k !== "TEST").length === 1, "same row, not a new one");
   });
@@ -94,7 +94,7 @@ export default async function phase10(browser) {
     const sign = (raw) => `sha256=${createHmac("sha256", secret).update(raw).digest("hex")}`;
     expect(test.headers["x-scaleitto-signature"] === sign(test.raw), "test signed with the shop's key");
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
-    await owner.click('[data-testid=status-picker] button:has-text("لا يرد")');
+    await setCallStatus(owner, "no_answer");
     const update = await waitFor(() => hooks.find((h) => h.body.event === "order.updated" && h.body.order.status === "no_answer"), "order.updated");
     const o = update.body.order;
     expect(o.number === 1001 && o.total === 2400 && o.currency === "DZD" && o.customer.phone === "0555443322" && o.items[0].name === "قميص", "order payload");
@@ -106,7 +106,7 @@ export default async function phase10(browser) {
     await sheets.locator("input[type=checkbox]").uncheck();
     await owner.waitForTimeout(400);
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
-    await owner.click('[data-testid=status-picker] button:has-text("إعادة الاتصال")');
+    await setCallStatus(owner, "callback");
     await waitFor(() => hooks.some((h) => h.body.order?.status === "callback"), "webhook still receives");
     expect(sheet.rows.get("1001")[sheet.headers.indexOf("الحالة")] !== "إعادة الاتصال", "paused sheet not updated");
     await owner.goto(section);

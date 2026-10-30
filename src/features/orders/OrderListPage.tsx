@@ -5,7 +5,7 @@ import { canAccess, sectionHref } from "@/lib/permissions";
 import { formatDate, formatTime } from "@/lib/format";
 import { isOrderStatus } from "./statuses";
 import { injectionStates, isTrackingStage, pageSizes, returnStates, type InjectionState, type ReturnState } from "./views";
-import { deliveryStates, type DeliveryState } from "@/server/db/schema";
+import { deliveryFaults, deliveryStates, processingStates, type DeliveryFault, type DeliveryState, type ProcessingState } from "@/server/db/schema";
 import { viewerOf } from "./access";
 import { trackingOverview } from "./queries";
 import { OrderList, sectionView, type OrderListSection } from "./OrderList";
@@ -68,6 +68,9 @@ export async function OrderListPage({ lang, section, searchParams: sp }: { lang:
         ret: (returnStates as readonly string[]).includes(ret) ? (ret as ReturnState) : undefined,
         inj: (injectionStates as readonly string[]).includes(inj) ? (inj as InjectionState) : undefined,
         ds: (deliveryStates as readonly string[]).includes(ds) ? (ds as DeliveryState) : undefined,
+        fault: (deliveryFaults as readonly string[]).includes(one(sp.fault)) ? (one(sp.fault) as DeliveryFault) : undefined,
+        proc: (processingStates as readonly string[]).includes(one(sp.proc)) ? (one(sp.proc) as ProcessingState) : undefined,
+        fin: one(sp.fin) === "delivered" || one(sp.fin) === "returned" ? (one(sp.fin) as "delivered" | "returned") : undefined,
         wilaya: Number.isInteger(wilaya) && wilaya > 0 ? wilaya : undefined,
         delivery: delivery === "home" || delivery === "office" ? delivery : undefined,
         from: one(sp.from) || undefined,

@@ -25,5 +25,5 @@ export default async function OrderPage({ params }: PageProps<"/[lang]/dashboard
     protectionFor(shop.id),
   ]);
   if (!order) notFound();
-  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} shop={{ name: shop.name, phone: shop.phone, messages: shop.messages }} whatsappApi={Boolean(whatsapp?.active)} protection={protection} />;
+  return <OrderDetail lang={lang} t={getDictionary(lang)} order={order} shipment={shipment} accounts={accounts} canManageDelivery={role !== "agent"} members={members} shop={{ name: shop.name, phone: shop.phone, messages: shop.messages }} whatsappApi={Boolean(whatsapp?.active)} protection={protection} now={new Date()} />;
 }

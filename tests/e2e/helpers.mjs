@@ -108,3 +108,9 @@ export async function wizardGenerate(page) {
   await page.click("[data-testid=ai-next]");
   await page.locator("[data-testid=ai-confirm] button").last().click();
 }
+
+// The order page's first dropdown (Statut de la commande): choose a call status and wait until the page shows it saved
+export async function setCallStatus(page, status) {
+  await page.locator("[data-testid=order-status] select[data-section=call]").selectOption(status);
+  await page.waitForSelector(`[data-testid=order-status] select[data-section=call][data-value="${status}"]`);
+}

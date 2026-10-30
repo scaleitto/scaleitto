@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formFor } from "@/features/order-form/resolve";
 import { getShippingRates, getShopBySlug, getStoreLanding } from "@/features/storefront/queries";
 import { saveLead, submitOrder } from "@/features/checkout/actions";
 import { PublicLanding } from "@/features/landing/PublicLanding";
@@ -23,6 +24,7 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
       <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
       <PublicLanding
         page={page}
+        settings={await formFor(shop, page.formTemplateId, product.formTemplateId)}
         product={{ price: product.price, compareAtPrice: product.compareAtPrice, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}

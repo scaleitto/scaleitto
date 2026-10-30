@@ -2,7 +2,7 @@
 // (balanced, on shift, manual), agents limited to their orders, activity time, performance and
 // schedule adherence, activity log.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 
 // Algeria time now, as "HH:MM", shifted by some minutes
 function algeriaTime(offsetMinutes) {
@@ -110,7 +110,7 @@ export default async function phase6(browser) {
     await p.goto(`${orders}/${orderB}`);
     await p.waitForSelector("[data-testid=not-found]");
     await p.goto(`${orders}/${orderA}`);
-    await p.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(p, "confirmed");
     await p.waitForSelector("[data-testid=history] >> text=أمين");
   });
 

@@ -121,7 +121,7 @@ export default async function phase18(browser) {
     await db.query("UPDATE shops SET primary_color = '#facc15', design = ? WHERE id = ?", [JSON.stringify({ theme: "classic" }), shopId]);
     const [[product]] = await db.query("SELECT id FROM products WHERE shop_id = ? LIMIT 1", [shopId]);
     const sections = [{ id: "h", type: "hero", title: "عنوان" }, { id: "b", type: "benefits", items: [{ icon: "battery", title: "بطارية", text: "أسبوع" }, { icon: "💧", title: "قديم", text: "إيموجي" }] }];
-    await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, status, sections, form) VALUES (?, ?, ?, 'icons', 'icons', 'published', ?, '{}')", [randomUUID(), shopId, product.id, JSON.stringify(sections)]);
+    await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, status, sections) VALUES (?, ?, ?, 'icons', 'icons', 'published', ?)", [randomUUID(), shopId, product.id, JSON.stringify(sections)]);
     const visitor = await browser.newPage();
     await visitor.goto(`${BASE}/store/shop-${tag}/lp/icons`);
     const cards = visitor.locator("[data-section=benefits] li");

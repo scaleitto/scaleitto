@@ -8,17 +8,18 @@ import { CheckoutForm } from "@/features/storefront/CheckoutForm";
 import type { ActionState } from "@/lib/action";
 import { LandingSections, isImagePage } from "./blocks";
 import { PriceTag } from "./PriceTag";
-import { interfaceLocale, resolveForm, sanitizeSections, type PageLanguage, pageLanguages } from "./types";
+import { interfaceLocale, sanitizeSections, type FormSettings, type PageLanguage, pageLanguages } from "./types";
 
 type Product = Parameters<typeof CheckoutForm>[0]["product"] & { compareAtPrice: number | null };
 type Variant = Parameters<typeof CheckoutForm>[0]["variants"][number];
-export type LandingRow = { id: string; language: string; color: string | null; sections: unknown; form: unknown };
+export type LandingRow = { id: string; language: string; color: string | null; sections: unknown };
 
 export const pageLanguage = (v: string): PageLanguage => (pageLanguages.includes(v as PageLanguage) ? (v as PageLanguage) : "ar");
 
-// A landing page in its own language and color, with its configured order form.
+// A landing page in its own language and color, with its order form (formFor: the page's template, the product's or the store's).
 export function PublicLanding({
   page,
+  settings,
   product,
   variants,
   rates,
@@ -30,6 +31,7 @@ export function PublicLanding({
   children,
 }: {
   page: LandingRow;
+  settings: FormSettings;
   product: Product;
   variants: Variant[];
   rates: RateMap;
@@ -54,7 +56,7 @@ export function PublicLanding({
       wilayas={wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}` }))}
       action={action}
       saveLead={saveLead}
-      settings={resolveForm(page.form)}
+      settings={settings}
       embedded={embedded}
       whatsapp={whatsapp}
     />

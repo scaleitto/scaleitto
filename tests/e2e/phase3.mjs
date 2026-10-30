@@ -1,7 +1,7 @@
 // Phase 3: delivery — prices per wilaya, connecting delivery companies (checked keys, encrypted),
 // sending confirmed orders, tracking updates that close the order, manual tracking numbers.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
 import { received, setParcelStatus } from "./mock-carriers.mjs";
 
 export default async function phase3(browser) {
@@ -89,7 +89,7 @@ export default async function phase3(browser) {
     await db.query("UPDATE orders SET commune = 'Nowhere' WHERE id = ?", [orderId]);
     await page.goto(`${orders}/${orderId}`);
     expect(await page.locator('[data-testid=shipment] button:has-text("إرسال الطلب")').isDisabled(), "send disabled while new");
-    await page.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(page, "confirmed");
     await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
     await page.selectOption('[data-testid=shipment] select', { label: "Yalidine" });
     await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
@@ -126,7 +126,7 @@ export default async function phase3(browser) {
   await step("sending through an Ecotrack company and a returned parcel", async () => {
     const id = await placeOrder("يوسف", "0770112233", 31, "Es Senia");
     await page.goto(`${orders}/${id}`);
-    await page.click('[data-testid=status-picker] button:has-text("مؤكد")');
+    await setCallStatus(page, "confirmed");
     await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
     // The default company (Navex) is preselected
     await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
@@ -163,7 +163,7 @@ export default async function phase3(browser) {
     for (const [label, platform, phone] of [["ZR Express", "zrexpress", "0661000003"], ["ZR Express (Procolis)", "procolis", "0661000001"], ["NOEST Express", "noest", "0661000002"]]) {
       const id = await placeOrder("كريم", phone, 16, "Kouba");
       await page.goto(`${orders}/${id}`);
-      await page.click('[data-testid=status-picker] button:has-text("مؤكد")');
+      await setCallStatus(page, "confirmed");
       await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
       await page.selectOption("[data-testid=shipment] select", { label });
       await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');

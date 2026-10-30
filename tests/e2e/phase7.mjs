@@ -22,6 +22,11 @@ export default async function phase7(browser) {
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 500, 350)", [shopId]);
   let pageId;
   let pageSlug;
+  // A template of the store's order forms (Store design → Order form): button, required address, home only, a custom
+  // field, thank-you. Landing pages pick it; they have no form of their own.
+  const templateId = randomUUID();
+  const templateForm = { buttonText: "اطلب ساعتك الآن", address: "required", delivery: "home", thankYou: "شكراً! سنتصل بك اليوم.", custom: [{ id: "c1", label: "لون السوار", type: "select", options: ["أسود", "أزرق"], required: true }] };
+  await db.query("INSERT INTO form_templates (id, shop_id, name, form) VALUES (?, ?, 'فورم الساعات', ?)", [templateId, shopId, JSON.stringify(templateForm)]);
 
   await step("empty list, then a page made by hand opens in the editor", async () => {
     await owner.goto(section);
@@ -51,35 +56,19 @@ export default async function phase7(browser) {
     await owner.waitForSelector("text=تغييرات غير محفوظة");
   });
 
-  await step("order form settings: button, required address, home only, custom field, thank-you", async () => {
+  await step("order form: the page uses a form made in Store design → Order form (one form system), sections saved", async () => {
     await owner.locator("nav button", { hasText: "نموذج الطلب" }).click();
-    await owner.waitForSelector("[data-testid=form-editor]");
-    // Elements tab: the address's settings (gear), then a custom field (opens its settings)
-    await owner.click("[data-element=address] [data-testid=element-settings]");
-    await owner.selectOption('select[aria-label="حقل العنوان"]', "required");
-    await owner.click("text=إضافة حقل");
-    const field = owner.locator("[data-custom-field='0']");
-    await field.locator('input[aria-label="اسم الحقل"]').fill("لون السوار");
-    await field.locator('select[aria-label="النوع"]').selectOption("select");
-    await field.locator('textarea[aria-label^="الخيارات"]').fill("أسود\nأزرق");
-    await field.locator("label", { hasText: "إلزامي" }).click();
-    await owner.click("[data-testid=form-tab-settings]");
-    await owner.fill('input[aria-label="نص زر الطلب"]', "اطلب ساعتك الآن");
-    await owner.click("[data-testid=form-tab-delivery]");
-    await owner.selectOption('select[aria-label="أنواع التوصيل"]', "home");
-    await owner.click("[data-testid=form-tab-thanks]");
-    await owner.fill('textarea[aria-label="رسالة بعد الطلب (اختياري)"]', "شكراً! سنتصل بك اليوم.");
+    expect(!(await owner.locator("[data-testid=form-editor]").count()), "no second form editor in the landing page");
+    await owner.locator("[data-testid=landing-form-template]").selectOption(templateId);
     await owner.waitForSelector('[data-testid=landing-preview] button:has-text("اطلب ساعتك الآن")');
     await owner.click("[data-testid=save-page]");
     await owner.waitForSelector("text=تم الحفظ");
-    const [[row]] = await db.query("SELECT sections, form FROM landing_pages WHERE id = ?", [pageId]);
+    const [[row]] = await db.query("SELECT sections, form_template_id AS t FROM landing_pages WHERE id = ?", [pageId]);
     const sections = typeof row.sections === "string" ? JSON.parse(row.sections) : row.sections;
-    const form = typeof row.form === "string" ? JSON.parse(row.form) : row.form;
     expect(sections.find((s) => s.type === "badges")?.hidden === true, "badges saved hidden");
     const textAt = sections.findIndex((s) => s.type === "text");
     expect(textAt > 0 && textAt < sections.length - 1, "text section moved up");
-    expect(form.address === "required" && form.delivery === "home" && form.buttonText === "اطلب ساعتك الآن", "form settings saved");
-    expect(form.custom.length === 1 && form.custom[0].required && form.custom[0].options.join() === "أسود,أزرق", "custom field saved");
+    expect(row.t === templateId, "the page uses the template");
   });
 
   await step("a draft page is not public; publishing makes it visible", async () => {
@@ -145,8 +134,9 @@ export default async function phase7(browser) {
   });
 
   await step("embed: the form alone, with the embed code, and its own thank-you page", async () => {
-    await owner.goto(`${section}/${pageId}`);
-    await owner.locator("nav button", { hasText: "الإعدادات" }).click();
+    // The embed codes are in Store design → Order form, for products and published landing pages
+    await owner.goto(`${BASE}/ar/dashboard/store-design/order-form`);
+    await owner.locator("[data-testid=embed-source]").selectOption(pageId);
     const code = await owner.locator("[data-testid=embed-code]").inputValue();
     expect(code.includes(`/embed/shop-${tag}/${encodeURIComponent(pageSlug)}`) && code.includes("<iframe"), "embed code has the iframe URL");
     const embed = await browser.newPage({ viewport: { width: 420, height: 900 } });
@@ -167,9 +157,8 @@ export default async function phase7(browser) {
   await step("duplicate opens a draft copy in the editor, delete removes it", async () => {
     await owner.goto(section);
     await Promise.all([owner.waitForURL((u) => /landing-pages\/[0-9a-f-]{36}$/.test(u.pathname) && !u.pathname.endsWith(pageId)), owner.locator('tr[data-page] button[aria-label="نسخ"]').first().click()]);
-    const [[copy]] = await db.query("SELECT status, form FROM landing_pages WHERE id = ? AND shop_id = ?", [owner.url().split("/").pop(), shopId]);
-    const form = typeof copy.form === "string" ? JSON.parse(copy.form) : copy.form;
-    expect(copy.status === "draft" && form.custom.length === 1, "copy is a draft with the same form");
+    const [[copy]] = await db.query("SELECT status, form_template_id AS t FROM landing_pages WHERE id = ? AND shop_id = ?", [owner.url().split("/").pop(), shopId]);
+    expect(copy.status === "draft" && copy.t !== null, "copy is a draft with the same form");
     await owner.goto(section);
     await owner.waitForFunction(() => document.querySelectorAll("tr[data-page]").length === 2);
     await owner.locator("tr[data-page]", { has: owner.locator("text=مسودة") }).locator('button[aria-label="حذف"]').click();

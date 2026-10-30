@@ -62,7 +62,7 @@ export default async function phase11(browser) {
     await owner.waitForSelector("[data-testid=order-locked]");
     const html = await owner.content();
     expect(!html.includes("0551000003") && !html.includes("زبون سري"), "no customer details in the page");
-    expect(!(await owner.locator("[data-testid=status-picker]").count()), "no actions on a locked order");
+    expect(!(await owner.locator("[data-testid=order-status]").count()), "no actions on a locked order");
   });
 
   await step("upgrade request: payment details, receipt required, pending request", async () => {
@@ -125,7 +125,7 @@ export default async function phase11(browser) {
     // The custom contract (2 orders) still applies over the plan: it ends here
     await db.query("UPDATE shop_contracts SET end_date = CURDATE() - INTERVAL 1 DAY WHERE id = ?", [contractId]);
     await owner.goto(`${BASE}/ar/dashboard/orders/${lockedOrder}`);
-    await owner.waitForSelector("[data-testid=status-picker]");
+    await owner.waitForSelector("[data-testid=order-status]");
     expect((await owner.content()).includes("0551000003"), "customer visible");
     expect(!(await owner.locator("[data-testid=order-locked]").count()), "no lock");
   });

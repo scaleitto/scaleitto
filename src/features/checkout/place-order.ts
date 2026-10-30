@@ -22,8 +22,10 @@ const FIRST_ORDER_NUMBER = 1001;
 
 class OutOfStock extends Error {}
 
-// Creates a cash-on-delivery order for one product. Used by the product page (and later landing pages).
-export async function placeOrder(shop: StoreShop, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null }): Promise<PlaceOrderResult> {
+// Creates a cash-on-delivery order for one product. Used by every order form, and by the team when an abandoned cart
+// is recovered by phone (meta.memberId: the protection's customer checks and the risk score are skipped — a person
+// talked to the customer).
+export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null; memberId?: string }): Promise<PlaceOrderResult> {
   const [product] = await db
     .select()
     .from(schema.products)
@@ -36,11 +38,14 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
 
   // Fake-order protection: refuse what the store does not accept, score the rest (suspicious orders are flagged)
   const protection = await protectionFor(shop.id);
-  const blocked = await checkOrderAllowed(shop.id, input, meta.ip, product.id, protection);
-  if (blocked) return { ok: false, error: blocked };
+  const member = Boolean(meta.memberId);
+  if (!member) {
+    const blocked = await checkOrderAllowed(shop.id, input, meta.ip, product.id, protection);
+    if (blocked) return { ok: false, error: blocked };
+  }
   const signals = await riskSignals(shop.id, input, meta, protection);
-  if (protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
-  const risk = scoreOrder(signals);
+  if (!member && protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
+  const risk = member ? { score: 0, reasons: [] } : scoreOrder(signals);
   const suspicious = risk.score >= protection.riskThreshold;
   // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
   const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;
@@ -115,7 +120,7 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         offerLabel: line.offer ? [line.offer.label || `${line.offer.quantity}×`, line.offer.gift && `🎁 ${line.offer.gift}`].filter(Boolean).join(" · ").slice(0, 160) : null,
         stockTracked: product.trackStock,
       });
-      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "created", toStatus: "new" });
+      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: meta.memberId ?? null, type: "created", toStatus: "new", note: member ? "↺" : null });
       if (suspicious) await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "risk", note: `${risk.score}: ${risk.reasons.join(", ")}` });
       // Hand the order to a call center agent (unless the shop assigns by hand)
       // (a locked order waits until it is unlocked: nobody can work on it yet; a suspicious one waits for a review

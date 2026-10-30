@@ -12,7 +12,7 @@ import { cleanStrategy } from "../../src/features/landing/angles";
 import { landingAngles } from "../../src/lib/enums";
 
 test("statuses: the owner's model, every status in exactly one place", () => {
-  assert.deepEqual([...callStatuses], ["new", "confirmed", "callback", "no_answer", "voicemail", "remark", "cancelled", "fake", "wrong_number", "duplicate"]);
+  assert.deepEqual([...callStatuses], ["new", "confirmed", "cancelled", "callback", "no_answer", "voicemail", "fake", "wrong_number", "duplicate", "remark"]);
   assert.ok(!orderStatuses.includes("postponed" as never), "postponed became callback");
   // Pending, refused and confirmed never overlap, and together with "new" … they cover every status
   const groups = [...PENDING_STATUSES, ...REJECTED_STATUSES, ...CONFIRMED_STATUSES];

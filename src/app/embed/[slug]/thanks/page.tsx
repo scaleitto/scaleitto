@@ -16,7 +16,7 @@ export default async function EmbedThanks({ params, searchParams }: PageProps<"/
   if (!order) notFound();
   return (
     <StoreFrame locale={shopLocale(shop)} color={shop.primaryColor} theme={storeTheme(resolveDesign(shop.design))} className="bg-transparent p-1">
-      <ThankYou order={order} locale={shopLocale(shop)} storeForm={shop.orderForm} />
+      <ThankYou order={order} locale={shopLocale(shop)} />
       <PixelScope {...await orderPixels(shop.id, order)} />
       <HeightReporter frameId={order.landingPageId ?? "form"} />
     </StoreFrame>
