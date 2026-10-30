@@ -29,7 +29,7 @@ export default async function phase14(browser) {
   await step("message card: the situation follows the status, filled with the order, sent and logged", async () => {
     await owner.goto(orderPage);
     await owner.click('[data-testid=status-picker] button:has-text("لا يرد")');
-    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true]:has-text("لم يرد")');
+    await owner.waitForSelector('[data-testid=status-picker] button[aria-pressed=true]:has-text("لا يرد")');
     await owner.reload();
     const card = owner.locator("[data-testid=message-card]");
     await card.waitFor();
