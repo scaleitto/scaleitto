@@ -29,7 +29,7 @@ export default async function phase18(browser) {
     expect(json(page.sections).filter((s) => s.type === "poster").length === 2, "2 designed images");
     const plan = requests.find((r) => JSON.stringify(r.input ?? "").includes("Lampe anti moustique"));
     expect(plan && !JSON.stringify(plan.input).includes("- AliExpress"), "the page's title read from the product data, without the site name");
-    expect(plan.instructions.includes("Angle library") && plan.instructions.includes("hidden problem") && !plan.instructions.includes("MERCHANT BRIEF"), "the platform's marketing method and angle library");
+    expect(plan.instructions.includes("STRICT RULE") && plan.instructions.includes("hidden problem") && !plan.instructions.includes("MERCHANT BRIEF"), "the platform's marketing method and angle library");
   });
 
   await step("own prompt: used for the generation, saved as the store's default; the strategy is shown in the editor", async () => {
