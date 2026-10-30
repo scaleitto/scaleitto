@@ -42,8 +42,8 @@ export default async function phase23(browser) {
     await group.locator("a", { hasText: "قائمة الطلبات" }).click();
     await owner.waitForURL("**/dashboard/orders");
     const tabs = await owner.locator("[data-testid=section-tabs] a").allInnerTexts();
-    expect(tabs.join("|") === "قائمة الطلبات|الإرسال لشركات الشحن|تتبع الطرود|المرتجعات|السلات المتروكة|الحماية|تحليل الطلبات", `orders tabs (got ${tabs.join("|")})`);
-    expect((await group.locator("[data-testid=nav-children] a").count()) === 7, "sub-sections under Orders in the sidebar");
+    expect(tabs.join("|") === "قائمة الطلبات|الإرسال لشركات الشحن|تتبع الطرود|المرتجعات|السلات المتروكة|الحماية", `orders tabs (got ${tabs.join("|")})`);
+    expect((await group.locator("[data-testid=nav-children] a").count()) === 6, "sub-sections under Orders in the sidebar");
     await group.locator(":scope > button").click();
     expect((await group.getAttribute("data-open")) === "false", "closed again");
     // The order of the sidebar: daily work first
@@ -114,8 +114,8 @@ export default async function phase23(browser) {
     const r2 = await order({ status: "returned" });
     await parcel(r2.id, "returned");
     await owner.goto(`${dash}/orders/returns`);
-    const chips = owner.locator("[data-testid=return-chips]");
-    expect((await chips.locator("[data-ret=back]").innerText()).includes("1") && (await chips.locator("[data-ret=pending]").innerText()).includes("2"), "on the way back / to receive");
+    const chips = owner.locator("[data-testid=order-chips]");
+    expect((await chips.locator("[data-chip=back]").innerText()).includes("1") && (await chips.locator("[data-chip=pending]").innerText()).includes("2"), "on the way back / to receive");
     expect((await owner.locator("tr[data-order]").count()) === 3, "all three listed");
     await owner.locator(`tr[data-order="${r1.number}"] input[data-bulk-order]`).check();
     await owner.locator("[data-testid=return-receive]").click();
@@ -136,10 +136,11 @@ export default async function phase23(browser) {
     await owner.locator(`tr[data-order="${r2.number}"]`).waitFor();
   });
 
-  await step("order analysis: rates and couriers of the period", async () => {
+  await step("order analysis (now in Analytics): rates and couriers of the period", async () => {
     await order({ status: "delivered" });
     await owner.goto(`${dash}/orders/insights`);
-    await owner.locator("[data-testid=insight-kpis] [data-kpi=delivery]").waitFor();
+    await owner.waitForURL(/\/dashboard\/analytics$/);
+    await owner.locator("[data-testid=insight-kpis] [data-kpi=return]").waitFor();
     expect((await owner.locator("[data-kpi=return] [data-value]").innerText()).includes("%"), "return rate");
     await owner.locator('[data-testid=carriers] [data-row="Yalidine"]').waitFor();
   });

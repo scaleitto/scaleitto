@@ -6,12 +6,13 @@ import type { StoreShop } from "@/features/storefront/queries";
 import { getShippingRates } from "@/features/storefront/queries";
 import { checkOrderAllowed, protectionFor, riskSignals, scoreOrder, type BlockReason } from "./protection";
 import { isObviousBot } from "./risk";
-import { linePrice, shippingPrice } from "./pricing";
+import { lineShipping, linePrice, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
 import type { OrderInput } from "./validators";
 import { logStock } from "@/features/inventory/movements";
+import { applyOrderStatus } from "@/features/orders/transition";
 import type { OrderTracking } from "@/server/db/schema";
 
 export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping";
@@ -35,17 +36,18 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
 
   // Fake-order protection: refuse what the store does not accept, score the rest (suspicious orders are flagged)
   const protection = await protectionFor(shop.id);
-  const blocked = await checkOrderAllowed(shop.id, input.phone, meta.ip, product.id, protection);
+  const blocked = await checkOrderAllowed(shop.id, input, meta.ip, product.id, protection);
   if (blocked) return { ok: false, error: blocked };
   const signals = await riskSignals(shop.id, input, meta, protection);
   if (protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
   const risk = scoreOrder(signals);
   const suspicious = risk.score >= protection.riskThreshold;
-
-  const shipping = shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType);
-  if (shipping === null) return { ok: false, error: "shipping" };
+  // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
+  const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;
 
   const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
+  const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType), line.offer);
+  if (shipping === null) return { ok: false, error: "shipping" };
   const orderId = newId();
   const rule = await orderRule(shop.id);
   let locked = false;
@@ -109,7 +111,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
         unitPrice: line.unitPrice,
         quantity: input.quantity,
         total: line.total,
-        offerLabel: line.offer ? line.offer.label || `${line.offer.quantity}×` : null,
+        // The offer as the team sees it on the order: its name, and the gift to put in the parcel
+        offerLabel: line.offer ? [line.offer.label || `${line.offer.quantity}×`, line.offer.gift && `🎁 ${line.offer.gift}`].filter(Boolean).join(" · ").slice(0, 160) : null,
         stockTracked: product.trackStock,
       });
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "created", toStatus: "new" });
@@ -117,7 +120,8 @@ export async function placeOrder(shop: StoreShop, productId: string, input: Orde
       // Hand the order to a call center agent (unless the shop assigns by hand)
       // (a locked order waits until it is unlocked: nobody can work on it yet; a suspicious one waits for a review
       // when the store holds them)
-      const agent = locked || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id);
+      if (autoFake) await applyOrderStatus(tx, shop.id, orderId, "fake", null, `${risk.score}/100`);
+      const agent = locked || autoFake || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id);
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });

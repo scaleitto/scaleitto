@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { fakeName, isBotAgent, isObviousBot, scoreOrder, type RiskSignals } from "../../src/features/checkout/risk";
 import { resolveProtection } from "../../src/features/checkout/protection-settings";
 
-const clean: RiskSignals = { returned: 0, cancelled: 0, delivered: 0, networkReturned: 0, fillSeconds: 40, minFillSeconds: 4, botAgent: false, name: "Amine Benali", phonesFromIp: 1 };
+const clean: RiskSignals = { returned: 0, cancelled: 0, fake: 0, delivered: 0, networkReturned: 0, fillSeconds: 40, minFillSeconds: 4, botAgent: false, name: "Amine Benali", phonesFromIp: 1 };
 
 test("a normal order has no risk", () => {
   assert.deepEqual(scoreOrder(clean), { score: 0, reasons: [] });

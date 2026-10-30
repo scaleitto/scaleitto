@@ -1,10 +1,10 @@
-// Order analysis (Orders → Order analysis): what happens to the orders — rates, how long each step takes, which
-// couriers deliver. Pure math here (unit-tested); orderInsights() loads the period's data.
+// Analytics, the orders' part: what happens to the orders — rates, how long each step takes, which couriers deliver,
+// delivery follow-up. Pure math in insights-math.ts (unit-tested); orderInsights() loads the period's data.
 import "server-only";
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "@/server/db/schema";
-import type { Range } from "@/features/analytics/range";
+import type { Range } from "./range";
 import { computeInsights, type EventRow, type InsightOrder } from "./insights-math";
 
 export async function orderInsights(shopId: string, range: Range) {
@@ -12,7 +12,7 @@ export async function orderInsights(shopId: string, range: Range) {
   const sh = schema.shipments;
   const orders: InsightOrder[] = (
     await db
-      .select({ id: o.id, status: o.status, createdAt: o.createdAt, carrier: sh.carrierName, stage: sh.status })
+      .select({ id: o.id, status: o.status, createdAt: o.createdAt, carrier: sh.carrierName, stage: sh.status, deliveryState: o.deliveryState, deliveryFault: o.deliveryFault })
       .from(o)
       .leftJoin(sh, eq(sh.orderId, o.id))
       .where(and(eq(o.shopId, shopId), gte(o.createdAt, range.start), lt(o.createdAt, range.end)))

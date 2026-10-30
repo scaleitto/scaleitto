@@ -68,17 +68,14 @@ export default async function phase8(browser) {
     expect(product.includes("حذاء رياضي") && product.includes("6"), `pieces sold, cancelled left out (got ${product})`);
     expect((await owner.locator(`[data-testid=sources] [data-row="${pageId}"]`).innerText()).includes("صفحة الحذاء"), "landing page named in sources");
     expect((await owner.locator("[data-testid=hourly-chart] [data-bar]").count()) === 24, "24 hours");
-    // What happens to the orders is in Orders → Order analysis
-    const analytics = owner.url();
-    const insights = await owner.locator("[data-testid=insights-link] a").getAttribute("href");
-    expect(insights.endsWith("/orders/insights"), "link to the order analysis");
-    await owner.goto(`${BASE}${insights}`);
+    // What happens to the orders is on the same page (the Order analysis sub-section was merged here)
     expect((await owner.locator("[data-testid=funnel] [data-step=delivered]").innerText()).includes("2"), "funnel delivered = 2");
     expect((await owner.locator("[data-testid=statuses] [data-status=delivered]").innerText()).includes("2"), "2 delivered in statuses");
     const oran = await owner.locator('[data-testid=wilayas] [data-row="31"]').innerText();
     expect(oran.includes("3") && oran.includes("50%"), `wilaya 31: 3 orders, 50% delivered (got ${oran})`);
-    expect((await owner.locator("[data-testid=insight-kpis] [data-kpi=confirmation] [data-value]").innerText()) === "80%", "confirmation rate in the order analysis");
-    await owner.goto(analytics);
+    // The orders' KPIs do not repeat the sales ones (orders, confirmation, delivery)
+    expect((await owner.locator("[data-kpi=confirmation]").count()) === 1 && (await owner.locator("[data-testid=insight-kpis] [data-kpi=refusal]").count()) === 1, "no repeated KPIs");
+    await owner.locator("[data-testid=follow-up]").waitFor();
   });
 
   await step("today, 7 days and a custom range", async () => {

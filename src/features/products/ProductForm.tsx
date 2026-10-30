@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useState, type KeyboardEvent } from "react";
 import { ArrowRight, ExternalLink, Palette, Plus, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import type { ProductOption, QuantityOffer } from "@/server/db/schema";
+import { offerBadges, type ProductOption, type QuantityOffer } from "@/server/db/schema";
+import { offerTemplate } from "@/features/checkout/pricing";
+
+// The quick offer buttons: 2 pieces −10%, 3 pieces −15%, buy 2 get 1 free, buy 3 get 2 free
+const offerPresets = [
+  { key: "2-10", kind: "pct", quantity: 2, value: 10 },
+  { key: "3-15", kind: "pct", quantity: 3, value: 15 },
+  { key: "3-1", kind: "free", quantity: 3, value: 1 },
+  { key: "5-2", kind: "free", quantity: 5, value: 2 },
+] as const;
 import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
 import { colorByName, colorPalette } from "@/lib/colors";
@@ -329,25 +338,85 @@ export function ProductForm({ t, action, values, backHref, viewHref, isNew, ai }
               <h2 className="font-semibold">{p.offers}</h2>
               <p className="mt-1 text-sm text-muted">{p.offersHint}</p>
             </div>
+            {/* Ready-made offers from the price: percent off, or "buy N get M free" */}
+            {(priceNum ?? 0) > 0 && offers.length < MAX_OFFERS && (
+              <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="offer-templates">
+                <span className="text-muted">{p.offerTemplates}</span>
+                {offerPresets.map((t0) => {
+                  const offer = offerTemplate(priceNum ?? 0, t0.kind, t0.quantity, t0.value);
+                  const exists = offers.some((o) => o.quantity === offer.quantity);
+                  return (
+                    <button
+                      key={t0.key}
+                      type="button"
+                      disabled={exists}
+                      data-template={t0.key}
+                      className="rounded-full border border-line px-3 py-1 font-medium hover:border-accent/40 hover:text-accent disabled:opacity-40"
+                      onClick={() => setOffers((all) => [...all, { ...offer, label: fmt(t0.kind === "pct" ? p.presetPct : p.presetFree, { n: t0.quantity, v: t0.value, paid: t0.quantity - t0.value }) }].sort((a, b) => a.quantity - b.quantity))}
+                    >
+                      {fmt(t0.kind === "pct" ? p.presetPct : p.presetFree, { n: t0.quantity, v: t0.value, paid: t0.quantity - t0.value })}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {offers.map((offer, i) => {
               const set = (patch: Partial<QuantityOffer>) => setOffers((all) => all.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+              const full = (priceNum ?? 0) * offer.quantity;
+              const saving = full > 0 && offer.price > 0 && offer.price < full ? Math.round(((full - offer.price) / full) * 100) : 0;
               return (
-                <div key={i} className="grid items-end gap-3 rounded-lg border border-line bg-panel-2/50 p-3 sm:grid-cols-[6rem_9rem_1fr_auto]">
-                  <Field label={p.quantity}>
-                    <Input aria-label={p.quantity} inputMode="numeric" dir="ltr" value={offer.quantity || ""} onChange={(ev) => set({ quantity: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
-                  </Field>
-                  <Field label={p.totalPrice}>
-                    <Input aria-label={p.totalPrice} inputMode="numeric" dir="ltr" value={offer.price || ""} onChange={(ev) => set({ price: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
-                  </Field>
-                  <Field label={p.offerLabel}>
-                    <Input aria-label={p.offerLabel} placeholder={p.offerLabelPlaceholder} value={offer.label ?? ""} maxLength={60} onChange={(ev) => set({ label: ev.target.value })} />
-                  </Field>
-                  <button type="button" aria-label={p.remove} className="mb-1 rounded-lg p-2 text-muted hover:bg-danger/10 hover:text-danger" onClick={() => setOffers((all) => all.filter((_, j) => j !== i))}>
-                    <Trash2 size={16} />
-                  </button>
-                  {offer.quantity >= 2 && offer.price > 0 && (
-                    <p className="text-xs text-muted sm:col-span-4">{fmt(p.perPiece, { price: formatPrice(Math.round(offer.price / offer.quantity), t.common.currency) })}</p>
-                  )}
+                <div key={i} className="space-y-3 rounded-lg border border-line bg-panel-2/50 p-3" data-offer={offer.quantity}>
+                  <div className="grid items-end gap-3 sm:grid-cols-[6rem_9rem_1fr_auto]">
+                    <Field label={p.quantity}>
+                      <Input aria-label={p.quantity} inputMode="numeric" dir="ltr" value={offer.quantity || ""} onChange={(ev) => set({ quantity: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
+                    </Field>
+                    <Field label={p.totalPrice}>
+                      <Input aria-label={p.totalPrice} inputMode="numeric" dir="ltr" value={offer.price || ""} onChange={(ev) => set({ price: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
+                    </Field>
+                    <Field label={p.offerLabel}>
+                      <Input aria-label={p.offerLabel} placeholder={p.offerLabelPlaceholder} value={offer.label ?? ""} maxLength={60} onChange={(ev) => set({ label: ev.target.value })} />
+                    </Field>
+                    <button type="button" aria-label={p.remove} className="mb-1 rounded-lg p-2 text-muted hover:bg-danger/10 hover:text-danger" onClick={() => setOffers((all) => all.filter((_, j) => j !== i))}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={p.offerGift}>
+                      <Input aria-label={p.offerGift} placeholder={p.offerGiftPlaceholder} value={offer.gift ?? ""} maxLength={80} onChange={(ev) => set({ gift: ev.target.value })} />
+                    </Field>
+                    <Field label={p.offerBadge}>
+                      <Select aria-label={p.offerBadge} value={offer.badge ?? ""} onChange={(ev) => set({ badge: (ev.target.value || undefined) as QuantityOffer["badge"] })}>
+                        <option value="">{p.offerBadgeNone}</option>
+                        {offerBadges.map((b) => (
+                          <option key={b} value={b}>
+                            {p.offerBadges[b]}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="checkbox" checked={Boolean(offer.freeShipping)} onChange={(ev) => set({ freeShipping: ev.target.checked })} className="size-4 accent-[var(--color-accent)]" data-testid="offer-free-shipping" />
+                      {p.offerFreeShipping}
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(offer.preselected)}
+                        onChange={(ev) => setOffers((all) => all.map((o, j) => ({ ...o, preselected: j === i ? ev.target.checked : false })))}
+                        className="size-4 accent-[var(--color-accent)]"
+                        data-testid="offer-preselected"
+                      />
+                      {p.offerPreselected}
+                    </label>
+                    {offer.quantity >= 2 && offer.price > 0 && (
+                      <span className="ms-auto text-xs text-muted">
+                        {fmt(p.perPiece, { price: formatPrice(Math.round(offer.price / offer.quantity), t.common.currency) })}
+                        {saving > 0 && <span className="ms-2 font-semibold text-accent">−{saving}%</span>}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}

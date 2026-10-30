@@ -8,7 +8,7 @@ import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
 import { intlPhone, isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
-import { MAX_QUANTITY, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
+import { MAX_QUANTITY, defaultQuantity, lineShipping, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
 import { useCheckoutStarted } from "@/features/pixels/PixelScope";
 import { defaultForm, type CustomField, type FormBlock, type FormSettings, type TextField } from "@/features/landing/types";
 import { CommuneSelect } from "@/features/checkout/CommuneSelect";
@@ -69,7 +69,8 @@ export function CheckoutForm({
     // Preselect the first in-stock combination so the price is right from the start.
     variants.length ? (variants.find((v) => !product.trackStock || v.stock > 0) ?? variants[0]).values : {},
   );
-  const [quantity, setQuantity] = useState(1);
+  // The merchant's preselected offer opens chosen (when offers are shown)
+  const [quantity, setQuantity] = useState(() => (settings.showOffers ? defaultQuantity(product.offers) : 1));
   const [wilaya, setWilaya] = useState<number | null>(null);
   const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
   const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes.includes(settings.preferDelivery as never) ? settings.preferDelivery : allowedTypes[0]);
@@ -133,7 +134,7 @@ export function CheckoutForm({
   const available = !product.trackStock ? Infinity : variants.length ? (variant?.stock ?? 0) : product.stock;
   const soldOut = available <= 0 || (variants.length > 0 && !variant);
   const line = linePrice(variant?.price ?? product.price, quantity, product.offers);
-  const shipping = wilaya ? shippingPrice(rates, wilaya, deliveryType) : undefined;
+  const shipping = wilaya ? lineShipping(shippingPrice(rates, wilaya, deliveryType), line.offer) : undefined;
   const total = line.total + (shipping ?? 0);
   const hasRates = Object.keys(rates).length > 0;
 
@@ -331,22 +332,56 @@ export function CheckoutForm({
               <div className="grid gap-2">
                 {quantityChoices.map((q) => {
                   const price = linePrice(line.unitPrice, q, product.offers);
-                  const saving = line.unitPrice * q - price.total;
+                  const full = line.unitPrice * q;
+                  const saving = full - price.total;
+                  const offer = price.offer;
                   const active = quantity === q;
                   return (
                     <label
                       key={q}
-                      className={`flex cursor-pointer items-center justify-between gap-3 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5" : "border-s-field-edge"} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
+                      data-offer-card={q}
+                      className={`relative flex cursor-pointer flex-col gap-1.5 rounded-[var(--s-radius-btn)] border-2 px-4 py-3 transition ${active ? "border-brand bg-brand/5 shadow-sm" : "border-s-field-edge"} ${offer?.badge ? "mt-2" : ""} ${q > maxQuantity ? "pointer-events-none opacity-40" : ""}`}
                     >
-                      <span className="flex items-center gap-3">
-                        <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 accent-[var(--brand)]" />
-                        <span className="font-bold">{fmt(t.form.pieces, { n: q })}</span>
-                        {price.offer?.label && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{price.offer.label}</span>}
+                      {/* The merchant's badge, as a ribbon on the card's edge */}
+                      {offer?.badge && (
+                        <span className="absolute -top-2.5 start-3 rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-bold text-brand-fg shadow-sm" data-testid="offer-badge">
+                          {t.form.offerBadges[offer.badge]}
+                        </span>
+                      )}
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <input type="radio" name="quantityChoice" checked={active} disabled={q > maxQuantity} onChange={() => setQuantity(q)} className="size-4 shrink-0 accent-[var(--brand)]" />
+                          <span className="min-w-0">
+                            <span className="block font-bold">{offer?.label || fmt(t.form.pieces, { n: q })}</span>
+                            {offer?.label && <span className="block text-xs text-s-muted">{fmt(t.form.pieces, { n: q })}</span>}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-end">
+                          <span className="block font-extrabold">{formatPrice(price.total, currency)}</span>
+                          {saving > 0 && (
+                            <span className="block text-xs text-s-muted">
+                              <s>{formatPrice(full, currency)}</s> <span className="font-bold text-green-700">{fmt(t.form.offerOff, { n: Math.round((saving / full) * 100) })}</span>
+                            </span>
+                          )}
+                        </span>
                       </span>
-                      <span className="text-end">
-                        <span className="block font-extrabold">{formatPrice(price.total, currency)}</span>
-                        {saving > 0 && <span className="block text-xs font-semibold text-green-700">{fmt(t.form.save, { amount: formatPrice(saving, currency) })}</span>}
-                      </span>
+                      {/* What comes with it: saving, per-piece price, free delivery, gift */}
+                      {(saving > 0 || offer?.freeShipping || offer?.gift) && (
+                        <span className="flex flex-wrap gap-1.5 ps-7 text-[11px] font-semibold">
+                          {saving > 0 && <span className="rounded-full bg-green-50 px-2 py-0.5 text-green-800">{fmt(t.form.save, { amount: formatPrice(saving, currency) })}</span>}
+                          {q > 1 && <span className="rounded-full bg-s-surface px-2 py-0.5 text-s-muted">{fmt(t.form.offerPerPiece, { price: formatPrice(Math.round(price.total / q), currency) })}</span>}
+                          {offer?.freeShipping && (
+                            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800" data-testid="offer-free-shipping">
+                              {t.form.offerFreeShipping}
+                            </span>
+                          )}
+                          {offer?.gift && (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800" data-testid="offer-gift">
+                              🎁 {fmt(t.form.offerGift, { gift: offer.gift })}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </label>
                   );
                 })}
@@ -457,7 +492,7 @@ export function CheckoutForm({
             <legend className={label}>{t.form.deliveryType}</legend>
             <div className={`grid gap-2 ${allowedTypes.length > 1 ? "sm:grid-cols-2" : ""}`}>
               {allowedTypes.map((type) => {
-                const price = wilaya ? shippingPrice(rates, wilaya, type) : undefined;
+                const price = wilaya ? lineShipping(shippingPrice(rates, wilaya, type), line.offer) : undefined;
                 const unavailable = price === null;
                 return (
                   <label

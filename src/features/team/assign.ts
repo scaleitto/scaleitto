@@ -3,11 +3,12 @@ import { and, count, eq, inArray, isNotNull, max } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { algeriaParts } from "@/lib/time";
 import { inShift } from "./schedule";
+import { PENDING_STATUSES } from "@/features/orders/statuses";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Orders still waiting for the call center
-export const OPEN_STATUSES = ["new", "no_answer", "postponed"] as const;
+export const OPEN_STATUSES = PENDING_STATUSES;
 
 // Chooses the agent for a new order: the active agent with the fewest open orders
 // (ties → the one who got an order least recently). In "on_shift" mode only agents

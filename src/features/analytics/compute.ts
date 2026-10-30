@@ -2,27 +2,29 @@
 import { algeriaParts } from "@/lib/time";
 import type { OrderStatus } from "@/server/db/schema";
 import type { Range } from "./range";
+import { PARCEL_STATUSES, isConfirmed, isPending, isRejected } from "@/features/orders/statuses";
 
 export type OrderRow = { id: string; createdAt: Date; status: OrderStatus; subtotal: number; total: number; wilayaCode: number; landingPageId: string | null };
 export type ItemRow = { orderId: string; productId: string | null; name: string; quantity: number; total: number; costPrice: number | null };
 export type LeadRow = { createdAt: Date; status: string };
 
-// Reached by every order the call center confirmed, whatever happened after
-const CONFIRMED: OrderStatus[] = ["confirmed", "shipped", "delivered", "returned"];
-// Still being called
-const PENDING: OrderStatus[] = ["new", "no_answer", "postponed"];
+const REFUSED_COUNTED = new Set<OrderStatus>(["cancelled", "fake", "wrong_number"]);
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
 
-type Counts = { orders: number; confirmed: number; pending: number; cancelled: number; shipped: number; delivered: number; returned: number; revenue: number; total: number };
+// cancelled = refusals that count against the confirmation rate (cancelled, fake order, wrong number);
+// duplicates are the same customer's other order: counted apart, left out of the rates.
+type Counts = { orders: number; confirmed: number; pending: number; cancelled: number; fake: number; duplicate: number; shipped: number; delivered: number; returned: number; revenue: number; total: number };
 function counts(orders: OrderRow[]): Counts {
-  const c: Counts = { orders: 0, confirmed: 0, pending: 0, cancelled: 0, shipped: 0, delivered: 0, returned: 0, revenue: 0, total: 0 };
+  const c: Counts = { orders: 0, confirmed: 0, pending: 0, cancelled: 0, fake: 0, duplicate: 0, shipped: 0, delivered: 0, returned: 0, revenue: 0, total: 0 };
   for (const o of orders) {
     c.orders++;
     c.total += o.total;
-    if (CONFIRMED.includes(o.status)) c.confirmed++;
-    if (PENDING.includes(o.status)) c.pending++;
-    if (o.status === "cancelled") c.cancelled++;
-    if (o.status === "shipped" || o.status === "delivered" || o.status === "returned") c.shipped++;
+    if (isConfirmed(o.status)) c.confirmed++;
+    if (isPending(o.status)) c.pending++;
+    if (REFUSED_COUNTED.has(o.status)) c.cancelled++;
+    if (o.status === "fake") c.fake++;
+    if (o.status === "duplicate") c.duplicate++;
+    if ((PARCEL_STATUSES as readonly OrderStatus[]).includes(o.status)) c.shipped++;
     if (o.status === "delivered") {
       c.delivered++;
       c.revenue += o.total;
@@ -32,7 +34,7 @@ function counts(orders: OrderRow[]): Counts {
   return c;
 }
 
-// Confirmation: confirmed ÷ orders the call center finished with (pending calls are left out).
+// Confirmation: confirmed ÷ orders the call center finished with (pending calls and duplicates are left out).
 // Delivery: delivered ÷ parcels that reached an end (delivered or returned).
 const rates = (c: Counts) => ({ confirmation: pct(c.confirmed, c.confirmed + c.cancelled), delivery: pct(c.delivered, c.delivered + c.returned) });
 
@@ -62,7 +64,7 @@ export function computeAnalytics(range: Range, allOrders: OrderRow[], items: Ite
     const d = daily.get(parts.day);
     if (d) {
       d.orders++;
-      if (CONFIRMED.includes(o.status)) d.confirmed++;
+      if (isConfirmed(o.status)) d.confirmed++;
       if (o.status === "delivered") {
         d.delivered++;
         d.revenue += o.total;
@@ -83,7 +85,7 @@ export function computeAnalytics(range: Range, allOrders: OrderRow[], items: Ite
   const products = new Map<string, { key: string; name: string; quantity: number; orders: Set<string>; delivered: number; revenue: number }>();
   for (const i of myItems) {
     const o = byId.get(i.orderId)!;
-    if (o.status === "cancelled") continue;
+    if (isRejected(o.status)) continue;
     const key = i.productId ?? `name:${i.name}`;
     const row = products.get(key) ?? { key, name: i.name, quantity: 0, orders: new Set<string>(), delivered: 0, revenue: 0 };
     row.quantity += i.quantity;

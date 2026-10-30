@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { stockRows, type StockRow } from "./stock";
+import { PENDING_STATUSES } from "@/features/orders/statuses";
 
 // Every stock line of the shop (a product without variants, or each variant), with the units held by open orders
 // (not shipped yet: they already left the stock but can still come back if cancelled).
@@ -15,7 +16,7 @@ export async function inventory(shopId: string) {
       .select({ productId: schema.orderItems.productId, variantId: schema.orderItems.variantId, n: sql<number>`sum(${schema.orderItems.quantity})` })
       .from(schema.orderItems)
       .innerJoin(schema.orders, eq(schema.orders.id, schema.orderItems.orderId))
-      .where(and(eq(schema.orders.shopId, shopId), eq(schema.orderItems.stockTracked, true), inArray(schema.orders.status, ["new", "no_answer", "postponed", "confirmed"])))
+      .where(and(eq(schema.orders.shopId, shopId), eq(schema.orderItems.stockTracked, true), inArray(schema.orders.status, [...PENDING_STATUSES, "confirmed"])))
       .groupBy(schema.orderItems.productId, schema.orderItems.variantId),
     db.select({ lowStock: schema.shops.lowStock }).from(schema.shops).where(eq(schema.shops.id, shopId)),
   ]);

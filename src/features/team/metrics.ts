@@ -4,6 +4,7 @@ import { db, schema } from "@/server/db";
 import { addDays, algeriaParts } from "@/lib/time";
 import { scheduleAdherence, type DayActivity } from "./schedule";
 import { OPEN_STATUSES } from "./assign";
+import { REFUSED_STATUSES } from "@/features/orders/statuses";
 import type { TeamMember } from "./queries";
 
 export const periods = ["today", "7d", "30d"] as const;
@@ -65,7 +66,8 @@ export async function teamPerformance(shopId: string, team: TeamMember[], period
     const mine = events.filter((x) => x.userId === m.userId);
     const by = (status: string) => mine.filter((x) => x.type === "status" && x.toStatus === status).reduce((s, x) => s + x.n, 0);
     const confirmed = by("confirmed");
-    const cancelled = by("cancelled");
+    // Refusals: cancelled, fake order, wrong number (a duplicate is not a refusal)
+    const cancelled = REFUSED_STATUSES.reduce((s, st) => s + by(st), 0);
     const got = assigned.filter((x) => x.userId === m.userId);
     const gotBy = (status: string) => got.filter((x) => x.status === status).reduce((s, x) => s + x.n, 0);
     const delivered = gotBy("delivered");
@@ -86,8 +88,8 @@ export async function teamPerformance(shopId: string, team: TeamMember[], period
       actions: mine.reduce((s, x) => s + x.n, 0),
       confirmed,
       cancelled,
-      noAnswer: by("no_answer"),
-      postponed: by("postponed"),
+      noAnswer: by("no_answer") + by("voicemail"),
+      callback: by("callback"),
       notes: mine.filter((x) => x.type === "note").reduce((s, x) => s + x.n, 0),
       // Of the calls that ended in a decision, how many were confirmations
       confirmRate: pct(confirmed, confirmed + cancelled),

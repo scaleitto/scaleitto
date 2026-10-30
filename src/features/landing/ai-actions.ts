@@ -1,5 +1,6 @@
 "use server";
 
+import { landingAngles, type AnglePlan } from "@/lib/enums";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -26,6 +27,8 @@ type Brief = {
   productId: string | null;
   // Made with the merchant's own prompt
   custom?: boolean;
+  // The angles: chosen by the AI (5 + 1–2) or ticked by the merchant
+  angles?: AnglePlan;
   newProduct: { name: string; price: number; compareAtPrice: number | null; images: string[] } | null;
   language: string;
   color: string | null;
@@ -62,6 +65,11 @@ const startSchema = z.object({
   // The merchant's own prompt (empty = the platform's method); saved as the store's default when asked
   customPrompt: z.string().trim().max(MAX_CUSTOM_PROMPT).optional().default(""),
   savePrompt: z.boolean().optional().default(false),
+  // The 11 angles: automatic (the AI picks 5 + 1–2) or the merchant's own choice (at least one)
+  angles: z
+    .union([z.object({ mode: z.literal("auto") }), z.object({ mode: z.literal("manual"), keys: z.array(z.enum(landingAngles)).min(1).max(landingAngles.length) })])
+    .optional()
+    .default({ mode: "auto" }),
   poster: z
     .object({
       count: z.union([z.literal(2), z.literal(4), z.literal(6), z.literal(8), z.literal(10)]),
@@ -123,9 +131,11 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
 
     if (d.savePrompt) await db.update(schema.shops).set({ aiPrompt: d.customPrompt || null }).where(eq(schema.shops.id, shop.id));
     brief.custom = Boolean(d.customPrompt);
+    const angles: AnglePlan = d.angles.mode === "manual" ? { mode: "manual", keys: [...new Set(d.angles.keys)] } : { mode: "auto" };
+    brief.angles = angles;
     const vision = await visionImages(product.images, 10);
     const request = poster
-      ? buildPosterPlanRequest({ product, language: d.language, options: poster, notes: d.notes, sourceText, visionImages: vision, writeProduct: d.source !== "product", customPrompt: d.customPrompt })
+      ? buildPosterPlanRequest({ product, language: d.language, options: poster, notes: d.notes, sourceText, visionImages: vision, writeProduct: d.source !== "product", customPrompt: d.customPrompt, angles })
       : buildLandingRequest({
       product,
       language: d.language,
@@ -136,6 +146,7 @@ export async function startAiLanding(lang: string, input: AiStartInput): Promise
       visionImages: vision,
       writeProduct: d.source !== "product",
       customPrompt: d.customPrompt,
+      angles,
     });
     const started = await startBackgroundJson(request);
     const generationId = newId();
@@ -177,8 +188,8 @@ export async function checkAiLanding(lang: string, generationId: string): Promis
     if (!claim.affectedRows) return { state: "pending" };
 
     const brief = gen.brief as Brief;
-    const imagePage = brief.pageStyle === "images" && brief.poster ? finishPosterPage(result.data, brief.newProduct?.name || "Page", brief.poster, brief.custom) : null;
-    const page = imagePage ?? finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images, brief.custom);
+    const imagePage = brief.pageStyle === "images" && brief.poster ? finishPosterPage(result.data, brief.newProduct?.name || "Page", brief.poster, brief.custom, brief.angles) : null;
+    const page = imagePage ?? finishLandingPage(result.data, brief.newProduct?.name || "Page", brief.images, brief.custom, brief.angles);
     let productId = brief.productId;
     if (!productId && brief.newProduct) {
       const np = brief.newProduct;

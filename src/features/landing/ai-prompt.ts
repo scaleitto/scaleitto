@@ -1,4 +1,6 @@
 import "server-only";
+import type { AnglePlan } from "@/lib/enums";
+import { offerFacts } from "@/features/checkout/pricing";
 import type { QuantityOffer, ProductOption } from "@/server/db/schema";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { newSectionId, sanitizeSections, type LandingSection, type PageLanguage } from "./types";
@@ -32,6 +34,8 @@ export type LandingBrief = {
   writeProduct?: boolean;
   /** The merchant's own prompt, in place of the platform's marketing method */
   customPrompt?: string | null;
+  /** Automatic angles (5 + 1–2) or the merchant's chosen ones */
+  angles?: AnglePlan;
 };
 
 export const languageRules: Record<AiLanguage, string> = {
@@ -159,7 +163,7 @@ export function buildLandingRequest(brief: LandingBrief): BackgroundRequest {
     price_da: p.price,
     compare_at_price_da: p.compareAtPrice,
     discount_percent: p.compareAtPrice && p.compareAtPrice > p.price ? Math.round((1 - p.price / p.compareAtPrice) * 100) : null,
-    quantity_offers: p.offers.map((o) => ({ quantity: o.quantity, total_price_da: o.price })),
+    quantity_offers: p.offers.map(offerFacts),
     options: p.options,
     images: p.images,
   };
@@ -178,7 +182,7 @@ export function buildLandingRequest(brief: LandingBrief): BackgroundRequest {
     .filter(Boolean)
     .join("\n\n");
 
-  const instructions = [ROLE, strategyInstructions(brief.customPrompt), CONTRACT].join("\n\n");
+  const instructions = [ROLE, strategyInstructions(brief.customPrompt, brief.angles), CONTRACT].join("\n\n");
   return { instructions, user, images: brief.visionImages ?? [], schemaName: "landing_page", schema: RESPONSE_SCHEMA };
 }
 
@@ -186,7 +190,7 @@ export type LandingAiOutput = { title?: string; product_name?: string | null; pr
 
 // Turns the model's JSON into a safe, valid page (unknown images dropped, texts trimmed),
 // with the order form as the last step of the persuasion sequence.
-export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[], custom = false) {
+export function finishLandingPage(data: LandingAiOutput, fallbackName: string, images: string[], custom = false, angles?: AnglePlan) {
   const sections = clean(Array.isArray(data.sections) ? data.sections : [], new Set(images));
   if (!sections.some((s) => s.type === "hero")) sections.unshift({ id: newSectionId(), type: "hero", title: fallbackName.slice(0, 200), image: images[0] });
   sections.push({ id: newSectionId(), type: "form" });
@@ -194,7 +198,7 @@ export function finishLandingPage(data: LandingAiOutput, fallbackName: string, i
     title: String(data.title || fallbackName).slice(0, 200),
     productName: data.product_name?.trim().slice(0, 200) || null,
     productDescription: data.product_description?.trim().slice(0, 5000) || null,
-    strategy: cleanStrategy(data.strategy, custom),
+    strategy: cleanStrategy(data.strategy, custom, angles),
     sections,
   };
 }

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   ArrowRight,
-  ChartPie,
   ChevronDown,
   ClipboardList,
   Dot,
@@ -82,7 +81,6 @@ const subIcons: Partial<Record<string, LucideIcon>> = {
   returns: Undo2,
   abandoned: ShoppingBasket,
   protection: ShieldCheck,
-  orderInsights: ChartPie,
   storeDesign: Paintbrush,
   themes: Sparkles,
   orderForm: ClipboardList,

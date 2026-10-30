@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -13,6 +13,7 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import type { MemberRole } from "@/server/db/schema";
 import { newMemberSchema, parseMemberUpdate } from "./validators";
+import { PENDING_STATUSES } from "@/features/orders/statuses";
 
 // Owners manage everyone but themselves; managers manage agents only.
 async function managerOf(lang: string): Promise<ShopContext | null> {
@@ -86,11 +87,10 @@ export async function setMemberActive(lang: string, userId: string, active: bool
       await tx.update(schema.shopMembers).set({ active }).where(and(eq(schema.shopMembers.shopId, ctx.shop.id), eq(schema.shopMembers.userId, userId)));
       if (!active) {
         await tx.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
-        for (const status of ["new", "no_answer", "postponed"] as const)
-          await tx
-            .update(schema.orders)
-            .set({ assignedTo: null, assignedAt: null })
-            .where(and(eq(schema.orders.shopId, ctx.shop.id), eq(schema.orders.assignedTo, userId), eq(schema.orders.status, status)));
+        await tx
+          .update(schema.orders)
+          .set({ assignedTo: null, assignedAt: null })
+          .where(and(eq(schema.orders.shopId, ctx.shop.id), eq(schema.orders.assignedTo, userId), inArray(schema.orders.status, [...PENDING_STATUSES])));
       }
     });
     refresh();

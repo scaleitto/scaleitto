@@ -10,6 +10,7 @@ import type { OrderTracking, PurchaseTrigger } from "@/server/db/schema";
 import { metaGraph } from "@/server/meta";
 import { intlPhone } from "@/lib/phone";
 import { serverPlatforms } from "./ids";
+import { PENDING_STATUSES } from "@/features/orders/statuses";
 
 // Server-side purchase events: Meta Conversions API, TikTok Events API, GA4 Measurement Protocol.
 // The event id is the order id, the same as the browser's, so each platform counts the order once.
@@ -149,7 +150,7 @@ async function loadOrder(shopId: string, orderId: string): Promise<(OrderData & 
 }
 
 // Statuses that mean the trigger was reached (and not undone since)
-const reached: Record<PurchaseTrigger, string[]> = { placed: ["new", "no_answer", "postponed", "confirmed", "shipped", "delivered"], confirmed: ["confirmed", "shipped", "delivered"], delivered: ["delivered"] };
+const reached: Record<PurchaseTrigger, string[]> = { placed: [...PENDING_STATUSES, "confirmed", "shipped", "delivered"], confirmed: ["confirmed", "shipped", "delivered"], delivered: ["delivered"] };
 
 // Sends the order's purchase to every active pixel of the shop that reports purchases at this trigger,
 // has a server secret and covers one of the order's products. Each (pixel, order) is sent at most once.

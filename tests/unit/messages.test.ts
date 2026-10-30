@@ -11,7 +11,7 @@ test("customer messages: defaults per language, saved texts, placeholders", () =
   assert.equal(saved.texts.confirm, defaultTemplates.fr.confirm);
   assert.equal(cleanTemplate("a {order} {evil}"), "a {order}");
   assert.equal(fillTemplate("Bonjour {name}, commande {order}{missing}", { name: "Lina", order: "1001" }), "Bonjour Lina, commande 1001");
-  assert.deepEqual(["no_answer", "postponed", "shipped", "confirmed", "new"].map(suggestedKind), ["noAnswer", "postponed", "shipped", "delivery", "confirm"]);
+  assert.deepEqual(["no_answer", "callback", "voicemail", "shipped", "confirmed", "new"].map(suggestedKind), ["noAnswer", "postponed", "unreachable", "shipped", "delivery", "confirm"]);
   assert.equal(whatsappLink("0555 12 34 56", "Salut à toi"), "https://wa.me/213555123456?text=Salut%20%C3%A0%20toi");
   assert.equal(smsLink("+213555123456", "ok"), "sms:0555123456?body=ok");
 });

@@ -76,7 +76,10 @@ export const fillTemplate = (text: string, vars: Partial<MessageVars>) => text.r
 
 // The message that fits the order's situation
 export function suggestedKind(status: string): MessageKind {
-  return status === "no_answer" ? "noAnswer" : status === "postponed" ? "postponed" : status === "shipped" ? "shipped" : status === "confirmed" ? "delivery" : "confirm";
+  if (status === "no_answer") return "noAnswer";
+  if (status === "voicemail" || status === "wrong_number") return "unreachable";
+  if (status === "callback") return "postponed";
+  return status === "shipped" ? "shipped" : status === "confirmed" ? "delivery" : "confirm";
 }
 
 // 0555 12 34 56 → 213555123456 (WhatsApp wants the international number without +)

@@ -186,12 +186,10 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
           </div>
         </div>
         <div className="overflow-hidden rounded-xl border border-line bg-panel-2 p-3">
-          {/* The real storefront blocks, inert, with the unsaved values */}
-          <div
-            className={`pointer-events-none mx-auto max-h-[75vh] overflow-y-auto rounded-lg bg-white shadow-xl select-none ${device === "mobile" ? "max-w-[390px]" : ""}`}
-            inert
-            data-testid="design-preview"
-          >
+          {/* The real storefront blocks with the unsaved values: the frame scrolls, the store inside is inert
+              (pointer-events-none on the scrolling box itself stopped the wheel and the scrollbar) */}
+          <div className={`mx-auto max-h-[75vh] overflow-y-auto overscroll-contain rounded-lg bg-white shadow-xl ${device === "mobile" ? "max-w-[390px]" : ""}`} data-testid="design-preview">
+            <div className="pointer-events-none select-none" inert>
             <StoreFrame locale={preview.locale} color={validColor} theme={theme}>
               {design.announcement.enabled && design.announcement.text && <AnnouncementBar text={design.announcement.text} />}
               <StoreHeader name={preview.shopName} logoUrl={logo[0] ?? null} phone={preview.phone} whatsapp={design.socials.whatsapp} homeHref="#" align={theme.layout.header} t={preview.storeText} />
@@ -202,6 +200,7 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
               </div>
               <StoreFooter name={preview.shopName} about={design.about} socials={design.socials} phone={preview.phone} t={preview.storeText} />
             </StoreFrame>
+            </div>
           </div>
         </div>
       </div>

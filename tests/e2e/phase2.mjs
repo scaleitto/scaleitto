@@ -150,7 +150,7 @@ export default async function phase2(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${orders}/${orderId}`);
-    await p.click('[data-testid=status-picker] button:has-text("قيد التوصيل")');
+    await p.click('[data-testid=status-picker] button:has-text("إعادة الاتصال")');
     await p.waitForSelector("[data-testid=history] >> text=Test agent");
     await ctx.close();
   });

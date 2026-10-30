@@ -6,7 +6,7 @@ import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import { Alert, Badge, Card, PageHeader, buttonClass } from "@/ui";
 import { addOrderNote, updateOrderCustomer } from "./actions";
-import { AssignCard, CustomerCard, NoteForm, PhoneBlockButton, RiskCard, StatusPicker, type OrderText } from "./OrderPanels";
+import { AssignCard, CustomerCard, FollowUpCard, NoteForm, PhoneBlockButton, RiskCard, StatusPicker, type OrderText } from "./OrderPanels";
 import type { OrderDetail as Order } from "./queries";
 import { isOrderStatus, statusTone } from "./statuses";
 import { ShipmentCard } from "@/features/delivery/ShipmentCard";
@@ -47,6 +47,14 @@ export function OrderDetail({
   const text: OrderText = { orders: t.orders, errors: t.errors, common: t.common };
   const cur = t.common.currency;
   const statusLabel = (s: string | null) => (s && isOrderStatus(s) ? o.statuses[s] : (s ?? ""));
+  // "state:postponed" → "التوصيل: مؤجل"
+  const followupNote = (note: string | null) => {
+    const [field, value] = (note ?? "").split(":");
+    const f = o.followup;
+    const label = field === "state" ? f.state : field === "fault" ? f.fault : f.processing;
+    const names: Record<string, string> = field === "state" ? f.states : field === "fault" ? f.faults : f.processingStates;
+    return `${label} → ${value ? (names[value] ?? value) : f.none}`;
+  };
   // Customer messages in the shop's chosen language, filled with this order
   const messages = resolveMessages(shop.messages);
   const messageVars = buildMessageVars(order, shop, shipment?.trackingNumber ?? null, messages.language);
@@ -80,7 +88,7 @@ export function OrderDetail({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {/* A locked order (over the plan's limit) can only be looked at: no actions, no customer details */}
-          {!order.locked && <StatusPicker lang={lang} orderId={order.id} status={order.status} t={text} />}
+          {!order.locked && <StatusPicker lang={lang} orderId={order.id} status={order.status} parcel={Boolean(shipment)} t={text} />}
           {!order.locked && <ShipmentCard
             lang={lang}
             orderId={order.id}
@@ -180,6 +188,18 @@ export function OrderDetail({
         </div>
 
         <div className="space-y-6">
+          {!order.locked && (order.status === "confirmed" || shipment) && (
+            <FollowUpCard
+              lang={lang}
+              orderId={order.id}
+              status={order.status}
+              injected={Boolean(shipment)}
+              state={order.deliveryState}
+              fault={order.deliveryFault}
+              processing={order.processing}
+              t={text}
+            />
+          )}
           {!order.locked && (order.risk > 0 || (order.riskReasons ?? []).length > 0) && (
             <RiskCard lang={lang} orderId={order.id} risk={order.risk} reasons={order.riskReasons ?? []} threshold={protection.riskThreshold} held={protection.holdSuspicious && !order.assignedTo} t={text} />
           )}
@@ -209,13 +229,15 @@ export function OrderDetail({
                   <p className="font-medium">
                     {event.type === "status"
                       ? fmt(o.events.status, { from: statusLabel(event.fromStatus), to: statusLabel(event.toStatus) })
-                      : event.type === "assign"
+                      : event.type === "followup"
+                        ? `${o.events.followup}: ${followupNote(event.note)}`
+                        : event.type === "assign"
                         ? event.note
                           ? fmt(o.events.assign, { name: event.note })
                           : o.events.unassign
                         : o.events[event.type]}
                   </p>
-                  {event.note && event.type !== "assign" && <p className="mt-0.5 whitespace-pre-line text-fg/90">{event.note}</p>}
+                  {event.note && event.type !== "assign" && event.type !== "followup" && <p className="mt-0.5 whitespace-pre-line text-fg/90">{event.note}</p>}
                   <p className="text-xs text-muted">
                     <bdi>{userName ?? (event.type === "assign" ? o.bySystem : o.byCustomer)}</bdi> · <bdi>{formatDate(event.createdAt, lang)}</bdi>
                   </p>

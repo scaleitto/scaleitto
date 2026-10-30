@@ -9,14 +9,13 @@ export const sections = [
   { key: "overview", path: "", roles: managers },
   { key: "products", path: "products", roles: managers },
   { key: "inventory", path: "inventory", roles: managers },
-  // Orders: the list, then the parcel's life (ship → track → returns), abandoned carts, protection, analysis
+  // Orders: the list, then the parcel's life (ship → track → returns), abandoned carts, protection
   { key: "orders", path: "orders", roles: all },
   { key: "shipping", path: "orders/shipping", roles: all },
   { key: "tracking", path: "orders/tracking", roles: all },
   { key: "returns", path: "orders/returns", roles: all },
   { key: "abandoned", path: "orders/abandoned", roles: all },
   { key: "protection", path: "orders/protection", roles: managers },
-  { key: "orderInsights", path: "orders/insights", roles: managers },
   { key: "delivery", path: "delivery", roles: managers },
   { key: "finance", path: "finance", roles: ["owner"] },
   // Store design: the look, the themes, the order form
@@ -41,7 +40,7 @@ export type SectionKey = (typeof sections)[number]["key"];
 export const navGroups = [
   // Daily work first: orders, then what is sold and its stock, delivery and the team
   { key: "overview", children: ["overview"] },
-  { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection", "orderInsights"] },
+  { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection"] },
   { key: "products", children: ["products"] },
   { key: "inventory", children: ["inventory"] },
   { key: "delivery", children: ["delivery"] },

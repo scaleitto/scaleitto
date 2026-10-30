@@ -2,15 +2,15 @@ import "server-only";
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { OrderStatus } from "./statuses";
-import { viewStatuses, type OrderFilters } from "./views";
-import { shipmentStatuses, type ShipmentStatus } from "@/server/db/schema";
+import { stageShipments, viewStatuses, type OrderFilters, type TrackingStage } from "./views";
+import { PARCEL_STATUSES } from "./statuses";
+import type { ShipmentStatus } from "@/server/db/schema";
 import { addDays } from "@/lib/time";
 import { visibleOrders, type OrderViewer } from "./access";
 import { escapeLike } from "@/lib/validation";
 import type { CallGuide } from "@/features/ai/prompts";
 
 export const PAGE_SIZE = 25;
-const isShipmentStatus = (v: string): v is ShipmentStatus => shipmentStatuses.includes(v as ShipmentStatus);
 
 
 // The orders of one view of the Orders section with its filters (assignee: a member id, or "none" for orders nobody
@@ -21,8 +21,12 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
   const filters: (SQL | undefined)[] = [visibleOrders(viewer)];
   const statuses = viewStatuses[f.view];
   if (f.status && (!statuses || statuses.includes(f.status))) filters.push(eq(o.status, f.status));
-  else if (statuses) filters.push(inArray(o.status, statuses));
+  else if (statuses) filters.push(inArray(o.status, [...statuses]));
   if (f.view === "risk") filters.push(gte(o.risk, riskThreshold));
+  // Injection: confirmed orders waiting to be sent, or sent (a parcel exists) and still on their way
+  if (f.view === "ship") filters.push(f.inj === "done" ? and(eq(o.status, "shipped"), isNotNull(sh.id)) : eq(o.status, "confirmed"));
+  if (f.view === "transit") filters.push(isNotNull(sh.id));
+  if (f.ds) filters.push(eq(o.deliveryState, f.ds));
   if (f.view === "returns") {
     const back = and(eq(o.status, "shipped"), eq(sh.status, "returning"));
     const returned = eq(o.status, "returned");
@@ -30,7 +34,7 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
       f.ret === "back" ? back : f.ret === "pending" ? and(returned, isNull(sh.returnReceivedAt)) : f.ret === "received" ? and(returned, isNotNull(sh.returnReceivedAt)) : or(back, returned),
     );
   }
-  if (f.stage && isShipmentStatus(f.stage)) filters.push(eq(sh.status, f.stage));
+  if (f.stage) filters.push(inArray(sh.status, stageShipments(f.stage)));
   if (f.wilaya) filters.push(eq(o.wilayaCode, f.wilaya));
   if (f.delivery) filters.push(eq(o.deliveryType, f.delivery));
   if (f.from && /^\d{4}-\d{2}-\d{2}$/.test(f.from)) filters.push(gte(o.createdAt, new Date(`${f.from}T00:00:00+01:00`)));
@@ -66,6 +70,9 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
         createdAt: o.createdAt,
         locked: o.locked,
         risk: o.risk,
+        deliveryState: o.deliveryState,
+        deliveryFault: o.deliveryFault,
+        processing: o.processing,
         assigneeName: schema.users.name,
         shipmentId: sh.id,
         carrierName: sh.carrierName,
@@ -110,19 +117,25 @@ export async function riskCount(viewer: OrderViewer, riskThreshold: number) {
   const [row] = await db
     .select({ n: count() })
     .from(schema.orders)
-    .where(and(visibleOrders(viewer), inArray(schema.orders.status, viewStatuses.risk!), gte(schema.orders.risk, riskThreshold)));
+    .where(and(visibleOrders(viewer), inArray(schema.orders.status, [...viewStatuses.risk!]), gte(schema.orders.risk, riskThreshold)));
   return row.n;
 }
 
-// Parcels on their way per courier stage (the stage chips of the "at the courier" view)
+// Sent parcels per courier stage (the chips of Parcel tracking; "returns" = on their way back + returned)
 export async function stageCounts(viewer: OrderViewer) {
   const rows = await db
     .select({ stage: schema.shipments.status, n: count() })
     .from(schema.orders)
     .innerJoin(schema.shipments, eq(schema.shipments.orderId, schema.orders.id))
-    .where(and(visibleOrders(viewer), eq(schema.orders.status, "shipped")))
+    .where(and(visibleOrders(viewer), inArray(schema.orders.status, [...PARCEL_STATUSES])))
     .groupBy(schema.shipments.status);
-  return Object.fromEntries(rows.map((r) => [r.stage, r.n])) as Partial<Record<ShipmentStatus, number>>;
+  const out: Partial<Record<TrackingStage, number>> & { all: number } = { all: 0 };
+  for (const r of rows) {
+    const key = (r.stage === "returning" || r.stage === "returned" ? "returns" : r.stage) as TrackingStage | ShipmentStatus;
+    if (key !== "unknown") out[key as TrackingStage] = (out[key as TrackingStage] ?? 0) + r.n;
+    out.all += r.n;
+  }
+  return out;
 }
 
 // Returns sub-section: parcels on their way back, returned and still at the courier, received by the merchant

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeInsights, median } from "../../src/features/orders/insights-math";
+import { computeInsights, median } from "../../src/features/analytics/insights-math";
 import { stockRows, stockTotals } from "../../src/features/inventory/stock";
 import { computeFinance } from "../../src/features/finance/compute";
 import { customFieldValid, resolveForm } from "../../src/features/landing/types";

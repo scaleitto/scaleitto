@@ -94,7 +94,7 @@ export default async function phase10(browser) {
     const sign = (raw) => `sha256=${createHmac("sha256", secret).update(raw).digest("hex")}`;
     expect(test.headers["x-scaleitto-signature"] === sign(test.raw), "test signed with the shop's key");
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
-    await owner.click('[data-testid=status-picker] button:has-text("لم يرد")');
+    await owner.click('[data-testid=status-picker] button:has-text("لا يرد")');
     const update = await waitFor(() => hooks.find((h) => h.body.event === "order.updated" && h.body.order.status === "no_answer"), "order.updated");
     const o = update.body.order;
     expect(o.number === 1001 && o.total === 2400 && o.currency === "DZD" && o.customer.phone === "0555443322" && o.items[0].name === "قميص", "order payload");
@@ -106,9 +106,9 @@ export default async function phase10(browser) {
     await sheets.locator("input[type=checkbox]").uncheck();
     await owner.waitForTimeout(400);
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
-    await owner.click('[data-testid=status-picker] button:has-text("مؤجل")');
-    await waitFor(() => hooks.some((h) => h.body.order?.status === "postponed"), "webhook still receives");
-    expect(sheet.rows.get("1001")[sheet.headers.indexOf("الحالة")] !== "مؤجل", "paused sheet not updated");
+    await owner.click('[data-testid=status-picker] button:has-text("إعادة الاتصال")');
+    await waitFor(() => hooks.some((h) => h.body.order?.status === "callback"), "webhook still receives");
+    expect(sheet.rows.get("1001")[sheet.headers.indexOf("الحالة")] !== "إعادة الاتصال", "paused sheet not updated");
     await owner.goto(section);
     const log = owner.locator("[data-testid=app-log]");
     expect((await log.locator("tr[data-app=google_sheets][data-kind=order][data-ok='1']").count()) >= 2, "sheet sends logged");

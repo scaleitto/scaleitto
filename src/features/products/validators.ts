@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { productStatuses } from "@/server/db/schema";
+import { offerBadges, productStatuses } from "@/server/db/schema";
 import { slugify } from "@/lib/format";
 import { combinations } from "./variants";
 import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS, MAX_VARIANTS } from "./constants";
@@ -53,6 +53,10 @@ const offerSchema = z.object({
   quantity: z.number().int().min(2).max(100),
   price: z.number().int().min(1).max(100_000_000),
   label: z.string().trim().max(60).optional(),
+  freeShipping: z.boolean().optional(),
+  gift: z.string().trim().max(80).optional(),
+  badge: z.enum(offerBadges).optional(),
+  preselected: z.boolean().optional(),
 });
 
 export const productSchema = z
@@ -82,7 +86,8 @@ export const productSchema = z
       z
         .array(offerSchema)
         .max(MAX_OFFERS)
-        .refine((offers) => new Set(offers.map((o) => o.quantity)).size === offers.length),
+        .refine((offers) => new Set(offers.map((o) => o.quantity)).size === offers.length)
+        .refine((offers) => offers.filter((o) => o.preselected).length <= 1),
       "e:offers",
     ),
   })

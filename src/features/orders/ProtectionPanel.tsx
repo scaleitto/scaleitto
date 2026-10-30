@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Ban, Bot, Gauge, ShieldCheck } from "lucide-react";
+import { Ban, Bot, Gauge, ListX, ShieldCheck } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ProtectionSettings } from "@/lib/enums";
-import { Alert, Button, Card, Field, Input } from "@/ui";
+import { Alert, Button, Card, Field, Input, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { saveProtection, setPhoneBlocked } from "./actions";
 
@@ -20,7 +20,7 @@ function Check({ name, label, defaultChecked }: { name: string; label: string; d
 }
 
 // The store's fake-order protection: limits, robots, risk score
-export function ProtectionForm({ lang, settings, t }: { lang: string; settings: ProtectionSettings; t: Text }) {
+export function ProtectionForm({ lang, settings, wilayas, t }: { lang: string; settings: ProtectionSettings; wilayas: { code: number; name: string }[]; t: Text }) {
   const p = t.orders.protection;
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(saveProtection.bind(null, lang));
@@ -38,8 +38,11 @@ export function ProtectionForm({ lang, settings, t }: { lang: string; settings: 
             <Ban size={17} className="text-accent" /> {p.limits}
           </h2>
           {num("maxPerPhonePerDay", p.maxPerPhonePerDay, 1, 50)}
+          {num("maxPerPhonePerWeek", p.maxPerPhonePerWeek, 1, 100)}
           {num("maxPerIpPerHour", p.maxPerIpPerHour, 1, 500)}
+          {num("maxQuantity", p.maxQuantity, 0, 1000, p.zeroOff)}
           <Check name="blockDuplicates" label={p.blockDuplicates} defaultChecked={settings.blockDuplicates} />
+          {num("duplicateHours", p.duplicateHours, 1, 168)}
         </Card>
         <Card className="space-y-4">
           <h2 className="flex items-center gap-2 font-semibold">
@@ -55,8 +58,38 @@ export function ProtectionForm({ lang, settings, t }: { lang: string; settings: 
           {num("riskThreshold", p.riskThreshold, 10, 100, p.riskThresholdHint)}
           <Check name="holdSuspicious" label={p.holdSuspicious} defaultChecked={settings.holdSuspicious} />
           <Check name="useNetwork" label={p.useNetwork} defaultChecked={settings.useNetwork} />
+          {num("autoFakeScore", p.autoFakeScore, 0, 100, p.autoFakeScoreHint)}
+          {num("autoBlockFake", p.autoBlockFake, 0, 10, p.autoBlockFakeHint)}
         </Card>
       </div>
+      {/* Lists: connections and words refused, wilayas not served */}
+      <Card className="space-y-4" data-testid="protection-lists">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <ListX size={17} className="text-accent" /> {p.lists}
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Field label={p.blockedIps} htmlFor="pr-blockedIps" hint={p.blockedIpsHint} error={fieldError(state, e, "blockedIps")}>
+            <Textarea id="pr-blockedIps" name="blockedIps" rows={5} dir="ltr" defaultValue={settings.blockedIps.join("\n")} />
+          </Field>
+          <Field label={p.blockedWords} htmlFor="pr-blockedWords" hint={p.blockedWordsHint}>
+            <Textarea id="pr-blockedWords" name="blockedWords" rows={5} defaultValue={settings.blockedWords.join("\n")} />
+          </Field>
+          <fieldset>
+            <legend className="mb-1.5 text-sm font-medium">{p.blockedWilayas}</legend>
+            <p className="mb-2 text-xs text-muted">{p.blockedWilayasHint}</p>
+            <div className="grid max-h-40 grid-cols-2 gap-x-3 gap-y-1.5 overflow-y-auto rounded-lg border border-line p-2.5" data-testid="blocked-wilayas">
+              {wilayas.map((w) => (
+                <label key={w.code} className="flex cursor-pointer items-center gap-2 text-xs">
+                  <input type="checkbox" name="blockedWilayas" value={w.code} defaultChecked={settings.blockedWilayas.includes(w.code)} className="size-3.5 accent-[var(--color-accent)]" />
+                  <span className="truncate">
+                    {w.code} - {w.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      </Card>
       <SubmitButton pending={pending} pendingText={t.common.loading}>
         {p.save}
       </SubmitButton>

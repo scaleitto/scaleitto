@@ -12,13 +12,14 @@ import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { wilayas } from "@/lib/wilayas";
 import type { ActionState } from "@/lib/action";
 import { deliveryTypes } from "@/server/db/schema";
-import { isOrderStatus } from "./statuses";
+import { callStatuses, type OrderStatus } from "./statuses";
 import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { spreadOrders, type Spread } from "@/features/team/distribution";
 import { pickAgent } from "@/features/team/assign";
-import { resolveProtection } from "@/features/checkout/protection-settings";
+import { isIp, listOf, resolveProtection } from "@/features/checkout/protection-settings";
+import { autoBlockFakePhone } from "@/features/checkout/protection";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "orders");
 
@@ -26,9 +27,18 @@ export async function changeOrderStatus(lang: string, orderId: string, status: s
   return safeAction("orders/status", async () => {
     const ctx = await guard(lang);
     const { shop, user } = ctx;
-    if (!isOrderStatus(status)) return { ok: false, error: "invalid" };
+    // The call's outcome only: shipped comes from sending, delivered / returned from tracking or the delivery follow-up
+    if (!(callStatuses as readonly string[]).includes(status)) return { ok: false, error: "invalid" };
     if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    await db.transaction((tx) => applyOrderStatus(tx, shop.id, orderId, status, user.id));
+    // A parcel at the courier: remove it first (the order goes back to confirmed), so the lists never disagree
+    const [parcel] = await db.select({ id: schema.shipments.id }).from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
+    if (parcel) return { ok: false, error: "parcelExists" };
+    await db.transaction((tx) => applyOrderStatus(tx, shop.id, orderId, status as OrderStatus, user.id));
+    // Fake orders / wrong numbers can block the phone (Protection → automatic block)
+    if (status === "fake" || status === "wrong_number") {
+      const [order] = await db.select({ phone: schema.orders.phone }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
+      if (order) await autoBlockFakePhone(shop.id, order.phone);
+    }
     refresh();
     return { ok: true };
   });
@@ -190,11 +200,30 @@ export async function saveProtection(lang: string, _prev: ActionState, formData:
       riskThreshold: num("riskThreshold"),
       holdSuspicious: on("holdSuspicious"),
       useNetwork: on("useNetwork"),
+      maxPerPhonePerWeek: num("maxPerPhonePerWeek"),
+      duplicateHours: num("duplicateHours"),
+      maxQuantity: num("maxQuantity"),
+      autoFakeScore: num("autoFakeScore"),
+      autoBlockFake: num("autoBlockFake"),
+      blockedIps: listOf(formData.get("blockedIps")),
+      blockedWords: listOf(formData.get("blockedWords")),
+      blockedWilayas: formData.getAll("blockedWilayas").map(Number),
     };
     // Out-of-range numbers are refused (resolveProtection would silently use the default)
-    const bounds: [keyof typeof raw, number, number][] = [["maxPerPhonePerDay", 1, 50], ["maxPerIpPerHour", 1, 500], ["minFillSeconds", 0, 60], ["riskThreshold", 10, 100]];
+    const bounds: [keyof typeof raw, number, number][] = [
+      ["maxPerPhonePerDay", 1, 50],
+      ["maxPerPhonePerWeek", 1, 100],
+      ["maxPerIpPerHour", 1, 500],
+      ["duplicateHours", 1, 168],
+      ["maxQuantity", 0, 1000],
+      ["minFillSeconds", 0, 60],
+      ["riskThreshold", 10, 100],
+      ["autoBlockFake", 0, 10],
+    ];
     const fieldErrors: Record<string, string> = {};
     for (const [k, min, max] of bounds) if (!Number.isInteger(raw[k]) || (raw[k] as number) < min || (raw[k] as number) > max) fieldErrors[k] = "invalid";
+    if (raw.autoFakeScore !== 0 && (!Number.isInteger(raw.autoFakeScore) || raw.autoFakeScore < raw.riskThreshold || raw.autoFakeScore > 100)) fieldErrors.autoFakeScore = "invalid";
+    if (raw.blockedIps.some((ip) => !isIp(ip))) fieldErrors.blockedIps = "invalid";
     if (Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
     await db.update(schema.shops).set({ protection: resolveProtection(raw) }).where(eq(schema.shops.id, shop.id));
     refresh();

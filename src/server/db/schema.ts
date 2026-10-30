@@ -120,7 +120,9 @@ export const shops = mysqlTable(
 export type ShopSeo = { title?: string; description?: string };
 export type ShopPolicies = Partial<Record<PolicyKind, string>>;
 // The AI's marketing strategy for a landing page: who it talks to and the angles it chose (with the reason)
-export type PageStrategy = { audience: string; angles: { name: string; why: string }[]; custom: boolean };
+// key = one of the 11 angles (lib/enums.ts landingAngles); required = one of the 5 the automatic mode must use;
+// mode = how they were chosen (auto by the AI, manual by the merchant)
+export type PageStrategy = { audience: string; angles: { name: string; why: string; key?: string; required?: boolean }[]; custom: boolean; mode?: "auto" | "manual" };
 
 export const memberRoles = ["owner", "manager", "agent"] as const;
 export type MemberRole = (typeof memberRoles)[number];
@@ -165,7 +167,11 @@ export const shopContracts = mysqlTable(
 // kind "color": the values are shown as color swatches (colors = value → #rrggbb)
 export type ProductOption = { name: string; values: string[]; kind?: "color"; colors?: Record<string, string> };
 // "2 pieces for 4500 DZD": the total price for that quantity
-export type QuantityOffer = { quantity: number; price: number; label?: string };
+// A quantity offer: `quantity` pieces for `price` in all, with optional extras shown on the offer card and honoured
+// at checkout — free delivery, a gift, a highlight badge (bestSeller / bestValue), chosen by default.
+export const offerBadges = ["bestSeller", "bestValue", "limited"] as const;
+export type OfferBadge = (typeof offerBadges)[number];
+export type QuantityOffer = { quantity: number; price: number; label?: string; freeShipping?: boolean; gift?: string; badge?: OfferBadge; preselected?: boolean };
 
 export const productStatuses = ["active", "draft"] as const;
 
@@ -226,9 +232,20 @@ export const productVariants = mysqlTable(
 
 // ─── Orders (cash on delivery) ────────────────────────────
 
-// no_answer: the customer did not pick up; postponed: asked to be called later
-export const orderStatuses = ["new", "no_answer", "postponed", "confirmed", "shipped", "delivered", "returned", "cancelled"] as const;
+// The order's status (the owner's model, src/features/orders/statuses.ts groups them):
+// confirmation call — new, confirmed, cancelled, callback (Rappel), no_answer, voicemail, fake, wrong_number, duplicate,
+// remark —, then the parcel's life — shipped, delivered, returned (the final delivery).
+export const orderStatuses = ["new", "confirmed", "cancelled", "callback", "no_answer", "voicemail", "fake", "wrong_number", "duplicate", "remark", "shipped", "delivered", "returned"] as const;
 export type OrderStatus = (typeof orderStatuses)[number];
+// Delivery follow-up once the parcel left (Livraison): set by the courier tracking, editable by the team
+export const deliveryStates = ["shipped", "postponed", "no_answer", "delivered", "returned"] as const;
+export type DeliveryState = (typeof deliveryStates)[number];
+// Whose fault a failed delivery was (Remarque sur la livraison)
+export const deliveryFaults = ["courier", "customer", "company"] as const;
+export type DeliveryFault = (typeof deliveryFaults)[number];
+// After-sale handling (Traitement): a complaint, or the parcel sent again
+export const processingStates = ["claim", "reinjected"] as const;
+export type ProcessingState = (typeof processingStates)[number];
 export const deliveryTypes = ["home", "office"] as const;
 export type DeliveryType = (typeof deliveryTypes)[number];
 
@@ -270,6 +287,10 @@ export const orders = mysqlTable(
     riskReasons: json("risk_reasons").$type<string[] | null>(),
     // Finance: when the cash-on-delivery money of this delivered order was received from the courier (null: still owed)
     paidAt: datetime("paid_at"),
+    // Delivery follow-up (src/features/orders/followup.ts)
+    deliveryState: mysqlEnum("delivery_state", deliveryStates),
+    deliveryFault: mysqlEnum("delivery_fault", deliveryFaults),
+    processing: mysqlEnum("processing", processingStates),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -300,7 +321,7 @@ export const orderItems = mysqlTable(
     unitPrice: int("unit_price").notNull(),
     quantity: int("quantity").notNull(),
     total: int("total").notNull(),
-    offerLabel: varchar("offer_label", { length: 60 }),
+    offerLabel: varchar("offer_label", { length: 160 }),
     // True when stock was taken for this line (given back if the order is cancelled or returned)
     stockTracked: boolean("stock_tracked").notNull().default(false),
   },
@@ -369,7 +390,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk", "followup"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),

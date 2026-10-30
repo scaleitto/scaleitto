@@ -12,6 +12,13 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+// The angles, as the strict rule asks: the merchant's chosen ones, or 5 required + 1 optional
+function mockAngles(body, names) {
+  const chosen = body.instructions?.match(/The merchant chose these angles: ([a-z, ]+)\./)?.[1]?.split(", ");
+  const keys = chosen ?? ["problem", "solution", "benefits", "features", "objections", "offer"];
+  return keys.map((key, i) => ({ key, required: chosen ? true : i < 5, name: names[i] ?? key, why: "سبب مختصر" }));
+}
+
 // What the "model" writes: a small landing page that follows the app's schema.
 function landingAnswer(body) {
   const text = body.input?.[0]?.content?.find((c) => c.type === "input_text")?.text ?? "";
@@ -21,7 +28,7 @@ function landingAnswer(body) {
     title: "صفحة الذكاء الاصطناعي",
     product_name: isNew ? "ساعة ذكية AI" : null,
     product_description: isNew ? "وصف كتبه الذكاء الاصطناعي" : null,
-    strategy: { audience: "الشباب النشيطون", angles: [{ name: "الراحة اليومية", why: "يستعملها كل يوم" }, { name: "القيمة مقابل السعر", why: "سعر مناسب" }] },
+    strategy: { audience: "الشباب النشيطون", angles: mockAngles(body, ["الراحة اليومية", "القيمة مقابل السعر"]) },
     sections: [
       { type: "hero", title: "عنوان من الذكاء الاصطناعي", subtitle: "جملة قصيرة", image: images[0] ?? null, badge: null },
       { type: "badges", items: ["الدفع عند الاستلام", "توصيل 58 ولاية"] },
@@ -49,7 +56,7 @@ const answers = {
       product_description: text.includes("This is a new product") ? "مصباح يقتل البعوض بهدوء." : null,
       palette: { background: "#0b1a3a", primary: "#2563eb", accent: "#facc15" },
       marquee: ["دفع عند التسليم", "توصيل سريع", "نتصل بك للتأكيد"],
-      strategy: { audience: "العائلات", angles: [{ name: "نوم هادئ", why: "البعوض يزعج النوم" }, { name: "أمان العائلة", why: "بدون مواد كيميائية ظاهرة" }, { name: "سهولة الاستعمال", why: "زر واحد" }] },
+      strategy: { audience: "العائلات", angles: mockAngles(body, ["نوم هادئ", "أمان العائلة", "سهولة الاستعمال"]) },
       sections: Array.from({ length: n }, (_, i) => ({ kind: i === n - 1 ? "offer" : kinds[i % 8], angle: i === 0 ? "نوم هادئ" : "سهولة الاستعمال", headline: `عنوان القسم ${i + 1}`, subtitle: i === 0 ? "نص فرعي قصير" : null, bullets: ["نقطة أولى", "نقطة ثانية"], cta: i === n - 1 ? "اطلب الآن" : null, scene: "A bedroom at night, product on a table" })),
     };
   },

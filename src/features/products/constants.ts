@@ -2,4 +2,4 @@
 export const MAX_IMAGES = 10;
 export const MAX_OPTIONS = 3;
 export const MAX_VARIANTS = 100;
-export const MAX_OFFERS = 5;
+export const MAX_OFFERS = 6;

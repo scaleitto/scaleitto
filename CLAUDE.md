@@ -24,7 +24,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   Colors are tokens in `src/app/globals.css` (light dashboard, green accent; `text-warning` / `text-info` instead of fixed amber/sky).
 - `src/lib/permissions.ts` — the ONLY place that says which role sees which page (`sections`: key, path, roles) and how
   the sidebar groups them (`navGroups`; `navFor(role)`), daily work first: Overview, Orders (order list / send to couriers /
-  parcel tracking / returns / abandoned carts / protection / order analysis), Products, Inventory, Delivery, Call centers,
+  parcel tracking / returns / abandoned carts / protection), Products, Inventory, Delivery, Call centers,
   Store design (design / themes / order form), Landing pages, Integrations (pixels / apps), Analytics, Finance (owner only),
   Subscription plans, Settings, Profile. `DashboardShell`: a group's header is a button that slides its sub-sections open
   and closed (one open at a time, the current page's group by default; icons in `subIcons`), and the same pages show as
@@ -246,6 +246,27 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   custom field types (text, textarea, number, email, date, select, radio, checkbox — `customFieldValid` on the server),
   `blocks` (heading/text/image/divider/badges/notice, "el:<id>" in `order`), `stepper` (name + phone first), templates per
   product (`form_templates`, `products.form_template_id`, `order-form/resolve.ts productForm`, `TemplatePicker`).
+- Owner feedback round 8 (phase24.mjs): the owner's status model, all in `orders/statuses.ts` (`callStatuses` = Statut de la
+  commande: new, confirmed, callback (Rappel, was "postponed"), no_answer, voicemail, remark, cancelled, fake, wrong_number,
+  duplicate; groups `PENDING_STATUSES` / `REJECTED_STATUSES` (give stock back) / `REFUSED_STATUSES` (count against the
+  confirmation rate; duplicates do not) / `CONFIRMED_STATUSES` / `PARCEL_STATUSES` shipped-delivered-returned — never write status
+  lists elsewhere). The status picker only sets call statuses and refuses while a parcel exists ("parcelExists"). After sending:
+  `orders.delivery_state` (Livraison: shipped/postponed/no_answer/delivered/returned — set by `applyOrderStatus`, by tracking
+  (suspended → postponed) and by the order page), `delivery_fault` (Remarque: courier/customer/company), `processing`
+  (Traitement: claim/reinjected — "resend" in Returns sets reinjected); Injection = a parcel exists; Livraison finale = status
+  delivered/returned. `orders/followup.ts` `setFollowUp` (delivered/returned close the order, others reopen to shipped; event
+  "followup"); `FollowUpCard` on the order page. Lists (`orders/views.ts`): one chip row per sub-section (`order-chips`): list =
+  call + parcel statuses + suspicious; send = `inj` pending/done; tracking = every sent parcel, `trackingStages` in the Ecotrack
+  order with `stageNames` (the courier's French words; "returns" = returning + returned), filter `ds`; returns as before.
+  Order analysis merged into Analytics (`analytics/insights*.ts`, `InsightsViews.tsx` + `FollowUpCard`; /orders/insights
+  redirects). Protection (`shops.protection`, `resolveProtection`): + weekly phone limit, duplicate window, max quantity, blocked
+  IPs / words / wilayas (store errors "quantity", "noWilaya"), automatic "fake" from a risk score (`autoFakeScore`), phone blocked
+  after N fake/wrong-number orders (`autoBlockFakePhone`), risk reason "fake". Offers (`QuantityOffer`): freeShipping (`lineShipping`),
+  gift (written into the order line's `offer_label`), badge (`offerBadges`), preselected (`defaultQuantity`), quick templates
+  (`offerTemplate`); offer cards in `CheckoutForm`. Landing angles: the 11 `landingAngles` (`lib/enums.ts`), `angleRule` in
+  `strategy.ts` (auto = exactly 5 required + 1–2 optional; manual = exactly the merchant's ticks, wizard step 6), enforced again by
+  `landing/angles.ts cleanStrategy` (pure). Store design preview: the scrolling box is never `inert`/`pointer-events-none`, its
+  child is. Admin → plans shows the active plans (= the subscription page), older ones folded.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

@@ -8,8 +8,10 @@ import { Alert, Button, Card, Field, Input, Select, Textarea, inputClass } from 
 import { CommuneSelect } from "@/features/checkout/CommuneSelect";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { assignOrder, changeOrderStatus, markOrderTrusted, setPhoneBlocked } from "./actions";
+import { setFollowUp, type FollowUpField } from "./followup";
+import { deliveryFaults, deliveryStates, processingStates, type DeliveryFault, type DeliveryState, type ProcessingState } from "@/server/db/schema";
 import { fmt } from "@/lib/format";
-import { orderStatuses, type OrderStatus } from "./statuses";
+import { REJECTED_STATUSES, callStatuses, type OrderStatus } from "./statuses";
 
 export type OrderText = Pick<Dictionary, "orders" | "errors" | "common">;
 type FormAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -28,29 +30,33 @@ function useButtonAction(t: OrderText) {
   return { pending, error, run };
 }
 
-const statusStyle: Partial<Record<OrderStatus, string>> = {
-  confirmed: "border-accent/50 text-accent hover:bg-accent/10",
-  delivered: "border-accent/50 text-accent hover:bg-accent/10",
-  cancelled: "border-danger/40 text-danger hover:bg-danger/10",
-  returned: "border-danger/40 text-danger hover:bg-danger/10",
-};
+const statusStyle = (s: OrderStatus) =>
+  s === "confirmed"
+    ? "border-accent/50 text-accent hover:bg-accent/10"
+    : (REJECTED_STATUSES as readonly OrderStatus[]).includes(s)
+      ? "border-danger/40 text-danger hover:bg-danger/10"
+      : "border-line text-fg hover:bg-panel-2";
 
-export function StatusPicker({ lang, orderId, status, t }: { lang: string; orderId: string; status: OrderStatus; t: OrderText }) {
+// Statut de la commande: the outcome of the confirmation call. Once a parcel exists, the order follows the parcel
+// (Delivery follow-up card) and the call statuses wait until the parcel is removed.
+export function StatusPicker({ lang, orderId, status, parcel, t }: { lang: string; orderId: string; status: OrderStatus; parcel: boolean; t: OrderText }) {
   const { pending, error, run } = useButtonAction(t);
   return (
     <Card className="space-y-3">
-      <h2 className="font-semibold">{t.orders.changeStatus}</h2>
+      <h2 className="font-semibold">{t.orders.statusGroups.call}</h2>
+      {parcel && <p className="text-sm text-muted">{t.errors.parcelExists}</p>}
       <div className="flex flex-wrap gap-2" data-testid="status-picker">
-        {orderStatuses.map((s) => (
+        {callStatuses.map((s) => (
           <button
             key={s}
             type="button"
-            disabled={pending || s === status}
+            data-status={s}
+            disabled={pending || parcel || s === status}
             aria-pressed={s === status}
             onClick={() => run(() => changeOrderStatus(lang, orderId, s))}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition disabled:cursor-default ${
-              s === status ? "border-transparent bg-fg text-bg" : (statusStyle[s] ?? "border-line text-fg hover:bg-panel-2")
-            } ${pending && s !== status ? "opacity-50" : ""}`}
+              s === status ? "border-transparent bg-fg text-bg" : statusStyle(s)
+            } ${(pending || parcel) && s !== status ? "opacity-50" : ""}`}
           >
             {t.orders.statuses[s]}
           </button>
@@ -313,6 +319,78 @@ export function RiskCard({ lang, orderId, risk, reasons, threshold, held, t }: {
             <ShieldCheck size={15} /> {r.markTrusted}
           </Button>
         ))}
+    </Card>
+  );
+}
+
+// Suivi de livraison, after the confirmation: Injection (a parcel exists), Livraison (tracking sets it, the team can
+// change it: delivered / returned close the order), Remarque sur la livraison, Traitement, Livraison finale.
+export function FollowUpCard({
+  lang,
+  orderId,
+  status,
+  injected,
+  state,
+  fault,
+  processing,
+  t,
+}: {
+  lang: string;
+  orderId: string;
+  status: OrderStatus;
+  injected: boolean;
+  state: DeliveryState | null;
+  fault: DeliveryFault | null;
+  processing: ProcessingState | null;
+  t: OrderText;
+}) {
+  const f = t.orders.followup;
+  const { pending, error, run } = useButtonAction(t);
+  const sent = status === "shipped" || status === "delivered" || status === "returned";
+  const change = (field: FollowUpField) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    run(() => setFollowUp(lang, orderId, field, value));
+  };
+  const row = (label: string, value: React.ReactNode) => (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="text-sm font-semibold">{value}</dd>
+    </div>
+  );
+  const select = (field: FollowUpField, value: string | null, options: readonly string[], labels: Record<string, string>, allowEmpty: boolean) => (
+    <select
+      value={value ?? ""}
+      onChange={change(field)}
+      disabled={pending || !sent}
+      aria-label={field === "state" ? f.state : field === "fault" ? f.fault : f.processing}
+      data-followup={field}
+      className={`${inputClass.replace("w-full", "w-44")} select-chevron appearance-none pe-9 py-1.5 text-sm`}
+    >
+      {(allowEmpty || !value) && <option value="">{f.none}</option>}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {labels[o]}
+        </option>
+      ))}
+    </select>
+  );
+  return (
+    <Card className="space-y-2" data-testid="follow-up-card">
+      <h2 className="font-semibold">{f.title}</h2>
+      {!sent && <p className="text-sm text-muted">{f.notShipped}</p>}
+      <dl className="divide-y divide-line">
+        {row(f.injection, <span className={injected ? "text-accent" : "text-muted"} data-testid="injection">{injected ? f.injected : f.notInjected}</span>)}
+        {row(f.state, select("state", state, deliveryStates, f.states, false))}
+        {row(f.fault, select("fault", fault, deliveryFaults, f.faults, true))}
+        {row(f.processing, select("processing", processing, processingStates, f.processingStates, true))}
+        {row(
+          f.final,
+          <span data-testid="final-delivery" className={status === "delivered" ? "text-accent" : status === "returned" ? "text-danger" : "text-muted"}>
+            {status === "delivered" || status === "returned" ? f.states[status] : f.finalPending}
+          </span>,
+        )}
+      </dl>
+      {error && <Alert>{error}</Alert>}
     </Card>
   );
 }

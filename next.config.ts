@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       { source: "/:lang(ar|fr|en)/dashboard/apps", destination: "/:lang/dashboard/integrations/apps", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/themes", destination: "/:lang/dashboard/store-design/themes", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/order-form", destination: "/:lang/dashboard/store-design/order-form", permanent: true },
+      { source: "/:lang(ar|fr|en)/dashboard/orders/insights", destination: "/:lang/dashboard/analytics", permanent: true },
     ];
   },
   // Shown in /api/health and the admin panel so it is easy to tell which version a server runs.

@@ -5,6 +5,8 @@ export type RiskSignals = {
   // This phone's earlier orders in this store
   returned: number;
   cancelled: number;
+  // Marked fake order or wrong number
+  fake: number;
   delivered: number;
   // This phone's returned/refused parcels in the platform's other stores (0 when the store does not use the network)
   networkReturned: number;
@@ -19,7 +21,7 @@ export type RiskSignals = {
   phonesFromIp: number;
 };
 
-export const riskReasons = ["returned", "cancelled", "network", "fast", "noScript", "bot", "name", "sharedIp"] as const;
+export const riskReasons = ["returned", "cancelled", "fake", "network", "fast", "noScript", "bot", "name", "sharedIp"] as const;
 export type RiskReason = (typeof riskReasons)[number];
 
 export function fakeName(name: string) {
@@ -40,6 +42,7 @@ export function scoreOrder(s: RiskSignals): { score: number; reasons: RiskReason
   };
   if (s.returned > 0) add("returned", Math.min(50, 25 * s.returned));
   if (s.cancelled > 0) add("cancelled", Math.min(30, 10 * s.cancelled));
+  if (s.fake > 0) add("fake", Math.min(60, 40 * s.fake));
   if (s.networkReturned > 0) add("network", s.networkReturned >= 3 ? 35 : 20);
   if (s.fillSeconds === null) add("noScript", 30);
   else if (s.fillSeconds < s.minFillSeconds) add("fast", 25);

@@ -1,6 +1,7 @@
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { formatDate } from "@/lib/format";
+import { wilayaName, wilayas } from "@/lib/wilayas";
 import { PageHeader } from "@/ui";
 import { BlockedPhones, ProtectionForm } from "@/features/orders/ProtectionPanel";
 import { protectionOverview } from "@/features/orders/queries";
@@ -36,7 +37,7 @@ export default async function ProtectionPage({ params }: PageProps<"/[lang]/dash
             ))}
           </dl>
         </div>
-        <ProtectionForm lang={lang} settings={settings} t={text} />
+        <ProtectionForm lang={lang} settings={settings} wilayas={wilayas.map((w) => ({ code: w.code, name: wilayaName(w.code, lang) }))} t={text} />
         <BlockedPhones lang={lang} phones={overview.blocked.map((b) => ({ phone: b.phone, reason: b.reason, date: formatDate(b.createdAt, lang) }))} t={text} />
       </div>
     </>

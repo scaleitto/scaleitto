@@ -1,4 +1,5 @@
 import "server-only";
+import { offerFacts } from "@/features/checkout/pricing";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import { languageRules } from "@/features/landing/ai-prompt";
@@ -33,7 +34,7 @@ ${HONESTY}
 ${languageRules[language]}`;
   const user = [
     `Store: ${extra.shopName}`,
-    `Product (JSON): ${JSON.stringify({ name: p.name, description: p.description ?? "", price_da: p.price, compare_at_price_da: p.compareAtPrice, options: p.options, quantity_offers: p.offers.map((o) => ({ quantity: o.quantity, total_price_da: o.price })) })}`,
+    `Product (JSON): ${JSON.stringify({ name: p.name, description: p.description ?? "", price_da: p.price, compare_at_price_da: p.compareAtPrice, options: p.options, quantity_offers: p.offers.map(offerFacts) })}`,
     `Delivery prices: ${extra.delivery}`,
     extra.notes ? `Merchant notes (facts you may use): ${extra.notes}` : "Merchant notes: none.",
   ].join("\n\n");

@@ -183,7 +183,7 @@ export default async function phase6(browser) {
     await owner.goto(cc);
     await owner.locator(`[data-member="${emails.b}"] button:has-text("تعطيل")`).click();
     await owner.locator(`[data-member="${emails.b}"]`).getByText("معطّل").waitFor();
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE assigned_to = ? AND status IN ('new','no_answer','postponed')", [await userId(emails.b)]);
+    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE assigned_to = ? AND status IN ('new','callback','no_answer','voicemail','remark')", [await userId(emails.b)]);
     expect(Number(n) === 0, "open orders released");
     // Signed out at once: the next page sends them to the login page
     await agentB.p.goto(orders);

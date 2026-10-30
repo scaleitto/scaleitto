@@ -5,11 +5,11 @@ import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import type { ParcelDefaults } from "@/lib/enums";
-import { shipmentStatuses } from "@/server/db/schema";
+import { deliveryStates } from "@/server/db/schema";
 import { Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
 import { listOrders, returnCounts, riskCount, stageCounts, statusCounts } from "./queries";
-import { statusTone } from "./statuses";
-import { listViews, pageSizes, returnStates, viewStatuses, type OrderFilters, type OrderView } from "./views";
+import { PARCEL_STATUSES, callStatuses, statusTone } from "./statuses";
+import { injectionStates, pageSizes, returnStates, stageNames, trackingStages, type OrderFilters, type OrderView } from "./views";
 import type { OrderViewer } from "./access";
 import { BulkAssignBar, SelectAllOrders } from "./BulkAssign";
 import { ReturnsPanel, SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
@@ -59,9 +59,7 @@ export async function OrderList({
     f.view === "transit" ? stageCounts(viewer) : Promise.resolve(null),
     f.view === "returns" ? returnCounts(viewer) : Promise.resolve(null),
   ]);
-  const sum = (view: OrderView) => (viewStatuses[view] ?? []).reduce((a, s) => a + (counts[s] ?? 0), 0);
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
-  const viewCounts: Record<(typeof listViews)[number], number> = { all, confirm: sum("confirm"), done: sum("done"), risk: risky };
   const href = (patch: Partial<Record<keyof OrderFilters, string | number | undefined>>) => {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...f, ...patch })) {
@@ -71,36 +69,39 @@ export async function OrderList({
     const s = params.toString();
     return s ? `${base}?${s}` : base;
   };
-  const statuses = viewStatuses[f.view];
-  const shipping = f.view === "ship" || f.view === "transit" || f.view === "returns";
+  const shipping = section !== "orders";
   const managers = members.length > 0;
-  const filtered = Boolean(f.q || f.wilaya || f.delivery || f.from || f.to || f.assignee || f.status || f.stage);
-  const chip = (active: boolean) => `flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 font-medium ${active ? "bg-panel-2 text-fg" : "text-muted hover:text-fg"}`;
+  const filtered = Boolean(f.q || f.wilaya || f.delivery || f.from || f.to || f.assignee || f.ds);
+  const reset = { status: undefined, stage: undefined, ret: undefined, inj: undefined, page: 1 } as const;
+
+  // One row of chips per sub-section: the order's status (list), injection (send), the courier's stage (tracking),
+  // the return's state (returns)
+  type Chip = { key: string; label: string; sub?: string; n: number; active: boolean; href: string; warn?: boolean };
+  const chips: Chip[] =
+    section === "orders"
+      ? [
+          { key: "all", label: o.all, n: all, active: f.view === "all" && !f.status, href: href({ ...reset, view: "all" }) },
+          ...[...callStatuses, ...PARCEL_STATUSES].map((s) => ({ key: s, label: o.statuses[s], n: counts[s] ?? 0, active: f.view === "all" && f.status === s, href: href({ ...reset, view: "all", status: s }) })),
+          { key: "risk", label: o.views.risk, n: risky, active: f.view === "risk", href: href({ ...reset, view: "risk" }), warn: risky > 0 },
+        ]
+      : section === "shipping"
+        ? injectionStates.map((k) => ({ key: k, label: o.injection[k], n: (k === "done" ? counts.shipped : counts.confirmed) ?? 0, active: (f.inj ?? "pending") === k, href: href({ ...reset, inj: k === "pending" ? undefined : k }) }))
+        : section === "tracking" && stages
+          ? [
+              { key: "all", label: o.filters.allStages, n: stages.all, active: !f.stage, href: href(reset) },
+              ...trackingStages.map((k) => ({ key: k, label: stageNames[k], sub: lang === "fr" ? undefined : o.stageLabels[k], n: stages[k] ?? 0, active: f.stage === k, href: href({ ...reset, stage: k }) })),
+            ]
+          : returns
+            ? [
+                { key: "all", label: o.filters.allStages, n: returns.back + returns.pending + returns.received, active: !f.ret, href: href(reset) },
+                ...returnStates.map((r) => ({ key: r, label: o.returns.states[r], n: returns[r], active: f.ret === r, href: href({ ...reset, ret: r }) })),
+              ]
+            : [];
+  const chip = (active: boolean) => `flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition ${active ? "border-accent/40 bg-accent/10 text-accent" : "border-line text-muted hover:border-accent/30 hover:text-fg"}`;
 
   return (
     <>
-      <PageHeader
-        title={t.sections[section].title}
-        description={t.sections[section].description}
-      />
-      {/* The list's views: everything, to confirm, suspicious, finished */}
-      {section === "orders" && (
-        <nav className="mb-3 flex gap-1 overflow-x-auto border-b border-line text-sm" data-testid="order-views">
-          {listViews.map((key) => (
-            <Link
-              key={key}
-              href={key === "all" ? base : `${base}?view=${key}`}
-              aria-current={f.view === key ? "page" : undefined}
-              data-view={key}
-              className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 pb-2.5 font-semibold ${f.view === key ? "border-accent text-accent" : "border-transparent text-muted hover:text-fg"}`}
-            >
-              {key === "risk" && <ShieldAlert size={15} className={risky ? "text-warning" : ""} />}
-              {o.views[key]}
-              <span className={`rounded-full px-1.5 text-xs ${key === "risk" && risky ? "bg-warning/10 text-warning" : "bg-bg"}`}>{viewCounts[key]}</span>
-            </Link>
-          ))}
-        </nav>
-      )}
+      <PageHeader title={t.sections[section].title} description={t.sections[section].description} />
       <p className="mb-4 text-sm text-muted" data-testid="view-hint">
         {o.viewHints[f.view]}
         {/* The automatic check of the couriers (cron), so the merchant knows the stages are fresh */}
@@ -118,55 +119,23 @@ export async function OrderList({
       ) : (
         <Card className="p-0">
           <div className="space-y-3 border-b border-line p-4">
-            {/* The statuses of this sub-section, or the courier's stages for parcels on their way */}
-            {f.view === "returns" && returns ? (
-              <nav className="flex gap-1 overflow-x-auto pb-1 text-sm" aria-label={o.returns.title} data-testid="return-chips">
-                <Link href={href({ ret: undefined, page: 1 })} aria-current={!f.ret ? "page" : undefined} className={chip(!f.ret)}>
-                  {o.filters.allStages}
-                  <span className="rounded-full bg-bg px-1.5 text-xs">{returns.back + returns.pending + returns.received}</span>
+            <nav className="flex gap-1.5 overflow-x-auto pb-1 text-sm" aria-label={t.sections[section].title} data-testid="order-chips" data-section={section}>
+              {chips.map((c) => (
+                <Link key={c.key} href={c.href} aria-current={c.active ? "page" : undefined} className={chip(c.active)} data-chip={c.key}>
+                  {c.key === "risk" && <ShieldAlert size={14} className={c.warn ? "text-warning" : ""} />}
+                  <span className="flex flex-col leading-tight">
+                    <span dir={c.sub ? "ltr" : undefined}>{c.label}</span>
+                    {c.sub && <span className="text-[11px] font-normal opacity-80">{c.sub}</span>}
+                  </span>
+                  <span className={`rounded-full px-1.5 text-xs tabular-nums ${c.warn ? "bg-warning/10 text-warning" : "bg-bg"}`}>{c.n}</span>
                 </Link>
-                {returnStates.map((r) => (
-                  <Link key={r} href={href({ ret: r, page: 1 })} aria-current={f.ret === r ? "page" : undefined} className={chip(f.ret === r)} data-ret={r}>
-                    {o.returns.states[r]}
-                    <span className="rounded-full bg-bg px-1.5 text-xs">{returns[r]}</span>
-                  </Link>
-                ))}
-              </nav>
-            ) : f.view === "transit" && stages ? (
-              <nav className="flex gap-1 overflow-x-auto pb-1 text-sm" aria-label={o.filters.stage} data-testid="stage-chips">
-                <Link href={href({ stage: undefined, page: 1 })} aria-current={!f.stage ? "page" : undefined} className={chip(!f.stage)}>
-                  {o.filters.allStages}
-                  <span className="rounded-full bg-bg px-1.5 text-xs">{sum("transit")}</span>
-                </Link>
-                {shipmentStatuses
-                  .filter((s) => stages[s])
-                  .map((s) => (
-                    <Link key={s} href={href({ stage: s, page: 1 })} aria-current={f.stage === s ? "page" : undefined} className={chip(f.stage === s)} data-stage={s}>
-                      {t.delivery.statuses[s]}
-                      <span className="rounded-full bg-bg px-1.5 text-xs">{stages[s]}</span>
-                    </Link>
-                  ))}
-              </nav>
-            ) : (
-              (statuses ?? []).length !== 1 && (
-                <nav className="flex gap-1 overflow-x-auto pb-1 text-sm" aria-label={o.columns.status}>
-                  <Link href={href({ status: undefined, page: 1 })} aria-current={!f.status ? "page" : undefined} className={chip(!f.status)}>
-                    {o.all}
-                    <span className="rounded-full bg-bg px-1.5 text-xs">{f.view === "risk" ? risky : statuses ? sum(f.view) : all}</span>
-                  </Link>
-                  {(statuses ?? Object.keys(statusTone)).map((s) => (
-                    <Link key={s} href={href({ status: s, page: 1 })} aria-current={f.status === s ? "page" : undefined} className={chip(f.status === s)}>
-                      {o.statuses[s as keyof typeof o.statuses]}
-                      {f.view !== "risk" && <span className="rounded-full bg-bg px-1.5 text-xs">{counts[s as keyof typeof counts] ?? 0}</span>}
-                    </Link>
-                  ))}
-                </nav>
-              )
-            )}
+              ))}
+            </nav>
 
             <form action={base} className="flex flex-wrap gap-2" data-testid="order-filters">
               {section === "orders" && f.view !== "all" && <input type="hidden" name="view" value={f.view} />}
               {f.ret && <input type="hidden" name="ret" value={f.ret} />}
+              {f.inj && <input type="hidden" name="inj" value={f.inj} />}
               {f.status && <input type="hidden" name="status" value={f.status} />}
               {f.stage && <input type="hidden" name="stage" value={f.stage} />}
               <div className="relative w-full sm:w-72">
@@ -188,6 +157,17 @@ export async function OrderList({
               </select>
               <input type="date" name="from" defaultValue={f.from} aria-label={o.filters.from} title={o.filters.from} className={filterInput} dir="ltr" />
               <input type="date" name="to" defaultValue={f.to} aria-label={o.filters.to} title={o.filters.to} className={filterInput} dir="ltr" />
+              {/* Livraison: the delivery follow-up of sent parcels */}
+              {(section === "tracking" || section === "returns") && (
+                <select name="ds" defaultValue={f.ds ?? ""} aria-label={o.followup.state} className={filterSelect} data-testid="filter-ds">
+                  <option value="">{o.followup.state}</option>
+                  {deliveryStates.map((d) => (
+                    <option key={d} value={d}>
+                      {o.followup.states[d]}
+                    </option>
+                  ))}
+                </select>
+              )}
               {managers && (
                 <select name="assignee" defaultValue={f.assignee ?? ""} aria-label={o.columns.assignee} className={filterSelect}>
                   <option value="">{o.allAgents}</option>
@@ -210,7 +190,7 @@ export async function OrderList({
                 {o.filters.apply}
               </button>
               {filtered && (
-                <Link href={href({ q: undefined, wilaya: undefined, delivery: undefined, from: undefined, to: undefined, assignee: undefined, status: undefined, stage: undefined, ret: undefined, page: 1 })} className={buttonClass("ghost")}>
+                <Link href={href({ q: undefined, wilaya: undefined, delivery: undefined, from: undefined, to: undefined, assignee: undefined, ds: undefined, page: 1 })} className={buttonClass("ghost")}>
                   {o.filters.clear}
                 </Link>
               )}
@@ -294,6 +274,14 @@ export async function OrderList({
                                   {f.view === "returns" && r.status === "returned" && (
                                     <Badge tone={r.returnReceivedAt ? "accent" : "warning"}>{r.returnReceivedAt ? o.returns.states.received : o.returns.states.pending}</Badge>
                                   )}
+                                  {/* Livraison / Remarque / Traitement */}
+                                  {f.view !== "ship" && r.deliveryState && r.deliveryState !== "shipped" && (
+                                    <span data-ds={r.deliveryState}>
+                                      <Badge tone={r.deliveryState === "delivered" ? "accent" : r.deliveryState === "returned" ? "danger" : "warning"}>{o.followup.states[r.deliveryState]}</Badge>
+                                    </span>
+                                  )}
+                                  {r.deliveryFault && <Badge>{o.followup.faults[r.deliveryFault]}</Badge>}
+                                  {r.processing && <Badge tone="info">{o.followup.processingStates[r.processing]}</Badge>}
                                 </span>
                                 <span className="mt-1 flex items-center gap-2 text-xs text-muted">
                                   {r.carrierName}

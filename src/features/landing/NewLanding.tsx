@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, FileText, Image as ImageIcon, LayoutTemplate, Link2, LoaderCircle, Package, PenLine, Sparkles, WandSparkles } from "lucide-react";
+import { Check, FileText, Image as ImageIcon, LayoutTemplate, Link2, ListChecks, LoaderCircle, Package, PenLine, Sparkles, WandSparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
@@ -11,7 +11,7 @@ import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form"
 import { ImageManager } from "@/ui/ImageManager";
 import { checkAiLanding, startAiLanding, type AiCheckResult, type AiStartInput } from "./ai-actions";
 import { pageLanguages } from "./types";
-import { imageStyles as imageStyleKeys } from "@/lib/enums";
+import { imageStyles as imageStyleKeys, landingAngles, type LandingAngle } from "@/lib/enums";
 
 export type NewLandingText = Pick<Dictionary, "landingPages" | "media" | "errors" | "common">;
 type Product = { id: string; name: string };
@@ -148,6 +148,9 @@ export function NewLanding({
   const [promptMode, setPromptMode] = useState<"method" | "own">(savedPrompt ? "own" : "method");
   const [customPrompt, setCustomPrompt] = useState(savedPrompt ?? "");
   const [savePrompt, setSavePrompt] = useState(false);
+  // The 11 angles: the AI picks 5 + 1–2, or the merchant ticks them
+  const [angleMode, setAngleMode] = useState<"auto" | "manual">("auto");
+  const [angleKeys, setAngleKeys] = useState<LandingAngle[]>([]);
   const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
   const [enhance, setEnhance] = useState(true);
   const [style, setStyle] = useState<(typeof imageStyleKeys)[number]>("studio");
@@ -224,6 +227,7 @@ export function NewLanding({
       poster: images ? { ...poster, color } : undefined,
       customPrompt: promptMode === "own" ? customPrompt : "",
       savePrompt: promptMode === "own" && savePrompt,
+      angles: angleMode === "manual" ? { mode: "manual", keys: angleKeys } : { mode: "auto" },
     }).catch(() => ({ ok: false as const, error: "unexpected" }));
     if (r.ok) setGenerationId(r.generationId);
     else {
@@ -285,6 +289,7 @@ export function NewLanding({
           ] as [string, string][])
         : ([[w.summary.tone, ai.tones[tone]]] as [string, string][])),
       [w.summary.prompt, promptMode === "own" ? w.prompt.own : w.prompt.method],
+      [w.summary.angles, angleMode === "manual" ? angleKeys.map((k) => lp.angles.names[k]).join("، ") : w.angles.auto],
     ];
     return (
       <Card className="mx-auto max-w-2xl space-y-5" data-testid="ai-confirm">
@@ -531,8 +536,45 @@ export function NewLanding({
             )}
           </Step>
 
+          <Step n={6} title={w.angles.title}>
+            <Choice
+              value={angleMode}
+              onChange={setAngleMode}
+              testId="angle-mode"
+              options={[
+                { key: "auto", icon: Sparkles, title: w.angles.auto, hint: w.angles.autoHint },
+                { key: "manual", icon: ListChecks, title: w.angles.manual, hint: w.angles.manualHint },
+              ]}
+            />
+            {angleMode === "manual" && (
+              <div className="space-y-2" data-testid="angle-picker">
+                <p className="text-xs text-muted">{fmt(w.angles.picked, { n: angleKeys.length })}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {landingAngles.map((k) => {
+                    const on = angleKeys.includes(k);
+                    return (
+                      <label key={k} className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-sm transition ${on ? "border-accent bg-accent/10" : "border-line hover:bg-panel-2"}`}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          data-angle-key={k}
+                          onChange={() => setAngleKeys((all) => (on ? all.filter((x) => x !== k) : landingAngles.filter((x) => x === k || all.includes(x))))}
+                          className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+                        />
+                        <span>
+                          <span className="block font-semibold">{lp.angles.names[k]}</span>
+                          <span className="mt-0.5 block text-xs text-muted">{lp.angles.hints[k]}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Step>
+
           <div className="flex justify-end">
-            <Button onClick={() => setPhase("confirm")} disabled={(source === "product" && !products.length) || (promptMode === "own" && !customPrompt.trim())} data-testid="ai-next">
+            <Button onClick={() => setPhase("confirm")} disabled={(source === "product" && !products.length) || (promptMode === "own" && !customPrompt.trim()) || (angleMode === "manual" && !angleKeys.length)} data-testid="ai-next">
               {w.next}
             </Button>
           </div>

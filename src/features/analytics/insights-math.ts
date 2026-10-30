@@ -1,12 +1,10 @@
-// Pure math of the Order analysis page (unit-tested, no database).
-import type { OrderStatus } from "@/server/db/schema";
-import { pct } from "@/features/analytics/compute";
+// Pure math of the orders' part of Analytics (unit-tested, no database): rates, step times, couriers, delivery follow-up.
+import type { DeliveryFault, DeliveryState, OrderStatus } from "@/server/db/schema";
+import { CONFIRMED_STATUSES, PENDING_STATUSES, REFUSED_STATUSES } from "@/features/orders/statuses";
+import { pct } from "./compute";
 
-export type InsightOrder = { id: string; status: OrderStatus; createdAt: Date; carrier: string | null; stage: string | null };
+export type InsightOrder = { id: string; status: OrderStatus; createdAt: Date; carrier: string | null; stage: string | null; deliveryState?: DeliveryState | null; deliveryFault?: DeliveryFault | null };
 export type EventRow = { orderId: string; toStatus: string; at: Date };
-
-const CONFIRMED: OrderStatus[] = ["confirmed", "shipped", "delivered", "returned"];
-const PENDING: OrderStatus[] = ["new", "no_answer", "postponed"];
 
 export function median(values: number[]) {
   if (!values.length) return null;
@@ -18,12 +16,18 @@ const round1 = (n: number | null) => (n == null ? null : Math.round(n * 10) / 10
 
 export function computeInsights(orders: InsightOrder[], events: EventRow[]) {
   const n = (statuses: OrderStatus[]) => orders.filter((o) => statuses.includes(o.status)).length;
-  const confirmed = n(CONFIRMED);
-  const cancelled = n(["cancelled"]);
+  const confirmed = n([...CONFIRMED_STATUSES]);
+  const cancelled = n([...REFUSED_STATUSES]);
   const delivered = n(["delivered"]);
   const returned = n(["returned"]);
-  const pending = n(PENDING);
+  const pending = n([...PENDING_STATUSES]);
   const inTransit = n(["shipped"]);
+  // Parcels on their way that the courier could not deliver yet (Reportée / Ne répond pas)
+  const postponed = orders.filter((o) => o.status === "shipped" && o.deliveryState === "postponed").length;
+  const noAnswer = orders.filter((o) => o.status === "shipped" && o.deliveryState === "no_answer").length;
+  // Whose fault the returns were (Remarque sur la livraison)
+  const faults = { courier: 0, customer: 0, company: 0, unknown: 0 };
+  for (const o of orders) if (o.status === "returned") faults[o.deliveryFault ?? "unknown"]++;
 
   // Time between the steps (first time the order reached each one)
   const at = new Map<string, Partial<Record<string, Date>>>();
@@ -58,11 +62,14 @@ export function computeInsights(orders: InsightOrder[], events: EventRow[]) {
     orders: orders.length,
     pending,
     inTransit,
+    followUp: { postponed, noAnswer },
+    faults,
     rates: {
       confirmation: pct(confirmed, confirmed + cancelled),
       delivery: pct(delivered, delivered + returned),
       return: pct(returned, delivered + returned),
       cancel: pct(cancelled, orders.length),
+      fake: pct(n(["fake"]), orders.length),
     },
     timing: { confirmHours: round1(median(toConfirm)), shipHours: round1(median(toShip)), deliverDays: round1(median(toDeliver)) },
     carriers: [...carriers.values()].map((c) => ({ ...c, delivery: pct(c.delivered, c.delivered + c.returned) })).sort((a, b) => b.sent - a.sent),

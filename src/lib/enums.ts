@@ -61,7 +61,29 @@ export type ProtectionSettings = {
   holdSuspicious: boolean;
   // Use the phone's history in the other stores of the platform (returns, refusals)
   useNetwork: boolean;
+  // Orders accepted from one phone in 7 days
+  maxPerPhonePerWeek: number;
+  // Hours during which the same phone ordering the same product again is a duplicate (while the first is not sent)
+  duplicateHours: number;
+  // Most pieces in one order (0 = no limit)
+  maxQuantity: number;
+  // Connections (IP) and words (in the name, address or note) that are refused, wilayas the store does not serve
+  blockedIps: string[];
+  blockedWords: string[];
+  blockedWilayas: number[];
+  // Orders at or above this risk are marked "fake order" right away and given to nobody (0 = off)
+  autoFakeScore: number;
+  // A phone with this many fake / wrong-number orders is blocked automatically (0 = off)
+  autoBlockFake: number;
 };
+
+// Landing pages: the 11 marketing angles of the owner's method (src/features/landing/strategy.ts). Automatic mode:
+// the AI picks ANGLES_REQUIRED of them plus up to ANGLES_OPTIONAL optional ones; manual mode: the merchant ticks them.
+export const landingAngles = ["problem", "solution", "benefits", "features", "emotional", "audience", "proof", "objections", "offer", "comparison", "advanced"] as const;
+export type LandingAngle = (typeof landingAngles)[number];
+export const ANGLES_REQUIRED = 5;
+export const ANGLES_OPTIONAL = 2;
+export type AnglePlan = { mode: "auto" } | { mode: "manual"; keys: LandingAngle[] };
 
 // Finance: kinds of expenses the merchant records
 export const expenseCategories = ["ads", "shipping", "returns", "packaging", "salaries", "subscription", "other"] as const;

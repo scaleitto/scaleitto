@@ -1,4 +1,5 @@
 import "server-only";
+import type { AnglePlan } from "@/lib/enums";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { languageRules } from "./ai-prompt";
 import { cleanStrategy, STRATEGY_SCHEMA, strategyInstructions, type RawStrategy } from "./strategy";
@@ -85,6 +86,7 @@ export function buildPosterPlanRequest(brief: {
   visionImages: string[];
   writeProduct: boolean;
   customPrompt?: string | null;
+  angles?: AnglePlan;
 }): BackgroundRequest {
   const p = brief.product;
   const data = {
@@ -107,7 +109,7 @@ export function buildPosterPlanRequest(brief: {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const instructions = [PLAN_ROLE, strategyInstructions(brief.customPrompt), PLAN_CONTRACT].join("\n\n");
+  const instructions = [PLAN_ROLE, strategyInstructions(brief.customPrompt, brief.angles), PLAN_CONTRACT].join("\n\n");
   return { instructions, user, images: brief.visionImages, schemaName: "image_landing_page", schema: PLAN_SCHEMA };
 }
 
@@ -133,7 +135,7 @@ export function lookOf(palette: Palette, options: Pick<PosterOptions, "people" |
 }
 
 // The model's plan → a page: band of selling points, the images (still to design), then the order form (step 11 of the sequence).
-export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions, custom = false) {
+export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions, custom = false, angles?: AnglePlan) {
   const raw = plan.palette ?? {};
   const palette: Palette = {
     background: HEX.test(raw.background ?? "") ? raw.background! : "#0f172a",
@@ -160,7 +162,7 @@ export function finishPosterPage(plan: PosterPlan, fallbackName: string, options
     productName: plan.product_name?.trim().slice(0, 200) || null,
     productDescription: plan.product_description?.trim().slice(0, 5000) || null,
     palette,
-    strategy: cleanStrategy(plan.strategy, custom),
+    strategy: cleanStrategy(plan.strategy, custom, angles),
     sections,
   };
 }

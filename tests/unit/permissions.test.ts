@@ -8,7 +8,7 @@ test("sidebar follows the agreed order, with sub-sections grouped", () => {
     ["overview", "orders", "products", "inventory", "delivery", "callCenters", "storeDesign", "landingPages", "integrations", "analytics", "finance", "plans", "settings", "profile"],
   );
   const orders = navFor("owner").find((g) => g.key === "orders")!;
-  assert.deepEqual(orders.children, ["orders", "shipping", "tracking", "returns", "abandoned", "protection", "orderInsights"]);
+  assert.deepEqual(orders.children, ["orders", "shipping", "tracking", "returns", "abandoned", "protection"]);
   assert.deepEqual(navFor("owner").find((g) => g.key === "storeDesign")!.children, ["storeDesign", "themes", "orderForm"]);
   assert.deepEqual(navFor("owner").find((g) => g.key === "integrations")!.children, ["pixels", "apps"]);
   // Every page belongs to exactly one group
@@ -26,7 +26,7 @@ test("owners see everything; managers all but plans and finance", () => {
 test("call center agents only get orders (list, parcels, returns, carts), call centers and profile", () => {
   assert.deepEqual(navFor("agent").map((g) => g.key), ["orders", "callCenters", "profile"]);
   assert.deepEqual(navFor("agent")[0].children, ["orders", "shipping", "tracking", "returns", "abandoned"]);
-  assert.ok(!canAccess("agent", "protection") && !canAccess("agent", "orderInsights"));
+  assert.ok(!canAccess("agent", "protection"));
   assert.equal(homeSection("agent").key, "orders");
   assert.equal(homeSection("owner").key, "overview");
 });

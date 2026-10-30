@@ -285,6 +285,8 @@ export async function handleReturn(lang: string, orderId: string, kind: "receive
       } else if (kind === "resend") {
         if (shipment) await tx.delete(schema.shipments).where(eq(schema.shipments.id, shipment.id));
         await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id, shipment ? `↩ ${shipment.carrierName}: ${shipment.trackingNumber}` : undefined);
+        // Traitement: the parcel is sent again (Injectée)
+        await tx.update(schema.orders).set({ processing: "reinjected" }).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
       } else {
         await applyOrderStatus(tx, shop.id, orderId, "cancelled", user.id);
       }

@@ -101,8 +101,8 @@ export default async function phase21(browser) {
 
   await step("at the courier: stages from Packers, bulk update, labels, the cron", async () => {
     await owner.goto(`${dash}/orders/tracking`);
-    const chips = owner.locator("[data-testid=stage-chips]");
-    await chips.locator('[data-stage="ready"]').getByText("4").waitFor();
+    const chips = owner.locator("[data-testid=order-chips]");
+    await chips.locator('[data-chip="ready"]').getByText("4").waitFor();
     const [parcels] = await db.query("SELECT s.id, s.tracking_number AS t, o.id AS orderId, o.number FROM shipments s JOIN orders o ON o.id = s.order_id WHERE s.shop_id = ? ORDER BY o.number", [shopId]);
     setParcelStatus(parcels[0].t, "Livrés");
     setParcelStatus(parcels[1].t, "En livraison");
@@ -114,8 +114,10 @@ export default async function phase21(browser) {
     expect(rows.map((r) => r.stage).join() === "delivered,out_for_delivery,suspended,ready", `stages (got ${rows.map((r) => r.stage).join()})`);
     expect(rows[0].status === "delivered", "a delivered parcel closes the order");
     await owner.reload();
-    await chips.locator('[data-stage="out_for_delivery"]').getByText("خرج للتوصيل").waitFor();
-    await chips.locator('[data-stage="suspended"]').click();
+    // The courier's own names (Ecotrack), in Arabic underneath
+    await chips.locator('[data-chip="out_for_delivery"]').getByText("En livraison").waitFor();
+    await chips.locator('[data-chip="delivered"]').getByText("Livrés").waitFor();
+    await chips.locator('[data-chip="suspended"]').click();
     await owner.waitForURL(/stage=suspended/);
     expect((await owner.locator("tr[data-order]").count()) === 1, "filtered by stage");
     // The label is the courier's PDF, fetched with the shop's key

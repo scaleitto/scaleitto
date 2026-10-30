@@ -45,14 +45,14 @@ export default async function phase18(browser) {
     await owner.locator("[data-testid=ai-confirm] button").last().click();
     await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
     const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
-    expect(plan?.instructions.includes("MERCHANT BRIEF") && plan.instructions.includes("ركّز على زاوية راحة البال") && plan.instructions.includes("never ask questions") && !plan.instructions.includes("Angle library"), "the merchant's prompt replaces the method, with the format and honesty rules kept");
+    expect(plan?.instructions.includes("MERCHANT BRIEF") && plan.instructions.includes("ركّز على زاوية راحة البال") && plan.instructions.includes("never ask questions") && plan.instructions.includes("STRICT RULE"), "the merchant's prompt replaces the method, with the format and honesty rules kept");
     const [[shop]] = await db.query("SELECT ai_prompt FROM shops WHERE id = ?", [shopId]);
     expect(shop.ai_prompt?.includes("راحة البال"), "saved as the store's default");
     const [[page]] = await db.query("SELECT strategy FROM landing_pages WHERE id = ?", [owner.url().split("/").pop()]);
     const strategy = json(page.strategy);
-    expect(strategy?.custom === true && strategy.angles.length === 3 && strategy.audience === "العائلات", "strategy saved with the page");
+    expect(strategy?.custom === true && strategy.angles.length === 6 && strategy.angles.filter((a) => a.required).length === 5 && strategy.audience === "العائلات", "strategy saved with the page");
     await owner.locator("[data-testid=page-strategy] summary").click();
-    expect((await owner.locator("[data-testid=page-strategy] [data-angle]").count()) === 3, "the angles shown in the editor");
+    expect((await owner.locator("[data-testid=page-strategy] [data-angle]").count()) === 6, "the angles shown in the editor");
     await owner.locator("[data-editor-section=poster]").first().locator("button[aria-expanded]").click();
     await owner.locator("[data-testid=poster-angle]").getByText("نوم هادئ").waitFor();
     await owner.goto(`${dash}/landing-pages/new`);

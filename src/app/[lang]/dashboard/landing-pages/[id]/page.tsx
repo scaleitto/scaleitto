@@ -26,7 +26,7 @@ export default async function EditLandingPage({
   const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
   return (
     <>
-      <StrategyCard strategy={page.strategy} t={t.landingPages.strategy} />
+      <StrategyCard strategy={page.strategy} t={t.landingPages.strategy} names={t.landingPages.angles.names} />
       <LandingEditor
         key={page.id}
         lang={lang}
