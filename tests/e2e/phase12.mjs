@@ -104,7 +104,7 @@ export default async function phase12(browser) {
     await owner.waitForSelector("[data-testid=settings-domain][data-state=verified]");
     const [[shop]] = await db.query("SELECT custom_domain, domain_verified_at FROM shops WHERE id = ?", [shopId]);
     expect(shop.custom_domain === domain && shop.domain_verified_at, "verified, stored without www");
-    expect((await owner.locator("a", { hasText: "عرض المتجر" }).first().getAttribute("href")) === `https://${domain}`, "dashboard links to the domain");
+    expect((await owner.locator("[data-testid=top-link]").getAttribute("href")) === `https://${domain}`, "dashboard links to the domain");
   });
 
   await step("the store runs on the merchant's domain, ordering included; another shop cannot take it", async () => {

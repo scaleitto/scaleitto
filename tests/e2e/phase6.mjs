@@ -172,9 +172,10 @@ export default async function phase6(browser) {
     const [[o]] = await db.query("SELECT assigned_to FROM orders WHERE id = ?", [id2]);
     expect(o.assigned_to === null, "unassigned");
     await owner.goto(`${orders}/${id2}`);
-    await owner.locator("[data-testid=assign] select").selectOption({ label: "بلال" });
+    await owner.locator("[data-testid=order-form] #agent").selectOption({ label: "بلال" });
+    await owner.click("[data-testid=save-order]");
     await owner.waitForSelector("[data-testid=history] >> text=أُسند الطلب إلى بلال");
-    await owner.goto(`${orders}?assignee=none`);
+    await owner.goto(`${orders}?agent=none`);
     expect(!(await owner.locator(`[data-order]`).filter({ hasText: "0661000104" }).count()), "no longer in the unassigned filter");
   });
 

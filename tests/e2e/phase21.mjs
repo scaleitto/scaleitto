@@ -18,7 +18,8 @@ export default async function phase21(browser) {
   let number = 3000;
   const order = async ({ status = "confirmed", commune = "Kouba", phone = "0661000000", name = "أمين بن علي", risk = 0, delivery = "home" } = {}) => {
     const id = randomUUID();
-    number++;
+    // Orders placed from the store (abandoned checkouts included) take numbers too
+    number = Math.max(number, (await db.query("SELECT COALESCE(MAX(number), 0) AS m FROM orders WHERE shop_id = ?", [shopId]))[0][0].m) + 1;
     await db.query(
       "INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, address, delivery_type, subtotal, shipping_price, total, status, risk) VALUES (?, ?, ?, ?, ?, 16, ?, 'Cité 5 juillet', ?, 2500, 400, 2900, ?, ?)",
       [id, shopId, number, name, phone, commune, delivery, status, risk],
@@ -155,7 +156,7 @@ export default async function phase21(browser) {
     await b.click("button[type=submit]");
     await b.getByText("تعذّر إرسال الطلب من هذا المتصفح").waitFor();
     await bot.close();
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND phone = '0555443322'", [shopId]);
+    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND phone = '0555443322' AND status <> 'abandoned'", [shopId]);
     expect(n === 0, "no order from the robot");
     // A phone with a returned parcel before, a name that is not a name
     await order({ status: "returned", phone: "0555667788" });

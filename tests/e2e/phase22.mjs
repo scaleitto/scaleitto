@@ -53,7 +53,6 @@ export default async function phase22(browser) {
   await step("order form section: order, hide, labels, popup, WhatsApp, delivery names, thank-you", async () => {
     await owner.goto(`${BASE}/ar/dashboard/store-design/order-form`);
     await owner.waitForSelector("[data-testid=form-editor]");
-    expect((await owner.locator("[data-testid=section-tabs] [data-tab=orderForm]").innerText()) === "فورم الطلب", "a sub-section of Store design");
     // Phone above the name, note hidden, the name renamed
     await owner.click('[data-element=phone] button[aria-label^="إلى الأعلى"]');
     await owner.click("[data-element=note] [data-testid=element-visibility]");

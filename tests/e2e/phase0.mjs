@@ -69,7 +69,7 @@ export default async function phase0(browser) {
 
   await step("owner sees the 14 sidebar entries and every page opens", async () => {
     const entries = page.locator("aside nav li[data-nav]");
-    expect((await entries.count()) === 14, `14 sidebar entries (got ${await entries.count()})`);
+    expect((await entries.count()) === 15, `15 sidebar entries (got ${await entries.count()})`);
     // An entry's page, or a group's first sub-section
     const hrefs = await entries.evaluateAll((els) => els.map((li) => li.querySelector("a").getAttribute("href")));
     for (const href of hrefs) {
@@ -139,9 +139,7 @@ export default async function phase0(browser) {
     await p.goto(`${BASE}/ar/dashboard`);
     expect(!(await p.locator("aside").first().isVisible()), "desktop sidebar hidden on mobile");
     await p.click('header button[aria-label="القائمة"]');
-    // The Orders group opens (its sub-sections slide down), then its list
-    await p.locator(".fixed aside li[data-nav=orders] > button").click();
-    await Promise.all([p.waitForURL("**/dashboard/orders"), p.locator(".fixed aside li[data-nav=orders] a", { hasText: "قائمة الطلبات" }).click()]);
+    await Promise.all([p.waitForURL("**/dashboard/orders"), p.locator(".fixed aside li[data-nav=orders] a").first().click()]);
     await p.waitForTimeout(300);
     expect(!(await p.locator(".fixed aside").count()), "menu closed after navigating");
     await m.close();
