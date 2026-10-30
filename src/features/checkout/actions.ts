@@ -2,9 +2,8 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/server/db";
-import { newId } from "@/server/auth/context";
 import { logError, safeAction } from "@/server/errors";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
@@ -15,8 +14,8 @@ import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
 import { customFieldValid } from "@/features/landing/types";
 import { formFor, productForm } from "@/features/order-form/resolve";
-import { placeOrder } from "./place-order";
-import { MAX_LEADS_PER_IP_PER_HOUR, leadsFromIpLastHour } from "./protection";
+import { placeOrder, saveAbandoned } from "./place-order";
+import { MAX_LEADS_PER_IP_PER_HOUR } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { OrderTracking } from "@/server/db/schema";
@@ -97,29 +96,22 @@ export async function saveLead(slug: string, productId: string, input: { name?: 
     const { ip } = await requestMeta();
     const [product] = await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
     if (!product) return;
-    const values = {
-      name: String(input.name ?? "").trim().slice(0, 120) || null,
-      wilayaCode: wilayas.some((w) => w.code === input.wilaya) ? input.wilaya! : null,
-      variantId: typeof input.variantId === "string" && input.variantId.length <= 36 ? input.variantId || null : null,
-      quantity: Math.min(MAX_QUANTITY, Math.max(1, Math.trunc(Number(input.quantity) || 1))),
-    };
-    const [existing] = await db
-      .select({ id: schema.leads.id })
-      .from(schema.leads)
-      .where(
-        and(
-          eq(schema.leads.shopId, shop.id),
-          eq(schema.leads.phone, phone),
-          eq(schema.leads.productId, product.id),
-          inArray(schema.leads.status, ["abandoned", "contacted"]),
-          gte(schema.leads.createdAt, new Date(Date.now() - 86400_000)),
-        ),
-      );
-    if (existing) {
-      await db.update(schema.leads).set(values).where(eq(schema.leads.id, existing.id));
-    } else if ((await leadsFromIpLastHour(shop.id, ip)) < MAX_LEADS_PER_IP_PER_HOUR) {
-      await db.insert(schema.leads).values({ id: newId(), shopId: shop.id, productId: product.id, phone, ip, ...values });
-    }
+    // A few drafts per connection and hour at most (robots typing phones)
+    const o = schema.orders;
+    const [recent] = ip ? await db.select({ n: count() }).from(o).where(and(eq(o.shopId, shop.id), eq(o.ip, ip), eq(o.status, "abandoned"), gte(o.createdAt, new Date(Date.now() - 3600_000)))) : [{ n: 0 }];
+    if (recent.n >= MAX_LEADS_PER_IP_PER_HOUR) return;
+    await saveAbandoned(
+      shop.id,
+      product.id,
+      {
+        name: String(input.name ?? "").trim().slice(0, 120),
+        phone,
+        wilaya: wilayas.some((w) => w.code === input.wilaya) ? input.wilaya! : null,
+        variantId: typeof input.variantId === "string" && input.variantId.length <= 36 ? input.variantId || null : null,
+        quantity: Math.min(MAX_QUANTITY, Math.max(1, Math.trunc(Number(input.quantity) || 1))),
+      },
+      ip,
+    );
   } catch (err) {
     // Never bother the customer with this: it only feeds the abandoned-cart list.
     await logError("store/lead", err);

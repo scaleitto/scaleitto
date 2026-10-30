@@ -29,7 +29,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
     db
       .select({ n: count() })
       .from(schema.orders)
-      .where(and(visibleOrders(viewerOf(ctx)), inArray(schema.orders.status, ["new"]))),
+      .where(and(visibleOrders(viewerOf(ctx)), inArray(schema.orders.status, ["pending"]))),
   ]);
   const url = storeUrl(shop);
   const usage =
@@ -61,7 +61,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
           })),
         }))}
         usage={usage}
-        notifications={{ count: waiting.n, text: fmt(s.waitingOrders, { n: waiting.n }), href: `${sectionHref(lang, "orders")}?status=new` }}
+        notifications={{ count: waiting.n, text: fmt(s.waitingOrders, { n: waiting.n }), href: `${sectionHref(lang, "orders")}?status=pending` }}
         supportHref={whatsapp ? `https://wa.me/${whatsapp}` : null}
         profileHref={sectionHref(lang, "profile")}
         adminLink={user.isPlatformAdmin ? { href: `/${lang}/admin`, label: t.admin.nav.adminLink } : undefined}

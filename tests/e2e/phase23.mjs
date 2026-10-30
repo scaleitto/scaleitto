@@ -30,21 +30,20 @@ export default async function phase23(browser) {
   };
   const parcel = (orderId, stage) => db.query("INSERT INTO shipments (id, shop_id, order_id, carrier_name, tracking_number, status) VALUES (?, ?, ?, 'Yalidine', ?, ?)", [randomUUID(), shopId, orderId, `YAL-${number}`, stage]);
 
-  await step("sidebar (Zimam's layout): sell / grow / storefront / account groups; Orders opens its sub-sections", async () => {
+  await step("sidebar (Zimam's layout): sell / grow / storefront / account groups; Apps opens its sub-sections", async () => {
     await owner.goto(dash);
     const groups = await owner.locator("aside [data-section]").evaluateAll((els) => els.map((e) => e.dataset.section));
     expect(groups.join() === "main,sell,grow,storefront,account", `groups (got ${groups.join()})`);
     const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
-    expect(order.join() === "overview,products,orders,delivery,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,plans,profile", `entries (got ${order.join()})`);
+    expect(order.join() === "overview,products,orders,scan,delivery,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,plans,profile", `entries (got ${order.join()})`);
     // An entry with sub-pages opens and closes; its sub-pages slide under it
-    const group = owner.locator("aside li[data-nav=orders]");
+    const group = owner.locator("aside li[data-nav=apps]");
     await group.locator(":scope > button").click();
     expect((await group.getAttribute("data-open")) === "true", "opened");
-    await group.locator("a", { hasText: "قائمة الطلبات" }).click();
-    await owner.waitForURL("**/dashboard/orders");
-    const tabs = await owner.locator("[data-testid=section-tabs] a").allInnerTexts();
-    expect(tabs.join("|") === "قائمة الطلبات|الإرسال لشركات الشحن|تتبع الطرود|المرتجعات|السلات المتروكة|الحماية", `orders tabs (got ${tabs.join("|")})`);
-    expect((await group.locator("[data-testid=nav-children] a").count()) === 6, "sub-sections under Orders in the sidebar");
+    await group.locator("[data-testid=nav-children] a").last().click();
+    await owner.waitForURL("**/dashboard/orders/protection");
+    expect((await owner.locator("[data-testid=section-tabs] a").count()) === 2, "Apps tabs: apps, protection");
+    expect((await group.locator("[data-testid=nav-children] a").count()) === 2, "sub-sections under Apps in the sidebar");
     await group.locator(":scope > button").click();
     expect((await group.getAttribute("data-open")) === "false", "closed again");
     // Quick search (⌘K) jumps to a page
@@ -109,41 +108,14 @@ export default async function phase23(browser) {
     await owner.locator("[data-testid=low-stock-form] button[type=submit]").click();
     await owner.locator('[data-stock="مصباح"]').getByText("قليل").waitFor();
     await owner.goto(dash);
-    await owner.locator("[data-testid=low-stock-alert]").waitFor();
-  });
-
-  await step("returns: a returned parcel is received, another is sent again (back in Send to couriers)", async () => {
-    const back = await order({ status: "shipped" });
-    await parcel(back.id, "returning");
-    const r1 = await order({ status: "returned" });
-    await parcel(r1.id, "returned");
-    const r2 = await order({ status: "returned" });
-    await parcel(r2.id, "returned");
-    await owner.goto(`${dash}/orders/returns`);
-    const chips = owner.locator("[data-testid=order-chips]");
-    expect((await chips.locator("[data-chip=back]").innerText()).includes("1") && (await chips.locator("[data-chip=pending]").innerText()).includes("2"), "on the way back / to receive");
-    expect((await owner.locator("tr[data-order]").count()) === 3, "all three listed");
-    await owner.locator(`tr[data-order="${r1.number}"] input[data-bulk-order]`).check();
-    await owner.locator("[data-testid=return-receive]").click();
-    await owner.locator("[data-testid=batch-report] [data-result=ok]").waitFor();
-    const [[s1]] = await db.query("SELECT return_received_at AS at FROM shipments WHERE order_id = ?", [r1.id]);
-    expect(s1.at !== null, "received");
-    // A parcel still on its way back cannot be sent again
-    owner.once("dialog", (d) => d.accept());
-    await owner.locator(`tr[data-order="${back.number}"] input[data-bulk-order]`).check();
-    await owner.locator(`tr[data-order="${r2.number}"] input[data-bulk-order]`).check();
-    await owner.locator("[data-testid=return-resend]").click();
-    const report = owner.locator("[data-testid=batch-report]");
-    await report.locator("[data-result=failed]").waitFor();
-    expect((await report.locator(`[data-number="${back.number}"]`).getAttribute("data-result")) === "failed", "not returned yet");
-    const [[o2]] = await db.query("SELECT o.status, (SELECT COUNT(*) FROM shipments s WHERE s.order_id = o.id) AS parcels FROM orders o WHERE o.id = ?", [r2.id]);
-    expect(o2.status === "confirmed" && o2.parcels === 0, "back to confirmed, ready to send again");
-    await owner.goto(`${dash}/orders/shipping`);
-    await owner.locator(`tr[data-order="${r2.number}"]`).waitFor();
+    await owner.locator("[data-testid=attention] [data-todo=lowStock]").waitFor();
   });
 
   await step("order analysis (now in Analytics): rates and couriers of the period", async () => {
-    await order({ status: "delivered" });
+    const d = await order({ status: "delivered" });
+    await parcel(d.id, "delivered");
+    const r = await order({ status: "returned" });
+    await parcel(r.id, "returned");
     await owner.goto(`${dash}/orders/insights`);
     await owner.waitForURL(/\/dashboard\/analytics$/);
     await owner.locator("[data-testid=insight-kpis] [data-kpi=return]").waitFor();

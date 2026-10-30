@@ -1,6 +1,6 @@
 import { asLocale } from "@/i18n";
-import { OrderListPage } from "@/features/orders/OrderListPage";
+import { OrdersPage } from "@/features/orders/OrdersPage";
 
-export default async function OrdersPage({ params, searchParams }: PageProps<"/[lang]/dashboard/orders">) {
-  return <OrderListPage lang={asLocale((await params).lang)} section="orders" searchParams={await searchParams} />;
+export default async function Orders({ params, searchParams }: PageProps<"/[lang]/dashboard/orders">) {
+  return <OrdersPage lang={asLocale((await params).lang)} searchParams={await searchParams} />;
 }

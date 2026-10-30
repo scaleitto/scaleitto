@@ -1,10 +1,8 @@
-// Phase 24 (owner round 8): the orders lists as one row of chips per sub-section, the owner's statuses (Statut de la
-// commande, Injection, Livraison, Remarque, Traitement, Livraison finale) flowing list → send → tracking → returns, the
-// courier's stage names, Order analysis merged into Analytics, more protection options, richer product offers, the store
-// design preview that scrolls, the 11 landing page angles (automatic / chosen) and the admin plans matching the
+// Phase 24 (owner round 8, what remains after the Zimam orders rebuild): more protection options, richer product offers,
+// the store design preview that scrolls, the 11 landing page angles (automatic / chosen) and the admin plans matching the
 // subscription page.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, setCallStatus, step, wizardGenerate } from "./helpers.mjs";
+import { BASE, createShop, db, expect, step, wizardGenerate } from "./helpers.mjs";
 import { requests } from "./mock-openai.mjs";
 
 const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -16,109 +14,6 @@ export default async function phase24(browser) {
   const store = `${BASE}/store/shop-${tag}`;
   const lamp = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 2000, '[]', '[]', '[]')", [lamp, shopId]);
-
-  let number = 7000;
-  const order = async ({ status, phone = "0661000000" }) => {
-    const id = randomUUID();
-    number++;
-    await db.query(
-      "INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, delivery_type, subtotal, shipping_price, total, status, delivery_state) VALUES (?, ?, ?, 'زبون', ?, 16, 'Kouba', 'home', 2000, 400, 2400, ?, ?)",
-      [id, shopId, number, phone, status, ["shipped", "delivered", "returned"].includes(status) ? status : null],
-    );
-    await db.query("INSERT INTO order_items (id, shop_id, order_id, product_id, name, quantity, unit_price, total) VALUES (?, ?, ?, ?, 'مصباح', 1, 2000, 2000)", [randomUUID(), shopId, id, lamp]);
-    return { id, number };
-  };
-  const parcel = (orderId, stage) => db.query("INSERT INTO shipments (id, shop_id, order_id, carrier_name, tracking_number, status) VALUES (?, ?, ?, 'Yalidine', ?, ?)", [randomUUID(), shopId, orderId, `YAL-${number}`, stage]);
-  const statusOf = async (id) => (await db.query("SELECT status, delivery_state AS state, delivery_fault AS fault, processing FROM orders WHERE id = ?", [id]))[0][0];
-
-  await step("orders list: the order page's sections, only the statuses that have orders", async () => {
-    await order({ status: "callback" });
-    await order({ status: "voicemail" });
-    await order({ status: "duplicate" });
-    await owner.goto(`${dash}/orders`);
-    const chips = await owner.locator("[data-testid=order-chips] [data-chip]").evaluateAll((els) => els.map((e) => e.dataset.chip));
-    expect(chips.join() === "all,call-callback,call-voicemail,call-duplicate", `non-zero chips only (got ${chips.join()})`);
-    await owner.locator("[data-testid=order-chips] [data-chip=call-voicemail]").click();
-    await owner.waitForURL(/status=voicemail/);
-    expect((await owner.locator("tr[data-order]").count()) === 1, "filtered by status");
-  });
-
-  await step("status: the call's outcome only; fake orders block the phone when Protection says so", async () => {
-    await db.query("UPDATE shops SET protection = JSON_OBJECT('autoBlockFake', 1) WHERE id = ?", [shopId]);
-    const o = await order({ status: "new", phone: "0770123456" });
-    await owner.goto(`${dash}/orders/${o.id}`);
-    await setCallStatus(owner, "fake");
-    const [[blocked]] = await db.query("SELECT COUNT(*) AS n FROM blocked_phones WHERE shop_id = ? AND phone = '0770123456'", [shopId]);
-    expect(blocked.n === 1, "phone blocked after the fake order");
-  });
-
-  await step("send to couriers: Not injected yet / Injected", async () => {
-    const c = await order({ status: "confirmed" });
-    const s = await order({ status: "shipped" });
-    await parcel(s.id, "ready");
-    await owner.goto(`${dash}/orders/shipping`);
-    const chips = owner.locator("[data-testid=order-chips]");
-    expect((await chips.locator("[data-chip]").evaluateAll((els) => els.map((e) => e.dataset.chip))).join() === "pending,done", "injection chips");
-    await owner.locator(`tr[data-order="${c.number}"]`).waitFor();
-    expect(!(await owner.locator(`tr[data-order="${s.number}"]`).count()), "the sent one is not in « not injected »");
-    await chips.locator("[data-chip=done]").click();
-    await owner.waitForURL(/inj=done/);
-    await owner.locator(`tr[data-order="${s.number}"]`).waitFor();
-    expect(!(await owner.locator(`tr[data-order="${c.number}"]`).count()), "injected only");
-  });
-
-  await step("delivery follow-up: postponed, the fault, then returned → in Returns, sent again → Traitement « Injectée »", async () => {
-    const o = await order({ status: "shipped" });
-    await parcel(o.id, "suspended");
-    await owner.goto(`${dash}/orders/${o.id}`);
-    const card = owner.locator("[data-testid=order-status]");
-    expect((await card.locator("select[data-section=injection]").inputValue()) === "done", "injected");
-    expect((await card.locator("select[data-section=call]").inputValue()) === "confirmed", "a sent order stays confirmed");
-    await card.locator("select[data-section=delivery]").selectOption("postponed");
-    await expectSoon(async () => (await statusOf(o.id)).state === "postponed", "Livraison = Reportée");
-    await card.locator("select[data-section=fault]").selectOption("customer");
-    await expectSoon(async () => (await statusOf(o.id)).fault === "customer", "Remarque = Erreur du client");
-    // The tracking list shows the follow-up next to the courier's stage
-    await owner.goto(`${dash}/orders/tracking?ds=postponed`);
-    // (distinct timeouts tell in CI's one-line report which wait failed)
-    await owner.locator(`tr[data-order="${o.number}"] [data-ds=postponed]`).waitFor({ timeout: 30_001 });
-    // Livraison finale = Retour closes the order like the courier would
-    await owner.goto(`${dash}/orders/${o.id}`);
-    await owner.locator("[data-testid=order-status] select[data-section=final]").selectOption("returned");
-    await expectSoon(async () => (await statusOf(o.id)).status === "returned", "order returned");
-    await owner.reload();
-    expect((await owner.locator("[data-testid=order-status] select[data-section=delivery]").inputValue()) === "returned", "Livraison follows");
-    await owner.goto(`${dash}/orders/returns`);
-    await owner.locator(`tr[data-order="${o.number}"]`).waitFor({ timeout: 30_002 });
-    owner.once("dialog", (d) => d.accept());
-    await owner.locator(`tr[data-order="${o.number}"] input[data-bulk-order]`).check();
-    await owner.locator("[data-testid=return-resend]").click();
-    await owner.locator("[data-testid=batch-report] [data-result=ok]").waitFor({ timeout: 30_003 });
-    const after = await statusOf(o.id);
-    expect(after.status === "confirmed" && after.processing === "reinjected" && after.state === null, `back to send, Traitement = Injectée (got ${JSON.stringify(after)})`);
-    const [[event]] = await db.query("SELECT COUNT(*) AS n FROM order_events WHERE order_id = ? AND type = 'followup'", [o.id]);
-    expect(event.n >= 2, "follow-up changes in the history");
-  });
-
-  await step("parcel tracking: the 13 courier stages with their own names", async () => {
-    await owner.goto(`${dash}/orders/tracking`);
-    const chips = owner.locator("[data-testid=order-chips] [data-chip]");
-    expect((await chips.count()) === 14, "all + 13 stages");
-    const text = await owner.locator("[data-testid=order-chips]").innerText();
-    for (const name of ["Prêt à expédier", "En ramassage", "Vers Station", "En Station", "Vers Wilaya", "En preparation", "En livraison", "Suspendus", "Livrés", "Retours", "Colis Supprimés", "Colis Annulés", "Colis à supprimer"])
-      expect(text.includes(name), `stage ${name}`);
-  });
-
-  await step("analytics: the order analysis is here, with the delivery follow-up", async () => {
-    const p = await order({ status: "shipped" });
-    await db.query("UPDATE orders SET delivery_state = 'postponed' WHERE id = ?", [p.id]);
-    await owner.goto(`${dash}/orders/insights`);
-    await owner.waitForURL(/\/dashboard\/analytics$/);
-    await owner.locator("[data-testid=insight-kpis] [data-kpi=refusal]").waitFor();
-    expect((await owner.locator("[data-testid=follow-up] [data-state=postponed]").innerText()).includes("1"), "postponed parcels");
-    await owner.goto(`${dash}/orders`);
-    expect(!(await owner.locator("[data-testid=section-tabs]").innerText()).includes("تحليل الطلبات"), "no Order analysis tab");
-  });
 
   await step("protection: blocked words, wilayas not served, most pieces per order", async () => {
     await owner.goto(`${dash}/orders/protection`);

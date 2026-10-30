@@ -108,13 +108,16 @@ export function Alert({ variant = "error", children }: { variant?: "error" | "su
 }
 
 // A status pill: tinted, with a dot, and always a word (never color alone)
-export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" | "warning" | "danger" | "info" }) {
-  const tones = {
+export type Tone = "neutral" | "accent" | "warning" | "danger" | "info" | "violet" | "orange";
+export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: Tone }) {
+  const tones: Record<Tone, string> = {
     neutral: "bg-panel-2 text-muted ring-line",
     accent: "bg-accent/10 text-accent ring-accent/20",
     warning: "bg-warning/10 text-warning ring-warning/20",
     danger: "bg-danger/10 text-danger ring-danger/20",
     info: "bg-info/10 text-info ring-info/20",
+    violet: "bg-violet-soft text-violet ring-violet/20",
+    orange: "bg-warning-soft text-warning ring-warning/20",
   };
   return (
     <span className={cx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ring-1 ring-inset", tones[tone])}>

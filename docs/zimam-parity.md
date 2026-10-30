@@ -6,10 +6,13 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
 ## Phases
 1. **Shell** — done: sidebar groups (sell / grow / storefront / account), store card, user menu, support; top bar with
    quick search (⌘K), usage pill, language, visit store, notifications, dark mode; slate + emerald tokens.
-2. **Overview, orders, scan** — status tabs with counts (pending, confirmed, call back, in transit, delivered, returned,
+2. **Overview, orders, scan** — done (phase26.mjs): status tabs with counts (pending, confirmed, call back, in transit, delivered, returned,
    abandoned, cancelled, flagged), toolbar (filter dialog, export, refresh, search, scan, new order), inline-editable table
    (amount, status, delivery type, agent, delivery company, note), order edit dialog (products, quantity, price, agent,
    note, IP + block, tracking link, delivery info, fee waived, status), parcel scanner (dispatch / recuperate).
+   Our additions kept on the order page under the form: courier sending, customer messages, call guide, risk check,
+   history. The round 8/9 models (five status sections, call counts, returns sub-page, leads table) were dropped; the
+   migration 0027 maps the old statuses and turns saved carts into "abandoned" orders.
 3. **Products** — editor tabs (details, description, variants & stock, checkout & delivery, offers), physical/digital,
    collections, live phone preview, sticky footer actions; products list columns.
 4. **Delivery** — general settings (delivery options and prices), delivery companies (catalog, auto-send on confirm),

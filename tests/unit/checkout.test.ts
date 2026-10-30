@@ -32,7 +32,7 @@ test("order form normalizes the phone and rejects bad input with keys", () => {
 });
 
 test("cancelled and returned orders release stock", () => {
-  assert.equal(holdsStock("new"), true);
+  assert.equal(holdsStock("pending"), true);
   assert.equal(holdsStock("delivered"), true);
   assert.equal(holdsStock("cancelled"), false);
   assert.equal(holdsStock("returned"), false);

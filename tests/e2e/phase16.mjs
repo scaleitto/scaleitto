@@ -37,7 +37,7 @@ export default async function phase16(browser) {
     const id = randomUUID();
     orderIds.push(id);
     await db.query(
-      "INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, delivery_type, subtotal, shipping_price, total, status) VALUES (?, ?, ?, 'زبون', '0661000000', 16, 'Kouba', 'home', 2500, 400, 2900, 'new')",
+      "INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, delivery_type, subtotal, shipping_price, total, status) VALUES (?, ?, ?, 'زبون', '0661000000', 16, 'Kouba', 'home', 2500, 400, 2900, 'pending')",
       [id, shopId, 2001 + i],
     );
   }

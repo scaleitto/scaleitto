@@ -150,7 +150,7 @@ async function loadOrder(shopId: string, orderId: string): Promise<(OrderData & 
 }
 
 // Statuses that mean the trigger was reached (and not undone since)
-const reached: Record<PurchaseTrigger, string[]> = { placed: [...PENDING_STATUSES, "confirmed", "shipped", "delivered"], confirmed: ["confirmed", "shipped", "delivered"], delivered: ["delivered"] };
+const reached: Record<PurchaseTrigger, string[]> = { placed: [...PENDING_STATUSES, "confirmed", "in_transit", "delivered"], confirmed: ["confirmed", "in_transit", "delivered"], delivered: ["delivered"] };
 
 // Sends the order's purchase to every active pixel of the shop that reports purchases at this trigger,
 // has a server secret and covers one of the order's products. Each (pixel, order) is sent at most once.

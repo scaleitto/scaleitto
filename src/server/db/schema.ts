@@ -232,20 +232,10 @@ export const productVariants = mysqlTable(
 
 // ─── Orders (cash on delivery) ────────────────────────────
 
-// The order's status (the owner's model, src/features/orders/statuses.ts groups them):
-// confirmation call — new, confirmed, cancelled, callback (Rappel), no_answer, voicemail, fake, wrong_number, duplicate,
-// remark —, then the parcel's life — shipped, delivered, returned (the final delivery).
-export const orderStatuses = ["new", "confirmed", "cancelled", "callback", "no_answer", "voicemail", "fake", "wrong_number", "duplicate", "remark", "shipped", "delivered", "returned"] as const;
+// The order's status (Zimam's model, src/features/orders/statuses.ts groups them): pending → call_back → confirmed →
+// in_transit → delivered / returned; abandoned (left the checkout), cancelled, flagged (suspected fake).
+export const orderStatuses = ["pending", "confirmed", "call_back", "in_transit", "delivered", "returned", "abandoned", "cancelled", "flagged"] as const;
 export type OrderStatus = (typeof orderStatuses)[number];
-// Delivery follow-up once the parcel left (Livraison): set by the courier tracking, editable by the team
-export const deliveryStates = ["shipped", "postponed", "no_answer", "delivered", "returned"] as const;
-export type DeliveryState = (typeof deliveryStates)[number];
-// Whose fault a failed delivery was (Remarque sur la livraison)
-export const deliveryFaults = ["courier", "customer", "company"] as const;
-export type DeliveryFault = (typeof deliveryFaults)[number];
-// After-sale handling (Traitement): a complaint, or the parcel sent again
-export const processingStates = ["claim", "reinjected"] as const;
-export type ProcessingState = (typeof processingStates)[number];
 export const deliveryTypes = ["home", "office"] as const;
 export type DeliveryType = (typeof deliveryTypes)[number];
 
@@ -256,7 +246,7 @@ export const orders = mysqlTable(
     shopId: id("shop_id").notNull(),
     // Sequential per shop, shown to merchants and customers (#1001, #1002…)
     number: int("number").notNull(),
-    status: mysqlEnum("status", orderStatuses).notNull().default("new"),
+    status: mysqlEnum("status", orderStatuses).notNull().default("pending"),
     customerName: varchar("customer_name", { length: 120 }).notNull(),
     phone: varchar("phone", { length: 20 }).notNull(),
     wilayaCode: int("wilaya_code").notNull(),
@@ -287,13 +277,12 @@ export const orders = mysqlTable(
     riskReasons: json("risk_reasons").$type<string[] | null>(),
     // Finance: when the cash-on-delivery money of this delivered order was received from the courier (null: still owed)
     paidAt: datetime("paid_at"),
-    // Delivery follow-up (src/features/orders/followup.ts)
-    deliveryState: mysqlEnum("delivery_state", deliveryStates),
-    deliveryFault: mysqlEnum("delivery_fault", deliveryFaults),
-    processing: mysqlEnum("processing", processingStates),
-    // Confirmation calls made (each call status chosen, or "another attempt"), and the last one
-    callAttempts: int("call_attempts").notNull().default(0),
-    lastCallAt: datetime("last_call_at"),
+    // The team's note on the order (the orders table's note column and the edit dialog)
+    note: varchar("note", { length: 500 }),
+    // The order's own delivery fee was waived by the team (edit dialog)
+    shippingWaived: boolean("shipping_waived").notNull().default(false),
+    // The delivery company chosen for the order before it is sent (null: the store's rules / default)
+    carrierAccountId: id("carrier_account_id"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -395,7 +384,7 @@ export const orderEvents = mysqlTable(
     orderId: id("order_id").notNull(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id"),
-    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk", "followup", "call"]).notNull(),
+    type: mysqlEnum("type", ["created", "status", "note", "edit", "assign", "message", "risk"]).notNull(),
     fromStatus: varchar("from_status", { length: 20 }),
     toStatus: varchar("to_status", { length: 20 }),
     note: text("note"),
@@ -403,28 +392,6 @@ export const orderEvents = mysqlTable(
     createdAt: timestamp("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },
   (t) => [index("order_events_order_idx").on(t.orderId, t.createdAt)],
-);
-
-// Visitors who typed a valid phone in the order form but did not order (abandoned carts).
-export const leadStatuses = ["abandoned", "contacted", "converted"] as const;
-export const leads = mysqlTable(
-  "leads",
-  {
-    id: id().primaryKey(),
-    shopId: id("shop_id").notNull(),
-    productId: id("product_id").notNull(),
-    variantId: id("variant_id"),
-    quantity: int("quantity").notNull().default(1),
-    name: varchar("name", { length: 120 }),
-    phone: varchar("phone", { length: 20 }).notNull(),
-    wilayaCode: int("wilaya_code"),
-    status: mysqlEnum("status", leadStatuses).notNull().default("abandoned"),
-    orderId: id("order_id"),
-    ip: varchar("ip", { length: 45 }),
-    createdAt: createdAt(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
-  },
-  (t) => [index("leads_shop_status_idx").on(t.shopId, t.status, t.createdAt), index("leads_shop_phone_idx").on(t.shopId, t.phone)],
 );
 
 // Delivery price per wilaya (edited in the Delivery section). null → that delivery type is unavailable.

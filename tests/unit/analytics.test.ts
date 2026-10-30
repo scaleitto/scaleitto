@@ -32,8 +32,8 @@ test("rates, money, profit, days, hours, products, wilayas and sources", () => {
     order("a", "2026-05-31T23:10:00Z", "delivered", 5000), // June 1st, 00:10 in Algeria
     order("b", "2026-05-30T10:00:00Z", "returned", 4000, 31),
     order("c", "2026-05-30T10:30:00Z", "cancelled", 3000, 31, "lp1"),
-    order("d", "2026-05-29T12:00:00Z", "shipped", 2000, 16, "lp1"),
-    order("e", "2026-05-28T12:00:00Z", "new", 1000),
+    order("d", "2026-05-29T12:00:00Z", "in_transit", 2000, 16, "lp1"),
+    order("e", "2026-05-28T12:00:00Z", "pending", 1000),
     order("old", "2026-05-20T12:00:00Z", "delivered", 9000), // previous period
   ];
   const items = [

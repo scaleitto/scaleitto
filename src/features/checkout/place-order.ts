@@ -74,10 +74,8 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
         await logStock(tx, [{ shopId: shop.id, productId: product.id, variantId: variant?.id, delta: -input.quantity, reason: "order", orderId }]);
       }
 
-      // Lock the shop row so two simultaneous orders never get the same number.
-      await tx.select({ id: schema.shops.id }).from(schema.shops).where(eq(schema.shops.id, shop.id)).for("update");
-      const [last] = await tx.select({ number: schema.orders.number }).from(schema.orders).where(eq(schema.orders.shopId, shop.id)).orderBy(desc(schema.orders.number)).limit(1);
-      const number = last ? last.number + 1 : FIRST_ORDER_NUMBER;
+      // The visitor's abandoned checkout (the draft saved while they typed) becomes this order: it gives its number
+      const number = (await dropAbandoned(tx, shop.id, input.phone, product.id)) ?? (await nextOrderNumber(tx, shop.id));
       // Over the plan's monthly orders, or no pay-as-you-go balance left: kept (the customer is never turned away) but locked
       locked = await takeOrderSlot(tx, shop.id, rule);
 
@@ -120,22 +118,17 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
         offerLabel: line.offer ? [line.offer.label || `${line.offer.quantity}×`, line.offer.gift && `🎁 ${line.offer.gift}`].filter(Boolean).join(" · ").slice(0, 160) : null,
         stockTracked: product.trackStock,
       });
-      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: meta.memberId ?? null, type: "created", toStatus: "new", note: member ? "↺" : null });
+      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: meta.memberId ?? null, type: "created", toStatus: "pending", note: member ? "↺" : null });
       if (suspicious) await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "risk", note: `${risk.score}: ${risk.reasons.join(", ")}` });
       // Hand the order to a call center agent (unless the shop assigns by hand)
       // (a locked order waits until it is unlocked: nobody can work on it yet; a suspicious one waits for a review
       // when the store holds them)
-      if (autoFake) await applyOrderStatus(tx, shop.id, orderId, "fake", null, `${risk.score}/100`);
+      if (autoFake) await applyOrderStatus(tx, shop.id, orderId, "flagged", null, `${risk.score}/100`);
       const agent = locked || autoFake || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id);
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });
       }
-      // This visitor is no longer an abandoned cart.
-      await tx
-        .update(schema.leads)
-        .set({ status: "converted", orderId })
-        .where(and(eq(schema.leads.shopId, shop.id), eq(schema.leads.phone, input.phone), inArray(schema.leads.status, ["abandoned", "contacted"])));
       return number;
     });
     return { ok: true, orderId, number };
@@ -143,4 +136,60 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
     if (err instanceof OutOfStock) return { ok: false, error: "stock" };
     throw err;
   }
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// The shop's next order number (#1001, #1002…); the shop row is locked so two orders never get the same one
+export async function nextOrderNumber(tx: Tx, shopId: string) {
+  await tx.select({ id: schema.shops.id }).from(schema.shops).where(eq(schema.shops.id, shopId)).for("update");
+  const [last] = await tx.select({ number: schema.orders.number }).from(schema.orders).where(eq(schema.orders.shopId, shopId)).orderBy(desc(schema.orders.number)).limit(1);
+  return last ? last.number + 1 : FIRST_ORDER_NUMBER;
+}
+
+// The abandoned checkouts of a phone for a product (drafts of the last day), removed once the real order exists
+async function abandonedDrafts(tx: Tx | typeof db, shopId: string, phone: string, productId: string) {
+  return tx
+    .select({ id: schema.orders.id, number: schema.orders.number })
+    .from(schema.orders)
+    .innerJoin(schema.orderItems, eq(schema.orderItems.orderId, schema.orders.id))
+    .where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.phone, phone), eq(schema.orders.status, "abandoned"), eq(schema.orderItems.productId, productId), gte(schema.orders.createdAt, new Date(Date.now() - 86400_000))));
+}
+
+// Deletes the drafts and returns the first one's number (the real order takes it, so carts never leave gaps)
+async function dropAbandoned(tx: Tx, shopId: string, phone: string, productId: string) {
+  await tx.select({ id: schema.shops.id }).from(schema.shops).where(eq(schema.shops.id, shopId)).for("update");
+  const drafts = await abandonedDrafts(tx, shopId, phone, productId);
+  const ids = drafts.map((r) => r.id);
+  if (!ids.length) return null;
+  await tx.delete(schema.orderItems).where(inArray(schema.orderItems.orderId, ids));
+  await tx.delete(schema.orderEvents).where(inArray(schema.orderEvents.orderId, ids));
+  await tx.delete(schema.orders).where(and(eq(schema.orders.shopId, shopId), inArray(schema.orders.id, ids)));
+  return Math.min(...drafts.map((d) => d.number));
+}
+
+// Abandoned orders (Zimam's "Abandoned Orders"): as soon as a visitor types a valid phone in the order form, a draft
+// order is kept with what they chose; it shows under the Abandoned tab until they order (then it is removed) or the team
+// recovers it. Drafts take no stock, no plan slot and no agent; one per phone and product per day (updated as they type).
+export async function saveAbandoned(shopId: string, productId: string, input: { name: string; phone: string; wilaya: number | null; variantId: string | null; quantity: number }, ip: string | null) {
+  const [product] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId), eq(schema.products.status, "active")));
+  if (!product) return;
+  const [variant] = input.variantId ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.id, input.variantId))) : [];
+  const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
+  const values = { customerName: input.name, wilayaCode: input.wilaya ?? 0, subtotal: line.total, total: line.total };
+  const [draft] = await abandonedDrafts(db, shopId, input.phone, productId);
+  if (draft) {
+    await db.transaction(async (tx) => {
+      await tx.update(schema.orders).set(values).where(eq(schema.orders.id, draft.id));
+      await tx.update(schema.orderItems).set({ variantId: variant?.id ?? null, variantTitle: variant?.title ?? null, unitPrice: line.unitPrice, quantity: input.quantity, total: line.total }).where(eq(schema.orderItems.orderId, draft.id));
+    });
+    return;
+  }
+  const orderId = newId();
+  await db.transaction(async (tx) => {
+    const number = await nextOrderNumber(tx, shopId);
+    await tx.insert(schema.orders).values({ id: orderId, shopId, number, status: "abandoned", phone: input.phone, commune: "", deliveryType: "home", shippingPrice: 0, ip, ...values });
+    await tx.insert(schema.orderItems).values({ id: newId(), orderId, shopId, productId: product.id, variantId: variant?.id ?? null, name: product.name, variantTitle: variant?.title ?? null, sku: variant?.sku || product.sku, unitPrice: line.unitPrice, quantity: input.quantity, total: line.total, stockTracked: false });
+    await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId, type: "created", toStatus: "abandoned" });
+  });
 }

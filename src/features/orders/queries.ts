@@ -1,101 +1,72 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
-import type { OrderStatus } from "./statuses";
-import { stageShipments, viewStatuses, type OrderFilters, type TrackingStage } from "./views";
-import { CONFIRMED_STATUSES, PARCEL_STATUSES, orderModel } from "./statuses";
-import type { ShipmentStatus } from "@/server/db/schema";
+import { PENDING_STATUSES, type OrderStatus } from "./statuses";
+import type { OrderFilters } from "./views";
 import { addDays } from "@/lib/time";
 import { visibleOrders, type OrderViewer } from "./access";
 import { escapeLike } from "@/lib/validation";
 import type { CallGuide } from "@/features/ai/prompts";
 
-export const PAGE_SIZE = 25;
-
-
-// The orders of one view of the Orders section with its filters (assignee: a member id, or "none" for orders nobody
-// is in charge of). Rows carry their parcel (courier, tracking, stage) and their fake-order risk.
-export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThreshold: number) {
+// One status tab of the orders page with its filters. Rows carry what the table shows: the first product (name, photo),
+// pieces, the client, the agent, the delivery company and the parcel.
+export async function listOrders(viewer: OrderViewer, f: OrderFilters, maxSize = 100) {
   const o = schema.orders;
   const sh = schema.shipments;
-  const filters: (SQL | undefined)[] = [visibleOrders(viewer)];
-  const statuses = viewStatuses[f.view];
-  // The call status of a sent order is "confirmed" (orderModel): the "confirmed" chip counts every confirmed order
-  if (f.status && (!statuses || statuses.includes(f.status))) filters.push(f.status === "confirmed" ? inArray(o.status, [...CONFIRMED_STATUSES]) : eq(o.status, f.status));
-  else if (statuses) filters.push(inArray(o.status, [...statuses]));
-  if (f.view === "all" && f.inj) filters.push(f.inj === "done" ? inArray(o.status, [...PARCEL_STATUSES]) : eq(o.status, "confirmed"));
-  if (f.fault) filters.push(eq(o.deliveryFault, f.fault));
-  if (f.proc) filters.push(eq(o.processing, f.proc));
-  if (f.fin) filters.push(eq(o.status, f.fin));
-  if (f.view === "risk") filters.push(gte(o.risk, riskThreshold));
-  // Injection: confirmed orders waiting to be sent, or sent (a parcel exists) and still on their way
-  if (f.view === "ship") filters.push(f.inj === "done" ? and(eq(o.status, "shipped"), isNotNull(sh.id)) : eq(o.status, "confirmed"));
-  if (f.view === "transit") filters.push(isNotNull(sh.id));
-  if (f.ds) filters.push(eq(o.deliveryState, f.ds));
-  if (f.view === "returns") {
-    const back = and(eq(o.status, "shipped"), eq(sh.status, "returning"));
-    const returned = eq(o.status, "returned");
-    filters.push(
-      f.ret === "back" ? back : f.ret === "pending" ? and(returned, isNull(sh.returnReceivedAt)) : f.ret === "received" ? and(returned, isNotNull(sh.returnReceivedAt)) : or(back, returned),
-    );
-  }
-  if (f.stage) filters.push(inArray(sh.status, stageShipments(f.stage)));
+  // The pending tab also holds the orders to call back
+  const filters: (SQL | undefined)[] = [visibleOrders(viewer), f.status === "pending" ? inArray(o.status, [...PENDING_STATUSES]) : eq(o.status, f.status)];
+  if (f.product) filters.push(sql`exists (select 1 from order_items fi where fi.order_id = ${o.id} and fi.product_id = ${f.product})`);
+  if (f.agent === "none") filters.push(isNull(o.assignedTo));
+  else if (f.agent === "me") filters.push(eq(o.assignedTo, viewer.userId));
+  else if (f.agent) filters.push(eq(o.assignedTo, f.agent));
   if (f.wilaya) filters.push(eq(o.wilayaCode, f.wilaya));
-  if (f.delivery) filters.push(eq(o.deliveryType, f.delivery));
-  if (f.from && /^\d{4}-\d{2}-\d{2}$/.test(f.from)) filters.push(gte(o.createdAt, new Date(`${f.from}T00:00:00+01:00`)));
-  if (f.to && /^\d{4}-\d{2}-\d{2}$/.test(f.to)) filters.push(lt(o.createdAt, new Date(`${addDays(f.to, 1)}T00:00:00+01:00`)));
-  if (f.assignee === "none") filters.push(isNull(o.assignedTo));
-  else if (f.assignee) filters.push(eq(o.assignedTo, f.assignee));
-  const term = f.q.trim();
+  if (f.from) filters.push(gte(o.createdAt, new Date(`${f.from}T00:00:00+01:00`)));
+  if (f.to) filters.push(lt(o.createdAt, new Date(`${addDays(f.to, 1)}T00:00:00+01:00`)));
+  const term = f.q;
   if (term) {
     const digits = term.replace(/[^\d]/g, "");
     const like_ = `%${escapeLike(term)}%`;
     filters.push(
       or(
         // A locked order's customer cannot be found by name or phone (that would reveal them)
-        and(eq(o.locked, false), or(like(o.customerName, like_), digits ? like(o.phone, `%${digits.replace(/^213/, "")}%`) : undefined)),
+        and(eq(o.locked, false), or(like(o.customerName, like_), digits.length >= 3 ? like(o.phone, `%${digits.replace(/^213/, "")}%`) : undefined)),
         /^#?\d+$/.test(term) ? eq(o.number, Number(term.replace("#", ""))) : undefined,
         like(sh.trackingNumber, like_),
       ),
     );
   }
   const where = and(...filters);
-  const size = Math.min(200, Math.max(1, f.size));
+  const size = Math.min(maxSize, Math.max(1, f.size));
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
         id: o.id,
         number: o.number,
         status: o.status,
+        createdAt: o.createdAt,
         customerName: o.customerName,
         phone: o.phone,
         wilayaCode: o.wilayaCode,
+        commune: o.commune,
         deliveryType: o.deliveryType,
         total: o.total,
-        createdAt: o.createdAt,
+        note: o.note,
         locked: o.locked,
         risk: o.risk,
-        deliveryState: o.deliveryState,
-        callAttempts: o.callAttempts,
-        deliveryFault: o.deliveryFault,
-        processing: o.processing,
-        assigneeName: schema.users.name,
+        assignedTo: o.assignedTo,
+        carrierAccountId: o.carrierAccountId,
         shipmentId: sh.id,
         carrierName: sh.carrierName,
         trackingNumber: sh.trackingNumber,
         stage: sh.status,
-        labelUrl: sh.labelUrl,
-        returnReceivedAt: sh.returnReceivedAt,
-        checkedAt: sh.checkedAt,
-        carrierPlatform: schema.carrierAccounts.platform,
-        // First product of the order, for the list
-        // (written as plain SQL: inside a select Drizzle drops table names, which made the columns ambiguous)
-        product: sql<string | null>`(select concat(oi.name, ' ×', oi.quantity) from order_items oi where oi.order_id = orders.id limit 1)`,
+        // (plain SQL: inside a select Drizzle drops table names, which made the columns ambiguous)
+        product: sql<string | null>`(select oi.name from order_items oi where oi.order_id = orders.id order by oi.id limit 1)`,
+        image: sql<string | null>`(select json_unquote(json_extract(p.images, '$[0]')) from order_items oi join products p on p.id = oi.product_id where oi.order_id = orders.id order by oi.id limit 1)`,
+        pieces: sql<number>`(select coalesce(sum(oi.quantity), 0) from order_items oi where oi.order_id = orders.id)`,
+        lines: sql<number>`(select count(*) from order_items oi where oi.order_id = orders.id)`,
       })
       .from(o)
-      .leftJoin(schema.users, eq(schema.users.id, o.assignedTo))
       .leftJoin(sh, eq(sh.orderId, o.id))
-      .leftJoin(schema.carrierAccounts, eq(schema.carrierAccounts.id, sh.carrierAccountId))
       .where(where)
       .orderBy(desc(o.createdAt), desc(o.number))
       .limit(size)
@@ -103,100 +74,37 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, riskThres
     db.select({ total: count() }).from(o).leftJoin(sh, eq(sh.orderId, o.id)).where(where),
   ]);
   return {
-    rows: rows.map((r) => ({
-      ...(r.locked ? { ...r, customerName: "", phone: "" } : r),
-      // The label: the courier's own link, or our download of the PDF (Ecotrack companies)
-      labelHref: r.shipmentId ? (r.labelUrl ?? (r.carrierPlatform === "ecotrack" ? `/api/shipments/${r.shipmentId}/label` : null)) : null,
-    })),
+    rows: rows.map((r) => ({ ...(r.locked ? { ...r, customerName: "", phone: "", commune: "" } : r), pieces: Number(r.pieces), lines: Number(r.lines) })),
     total,
     size,
   };
 }
 
-// The orders list's chips: how many orders sit in each value of the five sections (orderModel), zeros left out
-export async function modelCounts(viewer: OrderViewer) {
-  const o = schema.orders;
-  const rows = await db
-    .select({ status: o.status, deliveryState: o.deliveryState, deliveryFault: o.deliveryFault, processing: o.processing, n: count() })
-    .from(o)
-    .where(visibleOrders(viewer))
-    .groupBy(o.status, o.deliveryState, o.deliveryFault, o.processing);
-  const out = { call: {}, injection: {}, delivery: {}, fault: {}, processing: {}, final: {} } as Record<"call" | "injection" | "delivery" | "fault" | "processing" | "final", Record<string, number>>;
-  for (const r of rows) {
-    const m = orderModel(r);
-    for (const key of Object.keys(out) as (keyof typeof out)[]) {
-      const v = m[key];
-      if (v) out[key][v] = (out[key][v] ?? 0) + r.n;
-    }
-  }
-  return out;
-}
-
-export async function statusCounts(viewer: OrderViewer) {
+// How many orders sit in each status tab
+export async function tabCounts(viewer: OrderViewer) {
   const rows = await db.select({ status: schema.orders.status, n: count() }).from(schema.orders).where(visibleOrders(viewer)).groupBy(schema.orders.status);
   return Object.fromEntries(rows.map((r) => [r.status, r.n])) as Partial<Record<OrderStatus, number>>;
 }
 
-// Orders still to confirm at or above the store's risk threshold (the "suspicious" view)
-export async function riskCount(viewer: OrderViewer, riskThreshold: number) {
-  const [row] = await db
-    .select({ n: count() })
-    .from(schema.orders)
-    .where(and(visibleOrders(viewer), inArray(schema.orders.status, [...viewStatuses.risk!]), gte(schema.orders.risk, riskThreshold)));
-  return row.n;
-}
-
-// Sent parcels per courier stage (the chips of Parcel tracking; "returns" = on their way back + returned)
-export async function stageCounts(viewer: OrderViewer) {
-  const rows = await db
-    .select({ stage: schema.shipments.status, n: count() })
-    .from(schema.orders)
-    .innerJoin(schema.shipments, eq(schema.shipments.orderId, schema.orders.id))
-    .where(and(visibleOrders(viewer), inArray(schema.orders.status, [...PARCEL_STATUSES])))
-    .groupBy(schema.shipments.status);
-  const out: Partial<Record<TrackingStage, number>> & { all: number } = { all: 0 };
-  for (const r of rows) {
-    const key = (r.stage === "returning" || r.stage === "returned" ? "returns" : r.stage) as TrackingStage | ShipmentStatus;
-    if (key !== "unknown") out[key as TrackingStage] = (out[key as TrackingStage] ?? 0) + r.n;
-    out.all += r.n;
-  }
-  return out;
-}
-
-// Returns sub-section: parcels on their way back, returned and still at the courier, received by the merchant
-export async function returnCounts(viewer: OrderViewer) {
-  const o = schema.orders;
-  const sh = schema.shipments;
-  const [row] = await db
-    .select({
-      back: sql<number>`sum(case when ${o.status} = 'shipped' and ${sh.status} = 'returning' then 1 else 0 end)`,
-      pending: sql<number>`sum(case when ${o.status} = 'returned' and ${sh.returnReceivedAt} is null then 1 else 0 end)`,
-      received: sql<number>`sum(case when ${o.status} = 'returned' and ${sh.returnReceivedAt} is not null then 1 else 0 end)`,
-    })
-    .from(o)
-    .leftJoin(sh, eq(sh.orderId, o.id))
-    .where(and(visibleOrders(viewer), inArray(o.status, ["shipped", "returned"])));
-  const n = (v: unknown) => Number(v ?? 0);
-  return { back: n(row?.back), pending: n(row?.pending), received: n(row?.received) };
-}
-
-// Parcel tracking: when the automatic check last asked a courier, and how many parcels it follows
-export async function trackingOverview(shopId: string) {
-  const sh = schema.shipments;
-  const [row] = await db
-    .select({ last: sql<Date | null>`max(${sh.checkedAt})`, followed: sql<number>`sum(case when ${sh.carrierAccountId} is not null then 1 else 0 end)` })
-    .from(sh)
-    .innerJoin(schema.orders, eq(schema.orders.id, sh.orderId))
-    .where(and(eq(sh.shopId, shopId), eq(schema.orders.status, "shipped")));
-  return { last: row?.last ? new Date(row.last) : null, followed: Number(row?.followed ?? 0) };
-}
-
+// One order for the edit dialog: its lines (with the product's photo), the parcel, the agent's automatic choice
 export async function getOrder(viewer: OrderViewer, id: string) {
   const shopId = viewer.shopId;
   const [order] = await db.select().from(schema.orders).where(and(visibleOrders(viewer), eq(schema.orders.id, id)));
   if (!order) return null;
-  const [items, events, history, [blocked], [assignee], [landing]] = await Promise.all([
-    db.select().from(schema.orderItems).where(and(eq(schema.orderItems.shopId, shopId), eq(schema.orderItems.orderId, id))),
+  const [items, [shipment], [blocked], [assignEvent], events, history, [landing]] = await Promise.all([
+    db
+      .select({ item: schema.orderItems, image: sql<string | null>`json_unquote(json_extract(${schema.products.images}, '$[0]'))` })
+      .from(schema.orderItems)
+      .leftJoin(schema.products, eq(schema.products.id, schema.orderItems.productId))
+      .where(and(eq(schema.orderItems.shopId, shopId), eq(schema.orderItems.orderId, id))),
+    db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shopId), eq(schema.shipments.orderId, id))),
+    db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, order.phone))),
+    db
+      .select({ note: schema.orderEvents.note, userId: schema.orderEvents.userId, at: schema.orderEvents.createdAt })
+      .from(schema.orderEvents)
+      .where(and(eq(schema.orderEvents.shopId, shopId), eq(schema.orderEvents.orderId, id), eq(schema.orderEvents.type, "assign")))
+      .orderBy(desc(schema.orderEvents.createdAt))
+      .limit(1),
     db
       .select({ event: schema.orderEvents, userName: schema.users.name })
       .from(schema.orderEvents)
@@ -204,72 +112,36 @@ export async function getOrder(viewer: OrderViewer, id: string) {
       .where(and(eq(schema.orderEvents.shopId, shopId), eq(schema.orderEvents.orderId, id)))
       .orderBy(asc(schema.orderEvents.createdAt)),
     // Every order from the same phone in this shop: a quick trust signal for the call center
-    db
-      .select({ status: schema.orders.status, n: count() })
-      .from(schema.orders)
-      .where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.phone, order.phone)))
-      .groupBy(schema.orders.status),
-    db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, order.phone))),
-    order.assignedTo ? db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, order.assignedTo)) : Promise.resolve([]),
+    db.select({ status: schema.orders.status, n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.phone, order.phone))).groupBy(schema.orders.status),
     order.landingPageId
       ? db.select({ title: schema.landingPages.title }).from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, order.landingPageId)))
       : Promise.resolve([]),
   ]);
   // The ordered products' call guides (for the call center)
-  const productIds = [...new Set(items.map((i) => i.productId).filter((v): v is string => Boolean(v)))];
+  const productIds = [...new Set(items.map((i) => i.item.productId).filter((v): v is string => Boolean(v)))];
   const guides = productIds.length
     ? await db.select({ id: schema.products.id, name: schema.products.name, callGuide: schema.products.callGuide }).from(schema.products).where(and(eq(schema.products.shopId, shopId), inArray(schema.products.id, productIds)))
     : [];
   const byStatus = Object.fromEntries(history.map((h) => [h.status, h.n])) as Partial<Record<OrderStatus, number>>;
-  const phoneStats = {
-    orders: history.reduce((sum, h) => sum + h.n, 0),
-    delivered: byStatus.delivered ?? 0,
-    failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0),
-  };
-  const detail = { ...order, items, events, phoneStats, phoneBlocked: blocked.n > 0, assigneeName: (assignee as { name: string } | undefined)?.name ?? null,
-    landingTitle: (landing as { title: string } | undefined)?.title ?? null,
+  const detail = {
+    ...order,
+    items: items.map((r) => ({ ...r.item, image: r.image })),
+    shipment: shipment ?? null,
+    phoneBlocked: blocked.n > 0,
+    assignEvent: assignEvent ?? null,
     extra: Array.isArray(order.extra) ? (order.extra as { label: string; value: string }[]) : [],
+    events,
+    phoneStats: { orders: history.reduce((sum, h) => sum + h.n, 0), delivered: byStatus.delivered ?? 0, failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0) + (byStatus.flagged ?? 0) },
+    landingTitle: (landing as { title: string } | undefined)?.title ?? null,
     guides: guides.map((g) => ({ product: { id: g.id, name: g.name }, guide: (g.callGuide as CallGuide | null) ?? null })),
   };
   // Locked (over the plan's limit): nothing that identifies the customer leaves the server
-  if (order.locked) {
-    return { ...detail, customerName: "", phone: "", commune: "", address: null, customerNote: null, extra: [], ip: null, userAgent: null, tracking: null, phoneStats: { orders: 0, delivered: 0, failed: 0 }, phoneBlocked: false };
-  }
+  if (order.locked) return { ...detail, customerName: "", phone: "", commune: "", address: null, customerNote: null, extra: [], ip: null, userAgent: null, tracking: null, phoneBlocked: false, phoneStats: { orders: 0, delivered: 0, failed: 0 } };
   return detail;
 }
-
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
-export async function listLeads(shopId: string, page = 1) {
-  const l = schema.leads;
-  const where = and(eq(l.shopId, shopId), inArray(l.status, ["abandoned", "contacted"]));
-  const [rows, [{ total }]] = await Promise.all([
-    db
-      .select({
-        id: l.id,
-        name: l.name,
-        phone: l.phone,
-        wilayaCode: l.wilayaCode,
-        quantity: l.quantity,
-        status: l.status,
-        updatedAt: l.updatedAt,
-        productName: schema.products.name,
-        productSlug: schema.products.slug,
-        variantTitle: schema.productVariants.title,
-      })
-      .from(l)
-      .leftJoin(schema.products, eq(schema.products.id, l.productId))
-      .leftJoin(schema.productVariants, eq(schema.productVariants.id, l.variantId))
-      .where(where)
-      .orderBy(desc(l.updatedAt))
-      .limit(PAGE_SIZE)
-      .offset((Math.max(1, page) - 1) * PAGE_SIZE),
-    db.select({ total: count() }).from(l).where(where),
-  ]);
-  return { rows, total };
-}
-
-// Orders → Protection: the week's suspicious orders and the blocked numbers
+// Orders → Protection: suspicious orders this week and the blocked phones
 export async function protectionOverview(shopId: string, riskThreshold: number) {
   const o = schema.orders;
   const [[suspicious], blocked] = await Promise.all([
@@ -284,11 +156,16 @@ export async function protectionOverview(shopId: string, riskThreshold: number) 
   return { suspicious: suspicious.n, blocked };
 }
 
-// The recovery of abandoned carts over the last 30 days: carts left, contacted, turned into orders
-export async function recoveryStats(shopId: string, since: Date) {
-  const l = schema.leads;
-  const rows = await db.select({ status: l.status, n: count() }).from(l).where(and(eq(l.shopId, shopId), gte(l.createdAt, since))).groupBy(l.status);
-  const by = (s: string) => rows.find((r) => r.status === s)?.n ?? 0;
-  const total = rows.reduce((a, r) => a + r.n, 0);
-  return { total, abandoned: by("abandoned"), contacted: by("contacted"), converted: by("converted"), rate: total ? Math.round((by("converted") / total) * 100) : 0 };
+// The products to pick from in the order dialogs (name, price, photo, variants)
+export async function orderProducts(shopId: string) {
+  const [products, variants] = await Promise.all([
+    db
+      .select({ id: schema.products.id, name: schema.products.name, price: schema.products.price, image: sql<string | null>`json_unquote(json_extract(${schema.products.images}, '$[0]'))` })
+      .from(schema.products)
+      .where(eq(schema.products.shopId, shopId))
+      .orderBy(schema.products.name),
+    db.select({ id: schema.productVariants.id, productId: schema.productVariants.productId, title: schema.productVariants.title, price: schema.productVariants.price }).from(schema.productVariants).where(eq(schema.productVariants.shopId, shopId)),
+  ]);
+  return products.map((p) => ({ ...p, variants: variants.filter((v) => v.productId === p.id).map((v) => ({ id: v.id, title: v.title, price: v.price ?? p.price })) }));
 }
+export type OrderProduct = Awaited<ReturnType<typeof orderProducts>>[number];

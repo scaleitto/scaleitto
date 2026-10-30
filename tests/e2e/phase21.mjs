@@ -45,14 +45,13 @@ export default async function phase21(browser) {
   });
 
   const ready = [];
-  await step("ready to ship: the sub-section lists confirmed orders only, with selection tools", async () => {
+  await step("ready to ship: the Confirmed tab lists confirmed orders only, with selection tools", async () => {
     for (let i = 0; i < 3; i++) ready.push(await order({ phone: `066100000${i}`, delivery: i === 2 ? "office" : "home" }));
     ready.push(await order({ commune: "Nowhere", phone: "0661000009" }));
-    await order({ status: "new", phone: "0661000010" });
-    await owner.goto(`${dash}/orders/shipping`);
+    await order({ status: "pending", phone: "0661000010" });
+    await owner.goto(`${dash}/orders?status=confirmed`);
     await owner.locator("[data-testid=ship-panel]").waitFor();
-    expect((await owner.locator("tr[data-order]").count()) === 4, "4 confirmed orders, the new one is not here");
-    expect((await owner.locator('[data-testid=section-tabs] [data-tab="shipping"]').getAttribute("aria-current")) === "page", "its own sub-section of Orders");
+    expect((await owner.locator("tr[data-order]").count()) === 4, "4 confirmed orders, the pending one is not here");
     await owner.locator("[data-testid=select-all]").click();
     await owner.locator("[data-testid=selected-count]").getByText("4 محددة").waitFor();
     await owner.locator("[data-testid=select-invert]").click();
@@ -77,7 +76,7 @@ export default async function phase21(browser) {
     expect(sent.length === 4 && sent.every((r) => r.type === 1 && r.remarque.includes("اتصل قبل التوصيل") && r.remarque.includes("FRAGILE")), "type delivery, note and FRAGILE on every parcel");
     expect(office.stop_desk === 1 && sent.find((r) => r.reference === String(ready[0].number)).stop_desk === 0, "stop desk follows each customer's choice");
     const [shipped] = await db.query("SELECT o.number, o.status, s.status AS stage FROM orders o JOIN shipments s ON s.order_id = o.id WHERE o.shop_id = ? ORDER BY o.number", [shopId]);
-    expect(shipped.length === 3 && shipped.every((r) => r.status === "shipped" && r.stage === "ready"), `3 parcels "ready to ship" (got ${JSON.stringify(shipped)})`);
+    expect(shipped.length === 3 && shipped.every((r) => r.status === "in_transit" && r.stage === "ready"), `3 parcels "ready to ship" (got ${JSON.stringify(shipped)})`);
     await owner.waitForFunction(() => document.querySelectorAll("tr[data-order]").length === 1);
     // Fix the commune and retry only what failed
     await db.query("UPDATE orders SET commune = 'Bab Ezzouar' WHERE id = ?", [ready[3].id]);
@@ -88,7 +87,7 @@ export default async function phase21(browser) {
 
   await step("the Packers import sheet: the model's columns, OUI flags", async () => {
     const extra = await order({ phone: "0661000011", delivery: "office" });
-    await owner.goto(`${dash}/orders/shipping`);
+    await owner.goto(`${dash}/orders?status=confirmed`);
     await owner.locator(`tr[data-order="${extra.number}"] input[data-bulk-order]`).check();
     const [download] = await Promise.all([owner.waitForEvent("download"), owner.locator("[data-testid=packers-export]").click()]);
     const csv = await (await download.createReadStream()).toArray().then((chunks) => Buffer.concat(chunks).toString("utf8"));
@@ -100,10 +99,10 @@ export default async function phase21(browser) {
   });
 
   await step("at the courier: stages from Packers, bulk update, labels, the cron", async () => {
-    await owner.goto(`${dash}/orders/tracking`);
-    const chips = owner.locator("[data-testid=order-chips]");
-    await chips.locator('[data-chip="ready"]').getByText("4").waitFor();
+    await owner.goto(`${dash}/orders?status=in_transit`);
+    await owner.locator("[data-testid=track-panel]").waitFor();
     const [parcels] = await db.query("SELECT s.id, s.tracking_number AS t, o.id AS orderId, o.number FROM shipments s JOIN orders o ON o.id = s.order_id WHERE s.shop_id = ? ORDER BY o.number", [shopId]);
+    expect((await owner.locator("tr[data-order]").count()) === 4, "the 4 parcels are in transit");
     setParcelStatus(parcels[0].t, "Livrés");
     setParcelStatus(parcels[1].t, "En livraison");
     setParcelStatus(parcels[2].t, "Suspendus");
@@ -113,16 +112,10 @@ export default async function phase21(browser) {
     const [rows] = await db.query("SELECT s.status AS stage, o.status FROM shipments s JOIN orders o ON o.id = s.order_id WHERE s.shop_id = ? ORDER BY o.number", [shopId]);
     expect(rows.map((r) => r.stage).join() === "delivered,out_for_delivery,suspended,ready", `stages (got ${rows.map((r) => r.stage).join()})`);
     expect(rows[0].status === "delivered", "a delivered parcel closes the order");
-    await owner.reload();
-    // The courier's own names (Ecotrack), in Arabic underneath
-    await chips.locator('[data-chip="out_for_delivery"]').getByText("En livraison").waitFor();
-    await chips.locator('[data-chip="delivered"]').getByText("Livrés").waitFor();
-    await chips.locator('[data-chip="suspended"]').click();
-    await owner.waitForURL(/stage=suspended/);
-    expect((await owner.locator("tr[data-order]").count()) === 1, "filtered by stage");
+    await owner.goto(`${dash}/orders?status=delivered`);
+    await owner.waitForSelector(`tr[data-order="${parcels[0].number}"]`);
     // The label is the courier's PDF, fetched with the shop's key
-    const href = await owner.locator("[data-testid=row-label]").getAttribute("href");
-    const res = await owner.request.get(`${BASE}${href}`);
+    const res = await owner.request.get(`${BASE}/api/shipments/${parcels[1].id}/label`);
     expect(res.status() === 200 && res.headers()["content-type"].includes("pdf"), "label PDF");
     // The cron: parcels not checked for a while are asked again
     setParcelStatus(parcels[3].t, "Retours");
@@ -150,7 +143,7 @@ export default async function phase21(browser) {
     await owner.locator("[data-testid=label-link]").waitFor();
   });
 
-  await step("robots are refused; a risky order is flagged, shown in Suspicious, and can be trusted", async () => {
+  await step("robots are refused; a risky order is marked in the table and can be trusted", async () => {
     // A robot browser
     const bot = await browser.newContext({ userAgent: "python-requests/2.31" });
     const b = await bot.newPage();
@@ -178,9 +171,9 @@ export default async function phase21(browser) {
     const [[risky]] = await db.query("SELECT risk, risk_reasons FROM orders WHERE id = ?", [id]);
     const reasons = typeof risky.risk_reasons === "string" ? JSON.parse(risky.risk_reasons) : risky.risk_reasons;
     expect(risky.risk >= 50 && reasons.includes("returned") && reasons.includes("name"), `risk ${risky.risk} (${reasons})`);
-    await owner.goto(`${dash}/orders?view=risk`);
+    await owner.goto(`${dash}/orders?status=pending`);
     await owner.locator("tr[data-order] [data-testid=risk-badge]").waitFor();
-    expect((await owner.locator("tr[data-order]").count()) === 1, "only the risky order");
+    expect((await owner.locator("tr[data-order] [data-testid=risk-badge]").count()) === 1, "only the risky order is marked");
     await owner.goto(`${dash}/orders/${id}`);
     const card = owner.locator("[data-testid=risk-card]");
     await card.locator('[data-reason="returned"]').waitFor();

@@ -42,9 +42,7 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
       }
     }
   }
-  // The delivery follow-up (Livraison) follows the parcel's life; it is cleared when the order goes back before shipping
-  const deliveryState = status === "shipped" || status === "delivered" || status === "returned" ? status : null;
-  await tx.update(schema.orders).set({ status, deliveryState }).where(eq(schema.orders.id, orderId));
+  await tx.update(schema.orders).set({ status }).where(eq(schema.orders.id, orderId));
   await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId, userId, type: "status", fromStatus: order.status, toStatus: status, note: note ?? null });
   // Pixels that count the purchase at confirmation or delivery (sent after the response, once the transaction is committed)
   if (status === "confirmed" || status === "delivered") scheduleOrderEvents(shopId, orderId, status);

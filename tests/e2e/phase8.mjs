@@ -29,15 +29,19 @@ export default async function phase8(browser) {
       [id, shopId, ++number, status, wilaya, subtotal, subtotal + 500, landing, when],
     );
     await db.query("INSERT INTO order_items (id, order_id, shop_id, product_id, name, unit_price, quantity, total) VALUES (UUID(), ?, ?, ?, 'حذاء رياضي', 4000, ?, ?)", [id, shopId, productId, quantity, subtotal]);
+    return id;
   };
-  await addOrder({ when: ago(0, 5), status: "new" });
+  // An abandoned checkout the team turned into an order (recovered), and one still abandoned
+  const recovered = await addOrder({ when: ago(0, 5), status: "pending" });
+  await db.query("INSERT INTO order_events (id, order_id, shop_id, type, to_status, created_at) VALUES (UUID(), ?, ?, 'created', 'abandoned', ?)", [recovered, shopId, ago(0, 5)]);
+  const left = await addOrder({ when: ago(1), status: "abandoned" });
+  await db.query("INSERT INTO order_events (id, order_id, shop_id, type, to_status, created_at) VALUES (UUID(), ?, ?, 'created', 'abandoned', ?)", [left, shopId, ago(1)]);
   await addOrder({ when: ago(2), status: "delivered", quantity: 2 });
   await addOrder({ when: ago(3), status: "delivered", wilaya: 31, landing: pageId });
   await addOrder({ when: ago(3), status: "returned", wilaya: 31, landing: pageId });
-  await addOrder({ when: ago(5), status: "shipped" });
+  await addOrder({ when: ago(5), status: "in_transit" });
   await addOrder({ when: ago(10), status: "cancelled", wilaya: 31 });
   await addOrder({ when: ago(40), status: "delivered" }); // previous period of "30 days"
-  await db.query("INSERT INTO leads (id, shop_id, product_id, phone, status, created_at) VALUES (UUID(), ?, ?, '0662000000', 'converted', ?), (UUID(), ?, ?, '0662000001', 'abandoned', ?)", [shopId, productId, ago(1), shopId, productId, ago(1)]);
 
   // Another shop's orders must never be counted
   const other = await createShop(browser);
@@ -75,7 +79,6 @@ export default async function phase8(browser) {
     expect(oran.includes("3") && oran.includes("50%"), `wilaya 31: 3 orders, 50% delivered (got ${oran})`);
     // The orders' KPIs do not repeat the sales ones (orders, confirmation, delivery)
     expect((await owner.locator("[data-kpi=confirmation]").count()) === 1 && (await owner.locator("[data-testid=insight-kpis] [data-kpi=refusal]").count()) === 1, "no repeated KPIs");
-    await owner.locator("[data-testid=follow-up]").waitFor();
   });
 
   await step("today, 7 days and a custom range", async () => {

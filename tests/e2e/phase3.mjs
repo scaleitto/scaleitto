@@ -1,7 +1,7 @@
 // Phase 3: delivery — prices per wilaya, connecting delivery companies (checked keys, encrypted),
 // sending confirmed orders, tracking updates that close the order, manual tracking numbers.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setOrderStatus } from "./helpers.mjs";
 import { received, setParcelStatus } from "./mock-carriers.mjs";
 
 export default async function phase3(browser) {
@@ -89,17 +89,16 @@ export default async function phase3(browser) {
     await db.query("UPDATE orders SET commune = 'Nowhere' WHERE id = ?", [orderId]);
     await page.goto(`${orders}/${orderId}`);
     expect(await page.locator('[data-testid=shipment] button:has-text("إرسال الطلب")').isDisabled(), "send disabled while new");
-    await setCallStatus(page, "confirmed");
-    await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
+    await setOrderStatus(page, "confirmed");
+    await page.waitForSelector('[data-testid=history] >> text=قيد الانتظار ← مؤكدة');
     await page.selectOption('[data-testid=shipment] select', { label: "Yalidine" });
     await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
     await page.waitForSelector("text=رفضت شركة التوصيل الطلب: Commune introuvable");
   });
 
   await step("sending to Yalidine saves the tracking number and marks the order as shipping", async () => {
-    await page.click("text=تعديل المعلومات");
     await page.selectOption("#commune", "Bab Ezzouar");
-    await page.locator("form:has(#commune) button[type=submit]").click();
+    await page.click("[data-testid=save-order]");
     await page.waitForSelector("text=تم الحفظ");
     await page.selectOption('[data-testid=shipment] select', { label: "Yalidine" });
     await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
@@ -108,7 +107,7 @@ export default async function phase3(browser) {
     expect(tracking.startsWith("yal-"), `tracking number (${tracking})`);
     const sent = received.findLast((r) => r.platform === "yalidine");
     expect(sent.to_wilaya_name === "Alger" && sent.price === 3300 && sent.contact_phone === "0661223344" && sent.firstname === "سارة بن" && sent.familyname === "علي", "parcel data sent right");
-    await page.waitForSelector('[data-testid=history] >> text=مؤكد ← قيد التوصيل');
+    await page.waitForSelector('[data-testid=history] >> text=مؤكدة ← في الطريق');
   });
 
   await step("a delivered parcel closes the order as delivered", async () => {
@@ -118,7 +117,7 @@ export default async function phase3(browser) {
     await page.locator("[data-testid=shipment]").getByText("خرج للتوصيل").waitFor();
     setParcelStatus(tracking, "Livré");
     await page.click('button:has-text("تحديث الحالة")');
-    await page.waitForSelector('[data-testid=history] >> text=قيد التوصيل ← تم التسليم');
+    await page.waitForSelector('[data-testid=history] >> text=في الطريق ← مسلّمة');
     const [[order]] = await db.query("SELECT status FROM orders WHERE id = ?", [orderId]);
     expect(order.status === "delivered", "order delivered");
   });
@@ -126,8 +125,8 @@ export default async function phase3(browser) {
   await step("sending through an Ecotrack company and a returned parcel", async () => {
     const id = await placeOrder("يوسف", "0770112233", 31, "Es Senia");
     await page.goto(`${orders}/${id}`);
-    await setCallStatus(page, "confirmed");
-    await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
+    await setOrderStatus(page, "confirmed");
+    await page.waitForSelector('[data-testid=history] >> text=قيد الانتظار ← مؤكدة');
     // The default company (Navex) is preselected
     await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
     await page.waitForSelector("[data-testid=tracking-number]");
@@ -135,7 +134,7 @@ export default async function phase3(browser) {
     expect(sent.code_wilaya === 31 && sent.montant === 3600 && sent.commune === "Es Senia" && sent.stop_desk === 0, "Ecotrack parcel data");
     setParcelStatus(await page.locator("[data-testid=tracking-number]").innerText(), "Retourné");
     await page.click('button:has-text("تحديث الحالة")');
-    await page.waitForSelector('[data-testid=history] >> text=قيد التوصيل ← مرتجع');
+    await page.waitForSelector('[data-testid=history] >> text=في الطريق ← مرتجعة');
   });
 
   await step("ZR Express (both platforms) and NOEST: connect, send, read the status", async () => {
@@ -163,8 +162,8 @@ export default async function phase3(browser) {
     for (const [label, platform, phone] of [["ZR Express", "zrexpress", "0661000003"], ["ZR Express (Procolis)", "procolis", "0661000001"], ["NOEST Express", "noest", "0661000002"]]) {
       const id = await placeOrder("كريم", phone, 16, "Kouba");
       await page.goto(`${orders}/${id}`);
-      await setCallStatus(page, "confirmed");
-      await page.waitForSelector('[data-testid=history] >> text=جديد ← مؤكد');
+      await setOrderStatus(page, "confirmed");
+      await page.waitForSelector('[data-testid=history] >> text=قيد الانتظار ← مؤكدة');
       await page.selectOption("[data-testid=shipment] select", { label });
       await page.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
       await page.waitForSelector("[data-testid=tracking-number]");
@@ -175,7 +174,7 @@ export default async function phase3(browser) {
       else expect(sent.wilaya_id === 16 && sent.montant === 3300 && sent.phone === phone, "NOEST parcel data");
       setParcelStatus(await page.locator("[data-testid=tracking-number]").innerText(), platform === "zrexpress" ? "livre" : "Livré");
       await page.click('button:has-text("تحديث الحالة")');
-      await page.waitForSelector('[data-testid=history] >> text=قيد التوصيل ← تم التسليم');
+      await page.waitForSelector('[data-testid=history] >> text=في الطريق ← مسلّمة');
     }
   });
 

@@ -1,7 +1,7 @@
 // Phase 2: storefront ordering (cash on delivery), fake-order protection, abandoned carts,
 // and the merchant's order management (status, stock, edits, notes, blocking, roles, isolation).
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setOrderStatus } from "./helpers.mjs";
 
 export default async function phase2(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -27,6 +27,7 @@ export default async function phase2(browser) {
 
   const customer = await browser.newPage({ viewport: { width: 390, height: 844 } });
   let orderId;
+  let orderNumber;
 
   await step("store home lists active products only", async () => {
     await customer.goto(store);
@@ -46,20 +47,18 @@ export default async function phase2(browser) {
     expect(!(await customer.locator('input[name="website"]').isVisible()), "honeypot hidden");
   });
 
-  await step("typing a phone saves an abandoned cart, shown to the merchant", async () => {
+  await step("typing a phone saves an abandoned order, shown in the Abandoned tab", async () => {
     await customer.fill("#name", "كريم بن علي");
     await customer.fill("#phone", "0555 12 34 56");
     await customer.locator("#phone").blur();
     let lead;
     for (let i = 0; i < 20 && !lead; i++) {
-      [[lead]] = await db.query("SELECT * FROM leads WHERE shop_id = ?", [shopId]);
+      [[lead]] = await db.query("SELECT * FROM orders WHERE shop_id = ? AND status = 'abandoned'", [shopId]);
       if (!lead) await customer.waitForTimeout(150);
     }
-    expect(lead && lead.phone === "0555123456" && lead.name === "كريم بن علي", "lead saved with the normalized phone");
-    await owner.goto(`${orders}/abandoned`);
-    await owner.waitForSelector('[data-lead="0555123456"]');
-    await owner.click('[data-lead="0555123456"] button[aria-label="تم الاتصال"]');
-    await owner.locator('[data-lead="0555123456"]').getByText("تم الاتصال").filter({ visible: true }).waitFor();
+    expect(lead && lead.phone === "0555123456" && lead.customer_name === "كريم بن علي", "abandoned order saved with the normalized phone");
+    await owner.goto(`${orders}?status=abandoned`);
+    await owner.waitForSelector(`[data-order="${lead.number}"][data-status=abandoned]`);
   });
 
   await step("customer orders 2 pieces with the offer and wilaya delivery price", async () => {
@@ -69,13 +68,14 @@ export default async function phase2(browser) {
     await customer.selectOption("#commune", "بئر الجير");
     expect((await customer.locator("[data-testid=total]").innerText()).replace(/\s/g, "").includes("9200"), "total = 8500 + 700");
     await Promise.all([customer.waitForURL(/\/thanks\?o=/), customer.click("button[type=submit]")]);
-    expect((await customer.locator("[data-testid=order-number]").innerText()) === "#1001", "first order is #1001");
     orderId = new URL(customer.url()).searchParams.get("o");
     const [[order]] = await db.query("SELECT * FROM orders WHERE id = ?", [orderId]);
-    expect(order.total === 9200 && order.shipping_price === 700 && order.subtotal === 8500 && order.status === "new", "order totals saved");
+    expect(order.total === 9200 && order.shipping_price === 700 && order.subtotal === 8500 && order.status === "pending", "order totals saved");
+    expect(order.number === 1001 && (await customer.locator("[data-testid=order-number]").innerText()) === "#1001", "the abandoned checkout gives its number: #1001");
+    orderNumber = order.number;
     expect((await stockOf(black)) === 8, "stock taken (10 → 8)");
-    const [[lead]] = await db.query("SELECT status, order_id FROM leads WHERE shop_id = ?", [shopId]);
-    expect(lead.status === "converted" && lead.order_id === orderId, "abandoned cart converted");
+    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE shop_id = ? AND status = 'abandoned'", [shopId]);
+    expect(n === 0, "the abandoned order is dropped once the real one is placed");
   });
 
   await step("the same phone ordering the same product again is a duplicate", async () => {
@@ -88,49 +88,44 @@ export default async function phase2(browser) {
     await customer.waitForSelector("text=طلبك لهذا المنتج مسجل مسبقاً");
   });
 
-  await step("merchant sees the order, filters by status and finds it by phone", async () => {
+  await step("merchant sees the order in Pending, not in Confirmed, and finds it by phone", async () => {
     await owner.goto(orders);
-    await owner.waitForSelector('[data-order="1001"]');
-    expect((await owner.locator('[data-order="1001"]').innerText()).includes("جديد"), "status new");
+    await owner.waitForSelector(`[data-order="${orderNumber}"][data-status=pending]`);
+    expect((await owner.locator('[data-testid=status-tabs] [data-tab=pending] [data-count]').innerText()) === "1", "pending tab counts it");
     await owner.goto(`${orders}?status=confirmed`);
-    expect(!(await owner.locator('[data-order="1001"]').count()), "not in confirmed");
+    expect(!(await owner.locator(`[data-order="${orderNumber}"]`).count()), "not in confirmed");
     await owner.goto(`${orders}?q=555 12`);
-    await owner.waitForSelector('[data-order="1001"]');
+    await owner.waitForSelector(`[data-order="${orderNumber}"]`);
   });
 
   await step("cancelling returns the stock, reconfirming takes it again, history records it", async () => {
     await owner.goto(`${orders}/${orderId}`);
-    await owner.waitForSelector("text=طلب #1001");
-    await setCallStatus(owner, "cancelled");
-    await owner.waitForSelector('[data-testid=history] >> text=تغيير الحالة: جديد ← ملغى');
+    await owner.waitForSelector(`text=تعديل الطلب #${orderNumber}`);
+    await setOrderStatus(owner, "cancelled");
+    await owner.waitForSelector("[data-testid=history] >> text=تغيير الحالة: قيد الانتظار ← ملغاة");
     expect((await stockOf(black)) === 10, "stock back to 10");
-    await setCallStatus(owner, "confirmed");
-    await owner.waitForSelector('[data-testid=history] >> text=تغيير الحالة: ملغى ← مؤكد');
+    await setOrderStatus(owner, "confirmed");
+    await owner.waitForSelector("[data-testid=history] >> text=تغيير الحالة: ملغاة ← مؤكدة");
     expect((await stockOf(black)) === 8, "stock taken again");
-    expect(await owner.locator('[data-testid=history] >> text=Owner').count(), "history shows who changed it");
+    expect(await owner.locator("[data-testid=history] >> text=Owner").count(), "history shows who changed it");
   });
 
-  await step("editing the customer's details recomputes the total", async () => {
-    await owner.click("text=تعديل المعلومات");
-    await owner.selectOption("#commune", "السانية");
-    await owner.fill("#shippingPrice", "500");
-    await owner.locator("form:has(#commune) button[type=submit]").click();
-    await owner.waitForSelector("text=تم الحفظ");
-    expect((await owner.locator("[data-testid=order-total]").innerText()).replace(/\s/g, "").includes("9000"), "total = 8500 + 500");
-    const [[order]] = await db.query("SELECT commune, total FROM orders WHERE id = ?", [orderId]);
-    expect(order.commune === "Es Senia" && order.total === 9000, "saved");
+  await step("editing the order: commune, total and note are saved", async () => {
+    await owner.selectOption("#commune", "Es Senia");
+    await owner.fill("[data-testid=order-total-input]", "9000");
+    await owner.fill("textarea[name=note]", "اتصل بعد الساعة 6 مساءً");
+    await owner.click("[data-testid=save-order]");
+    let order;
+    for (let i = 0; i < 40 && order?.note !== "اتصل بعد الساعة 6 مساءً"; i++) {
+      if (i) await owner.waitForTimeout(150);
+      [[order]] = await db.query("SELECT commune, total, note FROM orders WHERE id = ?", [orderId]);
+    }
+    expect(order.commune === "Es Senia" && order.total === 9000 && order.note === "اتصل بعد الساعة 6 مساءً", `saved (got ${JSON.stringify(order)})`);
   });
 
-  await step("notes are added to the history and the box is cleared", async () => {
-    await owner.fill('textarea[name="note"]', "اتصل بعد الساعة 6 مساءً");
-    await owner.click('button:has-text("إضافة ملاحظة")');
-    await owner.waitForSelector("[data-testid=history] >> text=اتصل بعد الساعة 6 مساءً");
-    expect((await owner.inputValue('textarea[name="note"]')) === "", "note box cleared");
-  });
-
-  await step("a blocked phone cannot order; unblocking allows it again", async () => {
-    await owner.click('button:has-text("حظر الرقم")');
-    await owner.waitForSelector("text=هذا الرقم محظور");
+  await step("a blocked customer cannot order; unblocking allows it again", async () => {
+    await owner.click("[data-testid=block-customer]");
+    await owner.waitForSelector('[data-testid=block-customer]:has-text("إلغاء الحظر")');
     await customer.goto(`${store}/p/watch`);
     await customer.fill("#name", "كريم بن علي");
     await customer.fill("#phone", "0555123456");
@@ -138,8 +133,8 @@ export default async function phase2(browser) {
     await customer.selectOption("#commune", "باب الزوار");
     await customer.click("button[type=submit]");
     await customer.waitForSelector("text=تعذر تسجيل الطلب");
-    await owner.click('button:has-text("إلغاء الحظر")');
-    await owner.waitForSelector('button:has-text("حظر الرقم")');
+    await owner.click("[data-testid=block-customer]");
+    await owner.waitForSelector('[data-testid=block-customer]:has-text("حظر الزبون")');
   });
 
   await step("a call center agent can open and update orders", async () => {
@@ -150,7 +145,7 @@ export default async function phase2(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${orders}/${orderId}`);
-    await setCallStatus(p, "callback");
+    await setOrderStatus(p, "call_back");
     await p.waitForSelector("[data-testid=history] >> text=Test agent");
     await ctx.close();
   });

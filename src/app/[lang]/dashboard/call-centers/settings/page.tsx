@@ -24,7 +24,7 @@ export default async function AssignSettingsPage({ params }: PageProps<"/[lang]/
   // The orders still to confirm (the newest 200), to hand out by hand
   const o = schema.orders;
   const open = await db
-    .select({ id: o.id, number: o.number, customerName: o.customerName, phone: o.phone, wilayaCode: o.wilayaCode, status: o.status, callAttempts: o.callAttempts, assigneeName: schema.users.name, createdAt: o.createdAt })
+    .select({ id: o.id, number: o.number, customerName: o.customerName, phone: o.phone, wilayaCode: o.wilayaCode, status: o.status, assigneeName: schema.users.name, createdAt: o.createdAt })
     .from(o)
     .leftJoin(schema.users, eq(schema.users.id, o.assignedTo))
     .where(and(eq(o.shopId, shop.id), eq(o.locked, false), inArray(o.status, [...PENDING_STATUSES])))

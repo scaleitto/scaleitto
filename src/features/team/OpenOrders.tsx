@@ -1,11 +1,11 @@
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import { fmt, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { wilayaName } from "@/lib/wilayas";
 import { Badge, Card } from "@/ui";
 import { BulkAssignBar, SelectAllOrders } from "@/features/orders/BulkAssign";
 import { statusTone, type OrderStatus } from "@/features/orders/statuses";
 
-type Row = { id: string; number: number; customerName: string; phone: string; wilayaCode: number; status: OrderStatus; callAttempts: number; assigneeName: string | null; createdAt: Date };
+type Row = { id: string; number: number; customerName: string; phone: string; wilayaCode: number; status: OrderStatus; assigneeName: string | null; createdAt: Date };
 
 // Call centers → distribution: the orders still to confirm, to hand out by hand (to one member, or shared between agents).
 // The only place orders are distributed (the automatic rule is above it).
@@ -57,7 +57,6 @@ export function OpenOrders({ lang, rows, members, orderBase, t }: { lang: string
                     <td className="hidden p-3 text-muted md:table-cell">{wilayaName(r.wilayaCode, lang)}</td>
                     <td className="p-3">
                       <Badge tone={statusTone[r.status]}>{o.statuses[r.status]}</Badge>
-                      {r.callAttempts > 0 && <span className="ms-1 text-[11px] text-muted">{fmt(o.model.calls, { n: r.callAttempts })}</span>}
                     </td>
                     <td className="p-3 text-muted">{r.assigneeName ?? o.unassigned}</td>
                     <td className="hidden p-3 text-xs whitespace-nowrap text-muted sm:table-cell">{formatDate(r.createdAt, lang)}</td>

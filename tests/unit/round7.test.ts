@@ -12,12 +12,12 @@ test("order analysis: rates, step times (median) and couriers", () => {
     { id: "a", status: "delivered" as const, createdAt: h(0), carrier: "Yalidine", stage: "delivered" },
     { id: "b", status: "returned" as const, createdAt: h(0), carrier: "Yalidine", stage: "returned" },
     { id: "c", status: "cancelled" as const, createdAt: h(0), carrier: null, stage: null },
-    { id: "d", status: "new" as const, createdAt: h(0), carrier: null, stage: null },
-    { id: "e", status: "shipped" as const, createdAt: h(0), carrier: "ZR", stage: "pickup" },
+    { id: "d", status: "pending" as const, createdAt: h(0), carrier: null, stage: null },
+    { id: "e", status: "in_transit" as const, createdAt: h(0), carrier: "ZR", stage: "pickup" },
   ];
   const events = [
     { orderId: "a", toStatus: "confirmed", at: h(2) },
-    { orderId: "a", toStatus: "shipped", at: h(5) },
+    { orderId: "a", toStatus: "in_transit", at: h(5) },
     { orderId: "a", toStatus: "delivered", at: h(53) },
     { orderId: "b", toStatus: "confirmed", at: h(4) },
     { orderId: "e", toStatus: "confirmed", at: h(6) },

@@ -2,7 +2,7 @@
 // (balanced, on shift, manual), agents limited to their orders, activity time, performance and
 // schedule adherence, activity log.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step, setCallStatus } from "./helpers.mjs";
+import { BASE, createShop, db, expect, step, setOrderStatus } from "./helpers.mjs";
 
 // Algeria time now, as "HH:MM", shifted by some minutes
 function algeriaTime(offsetMinutes) {
@@ -110,7 +110,7 @@ export default async function phase6(browser) {
     await p.goto(`${orders}/${orderB}`);
     await p.waitForSelector("[data-testid=not-found]");
     await p.goto(`${orders}/${orderA}`);
-    await setCallStatus(p, "confirmed");
+    await setOrderStatus(p, "confirmed");
     await p.waitForSelector("[data-testid=history] >> text=أمين");
   });
 
@@ -147,7 +147,7 @@ export default async function phase6(browser) {
   await step("the activity log lists the team's actions with a link to the order", async () => {
     await owner.goto(`${cc}/activity`);
     const log = owner.locator("[data-testid=activity-log]");
-    await log.getByText("تغيير الحالة: جديد ← مؤكد").waitFor();
+    await log.getByText("تغيير الحالة: قيد الانتظار ← مؤكدة").waitFor();
     await log.locator("a", { hasText: "طلب #" }).first().waitFor();
   });
 
@@ -183,7 +183,7 @@ export default async function phase6(browser) {
     await owner.goto(cc);
     await owner.locator(`[data-member="${emails.b}"] button:has-text("تعطيل")`).click();
     await owner.locator(`[data-member="${emails.b}"]`).getByText("معطّل").waitFor();
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE assigned_to = ? AND status IN ('new','callback','no_answer','voicemail','remark')", [await userId(emails.b)]);
+    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE assigned_to = ? AND status IN ('pending','call_back')", [await userId(emails.b)]);
     expect(Number(n) === 0, "open orders released");
     // Signed out at once: the next page sends them to the login page
     await agentB.p.goto(orders);

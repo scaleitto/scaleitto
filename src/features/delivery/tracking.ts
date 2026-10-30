@@ -22,13 +22,6 @@ export async function trackShipment(shipment: Shipment, userId: string | null) {
     await tx.update(schema.shipments).set({ status, rawStatus: raw?.slice(0, 120) ?? null, checkedAt: new Date() }).where(eq(schema.shipments.id, shipment.id));
     const next = orderStatusFor(status);
     if (next) await applyOrderStatus(tx, shipment.shopId, shipment.orderId, next, userId, `${shipment.carrierName}: ${raw}`);
-    // A new stage on the way updates the delivery follow-up: suspended = postponed (Reportée), otherwise on its way.
-    // The same stage again keeps what the team chose (e.g. "no answer" after the courier's call).
-    else if (status !== shipment.status && status !== "unknown")
-      await tx
-        .update(schema.orders)
-        .set({ deliveryState: status === "suspended" ? "postponed" : "shipped" })
-        .where(and(eq(schema.orders.shopId, shipment.shopId), eq(schema.orders.id, shipment.orderId), eq(schema.orders.status, "shipped")));
   });
   return status;
 }

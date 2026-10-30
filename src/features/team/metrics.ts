@@ -88,8 +88,8 @@ export async function teamPerformance(shopId: string, team: TeamMember[], period
       actions: mine.reduce((s, x) => s + x.n, 0),
       confirmed,
       cancelled,
-      noAnswer: by("no_answer") + by("voicemail"),
-      callback: by("callback"),
+      noAnswer: by("call_back"),
+      callback: by("call_back"),
       notes: mine.filter((x) => x.type === "note").reduce((s, x) => s + x.n, 0),
       // Of the calls that ended in a decision, how many were confirmations
       confirmRate: pct(confirmed, confirmed + cancelled),

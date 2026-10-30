@@ -2,17 +2,17 @@
 import { algeriaParts } from "@/lib/time";
 import type { OrderStatus } from "@/server/db/schema";
 import type { Range } from "./range";
-import { PARCEL_STATUSES, isConfirmed, isPending, isRejected } from "@/features/orders/statuses";
+import { PARCEL_STATUSES, REFUSED_STATUSES, isConfirmed, isPending, isRejected } from "@/features/orders/statuses";
 
 export type OrderRow = { id: string; createdAt: Date; status: OrderStatus; subtotal: number; total: number; wilayaCode: number; landingPageId: string | null };
 export type ItemRow = { orderId: string; productId: string | null; name: string; quantity: number; total: number; costPrice: number | null };
 export type LeadRow = { createdAt: Date; status: string };
 
-const REFUSED_COUNTED = new Set<OrderStatus>(["cancelled", "fake", "wrong_number"]);
+const REFUSED_COUNTED = new Set<OrderStatus>(REFUSED_STATUSES);
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
 
-// cancelled = refusals that count against the confirmation rate (cancelled, fake order, wrong number);
-// duplicates are the same customer's other order: counted apart, left out of the rates.
+// cancelled = refusals that count against the confirmation rate (cancelled, flagged); abandoned checkouts are not orders
+// and never reach this function.
 type Counts = { orders: number; confirmed: number; pending: number; cancelled: number; fake: number; duplicate: number; shipped: number; delivered: number; returned: number; revenue: number; total: number };
 function counts(orders: OrderRow[]): Counts {
   const c: Counts = { orders: 0, confirmed: 0, pending: 0, cancelled: 0, fake: 0, duplicate: 0, shipped: 0, delivered: 0, returned: 0, revenue: 0, total: 0 };
@@ -22,8 +22,7 @@ function counts(orders: OrderRow[]): Counts {
     if (isConfirmed(o.status)) c.confirmed++;
     if (isPending(o.status)) c.pending++;
     if (REFUSED_COUNTED.has(o.status)) c.cancelled++;
-    if (o.status === "fake") c.fake++;
-    if (o.status === "duplicate") c.duplicate++;
+    if (o.status === "flagged") c.fake++;
     if ((PARCEL_STATUSES as readonly OrderStatus[]).includes(o.status)) c.shipped++;
     if (o.status === "delivered") {
       c.delivered++;
@@ -107,7 +106,7 @@ export function computeAnalytics(range: Range, allOrders: OrderRow[], items: Ite
       ...c,
       ...rates(c),
       averageOrder: c.orders ? Math.round(c.total / c.orders) : 0,
-      inDelivery: orders.filter((o) => o.status === "confirmed" || o.status === "shipped").reduce((s, o) => s + o.total, 0),
+      inDelivery: orders.filter((o) => o.status === "confirmed" || o.status === "in_transit").reduce((s, o) => s + o.total, 0),
       profit,
       costMissing,
       leads: leadsIn.length,

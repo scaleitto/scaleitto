@@ -9,12 +9,9 @@ export const sections = [
   { key: "overview", path: "", roles: managers },
   { key: "products", path: "products", roles: managers },
   { key: "inventory", path: "inventory", roles: managers },
-  // Orders: the list, then the parcel's life (ship → track → returns), abandoned carts, protection
+  // Orders: one page with a tab per status; Scan sends and receives parcels by their label
   { key: "orders", path: "orders", roles: all },
-  { key: "shipping", path: "orders/shipping", roles: all },
-  { key: "tracking", path: "orders/tracking", roles: all },
-  { key: "returns", path: "orders/returns", roles: all },
-  { key: "abandoned", path: "orders/abandoned", roles: all },
+  { key: "scan", path: "scan", roles: all },
   { key: "protection", path: "orders/protection", roles: managers },
   { key: "delivery", path: "delivery", roles: managers },
   { key: "finance", path: "finance", roles: ["owner"] },
@@ -42,9 +39,9 @@ export const navGroups = [
   { key: "main", items: [{ key: "overview" }] },
   {
     key: "sell",
-    items: [{ key: "products" }, { key: "orders", children: ["orders", "shipping", "tracking", "returns", "abandoned", "protection"] }, { key: "delivery" }, { key: "callCenters" }],
+    items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery" }, { key: "callCenters" }],
   },
-  { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps" }] },
+  { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps", children: ["apps", "protection"] }] },
   { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },
   { key: "account", items: [{ key: "plans" }, { key: "profile" }] },
 ] as const satisfies readonly { key: string; items: readonly NavEntry[] }[];

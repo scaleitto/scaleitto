@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -12,7 +12,7 @@ import { wilayas } from "@/lib/wilayas";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { applyOrderStatus } from "@/features/orders/transition";
-import { canTouchOrder, viewerOf } from "@/features/orders/access";
+import { canTouchOrder, viewerOf, visibleOrders } from "@/features/orders/access";
 import { carrierClient, CarrierError } from "./platforms";
 import type { Credentials } from "./platforms/types";
 import { findCarrier, normalizeEcotrackUrl, platformFields } from "./carriers";
@@ -166,7 +166,7 @@ export async function sendToCarrier(lang: string, orderId: string, accountId: st
         trackingNumber: created.trackingNumber,
         labelUrl: created.labelUrl ?? null,
       });
-      await applyOrderStatus(tx, shop.id, orderId, "shipped", user.id, `${carrierName}: ${created.trackingNumber}`);
+      await applyOrderStatus(tx, shop.id, orderId, "in_transit", user.id, `${carrierName}: ${created.trackingNumber}`);
     });
     refresh();
     return { ok: true, message: created.trackingNumber };
@@ -213,7 +213,7 @@ export async function addManualShipment(lang: string, orderId: string, _prev: Ac
     const id = newId();
     await db.transaction(async (tx) => {
       await tx.insert(schema.shipments).values({ id, shopId: shop.id, orderId, carrierAccountId: account?.id ?? null, carrierName, trackingNumber: d.trackingNumber });
-      await applyOrderStatus(tx, shop.id, orderId, "shipped", user.id, `${carrierName}: ${d.trackingNumber}`);
+      await applyOrderStatus(tx, shop.id, orderId, "in_transit", user.id, `${carrierName}: ${d.trackingNumber}`);
     });
     // First look at the company right away (its answer may already close the order); a silent failure waits for the cron
     if (account) {
@@ -255,43 +255,46 @@ export async function removeShipment(lang: string, orderId: string): Promise<Act
     await db.transaction(async (tx) => {
       await tx.delete(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
       const [order] = await tx.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-      if (order?.status === "shipped") await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id);
+      if (order?.status === "in_transit") await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id);
     });
     refresh();
     return { ok: true };
   });
 }
 
-// ─── Returns ──────────────────────────────────────────────
+// ─── Scan (dispatch / recuperate) ─────────────────────────
 
-// One action on a returned parcel (the Returns sub-section runs it order by order on the selection):
-// receive = the merchant has the parcel back; resend = the order goes back to "confirmed" to be sent again (the old
-// parcel is noted in the history); cancel = the order is closed as cancelled.
-export async function handleReturn(lang: string, orderId: string, kind: "receive" | "resend" | "cancel"): Promise<ActionState> {
-  return safeAction("delivery/return", async () => {
-    const ctx = await requireSection(asLocale(lang), "returns");
+// One scanned label: the code is a tracking number or an order number (#1001). Dispatch = a confirmed order leaves
+// with the courier (in transit); recuperate = a parcel coming back is received (returned, pieces back in stock).
+export async function scanParcel(lang: string, mode: "dispatch" | "recuperate", rawCode: string): Promise<ActionState & { number?: number }> {
+  return safeAction("delivery/scan", async () => {
+    const ctx = await requireSection(asLocale(lang), "scan");
     const { shop, user } = ctx;
-    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    const [order] = await db.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-    if (!order) return { ok: false, error: "notFound" };
-    if (order.status !== "returned") return { ok: false, error: "notReturned" };
-    const [shipment] = await db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
-    await db.transaction(async (tx) => {
-      if (kind === "receive") {
-        if (shipment && !shipment.returnReceivedAt) {
-          await tx.update(schema.shipments).set({ returnReceivedAt: new Date() }).where(eq(schema.shipments.id, shipment.id));
-          await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "note", note: `↩ ${shipment.carrierName} ${shipment.trackingNumber}` });
+    const code = rawCode.trim().replace(/^#/, "").slice(0, 80);
+    if (!code) return { ok: false, error: "notFound" };
+    const o = schema.orders;
+    const [found] = await db
+      .select({ id: o.id, number: o.number, status: o.status, shipmentId: schema.shipments.id, received: schema.shipments.returnReceivedAt, carrier: schema.shipments.carrierName, tracking: schema.shipments.trackingNumber })
+      .from(o)
+      .leftJoin(schema.shipments, eq(schema.shipments.orderId, o.id))
+      .where(and(visibleOrders(viewerOf(ctx)), or(eq(schema.shipments.trackingNumber, code), /^\d+$/.test(code) ? eq(o.number, Number(code)) : undefined)))
+      .limit(1);
+    if (!found || !(await canTouchOrder(viewerOf(ctx), found.id))) return { ok: false, error: "notFound" };
+    if (mode === "dispatch") {
+      if (found.status === "in_transit") return { ok: false, error: "already", number: found.number };
+      if (found.status !== "confirmed") return { ok: false, error: "notConfirmed", number: found.number };
+      await db.transaction((tx) => applyOrderStatus(tx, shop.id, found.id, "in_transit", user.id, "⌁"));
+    } else {
+      if (found.received || (found.status === "returned" && !found.shipmentId)) return { ok: false, error: "already", number: found.number };
+      if (found.status !== "in_transit" && found.status !== "returned") return { ok: false, error: "notReturned", number: found.number };
+      await db.transaction(async (tx) => {
+        if (found.status !== "returned") await applyOrderStatus(tx, shop.id, found.id, "returned", user.id, "⌁");
+        if (found.shipmentId) {
+          await tx.update(schema.shipments).set({ returnReceivedAt: new Date() }).where(eq(schema.shipments.id, found.shipmentId));
+          await tx.insert(schema.orderEvents).values({ id: newId(), orderId: found.id, shopId: shop.id, userId: user.id, type: "note", note: `↩ ${found.carrier} ${found.tracking}` });
         }
-      } else if (kind === "resend") {
-        if (shipment) await tx.delete(schema.shipments).where(eq(schema.shipments.id, shipment.id));
-        await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id, shipment ? `↩ ${shipment.carrierName}: ${shipment.trackingNumber}` : undefined);
-        // Traitement: the parcel is sent again (Injectée)
-        await tx.update(schema.orders).set({ processing: "reinjected" }).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-      } else {
-        await applyOrderStatus(tx, shop.id, orderId, "cancelled", user.id);
-      }
-    });
-    refresh();
-    return { ok: true };
+      });
+    }
+    return { ok: true, number: found.number };
   });
 }

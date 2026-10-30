@@ -1,72 +1,50 @@
-import type { DeliveryFault, DeliveryState, ProcessingState, ShipmentStatus } from "@/server/db/schema";
-import { PARCEL_STATUSES, PENDING_STATUSES, type OrderStatus } from "./statuses";
+import { isOrderStatus, statusTabs, type OrderStatus } from "./statuses";
 
-// The order lists of the Orders section, one per sub-section, each feeding the next:
-//   all     = Orders list (Statut de la commande chips, + "suspicious" = still to confirm at or above the risk threshold)
-//   ship    = Send to couriers (Injection: confirmed and not injected yet / injected = sent, still on its way)
-//   transit = Parcel tracking (every sent parcel, by the courier's stage)
-//   returns = Returns (parcels on their way back, returned, received)
-export const orderViews = ["all", "risk", "ship", "transit", "returns"] as const;
-export type OrderView = (typeof orderViews)[number];
-export const isOrderView = (v: unknown): v is OrderView => orderViews.includes(v as OrderView);
-
-// Returns sub-section filter: on the way back, back at the courier (to collect), received
-export const returnStates = ["back", "pending", "received"] as const;
-export type ReturnState = (typeof returnStates)[number];
-// Send to couriers: not injected yet (confirmed, no parcel) / injected (parcel created, on its way)
-export const injectionStates = ["pending", "done"] as const;
-export type InjectionState = (typeof injectionStates)[number];
-
-// Parcel tracking chips: the courier's stages in the order of the Ecotrack screen, with "returns" grouping the parcels on
-// their way back and the returned ones. Names are the courier's own (French) words.
-export const trackingStages = ["ready", "pickup", "to_station", "at_station", "to_wilaya", "preparing", "out_for_delivery", "suspended", "delivered", "returns", "deleted", "cancelled", "to_delete"] as const;
-export type TrackingStage = (typeof trackingStages)[number];
-export const stageNames: Record<TrackingStage, string> = {
-  ready: "Prêt à expédier",
-  pickup: "En ramassage",
-  to_station: "Vers Station",
-  at_station: "En Station",
-  to_wilaya: "Vers Wilaya",
-  preparing: "En preparation",
-  out_for_delivery: "En livraison",
-  suspended: "Suspendus",
-  delivered: "Livrés",
-  returns: "Retours",
-  deleted: "Colis Supprimés",
-  cancelled: "Colis Annulés",
-  to_delete: "Colis à supprimer",
-};
-export const stageShipments = (stage: TrackingStage): ShipmentStatus[] => (stage === "returns" ? ["returning", "returned"] : [stage]);
-export const isTrackingStage = (v: unknown): v is TrackingStage => trackingStages.includes(v as TrackingStage);
-
-export const viewStatuses: Record<OrderView, readonly OrderStatus[] | null> = {
-  all: null,
-  risk: PENDING_STATUSES,
-  ship: null,
-  transit: PARCEL_STATUSES,
-  returns: null,
-};
-
-// Rows per page the merchant can choose (bigger pages for bulk sending)
-export const pageSizes = [25, 50, 100, 200] as const;
-
-// Filters of the orders lists, read from the address bar
+// The orders page's filters, read from the address bar: the status tab, the search box and the filter dialog
+// (product, agent, payment, wilaya, dates).
 export type OrderFilters = {
-  view: OrderView;
+  status: OrderStatus;
   q: string;
-  status?: OrderStatus;
-  stage?: TrackingStage;
-  ret?: ReturnState;
-  inj?: InjectionState;
-  ds?: DeliveryState;
-  fault?: DeliveryFault;
-  proc?: ProcessingState;
-  fin?: "delivered" | "returned";
+  product?: string;
+  // a member's id, "none" (nobody) or "me"
+  agent?: string;
   wilaya?: number;
-  delivery?: "home" | "office";
   from?: string;
   to?: string;
-  assignee?: string;
   page: number;
   size: number;
 };
+
+export const pageSizes = [25, 50, 100] as const;
+const day = /^\d{4}-\d{2}-\d{2}$/;
+
+type Search = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+export function parseOrderFilters(sp: Search): OrderFilters {
+  const status = one(sp.status);
+  const wilaya = Number(one(sp.wilaya));
+  const size = Number(one(sp.size));
+  return {
+    status: isOrderStatus(status) ? status : statusTabs[0],
+    q: one(sp.q).trim().slice(0, 100),
+    product: one(sp.product) || undefined,
+    agent: one(sp.agent) || undefined,
+    wilaya: Number.isInteger(wilaya) && wilaya > 0 ? wilaya : undefined,
+    from: day.test(one(sp.from)) ? one(sp.from) : undefined,
+    to: day.test(one(sp.to)) ? one(sp.to) : undefined,
+    page: Math.max(1, Number(one(sp.page)) || 1),
+    size: (pageSizes as readonly number[]).includes(size) ? size : pageSizes[0],
+  };
+}
+
+// The address of the same list with some filters changed (defaults left out)
+export function filtersHref(base: string, f: OrderFilters, patch: Partial<Record<keyof OrderFilters, string | number | undefined>>) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries({ ...f, ...patch })) {
+    if (v === undefined || v === "" || (k === "page" && v === 1) || (k === "size" && v === pageSizes[0]) || (k === "status" && v === statusTabs[0])) continue;
+    params.set(k, String(v));
+  }
+  const s = params.toString();
+  return s ? `${base}?${s}` : base;
+}
