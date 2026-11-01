@@ -115,19 +115,20 @@ export default async function phase0(browser) {
     await Promise.all([page.waitForURL("**/ar/dashboard"), page.click("button[type=submit]")]);
   });
 
-  await step("call center agent only sees orders, scan, call centers and profile", async () => {
+  await step("call center agents work in their portal: Dashboard, Orders, Log out", async () => {
     const shopId = (await db.query("SELECT id FROM shops WHERE slug = ?", [owner.slug]))[0][0].id;
     const agent = await createSession({ shopId, role: "agent", email: `agent-${id}@test.dz` });
     const ctx = await browser.newContext();
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${BASE}/ar/dashboard`);
-    await p.waitForURL("**/ar/dashboard/orders");
+    await p.waitForURL((u) => u.pathname === "/ar/call-center");
     const labels = await p.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
-    expect(labels.join() === "orders,scan,callCenters,profile", `4 links (got ${labels.join(", ")})`);
-    for (const blocked of ["products", "plans", "settings"]) {
+    expect(labels.join() === "overview,orders", `2 pages (got ${labels.join(", ")})`);
+    expect(await p.locator("aside [data-testid=nav-logout]").count(), "log out in the menu");
+    for (const blocked of ["products", "plans", "settings", "scan", "call-centers", "profile"]) {
       await p.goto(`${BASE}/ar/dashboard/${blocked}`);
-      await p.waitForURL("**/ar/dashboard/orders");
+      await p.waitForURL((u) => u.pathname === "/ar/call-center");
     }
     await ctx.close();
   });

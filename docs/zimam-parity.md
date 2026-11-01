@@ -29,6 +29,14 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    their orders through a signed address; YouCan, LightFunnels, Orderdz, Storeep shown as coming until their formats are
    verified), Team page (invite by email with a role, counter against the staff limit, pending invitations, acceptance
    page). The call center keeps its agents, schedules and distribution.
+   **Call center like Zimam** (phase31.mjs, before phase 7): the owner's page shows the agents as cards (headset avatar,
+   online dot, name, @username, email, created date; edit schedule / role, reset password, deactivate) with "Add agent" →
+   "Create new agent" (full name, optional email, username, password) and the portal link with the store ID. Agents
+   work in their own portal `/[lang]/call-center` (sign-in with store ID + username + password; sidebar Dashboard /
+   Orders / Log out; dashboard = today assigned / confirmed, 7-day assigned vs confirmed, confirmation rate, totals;
+   orders = the same orders page with their orders only, no agent column, no scan/shipping). The other call-center tabs
+   (performance, activity, settings with distribution and messages) stay for now; they move to Zimam's places
+   (analytics → call center tab, apps) in phases 7–8. Not built: push and Telegram notification cards.
 6. **Landing pages** — done (phase30.mjs): stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.
    Built: list (total / live / draft / views, status + product filters, sort, list or grid remembered, create window:
    design manually = blank page with the form, or the AI builder), builder (components palette, page order, suggestions

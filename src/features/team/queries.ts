@@ -11,6 +11,7 @@ export async function listTeam(shopId: string) {
       email: schema.users.email,
       phone: schema.users.phone,
       role: schema.shopMembers.role,
+      username: schema.shopMembers.username,
       active: schema.shopMembers.active,
       schedule: schema.shopMembers.schedule,
       createdAt: schema.shopMembers.createdAt,

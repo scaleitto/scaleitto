@@ -1,19 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Clock, KeyRound, Pencil, Power, UserPlus } from "lucide-react";
+import { Clock, Copy, Headset, KeyRound, Pencil, Plus, Power, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
+import { fmt } from "@/lib/format";
 import type { MemberRole, WorkSchedule } from "@/server/db/schema";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { addMember, resetMemberPassword, setMemberActive, updateMember } from "./actions";
+import { isInternalEmail } from "./validators";
+import { useModal } from "@/ui/useModal";
 
 export type TeamText = Pick<Dictionary, "team" | "profile" | "errors" | "common">;
 export type MemberRow = {
   userId: string;
   name: string;
   email: string;
+  username: string | null;
+  created: string;
   role: MemberRole;
   active: boolean;
   schedule: WorkSchedule | null;
@@ -23,40 +28,87 @@ export type MemberRow = {
 
 const errorsOf = (t: TeamText) => t.errors as Record<string, string>;
 
-function AddMemberForm({ lang, t, canAddManager, onDone }: { lang: string; t: TeamText; canAddManager: boolean; onDone: () => void }) {
-  const tm = t.team;
+// "Create New Agent" (Zimam): full name, optional email, username and password; the agent signs in to the portal
+function AddAgentDialog({ lang, t, onDone }: { lang: string; t: TeamText; onDone: () => void }) {
+  const ag = t.team.agents;
   const e = errorsOf(t);
+  const ref = useModal();
+  const [round, setRound] = useState(0);
   const { state, pending, onSubmit } = useActionForm(async (prev: ActionState, fd: FormData) => {
     const r = await addMember(lang, prev, fd);
-    if (r.ok) onDone();
+    if (r.ok) {
+      ref.current?.close();
+      setRound((n) => n + 1);
+      onDone();
+    }
     return r;
   });
   return (
-    <Card>
-      <form onSubmit={onSubmit} noValidate className="space-y-4" data-testid="add-member">
-        <p className="text-sm text-muted">{tm.addHint}</p>
-        <FormMessage state={state} errors={e} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={tm.name} htmlFor="m-name" error={fieldError(state, e, "name")}>
-            <Input id="m-name" name="name" />
+    <>
+      <Button type="button" onClick={() => ref.current?.showModal()} data-testid="add-agent">
+        <Plus size={16} /> {ag.add}
+      </Button>
+      <dialog ref={ref} className="m-auto w-[min(460px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="agent-dialog">
+        <form key={round} onSubmit={onSubmit} noValidate className="space-y-4 p-5" data-testid="add-member">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold">{ag.dialogTitle}</h2>
+            <button type="button" aria-label={ag.cancel} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => ref.current?.close()}>
+              <X size={18} />
+            </button>
+          </div>
+          <FormMessage state={state} errors={e} />
+          <Field label={`${ag.fullName} *`} htmlFor="m-name" error={fieldError(state, e, "name")}>
+            <Input id="m-name" name="name" autoComplete="off" />
           </Field>
-          <Field label={tm.email} htmlFor="m-email" error={fieldError(state, e, "email")}>
+          <Field label={ag.email} htmlFor="m-email" error={fieldError(state, e, "email")}>
             <Input id="m-email" name="email" type="email" dir="ltr" autoComplete="off" />
           </Field>
-          <Field label={tm.role} htmlFor="m-role">
-            <Select id="m-role" name="role" defaultValue="agent">
-              <option value="agent">{t.profile.roles.agent}</option>
-              {canAddManager && <option value="manager">{t.profile.roles.manager}</option>}
-            </Select>
+          <Field label={`${ag.username} *`} htmlFor="m-username" hint={ag.usernameHint} error={fieldError(state, e, "username")}>
+            <Input id="m-username" name="username" dir="ltr" autoComplete="off" autoCapitalize="none" />
           </Field>
-          <Field label={tm.password} htmlFor="m-password" hint={tm.passwordHint} error={fieldError(state, e, "password")}>
-            <Input id="m-password" name="password" dir="ltr" autoComplete="new-password" />
+          <Field label={`${ag.password} *`} htmlFor="m-password" hint={ag.passwordHint} error={fieldError(state, e, "password")}>
+            <Input id="m-password" name="password" type="password" dir="ltr" autoComplete="new-password" />
           </Field>
-        </div>
-        <SubmitButton pending={pending} pendingText={t.common.loading}>
-          <UserPlus size={16} /> {tm.addMember}
-        </SubmitButton>
-      </form>
+          <div className="flex justify-end gap-2 border-t border-line pt-4">
+            <Button type="button" variant="secondary" onClick={() => ref.current?.close()}>
+              {ag.cancel}
+            </Button>
+            <SubmitButton pending={pending} pendingText={t.common.loading} data-testid="create-agent">
+              {ag.create}
+            </SubmitButton>
+          </div>
+        </form>
+      </dialog>
+    </>
+  );
+}
+
+// Where agents sign in: the portal link (with the store ID filled) and the store ID itself
+function PortalLink({ url, storeId, t }: { url: string; storeId: string; t: TeamText }) {
+  const ag = t.team.agents;
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (key: string, text: string) => {
+    void navigator.clipboard?.writeText(text);
+    setCopied(key);
+  };
+  return (
+    <Card className="flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="portal-link">
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-sm font-semibold">{ag.portalTitle}</p>
+        <p className="text-xs text-muted">{ag.portalHint}</p>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+        <span className="text-xs text-muted">{ag.storeId}</span>
+        <code className="rounded-md bg-panel-2 px-2 py-1 font-semibold" dir="ltr" data-testid="store-id">
+          {storeId}
+        </code>
+        <a href={url} target="_blank" rel="noreferrer" className="max-w-72 truncate text-xs font-medium text-accent hover:underline" dir="ltr">
+          {url}
+        </a>
+        <Button type="button" variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => copy("url", url)}>
+          <Copy size={14} /> {copied === "url" ? ag.copied : ag.copy}
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -120,25 +172,38 @@ function MemberCard({ lang, member, t, viewer }: { lang: string; member: MemberR
   const password = useActionForm(resetMemberPassword.bind(null, lang, member.userId));
 
   return (
-    <Card className={`space-y-3 ${member.active ? "" : "opacity-60"}`} data-member={member.email}>
+    <Card className={`space-y-3 ${member.active ? "" : "opacity-60"}`} data-member={member.email} data-username={member.username ?? undefined}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="flex flex-wrap items-center gap-2 font-semibold">
-            <span className={`size-2.5 rounded-full ${member.online ? "bg-accent" : "bg-line"}`} title={member.online ? tm.online : undefined} />
-            {member.name}
-            {isSelf && <span className="text-xs text-muted">({tm.you})</span>}
-            <Badge tone={member.role === "agent" ? "info" : member.role === "owner" ? "accent" : "neutral"}>{t.profile.roles[member.role]}</Badge>
-            {!member.active && <Badge tone="danger">{tm.inactive}</Badge>}
-          </p>
-          <p className="truncate text-xs text-muted" dir="ltr">
-            {member.email}
-          </p>
-          <p className="flex items-center gap-1.5 text-xs text-muted">
-            <Clock size={13} /> {scheduleSummary(member.schedule, t)}
-          </p>
-          <p className="text-xs text-muted" data-testid="presence">
-            {member.online ? tm.online : member.presence}
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-bright text-white shadow-[0_8px_18px_-10px_var(--color-accent)]">
+            <Headset size={22} aria-hidden />
+            <span className={`absolute -end-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-panel ${member.online ? "bg-emerald-500" : "bg-line"}`} title={member.online ? tm.online : undefined} data-online={member.online} />
+          </span>
+          <div className="min-w-0 space-y-0.5">
+            <p className="flex flex-wrap items-center gap-2 font-semibold">
+              {member.name}
+              {isSelf && <span className="text-xs text-muted">({tm.you})</span>}
+              {member.role !== "agent" && <Badge tone={member.role === "owner" ? "accent" : "neutral"}>{t.profile.roles[member.role]}</Badge>}
+              {!member.active && <Badge tone="danger">{tm.inactive}</Badge>}
+            </p>
+            {member.username && (
+              <p className="text-sm text-muted" dir="ltr" data-testid="member-username">
+                @{member.username}
+              </p>
+            )}
+            {!isInternalEmail(member.email) && (
+              <p className="truncate text-xs text-muted" dir="ltr">
+                {member.email}
+              </p>
+            )}
+            <p className="text-[11px] font-semibold tracking-wide text-muted uppercase">{fmt(t.team.agents.created, { at: member.created })}</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted">
+              <Clock size={13} /> {scheduleSummary(member.schedule, t)}
+            </p>
+            <p className="text-xs text-muted" data-testid="presence">
+              {member.online ? tm.online : member.presence}
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1">
           {editable && (
@@ -208,33 +273,28 @@ function MemberCard({ lang, member, t, viewer }: { lang: string; member: MemberR
   );
 }
 
-export function TeamManager({ lang, members, viewer, t }: { lang: string; members: MemberRow[]; viewer: { userId: string; role: MemberRole }; t: TeamText }) {
-  const [adding, setAdding] = useState(false);
+export function TeamManager({ lang, members, viewer, portal, t }: { lang: string; members: MemberRow[]; viewer: { userId: string; role: MemberRole }; portal: { url: string; storeId: string }; t: TeamText }) {
   const [added, setAdded] = useState(false);
+  const ag = t.team.agents;
+  // The owner manages the store from the dashboard; the cards are the people who answer the phone (and managers)
+  const people = members.filter((m) => m.role !== "owner");
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setAdding(!adding)}>
-          <UserPlus size={16} /> {t.team.addMember}
-        </Button>
+    <div className="space-y-4" data-testid="call-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">{ag.title}</h2>
+        <AddAgentDialog lang={lang} t={t} onDone={() => setAdded(true)} />
       </div>
       {added && <Alert variant="success">{t.team.added}</Alert>}
-      {adding && (
-        <AddMemberForm
-          lang={lang}
-          t={t}
-          canAddManager={viewer.role === "owner"}
-          onDone={() => {
-            setAdding(false);
-            setAdded(true);
-          }}
-        />
+      <PortalLink url={portal.url} storeId={portal.storeId} t={t} />
+      {people.length === 0 ? (
+        <Card className="py-10 text-center text-sm text-muted">{ag.none}</Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {people.map((m) => (
+            <MemberCard key={m.userId} lang={lang} member={m} t={t} viewer={viewer} />
+          ))}
+        </div>
       )}
-      <div className="grid gap-3 lg:grid-cols-2">
-        {members.map((m) => (
-          <MemberCard key={m.userId} lang={lang} member={m} t={t} viewer={viewer} />
-        ))}
-      </div>
     </div>
   );
 }

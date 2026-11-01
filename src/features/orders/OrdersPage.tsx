@@ -27,7 +27,8 @@ type Search = Record<string, string | string[] | undefined>;
 // The orders page (Zimam's): a tab per status with its count, the toolbar (filter, export, refresh, search, scan, new
 // order), the table edited in place, and the bulk tools of the tab (status for all; sending in Confirmed; tracking in
 // In transit).
-export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchParams: Search }) {
+// portal = the agents' portal (Zimam's call center: no scan link, no courier tools, no agent column)
+export async function OrdersPage({ lang, searchParams, portal = false }: { lang: Locale; searchParams: Search; portal?: boolean }) {
   const t = getDictionary(lang);
   const p = t.orderPage;
   const ctx = await requireSection(lang, "orders");
@@ -46,7 +47,7 @@ export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchP
     getShippingRates(shop.id),
     protectionFor(shop.id),
   ]);
-  const base = sectionHref(lang, "orders");
+  const base = portal ? `/${lang}/call-center/orders` : sectionHref(lang, "orders");
   const href = (patch: Parameters<typeof filtersHref>[2]) => filtersHref(base, f, patch);
   const pages = Math.max(1, Math.ceil(total / size));
   const carrierAccounts = accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault, options: a.options }));
@@ -56,8 +57,8 @@ export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchP
   return (
     <>
       <PageHeader
-        title={t.nav.items.orders}
-        description={t.orders.viewHints.all}
+        title={portal ? t.portal.ordersTitle : t.nav.items.orders}
+        description={portal ? undefined : t.orders.viewHints.all}
         actions={<NewOrderButton lang={lang} products={products} rates={rates} wilayas={wilayaList} accounts={carrierAccounts} members={members} t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }} />}
       />
 
@@ -89,9 +90,11 @@ export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchP
           <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
           <input name="q" defaultValue={f.q} placeholder={p.search} className={`${inputClass} ps-9`} data-testid="order-search" />
         </form>
+{!portal && (
         <Link href={sectionHref(lang, "scan")} className={buttonClass("secondary")} data-testid="scan-link">
           <ScanLine size={15} /> {p.scan}
         </Link>
+        )}
       </Card>
 
       {rows.length > 0 && (
@@ -100,9 +103,9 @@ export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchP
             <SelectionTools t={t} />
             <BulkStatus lang={lang} t={t} />
           </div>
-          {f.status === "confirmed" && <ShipPanel lang={lang} accounts={carrierAccounts} deliveryHref={canAssign ? sectionHref(lang, "delivery") : null} t={tools} />}
-          {f.status === "in_transit" && <TrackPanel lang={lang} t={tools} />}
-          {(f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}
+          {!portal && f.status === "confirmed" && <ShipPanel lang={lang} accounts={carrierAccounts} deliveryHref={canAssign ? sectionHref(lang, "delivery") : null} t={tools} />}
+          {!portal && f.status === "in_transit" && <TrackPanel lang={lang} t={tools} />}
+          {!portal && (f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}
         </div>
       )}
 

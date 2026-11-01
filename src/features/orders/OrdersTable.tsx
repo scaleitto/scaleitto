@@ -94,7 +94,7 @@ export function OrdersTable({
                   }}
                 />
               </th>
-              {(["id", "product", "qty", "amount", "status", "type", "client", "address", "agent", "delivery", "note"] as const).map((k) => (
+              {(["id", "product", "qty", "amount", "status", "type", "client", "address", "agent", "delivery", "note"] as const).filter((k) => canAssign || k !== "agent").map((k) => (
                 <th key={k} className="px-2 py-3 text-start">
                   {p.cols[k]}
                 </th>
@@ -201,6 +201,7 @@ export function OrdersTable({
                   <p className="truncate font-medium">{r.wilaya}</p>
                   <p className="truncate text-xs text-muted">{r.commune}</p>
                 </td>
+                {canAssign && (
                 <td className="px-2 py-2">
                   {canAssign ? (
                     <select value={r.assignedTo ?? ""} disabled={r.locked} aria-label={p.cols.agent} data-field="agent" className={`${selectCell} w-36`} onChange={(e) => field(r.id, "agent", e.target.value)}>
@@ -215,6 +216,7 @@ export function OrdersTable({
                     <span className="text-muted">{memberName(r.assignedTo) ?? (r.assignedTo ? "✓" : p.notAssigned)}</span>
                   )}
                 </td>
+                )}
                 <td className="px-2 py-2">
                   {r.trackingNumber ? (
                     <div className="min-w-0 text-xs">

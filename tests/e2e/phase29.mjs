@@ -92,7 +92,7 @@ export default async function phase29(browser) {
     expect((await owner.locator("[data-testid=team-count]").innerText()).includes("2 / 4"), "the invitation counts");
   });
 
-  await step("the invited person joins from the link and lands on the orders", async () => {
+  await step("the invited agent joins from the link and lands in the call-center portal", async () => {
     const link = lastLink(email);
     const ctx = await browser.newContext();
     const p = await ctx.newPage();
@@ -103,7 +103,7 @@ export default async function phase29(browser) {
     await p.click("[data-testid=invite-accept-submit]");
     await p.getByText("كلمة المرور قصيرة").waitFor();
     await p.fill("#password", "a-good-password-1");
-    await Promise.all([p.waitForURL("**/ar/dashboard/orders"), p.click("[data-testid=invite-accept-submit]")]);
+    await Promise.all([p.waitForURL((u) => u.pathname === "/ar/call-center"), p.click("[data-testid=invite-accept-submit]")]);
     const [[m]] = await db.query("SELECT m.role FROM shop_members m JOIN users u ON u.id = m.user_id WHERE m.shop_id = ? AND u.email = ?", [shopId, email]);
     expect(m.role === "agent", "member as agent");
     // The link works once

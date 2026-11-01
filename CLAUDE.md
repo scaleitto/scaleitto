@@ -323,6 +323,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `LandingSections editing selected` wraps blocks in `data-sid` and a click selects; `section-panel` with `SectionFields`), top bar
   save state / history (`landing_versions`, last 20, `listVersions` / `getVersion`) / discard / publish. New section types
   `announcement` and `spacer`. Modals use `ui/useModal` (closes on leaving the page: Next keeps the previous page mounted).
+- Call center like Zimam (phase31.mjs): agents have `shop_members.username` (unique per shop) and sign in at
+  `/[lang]/call-center/login` (store slug or domain + username or email + password, `team/portal.ts agentLogin`); the portal
+  (`app/[lang]/call-center/(portal)`, `requireAgent`) reuses `DashboardShell` (`logoutInNav`) with Dashboard (`team/agent-overview.ts`
+  + pure `agent-stats.ts`, `AgentDashboard.tsx`) and Orders (`OrdersPage portal`, `OrderDetailPage`). Agents reach no dashboard
+  page: `requireSection` sends them to the portal (only order actions accept them); dashboard order URLs redirect there.
+  Owner page = `TeamManager` (agent cards, `AddAgentDialog`: email optional → internal `@agents.invalid` address, hidden).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

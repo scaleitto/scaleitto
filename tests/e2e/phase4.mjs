@@ -92,7 +92,7 @@ export default async function phase4(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(editor);
-    await p.waitForURL("**/ar/dashboard/orders");
+    await p.waitForURL((u) => u.pathname === "/ar/call-center");
     await ctx.close();
   });
 

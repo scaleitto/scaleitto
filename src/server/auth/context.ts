@@ -55,7 +55,18 @@ export async function requireShop(locale: string): Promise<ShopContext> {
 // Pages AND their server actions call this (layouts render in parallel with pages).
 export async function requireSection(locale: string, key: SectionKey): Promise<ShopContext> {
   const ctx = await requireShop(locale);
+  // Agents work in their own portal (Zimam's call-center portal); only order actions accept them
+  if (ctx.role === "agent" && key !== "orders") redirect(agentHome(locale));
   if (!canAccess(ctx.role, key)) redirect(sectionHref(locale, homeSection(ctx.role).key));
+  return ctx;
+}
+
+// The call-center agents' portal (/[lang]/call-center): its own sign-in page, dashboard and orders
+export const agentHome = (locale: string) => `/${locale}/call-center`;
+export async function requireAgent(locale: string): Promise<ShopContext> {
+  if (!(await getCurrentUser())) redirect(`${agentHome(locale)}/login`);
+  const ctx = await requireShop(locale);
+  if (ctx.role !== "agent") redirect(sectionHref(locale, homeSection(ctx.role).key));
   return ctx;
 }
 

@@ -17,15 +17,16 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
   const t = getDictionary(lang);
   const ctx = await requireShop(lang);
   const { shop, user, role } = ctx;
-  const agent = role === "agent";
+  // Agents work in their portal: no dashboard shell; each page sends them to its portal page (order links keep their id)
+  if (role === "agent") return children;
   const s = t.shell;
-  // Locked orders / a limit past its alert threshold (agents are not concerned)
+  // Locked orders / a limit past its alert threshold
   const [notice, plan, rule, used, [waiting]] = await Promise.all([
-    agent ? null : planNotice(shop.id),
-    agent ? null : getCurrentPlan(shop.id),
-    agent ? null : orderRule(shop.id),
-    agent ? 0 : getUsage(shop.id, "maxOrdersPerMonth"),
-    // The bell: new orders waiting for a call (an agent: theirs)
+    planNotice(shop.id),
+    getCurrentPlan(shop.id),
+    orderRule(shop.id),
+    getUsage(shop.id, "maxOrdersPerMonth"),
+    // The bell: new orders waiting for a call
     db
       .select({ n: count() })
       .from(schema.orders)
@@ -47,8 +48,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
       <DashboardShell
         lang={lang}
         brand={t.brand}
-        // Call center agents work on orders only: no link to the store they do not manage
-        store={agent ? undefined : { name: shop.name, host: url.replace(/^https?:\/\//, ""), href: url, settingsHref: sectionHref(lang, "settings") }}
+        store={{ name: shop.name, host: url.replace(/^https?:\/\//, ""), href: url, settingsHref: sectionHref(lang, "settings") }}
         user={{ name: user.name, role: t.profile.roles[role] }}
         sections={navFor(role).map((g) => ({
           key: g.key,

@@ -22,11 +22,11 @@ test("owners see everything; managers all but plans and finance", () => {
   assert.equal(sectionsFor("manager").length, sections.length - 2);
 });
 
-test("call center agents only get orders, scan, call centers and profile", () => {
+test("call center agents only reach orders (they work in their own portal)", () => {
   const nav = navFor("agent");
-  assert.deepEqual(nav.map((g) => g.key), ["sell", "account"]);
-  assert.deepEqual(nav[0].items.map((e) => e.key), ["orders", "scan", "callCenters"]);
-  assert.ok(!canAccess("agent", "protection"));
+  assert.deepEqual(nav.map((g) => g.key), ["sell"]);
+  assert.deepEqual(nav[0].items.map((e) => e.key), ["orders"]);
+  for (const k of ["protection", "scan", "callCenters", "profile"] as const) assert.ok(!canAccess("agent", k));
   assert.equal(homeSection("agent").key, "orders");
   assert.equal(homeSection("owner").key, "overview");
 });

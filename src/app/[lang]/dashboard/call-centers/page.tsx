@@ -1,23 +1,17 @@
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { fmt, formatTime } from "@/lib/format";
+import { fmt, formatDate, formatTime } from "@/lib/format";
 import { listTeam } from "@/features/team/queries";
 import { teamPerformance } from "@/features/team/metrics";
 import { TeamManager } from "@/features/team/TeamManager";
-import { CallCenterHeader, MyPerformance, parsePeriod } from "@/features/team/views";
+import { CallCenterHeader } from "@/features/team/views";
 
-// Managers: the team. Agents: their own performance.
-export default async function CallCentersPage({ params, searchParams }: PageProps<"/[lang]/dashboard/call-centers">) {
+// Call center (Zimam): the agents as cards, "Add agent", and where they sign in. Agents use their own portal.
+export default async function CallCentersPage({ params }: PageProps<"/[lang]/dashboard/call-centers">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const { shop, user, role } = await requireSection(lang, "callCenters");
   const team = await listTeam(shop.id);
-
-  if (role === "agent") {
-    const period = parsePeriod((await searchParams).period);
-    const [me] = await teamPerformance(shop.id, team.filter((m) => m.userId === user.id), period);
-    return <MyPerformance lang={lang} p={me} period={period} t={t} />;
-  }
 
   const today = await teamPerformance(shop.id, team, "today");
   const presence = new Map(today.map((p) => [p.userId, p]));
@@ -27,6 +21,7 @@ export default async function CallCentersPage({ params, searchParams }: PageProp
       <TeamManager
         lang={lang}
         viewer={{ userId: user.id, role }}
+        portal={{ url: `${(process.env.APP_URL ?? "").replace(/\/$/, "")}/${lang}/call-center/login?store=${shop.slug}`, storeId: shop.slug }}
         t={{ team: t.team, profile: t.profile, errors: t.errors, common: t.common }}
         members={team.map((m) => {
           const p = presence.get(m.userId);
@@ -34,6 +29,8 @@ export default async function CallCentersPage({ params, searchParams }: PageProp
             userId: m.userId,
             name: m.name,
             email: m.email,
+            username: m.username ?? null,
+            created: formatDate(m.createdAt, lang),
             role: m.role,
             active: m.active,
             schedule: m.schedule ?? null,

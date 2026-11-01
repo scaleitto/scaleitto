@@ -170,7 +170,7 @@ export default async function phase1(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${list}/${productId}`);
-    await p.waitForURL("**/ar/dashboard/orders");
+    await p.waitForURL((u) => u.pathname === "/ar/call-center");
     const res = await ctx.request.post(`${BASE}/api/uploads`, { data: pngBuffer(), headers: { "Content-Type": "image/png" } });
     expect(res.status() === 403, "agent upload refused");
     await ctx.close();

@@ -217,15 +217,4 @@ export function ActivityLog({ lang, rows, members, selected, t }: { lang: string
   );
 }
 
-export function MyPerformance({ lang, p, period, t }: { lang: string; p: MemberPerformance; period: Period; t: Dictionary }) {
-  const base = sectionHref(lang, "callCenters");
-  return (
-    <>
-      <PageHeader title={t.team.myPerformance} description={t.sections.callCenters.description} />
-      <PeriodTabs href={(x) => (x === "today" ? base : `${base}?period=${x}`)} current={period} t={t} />
-      <PerformanceCards lang={lang} rows={[p]} t={t} />
-    </>
-  );
-}
-
 export const parsePeriod = (v: unknown): Period => (periods.includes(v as Period) ? (v as Period) : "today");

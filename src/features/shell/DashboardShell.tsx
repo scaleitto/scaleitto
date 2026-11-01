@@ -163,6 +163,7 @@ export function DashboardShell({
   adminLink,
   labels,
   logout,
+  logoutInNav = false,
   ping = true,
   children,
 }: {
@@ -184,6 +185,8 @@ export function DashboardShell({
   adminLink?: { href: string; label: string };
   labels: ShellLabels;
   logout: () => Promise<void>;
+  // The agents' portal lists "Log out" with the pages (Zimam's call-center sidebar)
+  logoutInNav?: boolean;
   ping?: boolean;
   children: ReactNode;
 }) {
@@ -345,6 +348,14 @@ export function DashboardShell({
             </ul>
           </div>
         ))}
+        {logoutInNav && (
+          <form action={logout} className="mt-0.5">
+            <button className={`flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-start text-sm font-medium text-fg-2 hover:bg-danger-soft hover:text-danger ${mini ? "justify-center" : ""}`} title={mini ? labels.logout : undefined} data-testid="nav-logout">
+              <LogOut size={18} aria-hidden className="text-muted" />
+              {!mini && <span className="truncate">{labels.logout}</span>}
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Support and the member */}

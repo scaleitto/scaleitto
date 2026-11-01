@@ -11,7 +11,7 @@ export const sections = [
   { key: "inventory", path: "inventory", roles: managers },
   // Orders: one page with a tab per status; Scan sends and receives parcels by their label
   { key: "orders", path: "orders", roles: all },
-  { key: "scan", path: "scan", roles: all },
+  { key: "scan", path: "scan", roles: managers },
   { key: "protection", path: "orders/protection", roles: managers },
   // Delivery (Zimam): the companies, the handover manifest template, the general settings (options, prices)
   { key: "delivery", path: "delivery", roles: managers },
@@ -23,7 +23,7 @@ export const sections = [
   { key: "themes", path: "store-design/themes", roles: managers },
   { key: "orderForm", path: "store-design/order-form", roles: managers },
   { key: "channels", path: "channels", roles: managers },
-  { key: "callCenters", path: "call-centers", roles: all },
+  { key: "callCenters", path: "call-centers", roles: managers },
   { key: "team", path: "team", roles: managers },
   { key: "landingPages", path: "landing-pages", roles: managers },
   { key: "analytics", path: "analytics", roles: managers },
@@ -32,7 +32,7 @@ export const sections = [
   { key: "apps", path: "integrations/apps", roles: managers },
   { key: "plans", path: "plans", roles: ["owner"] },
   { key: "settings", path: "settings", roles: managers },
-  { key: "profile", path: "profile", roles: all },
+  { key: "profile", path: "profile", roles: managers },
 ] as const satisfies readonly { key: string; path: string; roles: readonly MemberRole[] }[];
 
 export type SectionKey = (typeof sections)[number]["key"];

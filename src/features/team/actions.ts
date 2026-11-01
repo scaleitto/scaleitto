@@ -12,7 +12,7 @@ import { asLocale } from "@/i18n";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import type { MemberRole } from "@/server/db/schema";
-import { newMemberSchema, parseMemberUpdate } from "./validators";
+import { internalAgentEmail, newMemberSchema, parseMemberUpdate } from "./validators";
 import { PENDING_STATUSES } from "@/features/orders/statuses";
 
 // Owners manage everyone but themselves; managers manage agents only.
@@ -38,14 +38,21 @@ export async function addMember(lang: string, _prev: ActionState, formData: Form
     const d = parsed.data;
     if (d.role === "manager" && ctx.role !== "owner") return { ok: false, error: "forbidden" };
     if (!(await canAdd(ctx.shop.id, "maxStaff"))) return { ok: false, error: "limitStaff" };
+    // Usernames are unique inside the store (the portal signs in with store + username)
+    const [taken] = await db
+      .select({ id: schema.shopMembers.userId })
+      .from(schema.shopMembers)
+      .where(and(eq(schema.shopMembers.shopId, ctx.shop.id), eq(schema.shopMembers.username, d.username)));
+    if (taken) return { ok: false, error: "checkFields", fieldErrors: { username: "usernameTaken" } };
     // One account belongs to one shop: an existing email cannot be reused
-    const [existing] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, d.email));
-    if (existing) return { ok: false, error: "checkFields", fieldErrors: { email: "emailTaken" } };
+    const email = d.email ?? internalAgentEmail(d.username, ctx.shop.id);
+    const [existing] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email));
+    if (existing) return d.email ? { ok: false, error: "checkFields", fieldErrors: { email: "emailTaken" } } : { ok: false, error: "checkFields", fieldErrors: { username: "usernameTaken" } };
     const userId = newId();
     await db.transaction(async (tx) => {
       // Created by the shop owner, who knows them: no email confirmation
-      await tx.insert(schema.users).values({ id: userId, email: d.email, name: d.name, passwordHash: await hashPassword(d.password), locale: asLocale(lang), emailVerifiedAt: new Date() });
-      await tx.insert(schema.shopMembers).values({ shopId: ctx.shop.id, userId, role: d.role });
+      await tx.insert(schema.users).values({ id: userId, email, name: d.name, passwordHash: await hashPassword(d.password), locale: asLocale(lang), emailVerifiedAt: new Date() });
+      await tx.insert(schema.shopMembers).values({ shopId: ctx.shop.id, userId, role: d.role, username: d.username });
     });
     refresh();
     return { ok: true };

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
-import { newId, requireSection } from "@/server/auth/context";
+import { agentHome, newId, requireSection } from "@/server/auth/context";
 import { hashPassword } from "@/server/auth/password";
 import { createSession } from "@/server/auth/session";
 import { safeAction, logError } from "@/server/errors";
@@ -100,6 +100,6 @@ export async function acceptInvite(lang: string, token: string, _prev: ActionSta
     await createSession(userId);
     return { ok: true, message: invite.role };
   });
-  if (result.ok) redirect(result.message === "agent" ? sectionHref(locale, "orders") : sectionHref(locale, "overview"));
+  if (result.ok) redirect(result.message === "agent" ? agentHome(locale) : sectionHref(locale, "overview"));
   return result;
 }

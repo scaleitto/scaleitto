@@ -143,9 +143,11 @@ export const shopMembers = mysqlTable(
     // A deactivated member cannot sign in to the shop and gets no orders
     active: boolean("active").notNull().default(true),
     schedule: json("schedule").$type<WorkSchedule | null>(),
+    // Call center agents sign in to the agent portal with the store's link + this username (unique in the store)
+    username: varchar("username", { length: 40 }),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.shopId, t.userId] }), index("members_user_idx").on(t.userId)],
+  (t) => [primaryKey({ columns: [t.shopId, t.userId] }), index("members_user_idx").on(t.userId), uniqueIndex("members_shop_username_uq").on(t.shopId, t.username)],
 );
 
 // Team invitations (Team page): the invited person opens the emailed link, chooses a name and password, and joins the

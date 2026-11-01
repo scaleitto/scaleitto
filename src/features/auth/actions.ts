@@ -79,7 +79,7 @@ export async function login(lang: string, _prev: ActionState, formData: FormData
       await db.update(schema.users).set({ isPlatformAdmin: true, emailVerifiedAt: user.emailVerifiedAt ?? new Date() }).where(eq(schema.users.id, user.id));
     }
     await createSession(user.id);
-    target = member ? sectionHref(locale, homeSection(member.role).key) : `/${locale}/register`;
+    target = !member ? `/${locale}/register` : member.role === "agent" ? `/${locale}/call-center` : sectionHref(locale, homeSection(member.role).key);
     return { ok: true };
   });
   if (result.ok && target) redirect(target);
