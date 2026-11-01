@@ -14,6 +14,7 @@ import { OrdersTable } from "./OrdersTable";
 import { NewOrderButton } from "./OrderForm";
 import { BulkStatus, FilterDialog, RefreshButton } from "./OrderToolbar";
 import { SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
+import { ManifestButton } from "@/features/delivery/PrintButton";
 import { assignableMembers } from "@/features/team/queries";
 import { releaseLockedOrders } from "@/features/plans/locked";
 import { listCarrierAccounts } from "@/features/delivery/queries";
@@ -101,6 +102,7 @@ export async function OrdersPage({ lang, searchParams }: { lang: Locale; searchP
           </div>
           {f.status === "confirmed" && <ShipPanel lang={lang} accounts={carrierAccounts} deliveryHref={canAssign ? sectionHref(lang, "delivery") : null} t={tools} />}
           {f.status === "in_transit" && <TrackPanel lang={lang} t={tools} />}
+          {(f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}
         </div>
       )}
 

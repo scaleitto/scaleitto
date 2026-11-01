@@ -19,8 +19,11 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    out, the product's delivery company (copied to its orders), similar products (auto or chosen), list columns with
    units sold. Waiting for their phase: collections (apps), digital products and online-payment-only (online payments),
    the delivery option (delivery settings).
-4. **Delivery** — general settings (delivery options and prices), delivery companies (catalog, auto-send on confirm),
-   handover manifest template (fields, branding, paper, language, preview, draft/publish).
+4. **Delivery** — done (phase28.mjs): general settings (delivery options and prices), delivery companies (catalog, auto-send on confirm),
+   handover manifest template (fields, branding, paper, language, preview, draft/publish). Built: three sub-pages
+   (companies / manifest / settings), delivery on-off, one option per type (home / desk) priced by the wilaya table, a
+   fixed price or free, auto-send of confirmed orders that have a company, manifest template + printing the selected
+   parcels from the orders page (Confirmed / In transit). The product's "delivery option" picker is still to do.
 5. **Connected platforms, call center, team** — channel cards (Google Sheets, Shopify, WooCommerce, YouCan…), agents,
    team invitations.
 6. **Landing pages** — stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.

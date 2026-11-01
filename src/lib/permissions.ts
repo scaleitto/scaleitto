@@ -13,7 +13,10 @@ export const sections = [
   { key: "orders", path: "orders", roles: all },
   { key: "scan", path: "scan", roles: all },
   { key: "protection", path: "orders/protection", roles: managers },
+  // Delivery (Zimam): the companies, the handover manifest template, the general settings (options, prices)
   { key: "delivery", path: "delivery", roles: managers },
+  { key: "manifest", path: "delivery/manifest", roles: managers },
+  { key: "deliverySettings", path: "delivery/settings", roles: managers },
   { key: "finance", path: "finance", roles: ["owner"] },
   // Store design: the look, the themes, the order form
   { key: "storeDesign", path: "store-design", roles: managers },
@@ -39,7 +42,7 @@ export const navGroups = [
   { key: "main", items: [{ key: "overview" }] },
   {
     key: "sell",
-    items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery" }, { key: "callCenters" }],
+    items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery", children: ["delivery", "manifest", "deliverySettings"] }, { key: "callCenters" }],
   },
   { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps", children: ["apps", "protection"] }] },
   { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },

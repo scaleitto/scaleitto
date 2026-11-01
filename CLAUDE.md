@@ -301,6 +301,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   products leave store lists: `storefront/queries.ts inStock`), `carrier_account_id` (copied to new orders in `place-order.ts`),
   `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
   List columns: current/old price, published, stock, units sold, status, actions.
+- Zimam parity phase 4 (phase28.mjs) — delivery: sections `delivery` (companies + `AutoSendSwitch`), `manifest`
+  (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`
+  (`delivery/settings`: `DeliverySettingsForm` + the wilaya `RatesForm`; `/delivery/rates` redirects). `delivery/settings.ts`
+  (pure): `shops.delivery` via `resolveDelivery` (enabled, autoSend, options: one per type, pricing wilaya / flat / free) and
+  `applyDelivery`, applied inside `getShippingRates` — so every form, order and the order dialog follow it (off = free);
+  `shops.manifest` via `resolveManifest` (draft + published). Sending lives in `delivery/send.ts` (`sendParcel`, used by
+  `sendToCarrier`; `scheduleAutoSend` from `applyOrderStatus` on confirmed: orders with `carrier_account_id`, a refusal becomes
+  an order note "⚠ …"). Printing: `/[lang]/print/manifest?ids=` (published template or default) opened by `ManifestButton`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

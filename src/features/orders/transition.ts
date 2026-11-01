@@ -5,6 +5,7 @@ import { newId } from "@/server/auth/context";
 import { holdsStock, type OrderStatus } from "./statuses";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
+import { scheduleAutoSend } from "@/features/delivery/send";
 import { logStock } from "@/features/inventory/movements";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -46,6 +47,8 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
   await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId, userId, type: "status", fromStatus: order.status, toStatus: status, note: note ?? null });
   // Pixels that count the purchase at confirmation or delivery (sent after the response, once the transaction is committed)
   if (status === "confirmed" || status === "delivered") scheduleOrderEvents(shopId, orderId, status);
+  // Confirmed with a delivery company: sent to it now when the store says so (Delivery → companies)
+  if (status === "confirmed") scheduleAutoSend(shopId, orderId);
   // Google Sheets / webhook get the new status
   await scheduleOrderSync(shopId, orderId);
   return true;

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { RateMap } from "@/features/checkout/pricing";
+import { applyDelivery, resolveDelivery } from "@/features/delivery/settings";
 import { planAllowsDomain } from "@/features/settings/domain";
 
 // Active shop by its link, or by its own domain (proxy.ts rewrites <domain>/… to /store/<domain>/…).
@@ -73,9 +74,14 @@ export async function getStoreProduct(shopId: string, slug: string) {
   return { ...product, variants };
 }
 
+// The delivery prices every form and order uses: the wilaya table shaped by the delivery settings (options, on/off)
 export async function getShippingRates(shopId: string): Promise<RateMap> {
-  const rows = await db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shopId));
-  return Object.fromEntries(rows.map((r) => [r.wilayaCode, { home: r.homePrice, office: r.officePrice }]));
+  const [rows, [shop]] = await Promise.all([
+    db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shopId)),
+    db.select({ delivery: schema.shops.delivery }).from(schema.shops).where(eq(schema.shops.id, shopId)),
+  ]);
+  const table: RateMap = Object.fromEntries(rows.map((r) => [r.wilayaCode, { home: r.homePrice, office: r.officePrice }]));
+  return applyDelivery(table, resolveDelivery(shop?.delivery));
 }
 
 // The thank-you page: the order id is a random UUID, so only the customer who ordered knows it.

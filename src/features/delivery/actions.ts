@@ -6,18 +6,20 @@ import { z } from "zod";
 import { db, schema } from "@/server/db";
 import { newId, requireSection } from "@/server/auth/context";
 import { safeAction } from "@/server/errors";
-import { decryptJson, encryptJson } from "@/server/crypto";
+import { encryptJson } from "@/server/crypto";
 import { asLocale } from "@/i18n";
 import { wilayas } from "@/lib/wilayas";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { applyOrderStatus } from "@/features/orders/transition";
 import { canTouchOrder, viewerOf, visibleOrders } from "@/features/orders/access";
-import { carrierClient, CarrierError } from "./platforms";
+import { carrierClient } from "./platforms";
 import type { Credentials } from "./platforms/types";
 import { findCarrier, normalizeEcotrackUrl, platformFields } from "./carriers";
-import { buildParcel, parseParcelOptions } from "./parcel";
+import { parseParcelOptions } from "./parcel";
 import { trackShipment } from "./tracking";
+import { sendParcel } from "./send";
+import { cleanManifest, resolveDelivery, resolveManifest } from "./settings";
 
 const MAX_PRICE = 100_000;
 
@@ -135,41 +137,10 @@ export async function setDefaultCarrier(lang: string, accountId: string): Promis
 export async function sendToCarrier(lang: string, orderId: string, accountId: string, options?: unknown): Promise<ActionState> {
   return safeAction("delivery/send", async () => {
     const ctx = await requireSection(asLocale(lang), "orders");
-    const { shop, user } = ctx;
     if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-    if (!order) return { ok: false, error: "notFound" };
-    if (order.status !== "confirmed") return { ok: false, error: "confirmFirst" };
-    if (await db.$count(schema.shipments, eq(schema.shipments.orderId, orderId))) return { ok: false, error: "alreadyShipped" };
-    const [account] = await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, accountId)));
-    if (!account) return { ok: false, error: "notFound" };
-
-    const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId));
-    const parcel = buildParcel(order, items, account.originWilaya, parseParcelOptions(options, account.options));
-
-    let created;
-    try {
-      created = await carrierClient(account.platform, account.baseUrl, decryptJson<Credentials>(account.credentials)).createParcel(parcel);
-    } catch (err) {
-      if (err instanceof CarrierError || (err instanceof Error && /fetch|timeout|abort/i.test(err.message))) return { ok: false, error: "carrierRefused", message: err.message };
-      throw err;
-    }
-
-    const carrierName = findCarrier(account.carrier)?.name ?? account.carrier;
-    await db.transaction(async (tx) => {
-      await tx.insert(schema.shipments).values({
-        id: newId(),
-        shopId: shop.id,
-        orderId,
-        carrierAccountId: account.id,
-        carrierName,
-        trackingNumber: created.trackingNumber,
-        labelUrl: created.labelUrl ?? null,
-      });
-      await applyOrderStatus(tx, shop.id, orderId, "in_transit", user.id, `${carrierName}: ${created.trackingNumber}`);
-    });
-    refresh();
-    return { ok: true, message: created.trackingNumber };
+    const result = await sendParcel(ctx.shop.id, orderId, accountId, options, ctx.user.id);
+    if (result.ok) refresh();
+    return result;
   });
 }
 
@@ -296,5 +267,37 @@ export async function scanParcel(lang: string, mode: "dispatch" | "recuperate", 
       });
     }
     return { ok: true, number: found.number };
+  });
+}
+
+// ─── General settings (on/off, options) and the companies page's automatic send ─────
+
+export async function saveDeliverySettings(lang: string, input: unknown): Promise<ActionState> {
+  return safeAction("delivery/settings", async () => {
+    const { shop } = await requireSection(asLocale(lang), "delivery");
+    const [row] = await db.select({ delivery: schema.shops.delivery }).from(schema.shops).where(eq(schema.shops.id, shop.id));
+    const current = resolveDelivery(row?.delivery);
+    const next = resolveDelivery({ ...current, ...(input && typeof input === "object" ? input : {}) });
+    if (next.options.some((o) => o.pricing === "flat" && o.price <= 0)) return { ok: false, error: "price" };
+    await db.update(schema.shops).set({ delivery: next }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// ─── Handover manifest template: saved as a draft, printed once published ─────
+
+export async function saveManifest(lang: string, input: unknown, publish: boolean): Promise<ActionState> {
+  return safeAction("delivery/manifest", async () => {
+    const { shop } = await requireSection(asLocale(lang), "delivery");
+    const draft = cleanManifest(input);
+    const [row] = await db.select({ manifest: schema.shops.manifest }).from(schema.shops).where(eq(schema.shops.id, shop.id));
+    const current = resolveManifest(row?.manifest);
+    await db
+      .update(schema.shops)
+      .set({ manifest: { draft, published: publish ? draft : current.published } })
+      .where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
   });
 }

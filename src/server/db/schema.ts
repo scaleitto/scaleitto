@@ -105,6 +105,10 @@ export const shops = mysqlTable(
     orderForm: json("order_form"),
     // Inventory: a product or variant at or under this quantity is "low" (Inventory section, overview alert)
     lowStock: int("low_stock").notNull().default(5),
+    // Delivery general settings (src/features/delivery/settings.ts resolveDelivery): on/off, auto-send, options
+    delivery: json("delivery"),
+    // Handover manifest template, draft + published (resolveManifest)
+    manifest: json("manifest"),
     // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
     aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.

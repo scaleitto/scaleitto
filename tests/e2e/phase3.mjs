@@ -29,7 +29,7 @@ export default async function phase3(browser) {
   }
 
   await step("delivery prices: apply to all, adjust one wilaya, used by the store", async () => {
-    await page.goto(`${delivery}/rates`);
+    await page.goto(`${delivery}/settings`);
     await page.fill('[aria-label="تطبيق على كل الولايات إلى المنزل"]', "600");
     await page.fill('[aria-label="تطبيق على كل الولايات إلى المكتب"]', "400");
     await page.click('button:has-text("تطبيق على كل الولايات")');
