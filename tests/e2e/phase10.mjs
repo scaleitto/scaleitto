@@ -21,6 +21,8 @@ export default async function phase10(browser) {
   const owner = await context.newPage();
   owner.on("dialog", (d) => d.accept());
   const section = `${BASE}/ar/dashboard/integrations/apps`;
+  // Google Sheets lives in Connected platforms
+  const channelsPage = `${BASE}/ar/dashboard/channels`;
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'قميص', 'shirt', 2000, '[]', '[]', '[]')", [productId, shopId]);
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 400, 300)", [shopId]);
@@ -28,7 +30,7 @@ export default async function phase10(browser) {
   const webhook = owner.locator("[data-testid=app-webhook]");
 
   await step("Google Sheets: script with the shop's token, Google URL required, test writes the header row", async () => {
-    await owner.goto(section);
+    await owner.goto(channelsPage);
     await owner.waitForSelector("[data-testid=app-sheets][data-state=off]");
     expect((await owner.locator("[data-testid=app-ecomanager]").innerText()).includes("اربط Google Sheets أولاً"), "Ecomanager waits for the sheet");
     await sheets.locator("button", { hasText: "ربط" }).click();
@@ -70,7 +72,7 @@ export default async function phase10(browser) {
     for (const [n, days] of [[901, 5], [902, 40]]) {
       await db.query("INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, delivery_type, subtotal, shipping_price, total, created_at) VALUES (UUID(), ?, ?, 'قديم', '0661000000', 16, 'x', 'home', 1000, 0, 1000, ?)", [shopId, n, new Date(Date.now() - days * 86400_000)]);
     }
-    await owner.goto(section);
+    await owner.goto(channelsPage);
     await sheets.locator("button", { hasText: "إرسال طلبات آخر 30 يوماً" }).click();
     await sheets.getByText("تم إرسال 2 طلب إلى الجدول").waitFor();
     expect(sheet.rows.has("901") && !sheet.rows.has("902"), "only the last 30 days");
@@ -82,6 +84,7 @@ export default async function phase10(browser) {
   });
 
   await step("webhook: signed JSON for tests and order changes", async () => {
+    await owner.goto(section);
     await webhook.locator("button", { hasText: "ربط" }).click();
     const secret = await owner.locator("[data-testid=webhook-secret]").inputValue();
     await owner.fill("#webhook-url", "http://insecure.example/hook");
@@ -102,7 +105,7 @@ export default async function phase10(browser) {
   });
 
   await step("a paused sheet receives nothing; the log lists every send", async () => {
-    await owner.goto(section);
+    await owner.goto(channelsPage);
     await sheets.locator("input[type=checkbox]").uncheck();
     await owner.waitForTimeout(400);
     await owner.goto(`${BASE}/ar/dashboard/orders/${orderId}`);
@@ -160,8 +163,9 @@ export default async function phase10(browser) {
     await agentContext.close();
     const other = await createShop(browser);
     const p = await other.context.newPage();
-    await p.goto(section);
+    await p.goto(channelsPage);
     await p.waitForSelector("[data-testid=app-sheets][data-state=off]");
+    await p.goto(section);
     expect(await p.locator("[data-testid=app-webhook][data-state=off]").count(), "webhook not connected");
     await other.context.close();
   });

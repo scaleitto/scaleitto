@@ -67,9 +67,9 @@ export default async function phase0(browser) {
     await other.close();
   });
 
-  await step("owner sees the 14 sidebar entries and every page opens", async () => {
+  await step("owner sees the 17 sidebar entries and every page opens", async () => {
     const entries = page.locator("aside nav li[data-nav]");
-    expect((await entries.count()) === 15, `15 sidebar entries (got ${await entries.count()})`);
+    expect((await entries.count()) === 17, `17 sidebar entries (got ${await entries.count()})`);
     // An entry's page, or a group's first sub-section
     const hrefs = await entries.evaluateAll((els) => els.map((li) => li.querySelector("a").getAttribute("href")));
     for (const href of hrefs) {

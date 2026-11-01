@@ -22,7 +22,9 @@ export const sections = [
   { key: "storeDesign", path: "store-design", roles: managers },
   { key: "themes", path: "store-design/themes", roles: managers },
   { key: "orderForm", path: "store-design/order-form", roles: managers },
+  { key: "channels", path: "channels", roles: managers },
   { key: "callCenters", path: "call-centers", roles: all },
+  { key: "team", path: "team", roles: managers },
   { key: "landingPages", path: "landing-pages", roles: managers },
   { key: "analytics", path: "analytics", roles: managers },
   // Integrations: tracking pixels and connected apps
@@ -42,11 +44,11 @@ export const navGroups = [
   { key: "main", items: [{ key: "overview" }] },
   {
     key: "sell",
-    items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery", children: ["delivery", "manifest", "deliverySettings"] }, { key: "callCenters" }],
+    items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery", children: ["delivery", "manifest", "deliverySettings"] }, { key: "channels" }, { key: "callCenters" }],
   },
   { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps", children: ["apps", "protection"] }] },
   { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },
-  { key: "account", items: [{ key: "plans" }, { key: "profile" }] },
+  { key: "account", items: [{ key: "team" }, { key: "plans" }, { key: "profile" }] },
 ] as const satisfies readonly { key: string; items: readonly NavEntry[] }[];
 
 export type NavGroupKey = (typeof navGroups)[number]["key"];

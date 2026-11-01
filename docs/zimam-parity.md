@@ -24,8 +24,11 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    (companies / manifest / settings), delivery on-off, one option per type (home / desk) priced by the wilaya table, a
    fixed price or free, auto-send of confirmed orders that have a company, manifest template + printing the selected
    parcels from the orders page (Confirmed / In transit). The product's "delivery option" picker is still to do.
-5. **Connected platforms, call center, team** — channel cards (Google Sheets, Shopify, WooCommerce, YouCan…), agents,
-   team invitations.
+5. **Connected platforms, call center, team** — done (phase29.mjs): channel cards (Google Sheets, Shopify, WooCommerce, YouCan…), agents,
+   team invitations. Built: Connected platforms page (Google Sheets moved from Apps; Shopify and WooCommerce receive
+   their orders through a signed address; YouCan, LightFunnels, Orderdz, Storeep shown as coming until their formats are
+   verified), Team page (invite by email with a role, counter against the staff limit, pending invitations, acceptance
+   page). The call center keeps its agents, schedules and distribution.
 6. **Landing pages** — stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.
 7. **Analytics** — tabs (orders, products, impressions, call center), comparisons, status distribution, funnel, insights,
    wilayas.

@@ -5,10 +5,10 @@ import { canAccess, entryOf, homeSection, navFor, sectionHref, sections, section
 test("sidebar: the overview, then the sell / grow / storefront / account groups (Zimam's layout)", () => {
   const nav = navFor("owner");
   assert.deepEqual(nav.map((g) => g.key), ["main", "sell", "grow", "storefront", "account"]);
-  assert.deepEqual(nav.find((g) => g.key === "sell")!.items.map((e) => e.key), ["products", "orders", "scan", "delivery", "callCenters"]);
+  assert.deepEqual(nav.find((g) => g.key === "sell")!.items.map((e) => e.key), ["products", "orders", "scan", "delivery", "channels", "callCenters"]);
   assert.deepEqual(nav.find((g) => g.key === "grow")!.items.map((e) => e.key), ["landingPages", "analytics", "pixels", "apps"]);
   assert.deepEqual(nav.find((g) => g.key === "storefront")!.items.map((e) => e.key), ["storeDesign", "themes", "settings"]);
-  assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["plans", "profile"]);
+  assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["team", "plans", "profile"]);
   assert.deepEqual(nav.find((g) => g.key === "grow")!.items.find((e) => e.key === "apps")!.children, ["apps", "protection"]);
   assert.equal(entryOf("protection"), "apps");
   assert.equal(entryOf("themes"), "themes");

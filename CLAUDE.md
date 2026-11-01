@@ -309,6 +309,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `shops.manifest` via `resolveManifest` (draft + published). Sending lives in `delivery/send.ts` (`sendParcel`, used by
   `sendToCarrier`; `scheduleAutoSend` from `applyOrderStatus` on confirmed: orders with `carrier_account_id`, a refusal becomes
   an order note "⚠ …"). Printing: `/[lang]/print/manifest?ids=` (published template or default) opened by `ManifestButton`.
+- Zimam parity phase 5 (phase29.mjs) — Connected platforms (`channels` section, `/dashboard/channels`): Google Sheets cards
+  (moved from Apps) + `shop_channels` (shopify / woocommerce: random `token`, encrypted secret — Shopify's signing key pasted by
+  the merchant, never shown back; WooCommerce's made here and shown to paste). Platforms POST to `/api/channels/<token>`, signed
+  (base64 HMAC-SHA256: X-Shopify-Hmac-Sha256 / X-WC-Webhook-Signature); `channels/parse.ts` (pure: `parseShopify`, `parseWoo`,
+  `wilayaFrom`, `validSignature`) and `channels/receive.ts` (`receiveOrder`: `orders.external_ref` unique per shop + `orders.channel`,
+  lines matched by SKU then name, no stock taken, plan slot, agent, sync). Team (`team` section): `member_invites` (sha256 of the
+  token, 7 days), `team/invites.ts` (`inviteMember` emails the link and returns it, `staffUsage` = active members + pending
+  invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

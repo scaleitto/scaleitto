@@ -148,6 +148,24 @@ export const shopMembers = mysqlTable(
   (t) => [primaryKey({ columns: [t.shopId, t.userId] }), index("members_user_idx").on(t.userId)],
 );
 
+// Team invitations (Team page): the invited person opens the emailed link, chooses a name and password, and joins the
+// shop with the role. Only the token's sha256 is stored.
+export const memberInvites = mysqlTable(
+  "member_invites",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: mysqlEnum("role", memberRoles).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    invitedBy: id("invited_by"),
+    expiresAt: datetime("expires_at").notNull(),
+    acceptedAt: datetime("accepted_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("member_invites_token_uq").on(t.tokenHash), index("member_invites_shop_idx").on(t.shopId)],
+);
+
 // Negotiated terms for one shop: custom ceilings and dates that override its plan.
 export const shopContracts = mysqlTable(
   "shop_contracts",
@@ -299,11 +317,15 @@ export const orders = mysqlTable(
     shippingWaived: boolean("shipping_waived").notNull().default(false),
     // The delivery company chosen for the order before it is sent (null: the store's rules / default)
     carrierAccountId: id("carrier_account_id"),
+    // Received from a connected platform (shopify, woocommerce…) and its order id there, so it is never created twice
+    channel: varchar("channel", { length: 20 }),
+    externalRef: varchar("external_ref", { length: 100 }),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
   (t) => [
     uniqueIndex("orders_shop_number_uq").on(t.shopId, t.number),
+    uniqueIndex("orders_shop_external_uq").on(t.shopId, t.externalRef),
     // The phone's history across every store (the network signal of the fake-order protection)
     index("orders_phone_idx").on(t.phone),
     index("orders_shop_created_idx").on(t.shopId, t.createdAt),
@@ -601,6 +623,29 @@ export const shopApps = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shop_apps_shop_app_uq").on(t.shopId, t.app)],
+);
+
+// Connected platforms that send their orders here (Zimam's "Connected Platforms"): the platform calls
+// /api/channels/<token> for every new order, signed with the secret (encrypted here).
+export const channelKinds = ["shopify", "woocommerce"] as const;
+export type ChannelKind = (typeof channelKinds)[number];
+export const shopChannels = mysqlTable(
+  "shop_channels",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    kind: mysqlEnum("kind", channelKinds).notNull(),
+    // Public part of the receiving address (random)
+    token: varchar("token", { length: 40 }).notNull(),
+    secret: text("secret").notNull(),
+    // The store's own address (shown on the card)
+    storeUrl: varchar("store_url", { length: 255 }),
+    active: boolean("active").notNull().default(true),
+    lastOrderAt: datetime("last_order_at"),
+    ordersCount: int("orders_count").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("shop_channels_shop_kind_uq").on(t.shopId, t.kind), uniqueIndex("shop_channels_token_uq").on(t.token)],
 );
 
 // What was sent to the apps (last ones shown on the dashboard)
