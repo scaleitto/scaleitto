@@ -219,11 +219,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Zimam parity phase 2 (phase26.mjs) — replaces rounds 8/9's order model: statuses (`orders/statuses.ts`) pending, call_back,
   confirmed, in_transit, delivered, returned, abandoned (checkout left: `place-order.ts saveAbandoned`, a draft order with the
   status "abandoned"; the real order takes its number), cancelled, flagged (fake; autoBlockFakePhone). Orders page
-  (`orders/OrdersPage.tsx`): status tabs (pending also lists call_back), toolbar (`OrderToolbar.tsx` filter dialog / refresh /
-  bulk status, export `/api/orders/export`, search, scan link, `NewOrderButton`), `OrdersTable.tsx` edited in place
+  (`orders/OrdersPage.tsx`, no page title like Zimam): colored status cards (pending also lists call_back), toolbar (`OrderToolbar.tsx`
+  filter dialog, export `/api/orders/export` | refresh, search, scan link, `NewOrderButton`), bulk status when rows are ticked, `OrdersTable.tsx` edited in place
   (`updateOrderField`, `changeOrderStatus`; risk badge), ShipPanel in Confirmed, TrackPanel in In transit. The order page
   `/orders/[id]` = `OrderForm.tsx` (`saveOrder`: lines, customer, delivery, fee from the rates or waived, status, agent) +
-  shipment, messages, call guide, risk, history. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx`, `scanParcel`): dispatch
+  shipment, messages, call guide, risk, history. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx` = banner with the mode switch, one large field, results; `scanParcel`): dispatch
   confirmed → in transit, recuperate → returned + `return_received_at`. Home = `analytics/overview.ts overviewData`. Old
   sub-pages redirect to tabs (next.config.ts).
 - Zimam parity phase 3 (phase27.mjs) — products: `ProductForm.tsx` = tabs (details / description / variants & stock / checkout &

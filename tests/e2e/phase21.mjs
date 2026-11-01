@@ -54,9 +54,9 @@ export default async function phase21(browser) {
     await owner.locator("[data-testid=ship-panel]").waitFor();
     expect((await owner.locator("tr[data-order]").count()) === 4, "4 confirmed orders, the pending one is not here");
     await owner.locator("[data-testid=select-all]").click();
-    await owner.locator("[data-testid=selected-count]").getByText("4 محددة").waitFor();
-    await owner.locator("[data-testid=select-invert]").click();
-    await owner.locator("[data-testid=selected-count]").getByText("حدّد طلبيات").waitFor();
+    await owner.locator("[data-testid=bulk-status]").getByText("4 محددة").waitFor();
+    await owner.locator("[data-testid=select-all]").click();
+    await owner.locator("[data-testid=bulk-status]").waitFor({ state: "detached" });
     await owner.locator("[data-testid=select-all]").click();
     // The account's defaults are in the bulk options
     await owner.locator("[data-testid=ship-options-toggle]").click();

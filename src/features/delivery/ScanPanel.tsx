@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Camera, CameraOff, CircleCheck, CircleX, PackageCheck, ScanLine, Truck } from "lucide-react";
+import { Camera, CameraOff, CircleCheck, CircleX, ScanLine } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
-import { Button, Card, inputClass } from "@/ui";
+import { Button, inputClass } from "@/ui";
 import { scanParcel } from "./actions";
 
 type Mode = "dispatch" | "recuperate";
@@ -78,10 +78,21 @@ export function ScanPanel({ lang, t }: { lang: string; t: Dictionary["orderPage"
   }, [camera]);
 
   const ok = results.filter((r) => r.ok).length;
+  // Zimam's layout: a banner with the title and the mode switch, one large field with the camera button, then the results
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <Card className="space-y-5">
-        <div className="grid grid-cols-2 gap-2" role="tablist">
+    <div className="space-y-4">
+      <h1 className="sr-only">{t.scanTitle}</h1>
+      <section className="flex flex-wrap items-start gap-4 rounded-2xl border border-info/30 bg-info/5 p-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <ScanLine size={20} /> {t.scanTitle}
+          </h2>
+          <p className="text-sm text-muted">{t.scanHint}</p>
+          <p className="text-sm font-semibold" data-testid="scan-mode-hint">
+            {mode === "dispatch" ? t.dispatchHint : t.recuperateHint}
+          </p>
+        </div>
+        <div className="flex rounded-xl bg-panel p-1 shadow-sm" role="tablist">
           {(["dispatch", "recuperate"] as const).map((m) => (
             <button
               key={m}
@@ -90,69 +101,65 @@ export function ScanPanel({ lang, t }: { lang: string; t: Dictionary["orderPage"
               aria-selected={mode === m}
               data-mode={m}
               onClick={() => setMode(m)}
-              className={`flex items-center gap-3 rounded-xl border p-4 text-start transition-colors ${mode === m ? "border-accent bg-accent-soft" : "border-line hover:bg-panel-2"}`}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${mode === m ? "bg-info text-white" : "text-muted hover:text-fg"}`}
             >
-              {m === "dispatch" ? <Truck size={20} className="text-accent" /> : <PackageCheck size={20} className="text-accent" />}
-              <span>
-                <span className="block font-semibold">{m === "dispatch" ? t.dispatch : t.recuperate}</span>
-                <span className="block text-xs text-muted">{m === "dispatch" ? t.dispatchHint : t.recuperateHint}</span>
-              </span>
+              {m === "dispatch" ? t.dispatch : t.recuperate}
             </button>
           ))}
         </div>
+      </section>
 
-        <div className="overflow-hidden rounded-xl border border-dashed border-line bg-panel-2">
-          {camera === "on" ? (
-            <video ref={video} muted playsInline className="aspect-video w-full bg-black object-cover" />
-          ) : (
-            <div className="grid aspect-video place-items-center p-6 text-center text-sm text-muted">
-              <div className="space-y-3">
-                <ScanLine size={36} className="mx-auto text-accent" />
-                {camera === "missing" && <p className="text-warning">{t.noCamera}</p>}
-              </div>
-            </div>
-          )}
+      <form
+        className="space-y-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          last.current = { code: "", at: 0 };
+          scan(code);
+          setCode("");
+        }}
+      >
+        <div className="flex gap-2">
+          <input
+            id="scan-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder={t.codePlaceholder}
+            dir="ltr"
+            autoFocus
+            autoComplete="off"
+            className={`${inputClass} h-16 text-lg`}
+            data-testid="scan-code"
+          />
+          <button type="submit" className="sr-only" disabled={pending || !code.trim()} data-testid="scan-submit">
+            {t.scanBtn}
+          </button>
+          <Button type="button" variant="secondary" className="h-16 shrink-0" onClick={() => setCamera(camera === "on" ? "off" : "on")} data-testid="camera">
+            {camera === "on" ? <CameraOff size={16} /> : <Camera size={16} />} {camera === "on" ? t.stopCamera : t.useCamera}
+          </Button>
         </div>
-        <Button type="button" variant="secondary" onClick={() => setCamera(camera === "on" ? "off" : "on")} data-testid="camera">
-          {camera === "on" ? <CameraOff size={16} /> : <Camera size={16} />} {camera === "on" ? t.stopCamera : t.useCamera}
-        </Button>
+        <label htmlFor="scan-code" className="block text-xs font-medium text-muted">
+          {t.typeCode}
+        </label>
+      </form>
 
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            last.current = { code: "", at: 0 };
-            scan(code);
-            setCode("");
-          }}
-        >
-          <label htmlFor="scan-code" className="text-sm font-medium">
-            {t.typeCode}
-          </label>
-          <div className="flex gap-2">
-            <input id="scan-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t.codePlaceholder} dir="ltr" autoFocus autoComplete="off" className={inputClass} data-testid="scan-code" />
-            <Button type="submit" disabled={pending || !code.trim()} data-testid="scan-submit" className="shrink-0">
-              {t.scanBtn}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {camera === "on" && <video ref={video} muted playsInline className="aspect-video w-full max-w-xl rounded-xl bg-black object-cover" />}
+      {camera === "missing" && <p className="text-sm text-warning">{t.noCamera}</p>}
 
-      <Card className="space-y-4" data-testid="scan-results">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <p className="rounded-lg bg-accent-soft px-3 py-2 font-semibold text-accent-ink" data-testid="scan-done">
+      <div className="space-y-3" data-testid="scan-results">
+        <div className="flex gap-2 text-sm">
+          <p className="rounded-lg bg-accent-soft px-3 py-1.5 font-semibold text-accent-ink" data-testid="scan-done">
             {fmt(t.done, { n: ok })}
           </p>
-          <p className="rounded-lg bg-danger-soft px-3 py-2 font-semibold text-danger" data-testid="scan-failed">
+          <p className="rounded-lg bg-danger-soft px-3 py-1.5 font-semibold text-danger" data-testid="scan-failed">
             {fmt(t.failed, { n: results.length - ok })}
           </p>
         </div>
         {results.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted">{t.nothingYet}</p>
+          <p className="rounded-xl border border-dashed border-line py-6 text-center text-sm text-muted">{t.nothingYet}</p>
         ) : (
-          <ul className="max-h-[60vh] space-y-2 overflow-y-auto">
+          <ul className="space-y-2">
             {results.map((r) => (
-              <li key={r.key} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm" data-scan={r.ok ? "ok" : "failed"}>
+              <li key={r.key} className="flex items-center gap-2 rounded-lg border border-line bg-panel px-3 py-2 text-sm" data-scan={r.ok ? "ok" : "failed"}>
                 {r.ok ? <CircleCheck size={16} className="shrink-0 text-accent" /> : <CircleX size={16} className="shrink-0 text-danger" />}
                 <span className="font-semibold tabular-nums" dir="ltr">
                   {r.code}
@@ -162,7 +169,7 @@ export function ScanPanel({ lang, t }: { lang: string; t: Dictionary["orderPage"
             ))}
           </ul>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { Download, ScanLine, Search, ShoppingCart } from "lucide-react";
+import { Ban, Check, CircleAlert, ClipboardCheck, ClipboardList, Download, Flag, ScanLine, Search, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
 import { getDictionary, type Locale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
 import { fmt, formatDate, formatTime } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
-import { Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
+import { Card, EmptyState, buttonClass, inputClass, type Tone } from "@/ui";
 import { viewerOf } from "./access";
 import { listOrders, orderProducts, tabCounts } from "./queries";
-import { statusTabs } from "./statuses";
+import { statusTabs, statusTone, type OrderStatus } from "./statuses";
 import { filtersHref, pageSizes, parseOrderFilters } from "./views";
 import { OrdersTable } from "./OrdersTable";
 import { NewOrderButton } from "./OrderForm";
 import { BulkStatus, FilterDialog, RefreshButton } from "./OrderToolbar";
-import { SelectionTools, ShipPanel, TrackPanel } from "./OrderTools";
+import { ShipPanel, TrackPanel } from "./OrderTools";
 import { ManifestButton } from "@/features/delivery/PrintButton";
 import { assignableMembers } from "@/features/team/queries";
 import { releaseLockedOrders } from "@/features/plans/locked";
@@ -23,6 +23,18 @@ import { getShippingRates } from "@/features/storefront/queries";
 import { protectionFor } from "@/features/checkout/protection";
 
 type Search = Record<string, string | string[] | undefined>;
+
+const tabIcons: Record<(typeof statusTabs)[number], LucideIcon> = { pending: ClipboardList, confirmed: ClipboardCheck, in_transit: Truck, delivered: Check, returned: CircleAlert, abandoned: ShoppingCart, cancelled: Ban, flagged: Flag } satisfies Partial<Record<OrderStatus, LucideIcon>>;
+// Each status card's colors: filled when current, tinted icon, edge and count otherwise
+const tabTones: Record<Tone, { on: string; soft: string; edge: string; count: string }> = {
+  violet: { on: "border-violet bg-violet text-white", soft: "bg-violet-soft text-violet", edge: "border-violet/30", count: "bg-violet-soft text-violet ring-violet/30" },
+  accent: { on: "border-accent bg-accent text-white", soft: "bg-accent/10 text-accent", edge: "border-accent/30", count: "bg-accent/10 text-accent ring-accent/30" },
+  info: { on: "border-info bg-info text-white", soft: "bg-info/10 text-info", edge: "border-info/30", count: "bg-info/10 text-info ring-info/30" },
+  danger: { on: "border-danger bg-danger text-white", soft: "bg-danger/10 text-danger", edge: "border-danger/30", count: "bg-danger/10 text-danger ring-danger/30" },
+  warning: { on: "border-warning bg-warning text-white", soft: "bg-warning/10 text-warning", edge: "border-warning/30", count: "bg-warning/10 text-warning ring-warning/30" },
+  orange: { on: "border-warning bg-warning text-white", soft: "bg-warning/10 text-warning", edge: "border-warning/30", count: "bg-warning/10 text-warning ring-warning/30" },
+  neutral: { on: "border-fg bg-fg text-bg", soft: "bg-panel-2 text-muted", edge: "border-line", count: "bg-panel-2 text-muted ring-line" },
+};
 
 // The orders page (Zimam's): a tab per status with its count, the toolbar (filter, export, refresh, search, scan, new
 // order), the table edited in place, and the bulk tools of the tab (status for all; sending in Confirmed; tracking in
@@ -56,53 +68,58 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
 
   return (
     <>
-      <PageHeader
-        title={portal ? t.portal.ordersTitle : t.nav.items.orders}
-        description={portal ? undefined : t.orders.viewHints.all}
-        actions={<NewOrderButton lang={lang} products={products} rates={rates} wilayas={wilayaList} accounts={carrierAccounts} members={members} t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }} />}
-      />
+      <h1 className="sr-only">{portal ? t.portal.ordersTitle : t.nav.items.orders}</h1>
+      {/* Zimam's status cards: an icon and a count each, the current one filled with its color */}
+      <Card className="mb-3 p-3">
+        <nav className="flex gap-2 overflow-x-auto" data-testid="status-tabs">
+          {statusTabs.map((s) => {
+            const Icon = tabIcons[s];
+            const tone = tabTones[statusTone[s]];
+            const current = f.status === s;
+            return (
+              <Link
+                key={s}
+                href={href({ status: s, page: 1 })}
+                data-tab={s}
+                aria-current={current ? "page" : undefined}
+                className={`flex shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${current ? tone.on : `bg-panel text-fg hover:bg-panel-2 ${tone.edge}`}`}
+              >
+                <span className={`grid size-8 place-items-center rounded-lg ${current ? "bg-white/20" : tone.soft}`}>
+                  <Icon size={16} />
+                </span>
+                {t.orders.statuses[s]}
+                <span className={`rounded-full px-1.5 text-xs tabular-nums ring-1 ${current ? "bg-white/20 ring-white/30" : tone.count}`} data-count>
+                  {(counts[s] ?? 0) + (s === "pending" ? (counts.call_back ?? 0) : 0)}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+      </Card>
 
-      <nav className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-line bg-panel p-1" data-testid="status-tabs">
-        {statusTabs.map((s) => (
-          <Link
-            key={s}
-            href={href({ status: s, page: 1 })}
-            data-tab={s}
-            aria-current={f.status === s ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${f.status === s ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-panel-2 hover:text-fg"}`}
-          >
-            {t.orders.statuses[s]}
-            <span className={`rounded-full px-1.5 text-xs tabular-nums ${f.status === s ? "bg-accent text-accent-fg" : "bg-panel-2"}`} data-count>
-              {(counts[s] ?? 0) + (s === "pending" ? (counts.call_back ?? 0) : 0)}
-            </span>
-          </Link>
-        ))}
-      </nav>
-
-      <Card className="mb-4 flex flex-wrap items-center gap-2 p-3">
+      <Card className="mb-4 flex flex-wrap items-center gap-2 p-2">
         <FilterDialog base={base} filters={f} products={products} members={members} canFilterAgent={canAssign} wilayas={wilayaList} t={t} />
-        <a href={`/api/orders/export?lang=${lang}&${href({ page: 1 }).slice(base.length + 1)}`} className={buttonClass("secondary")} data-testid="export">
+        <a href={`/api/orders/export?lang=${lang}&${href({ page: 1 }).slice(base.length + 1)}`} className={buttonClass("ghost")} data-testid="export">
           <Download size={15} /> {p.export}
         </a>
+        <span className="flex-1" />
         <RefreshButton label={p.refresh} />
-        <form action={base} method="get" className="relative min-w-[220px] flex-1">
+        <form action={base} method="get" className="relative w-full sm:w-64">
           <input type="hidden" name="status" value={f.status} />
           <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
           <input name="q" defaultValue={f.q} placeholder={p.search} className={`${inputClass} ps-9`} data-testid="order-search" />
         </form>
-{!portal && (
-        <Link href={sectionHref(lang, "scan")} className={buttonClass("secondary")} data-testid="scan-link">
-          <ScanLine size={15} /> {p.scan}
-        </Link>
+        {!portal && (
+          <Link href={sectionHref(lang, "scan")} className={buttonClass("secondary")} data-testid="scan-link">
+            <ScanLine size={15} /> {p.scan}
+          </Link>
         )}
+        <NewOrderButton lang={lang} products={products} rates={rates} wilayas={wilayaList} accounts={carrierAccounts} members={members} t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }} />
       </Card>
 
       {rows.length > 0 && (
         <div className="mb-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <SelectionTools t={t} />
-            <BulkStatus lang={lang} t={t} />
-          </div>
+          <BulkStatus lang={lang} t={t} />
           {!portal && f.status === "confirmed" && <ShipPanel lang={lang} accounts={carrierAccounts} deliveryHref={canAssign ? sectionHref(lang, "delivery") : null} t={tools} />}
           {!portal && f.status === "in_transit" && <TrackPanel lang={lang} t={tools} />}
           {!portal && (f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}

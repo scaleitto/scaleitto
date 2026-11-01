@@ -87,6 +87,7 @@ export function OrdersTable({
                 <input
                   type="checkbox"
                   aria-label={t.orders.bulk.selectAll}
+                  data-testid="select-all"
                   className="size-4 accent-[var(--color-accent)]"
                   onChange={(e) => {
                     for (const r of document.querySelectorAll<HTMLInputElement>("input[data-bulk-order]")) if (!r.disabled) r.checked = e.target.checked;

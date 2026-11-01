@@ -130,7 +130,7 @@ export default async function phase26(browser) {
     const scan = async (code) => {
       const before = await owner.locator("[data-scan]").count();
       await owner.fill("[data-testid=scan-code]", code);
-      await owner.click("[data-testid=scan-submit]");
+      await owner.press("[data-testid=scan-code]", "Enter");
       await owner.waitForFunction((n) => document.querySelectorAll("[data-scan]").length > n, before);
       return owner.locator("[data-scan]").first().getAttribute("data-scan");
     };

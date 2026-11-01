@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Download, FlipHorizontal2, RefreshCw, Send, SlidersHorizontal, Square, X } from "lucide-react";
+import { Download, RefreshCw, Send, SlidersHorizontal, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { defaultParcelOptions, type ParcelDefaults, type ParcelOptions } from "@/lib/enums";
@@ -19,7 +19,11 @@ type Text = Pick<Dictionary, "orders" | "errors" | "delivery" | "common">;
 const ROW = "input[data-bulk-order]";
 const rows = () => Array.from(document.querySelectorAll<HTMLInputElement>(ROW)).filter((r) => !r.disabled);
 export const selectedRows = () => rows().filter((r) => r.checked).map((r) => ({ id: r.value, number: r.dataset.number ?? "" }));
-const notify = () => document.dispatchEvent(new Event("change"));
+// Untick every row (after a batch), keeping the counters in sync
+const clearSelection = () => {
+  for (const r of rows()) r.checked = false;
+  document.dispatchEvent(new Event("change"));
+};
 
 // How many rows are ticked, kept in sync with the table
 export function useSelectedCount() {
@@ -31,37 +35,6 @@ export function useSelectedCount() {
     return () => document.removeEventListener("change", sync);
   }, []);
   return count;
-}
-
-const select = (mode: "all" | "none" | "invert") => {
-  for (const r of rows()) r.checked = mode === "all" ? true : mode === "none" ? false : !r.checked;
-  notify();
-};
-
-// Select all / none / invert, and how many are selected
-// (showCount: off where the assignment bar already says how many are selected)
-export function SelectionTools({ t, showCount = true }: { t: Pick<Text, "orders">; showCount?: boolean }) {
-  const s = t.orders.select;
-  const count = useSelectedCount();
-  const tool = "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-muted hover:bg-panel hover:text-fg";
-  return (
-    <div className="flex flex-wrap items-center gap-1" data-testid="selection-tools">
-      {showCount && (
-        <span className="me-2 text-sm font-semibold" data-testid="selected-count">
-          {count ? fmt(s.count, { n: count }) : s.hint}
-        </span>
-      )}
-      <button type="button" className={tool} onClick={() => select("all")} data-testid="select-all">
-        <CheckSquare size={14} /> {s.all}
-      </button>
-      <button type="button" className={tool} onClick={() => select("none")} data-testid="select-none">
-        <Square size={14} /> {s.none}
-      </button>
-      <button type="button" className={tool} onClick={() => select("invert")} data-testid="select-invert">
-        <FlipHorizontal2 size={14} /> {s.invert}
-      </button>
-    </div>
-  );
 }
 
 type Result = { id: string; number: string; ok: boolean; text: string };
@@ -90,7 +63,7 @@ export function useBatch(t: Text) {
       setResults([...out]);
     }
     setRunning(null);
-    select("none");
+    clearSelection();
     router.refresh();
   }
   return { running, results, setResults, run, stop: () => (stop.current = true) };
