@@ -398,7 +398,8 @@ export const landingVersions = mysqlTable(
     sections: json("sections").notNull(),
     formTemplateId: id("form_template_id"),
     userId: id("user_id"),
-    createdAt: createdAt(),
+    // Milliseconds: two saves in the same second stay in order in the history
+    createdAt: timestamp("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },
   (t) => [index("landing_versions_page_idx").on(t.pageId, t.createdAt)],
 );
