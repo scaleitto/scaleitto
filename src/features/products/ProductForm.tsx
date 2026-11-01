@@ -6,11 +6,15 @@ import {
   ArrowRight,
   Box,
   ExternalLink,
-  FileDown,
+  Image as ImageIcon,
   ImageOff,
+  Lock,
   Palette,
   Plus,
+  ScanEye,
+  Smartphone,
   Sparkles,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
@@ -29,7 +33,6 @@ import {
   Card,
   Field,
   Input,
-  PageHeader,
   Select,
   Textarea,
   buttonClass,
@@ -366,30 +369,18 @@ export function ProductForm({
       className="space-y-6"
       data-testid="product-form"
     >
-      <PageHeader
-        title={isNew ? p.newTitle : p.editTitle}
-        actions={
-          <>
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg"
-            >
-              <ArrowRight size={16} className="ltr:rotate-180" />{" "}
-              {t.common.back}
-            </Link>
-            {viewHref && (
-              <a
-                href={viewHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg"
-              >
-                <ExternalLink size={16} /> {p.viewInStore}
-              </a>
-            )}
-          </>
-        }
-      />
+      {/* Zimam's header: a square back button next to the title */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href={backHref} className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-panel text-fg hover:bg-panel-2" title={t.common.back} aria-label={t.common.back}>
+          <ArrowRight size={18} className="ltr:rotate-180" />
+        </Link>
+        <h1 className="me-auto text-2xl font-bold tracking-tight text-fg">{isNew ? p.newTitle : p.editTitle}</h1>
+        {viewHref && (
+          <a href={viewHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-panel-2 hover:text-fg">
+            <ExternalLink size={16} /> {p.viewInStore}
+          </a>
+        )}
+      </div>
       {notice && <Alert variant="success">{notice}</Alert>}
 
       <input type="hidden" name="status" value={visible ? "active" : "draft"} />
@@ -426,11 +417,7 @@ export function ProductForm({
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
-          <nav
-            className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-panel p-1"
-            role="tablist"
-            data-testid="product-tabs"
-          >
+          <nav className="flex gap-1 overflow-x-auto border-b border-line" role="tablist" data-testid="product-tabs">
             {tabs.map((k) => (
               <button
                 key={k}
@@ -439,15 +426,10 @@ export function ProductForm({
                 aria-selected={tab === k}
                 data-form-tab={k}
                 onClick={() => setTab(k)}
-                className={`relative shrink-0 rounded-lg px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${tab === k ? "bg-accent-soft text-accent-ink" : "text-muted hover:bg-panel-2 hover:text-fg"}`}
+                className={`relative -mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${tab === k ? "border-accent font-semibold text-fg" : "border-transparent text-muted hover:text-fg"}`}
               >
                 {p.tabs[k]}
-                {tabHasError(k) && (
-                  <span
-                    className="absolute top-1.5 end-1.5 size-1.5 rounded-full bg-danger"
-                    aria-hidden
-                  />
-                )}
+                {tabHasError(k) && <span className="absolute top-2 end-0.5 size-1.5 rounded-full bg-danger" aria-hidden />}
               </button>
             ))}
           </nav>
@@ -455,40 +437,31 @@ export function ProductForm({
           {panel(
             "details",
             <>
-              <Card className="space-y-3">
-                <h2 className="font-semibold">{p.kind}</h2>
-                <div className="grid grid-cols-2 gap-2">
-                  <span
-                    className="flex items-center gap-2 rounded-xl border border-accent bg-accent-soft p-3 text-sm font-semibold text-accent-ink"
-                    aria-current="true"
-                  >
-                    <Box size={17} /> {p.kinds.physical}
-                  </span>
-                  <span
-                    className="flex items-center gap-2 rounded-xl border border-line p-3 text-sm font-semibold text-muted opacity-60"
-                    aria-disabled="true"
-                  >
-                    <FileDown size={17} /> {p.kinds.digital}
-                  </span>
+              <Card className="space-y-6">
+                <div className="space-y-2">
+                  <div className="inline-flex overflow-hidden rounded-lg border border-line" aria-label={p.kind}>
+                    <span className="flex items-center gap-1.5 bg-accent px-3.5 py-2 text-sm font-semibold text-white" aria-current="true">
+                      <Box size={15} /> {p.kinds.physical}
+                    </span>
+                    <span className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-muted" aria-disabled="true">
+                      <Lock size={14} /> {p.kinds.digital}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted">{p.kindHint}</p>
                 </div>
-                <p className="text-xs text-muted">{p.kindHint}</p>
-              </Card>
 
-              <Card className="space-y-4">
-                <h2 className="font-semibold">{p.images}</h2>
-                <ImageManager
-                  t={t.media}
-                  value={images}
-                  onChange={setImages}
-                  max={MAX_IMAGES}
-                />
-                {err("images") && (
-                  <p className="text-xs text-danger">{err("images")}</p>
-                )}
-              </Card>
+                <div className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+                    <ImageIcon size={17} className="text-accent" /> {p.images}
+                  </h2>
+                  <ImageManager t={t.media} value={images} onChange={setImages} max={MAX_IMAGES} dropzone />
+                  {err("images") && <p className="text-xs text-danger">{err("images")}</p>}
+                </div>
 
-              <Card className="space-y-4">
-                <h2 className="font-semibold">{p.info}</h2>
+                <div className="space-y-4 border-t border-line pt-6">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
+                  <Tag size={18} className="text-accent" /> {p.info}
+                </h2>
                 <Field label={p.name} htmlFor="name" error={err("name")}>
                   <Input
                     id="name"
@@ -592,6 +565,7 @@ export function ProductForm({
                     />
                   </div>
                 </Field>
+                </div>
               </Card>
             </>,
           )}
@@ -1401,6 +1375,7 @@ export function ProductForm({
             {state.fieldErrors && (
               <p className="text-xs text-danger">{p.fixErrors}</p>
             )}
+            {isNew && !state.fieldErrors && !state.error && <p className="text-xs font-medium text-warning">{p.notCreated}</p>}
           </div>
           {isNew && (
             <button
@@ -1481,7 +1456,10 @@ function PhonePreview({
       data-testid="product-preview"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{t.preview}</h2>
+        <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
+          <ScanEye size={15} /> {t.preview}
+        </h2>
+        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-ink">{t.mobileView}</span>
       </div>
       <div className="mx-auto w-[300px] rounded-[2.2rem] border-[10px] border-fg/90 bg-white text-[#0f172a] shadow-xl">
         <div className="flex items-center justify-between px-5 pt-2 text-[10px] font-semibold">
@@ -1555,7 +1533,13 @@ function PhonePreview({
           </div>
         </div>
       </div>
-      <p className="text-center text-xs text-muted">{t.previewHint}</p>
+      <div className="flex gap-3 rounded-xl border border-info/20 bg-info/5 p-3 text-xs text-info">
+        <Smartphone size={18} className="shrink-0" />
+        <p>
+          <span className="mb-0.5 block font-semibold">{t.proTip}</span>
+          {t.previewHint}
+        </p>
+      </div>
     </aside>
   );
 }

@@ -233,7 +233,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `description_images`, `low_stock` (the product's alert threshold), `show_out_of_stock` (off = sold-out
   products leave store lists: `storefront/queries.ts inStock`), `carrier_account_id` (copied to new orders in `place-order.ts`),
   `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
-  List columns: current/old price, published, stock, units sold, status, actions.
+  List (Zimam's: no tabs or search) columns: current/old price, published, stock, units sold, status, actions = open in store /
+  edit / delete. Form header = square back button; underline tabs; Details = one card (type, image drop zone `ImageManager dropzone`, info).
 - Zimam parity phase 4 (phase28.mjs) — delivery: sections `delivery` (companies + `AutoSendSwitch`), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`
   (`delivery/settings`: `DeliverySettingsForm` + the wilaya `RatesForm`; `/delivery/rates` redirects). `delivery/settings.ts`

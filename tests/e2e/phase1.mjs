@@ -1,4 +1,4 @@
-// Phase 1: products — list, create with images/variants/offers, edit, search, status, duplicate,
+// Phase 1: products — Zimam list (open in store, edit, delete), create with images/variants/offers, edit,
 // delete, plan limit, uploads security and tenant isolation.
 import { BASE, createSession, createShop, db, expect, pngBuffer, step } from "./helpers.mjs";
 
@@ -57,8 +57,7 @@ export default async function phase1(browser) {
     await Promise.all([page.waitForURL("**/products?created=1"), page.locator("[data-testid=save-product]").click()]);
     await page.waitForSelector("text=تمت إضافة المنتج");
     const row = page.locator('[data-product="ساعة كلاسيكية"]');
-    expect((await row.innerText()).includes("2 متغير"), "list shows 2 variants");
-    expect((await row.innerText()).includes("5"), "list shows the total stock");
+    expect((await row.locator("[data-col=stock]").innerText()).trim() === "5", "list shows the total stock");
 
     const [[p]] = await db.query("SELECT * FROM products WHERE shop_id = ?", [shopId]);
     productId = p.id;
@@ -105,48 +104,33 @@ export default async function phase1(browser) {
     expect((await page.inputValue("#name")) === "ساعة كلاسيكية فاخرة", "name persisted after reload");
   });
 
-  await step("search, status filter and hide/show", async () => {
+  await step("the list is Zimam's: no tabs or search; open in store, edit and delete per row", async () => {
     await page.goto(list);
-    await page.fill('input[name="q"]', "فاخرة");
-    await page.keyboard.press("Enter");
-    await page.waitForURL(/q=/);
-    expect((await page.locator("[data-product]").count()) === 1, "search finds the product");
-    await page.goto(`${list}?q=nothing-matches`);
-    await page.waitForSelector("text=لا توجد نتائج مطابقة");
-    await page.goto(list);
-    await page.click('[data-product] button[aria-label="إخفاء"]');
-    await page.locator("[data-product]").getByText("مسودة").filter({ visible: true }).waitFor();
-    await page.goto(`${list}?status=active`);
-    expect((await page.locator("[data-product]").count()) === 0, "hidden product not in active filter");
-    await page.goto(`${list}?status=draft`);
-    expect((await page.locator("[data-product]").count()) === 1, "hidden product in draft filter");
-  });
-
-  await step("duplicate opens the copy as a draft with its variants", async () => {
-    await page.goto(list);
-    await Promise.all([page.waitForURL((u) => /products\/[0-9a-f-]{36}$/.test(u.pathname) && !u.pathname.endsWith(productId)), page.click('[data-product] button[aria-label="نسخ"]')]);
-    expect((await page.inputValue("#name")).endsWith("(2)"), "copy is named (2)");
-    expect((await page.locator("[data-variant]").count()) === 2, "copy has the variants");
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM products WHERE shop_id = ?", [shopId]);
-    expect(Number(n) === 2, "two products now");
+    expect(!(await page.locator('input[name="q"]').count()), "no search box");
+    const row = page.locator("[data-product]").first();
+    const store = await row.locator('a[aria-label="عرض في المتجر"]').getAttribute("href");
+    expect(/\/store\/[^/]+\/p\/[^/]+$/.test(store ?? ""), `store link (${store})`);
+    expect((await row.locator('a[aria-label="تعديل"]').count()) === 1, "edit link");
+    expect((await row.locator('button[aria-label="حذف"]').count()) === 1, "delete button");
   });
 
   await step("plan limit blocks adding past the ceiling with a clear message", async () => {
+    await page.goto(`${list}/new`);
+    await page.fill("#name", "منتج ثان");
+    await page.fill("#price", "900");
+    await Promise.all([page.waitForURL(/created=1/), page.locator("[data-testid=save-product]").click()]);
     await db.query("INSERT INTO shop_contracts (id, shop_id, start_date, limits) VALUES (UUID(), ?, CURDATE() - INTERVAL 1 DAY, ?)", [shopId, JSON.stringify({ maxProducts: 2 })]);
     await page.goto(`${list}/new`);
     await page.fill("#name", "منتج ثالث");
     await page.fill("#price", "1000");
     await page.locator("[data-testid=save-product]").click();
     await page.waitForSelector("text=وصلت إلى الحد الأقصى للمنتجات");
-    await page.goto(list);
-    await page.locator('[data-product] button[aria-label="نسخ"]').first().click();
-    await page.waitForSelector("text=وصلت إلى الحد الأقصى للمنتجات");
     await db.query("DELETE FROM shop_contracts WHERE shop_id = ?", [shopId]);
   });
 
   await step("delete removes the product and its variants", async () => {
     await page.goto(list);
-    const copy = page.locator("[data-product]", { hasText: "(2)" });
+    const copy = page.locator("[data-product]", { hasText: "منتج ثان" });
     await copy.locator('button[aria-label="حذف"]').click();
     await page.waitForFunction(() => document.querySelectorAll("[data-product]").length === 1);
     const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM product_variants WHERE shop_id = ?", [shopId]);

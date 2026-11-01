@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, LoaderCircle, Star, Trash2 } from "lucide-react";
+import { ImagePlus, LoaderCircle, Star, Trash2, Upload } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
 import { buttonClass } from "./index";
@@ -43,7 +43,8 @@ export async function uploadOne(file: File): Promise<UploadResult> {
 }
 
 // Product/landing images. The first image is the main one.
-export function ImageManager({ t, value, onChange, max = 10 }: { t: Dictionary["media"]; value: string[]; onChange: (images: string[]) => void; max?: number }) {
+// `dropzone`: the big dashed "click to upload" area (product form), also accepting dropped files
+export function ImageManager({ t, value, onChange, max = 10, dropzone = false }: { t: Dictionary["media"]; value: string[]; onChange: (images: string[]) => void; max?: number; dropzone?: boolean }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
@@ -93,13 +94,34 @@ export function ImageManager({ t, value, onChange, max = 10 }: { t: Dictionary["
       {value.length < max && (
         <>
           <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="hidden" data-testid="image-input" onChange={(e) => upload(e.target.files)} />
-          <button type="button" className={buttonClass("secondary")} disabled={uploading} onClick={() => fileInput.current?.click()}>
-            {uploading ? <LoaderCircle size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-            {uploading ? t.uploading : t.upload}
-          </button>
+          {dropzone ? (
+            <button
+              type="button"
+              className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line px-4 py-10 text-center transition hover:border-accent/50 hover:bg-accent-soft/30 disabled:opacity-60"
+              disabled={uploading}
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                upload(e.dataTransfer.files);
+              }}
+              data-testid="image-dropzone"
+            >
+              <span className="grid size-14 place-items-center rounded-full bg-accent-soft text-accent">
+                {uploading ? <LoaderCircle size={24} className="animate-spin" /> : <Upload size={24} />}
+              </span>
+              <span className="text-lg font-semibold text-fg">{uploading ? t.uploading : t.dropTitle}</span>
+              <span className="text-sm text-muted">{fmt(t.hint, { max })}</span>
+            </button>
+          ) : (
+            <button type="button" className={buttonClass("secondary")} disabled={uploading} onClick={() => fileInput.current?.click()}>
+              {uploading ? <LoaderCircle size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+              {uploading ? t.uploading : t.upload}
+            </button>
+          )}
         </>
       )}
-      <p className="text-xs text-muted">{fmt(t.hint, { max })}</p>
+      {!(dropzone && value.length < max) && <p className="text-xs text-muted">{fmt(t.hint, { max })}</p>}
       {problems.length > 0 && (
         <div role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
           <p className="font-semibold">{t.failed}</p>

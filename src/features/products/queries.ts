@@ -1,21 +1,13 @@
 import "server-only";
-import { and, asc, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
-import type { ProductStatus } from "./types";
-import { escapeLike } from "@/lib/validation";
 
 export const PAGE_SIZE = 20;
 
 
-export async function listProducts(shopId: string, { q = "", status, page = 1 }: { q?: string; status?: ProductStatus; page?: number }) {
+export async function listProducts(shopId: string, page = 1) {
   const p = schema.products;
-  const filters: (SQL | undefined)[] = [eq(p.shopId, shopId)];
-  if (status) filters.push(eq(p.status, status));
-  if (q.trim()) {
-    const term = `%${escapeLike(q.trim())}%`;
-    filters.push(or(like(p.name, term), like(p.sku, term)));
-  }
-  const where = and(...filters);
+  const where = eq(p.shopId, shopId);
   // Variant count and stock per product in one query
   const v = db
     .select({ productId: schema.productVariants.productId, variantCount: count().as("variant_count"), variantStock: sql<number>`sum(${schema.productVariants.stock})`.as("variant_stock") })
@@ -28,6 +20,7 @@ export async function listProducts(shopId: string, { q = "", status, page = 1 }:
       .select({
         id: p.id,
         name: p.name,
+        slug: p.slug,
         price: p.price,
         compareAtPrice: p.compareAtPrice,
         images: p.images,

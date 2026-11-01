@@ -126,34 +126,3 @@ export async function deleteProduct(lang: string, productId: string): Promise<Ac
     return { ok: true };
   });
 }
-
-export async function duplicateProduct(lang: string, productId: string): Promise<ActionState> {
-  const locale = asLocale(lang);
-  const result = await safeAction("products/duplicate", async () => {
-    const { shop } = await requireSection(locale, "products");
-    const [source] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
-    if (!source) return { ok: false, error: "notFound" };
-    if (!(await canAdd(shop.id, "maxProducts"))) return { ok: false, error: "limitProducts" };
-    const id = newId();
-    await db.transaction(async (tx) => {
-      const slug = await uniqueSlug(tx, shop.id, `${source.slug}-copy`);
-      const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = source;
-      await tx.insert(schema.products).values({ ...rest, id, slug, name: `${source.name} (2)`, status: "draft" });
-      const variants = await tx.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), eq(schema.productVariants.productId, productId)));
-      if (variants.length) await tx.insert(schema.productVariants).values(variants.map((v) => ({ ...v, id: newId(), productId: id })));
-    });
-    return { ok: true, message: id };
-  });
-  if (result.ok && result.message) redirect(`${sectionHref(locale, "products")}/${result.message}`);
-  return result;
-}
-
-// Quick status switch from the list (active ⇄ draft)
-export async function setProductsStatus(lang: string, ids: string[], status: "active" | "draft"): Promise<ActionState> {
-  return safeAction("products/status", async () => {
-    const { shop } = await requireSection(asLocale(lang), "products");
-    if (ids.length) await db.update(schema.products).set({ status }).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids)));
-    refresh();
-    return { ok: true };
-  });
-}
