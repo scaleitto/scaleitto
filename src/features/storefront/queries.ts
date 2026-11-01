@@ -2,7 +2,7 @@ import "server-only";
 import { formFor } from "@/features/order-form/resolve";
 import { cache } from "react";
 import { headers } from "next/headers";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { RateMap } from "@/features/checkout/pricing";
 import { planAllowsDomain } from "@/features/settings/domain";
@@ -34,8 +34,29 @@ export async function listStoreProducts(shopId: string) {
   return db
     .select({ id: schema.products.id, slug: schema.products.slug, name: schema.products.name, price: schema.products.price, compareAtPrice: schema.products.compareAtPrice, images: schema.products.images })
     .from(schema.products)
-    .where(and(eq(schema.products.shopId, shopId), eq(schema.products.status, "active")))
+    .where(and(eq(schema.products.shopId, shopId), eq(schema.products.status, "active"), inStock))
     .orderBy(desc(schema.products.createdAt));
+}
+
+// Sold-out products leave the store's lists when the merchant turned "show when sold out" off
+const inStock = or(
+  eq(schema.products.showOutOfStock, true),
+  eq(schema.products.trackStock, false),
+  sql`(case when exists (select 1 from product_variants pv where pv.product_id = products.id) then exists (select 1 from product_variants pv where pv.product_id = products.id and pv.stock > 0) else products.stock > 0 end)`,
+);
+
+// The products under a product page: the merchant's choice, or the store's other products (newest first)
+export async function similarProducts(shopId: string, product: { id: string; similarIds: string[] | null }, limit = 4) {
+  const p = schema.products;
+  const chosen = product.similarIds;
+  if (chosen && !chosen.length) return [];
+  const rows = await db
+    .select({ id: p.id, slug: p.slug, name: p.name, price: p.price, compareAtPrice: p.compareAtPrice, images: p.images })
+    .from(p)
+    .where(and(eq(p.shopId, shopId), eq(p.status, "active"), ne(p.id, product.id), inStock, chosen ? inArray(p.id, chosen) : undefined))
+    .orderBy(desc(p.createdAt))
+    .limit(limit);
+  return rows;
 }
 
 export async function getStoreProduct(shopId: string, slug: string) {

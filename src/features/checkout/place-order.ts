@@ -94,6 +94,8 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
         total: line.total + shipping,
         customerNote: input.note || null,
         landingPageId: meta.landingPageId ?? null,
+        // The product's own delivery company (Zimam: every order of this product goes to it)
+        carrierAccountId: product.carrierAccountId,
         extra: meta.extra?.length ? meta.extra : null,
         tracking: meta.tracking ?? null,
         locked,

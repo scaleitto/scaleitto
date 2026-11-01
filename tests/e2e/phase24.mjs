@@ -43,13 +43,14 @@ export default async function phase24(browser) {
 
   await step("offers: a ready-made offer with free delivery, a badge and preselected; the store and the order honour it", async () => {
     await owner.goto(`${dash}/products/${lamp}`);
+    await owner.click("[data-form-tab=offers]");
     await owner.locator('[data-testid=offer-templates] button[data-template="2-10"]').click();
     const offer = owner.locator("[data-testid=offers] [data-offer='2']");
     await offer.locator("[data-testid=offer-free-shipping]").check();
     await offer.locator("[data-testid=offer-preselected]").check();
     await offer.locator("select").selectOption("bestSeller");
     await offer.locator('input[aria-label="هدية مع العرض (اختياري)"]').fill("حافظة مجانية");
-    await owner.locator("button[type=submit]").first().click();
+    await owner.locator("[data-testid=save-product]").click();
     await expectSoon(async () => json((await db.query("SELECT offers FROM products WHERE id = ?", [lamp]))[0][0].offers).length === 1, "offer saved");
     const [[p]] = await db.query("SELECT offers FROM products WHERE id = ?", [lamp]);
     const [saved] = json(p.offers);

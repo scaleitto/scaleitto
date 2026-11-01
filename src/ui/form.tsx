@@ -10,7 +10,8 @@ export function useActionForm(action: (prev: ActionState, formData: FormData) =>
   const [state, dispatch, pending] = useActionState(action, initialActionState);
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    // The button that submitted (its name/value, e.g. "create & add another") is part of the data
+    const formData = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
     startTransition(() => dispatch(formData));
   };
   return { state, pending, onSubmit };

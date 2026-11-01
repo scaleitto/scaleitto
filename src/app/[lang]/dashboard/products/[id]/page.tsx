@@ -8,6 +8,7 @@ import { saveProduct } from "@/features/products/actions";
 import { getProduct } from "@/features/products/queries";
 import { ProductForm } from "@/features/products/ProductForm";
 import { productFormText } from "@/features/products/text";
+import { editorProps } from "@/features/products/editor-props";
 
 export default async function EditProductPage({ params }: PageProps<"/[lang]/dashboard/products/[id]">) {
   const { lang: rawLang, id } = await params;
@@ -20,11 +21,18 @@ export default async function EditProductPage({ params }: PageProps<"/[lang]/das
       key={product.id}
       t={productFormText(getDictionary(lang))}
       action={saveProduct.bind(null, lang, product.id)}
-      values={{ ...product, description: product.description ?? "", sku: product.sku ?? "" }}
+      values={{
+        ...product,
+        description: product.description ?? "",
+        shortDescription: product.shortDescription ?? "",
+        sku: product.sku ?? "",
+        descriptionImages: product.descriptionImages ?? [],
+      }}
       backHref={sectionHref(lang, "products")}
       viewHref={product.status === "active" ? `${storeUrl(shop)}/p/${encodeURIComponent(product.slug)}` : undefined}
       isNew={false}
       ai={{ lang, language: storeLanguage(shop.defaultLocale) }}
+      {...await editorProps(lang, shop, product.id)}
     />
   );
 }

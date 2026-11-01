@@ -107,3 +107,9 @@ test("order form: new field types are checked, blocks kept in the order, stepper
   assert.equal(f.order[0], "el:b1");
   assert.ok(f.order.indexOf("el:b3") < f.order.indexOf("summary"));
 });
+
+test("inventory: a product's own alert threshold wins over the store's", () => {
+  const product = { id: "p", name: "Lampe", sku: null, stock: 8, costPrice: null, price: 100, trackStock: true, images: [], status: "active" };
+  assert.equal(stockRows([product], [], [], 5)[0].state, "ok");
+  assert.equal(stockRows([{ ...product, lowStock: 10 }], [], [], 5)[0].state, "low");
+});

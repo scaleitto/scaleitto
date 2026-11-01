@@ -16,25 +16,30 @@ export default async function phase1(browser) {
 
   await step("saving an empty form shows field errors, not a crash", async () => {
     await page.goto(`${list}/new`);
-    await page.locator("button[type=submit]").first().click();
+    await page.locator("[data-testid=save-product]").click();
     await page.waitForSelector("text=تحقق من الحقول المحددة بالأحمر");
     expect(await page.locator("text=أدخل سعراً صحيحاً بالدينار").count(), "price error shown");
   });
 
   await step("create a product with images, variants, stock and an offer", async () => {
     await page.fill("#name", "ساعة كلاسيكية");
+    expect((await page.locator("[data-preview=name]").innerText()) === "ساعة كلاسيكية", "the phone preview follows the name");
+    await page.click("[data-form-tab=description]");
     await page.fill("#description", "ساعة أنيقة مقاومة للماء");
+    await page.fill("#shortDescription", "مقاومة للماء وأنيقة");
+    await page.click("[data-form-tab=details]");
     await page.fill("#price", "4 500");
     await page.fill("#compareAtPrice", "6000");
     await page.fill("#costPrice", "2500");
     await page.waitForSelector("text=هامش الربح");
-    await page.setInputFiles("[data-testid=image-input]", [
+    await page.setInputFiles("[data-panel=details] [data-testid=image-input]", [
       { name: "red.png", mimeType: "image/png", buffer: pngBuffer([220, 40, 60]) },
       { name: "blue.png", mimeType: "image/png", buffer: pngBuffer([40, 90, 220]) },
     ]);
-    await page.waitForSelector("[data-testid=images] li >> nth=1");
-    await page.check("input[name=trackStock]");
-    await page.click("text=إضافة خيار");
+    await page.waitForSelector("[data-panel=details] [data-testid=images] li >> nth=1");
+    await page.click("[data-form-tab=variants]");
+    await page.locator("[data-testid=track-stock]").check({ force: true });
+    await page.locator("[data-testid=has-variants]").check({ force: true });
     await page.fill('[aria-label="اسم الخيار"]', "المقاس");
     await page.fill('[aria-label="القيم"]', "S");
     await page.keyboard.press("Enter");
@@ -46,9 +51,10 @@ export default async function phase1(browser) {
     await page.locator('[aria-label="القيم"]').nth(1).fill("أسود");
     await page.fill('[aria-label="الكمية المتوفرة S / أسود"]', "5");
     await page.fill('[aria-label="السعر M / أسود"]', "4800");
+    await page.click("[data-form-tab=offers]");
     await page.click("text=إضافة عرض");
     await page.locator('[aria-label="السعر الإجمالي"]').fill("8500");
-    await Promise.all([page.waitForURL("**/products?created=1"), page.locator("button[type=submit]").first().click()]);
+    await Promise.all([page.waitForURL("**/products?created=1"), page.locator("[data-testid=save-product]").click()]);
     await page.waitForSelector("text=تمت إضافة المنتج");
     const row = page.locator('[data-product="ساعة كلاسيكية"]');
     expect((await row.innerText()).includes("2 متغير"), "list shows 2 variants");
@@ -60,6 +66,7 @@ export default async function phase1(browser) {
     expect(p.price === 4500 && p.compare_at_price === 6000 && p.cost_price === 2500, "prices saved as integers");
     expect(json(p.images).length === 2 && json(p.images)[0].startsWith("/uploads/"), "images saved as upload paths");
     expect(json(p.offers)[0].quantity === 2 && json(p.offers)[0].price === 8500, "offer saved");
+    expect(p.short_description === "مقاومة للماء وأنيقة", "short description saved");
     const [variants] = await db.query("SELECT title, price, stock FROM product_variants WHERE product_id = ? ORDER BY position", [p.id]);
     expect(variants.map((v) => `${v.title}:${v.price}:${v.stock}`).join(",") === "S / أسود:null:5,M / أسود:4800:0", `variants saved (${JSON.stringify(variants)})`);
   });
@@ -82,12 +89,14 @@ export default async function phase1(browser) {
   await step("edit keeps values, removing an option rebuilds variants", async () => {
     await page.goto(`${list}/${productId}`);
     expect((await page.inputValue("#price")) === "4500", "price loaded");
+    await page.click("[data-form-tab=variants]");
     expect((await page.locator("[data-variant]").count()) === 2, "2 variants loaded");
     const [[before]] = await db.query("SELECT id FROM product_variants WHERE product_id = ? AND title = 'S / أسود'", [productId]);
     await page.locator('[aria-label="حذف الخيار"]').nth(1).click();
     expect((await page.locator("[data-variant]").count()) === 2, "still 2 variants (S, M)");
+    await page.click("[data-form-tab=details]");
     await page.fill("#name", "ساعة كلاسيكية فاخرة");
-    await page.locator("button[type=submit]").first().click();
+    await page.locator("[data-testid=save-product]").click();
     await page.waitForSelector("text=تم الحفظ");
     const [variants] = await db.query("SELECT id, title, stock FROM product_variants WHERE product_id = ? ORDER BY position", [productId]);
     expect(variants.map((v) => v.title).join(",") === "S,M", `variants rebuilt (${variants.map((v) => v.title)})`);
@@ -127,7 +136,7 @@ export default async function phase1(browser) {
     await page.goto(`${list}/new`);
     await page.fill("#name", "منتج ثالث");
     await page.fill("#price", "1000");
-    await page.locator("button[type=submit]").first().click();
+    await page.locator("[data-testid=save-product]").click();
     await page.waitForSelector("text=وصلت إلى الحد الأقصى للمنتجات");
     await page.goto(list);
     await page.locator('[data-product] button[aria-label="نسخ"]').first().click();
@@ -170,6 +179,7 @@ export default async function phase1(browser) {
   await step("French product form works (LTR, translated)", async () => {
     await page.goto(`${BASE}/fr/dashboard/products/${productId}`);
     expect((await page.locator("html").getAttribute("dir")) === "ltr", "LTR");
+    await page.click("[data-form-tab=offers]");
     await page.waitForSelector("text=Offres de quantité");
   });
 

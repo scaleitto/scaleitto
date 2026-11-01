@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ImageOff, Package, Plus, Search } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { sectionHref } from "@/lib/permissions";
-import { fmt, formatPrice } from "@/lib/format";
+import { fmt, formatDate, formatPrice } from "@/lib/format";
 import { Alert, Badge, Card, EmptyState, PageHeader, buttonClass, inputClass } from "@/ui";
 import { PAGE_SIZE, listProducts } from "./queries";
 import { ProductActions } from "./ProductActions";
@@ -75,11 +75,12 @@ export async function ProductList({ lang, t, shopId, q, status, page, created }:
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted">
                   <tr className="border-b border-line">
-                    <th className="p-3 text-start font-medium">{p.columns.product}</th>
-                    <th className="hidden p-3 text-start font-medium sm:table-cell">{p.columns.price}</th>
-                    <th className="hidden p-3 text-start font-medium md:table-cell">{p.columns.stock}</th>
-                    <th className="hidden p-3 text-start font-medium sm:table-cell">{p.columns.status}</th>
-                    <th className="p-3" />
+                    {(["product", "price", "oldPrice", "published", "stock", "units", "status"] as const).map((k) => (
+                      <th key={k} className={`p-3 text-start font-medium ${k === "product" ? "ps-4" : "hidden md:table-cell"}`}>
+                        {p.columns[k]}
+                      </th>
+                    ))}
+                    <th className="p-3 text-end font-medium">{p.columns.action}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,23 +101,31 @@ export async function ProductList({ lang, t, shopId, q, status, page, created }:
                             <span className="block text-xs text-muted">
                               {[r.sku, r.variantCount ? fmt(p.variantsCount, { n: r.variantCount }) : null].filter(Boolean).join(" · ")}
                             </span>
-                            <span className="mt-0.5 block text-xs font-semibold text-fg sm:hidden">{formatPrice(r.price, t.common.currency)}</span>
+                            <span className="mt-0.5 block text-xs font-semibold text-fg md:hidden">{formatPrice(r.price, t.common.currency)}</span>
                             {r.status === "draft" && (
-                              <span className="mt-1 block sm:hidden">
+                              <span className="mt-1 block md:hidden">
                                 <Badge>{p.statuses.draft}</Badge>
                               </span>
                             )}
                           </span>
                         </Link>
                       </td>
-                      <td className="hidden p-3 whitespace-nowrap sm:table-cell">
-                        <span className="font-semibold">{formatPrice(r.price, t.common.currency)}</span>
-                        {r.compareAtPrice ? <span className="ms-2 text-xs text-muted line-through">{formatPrice(r.compareAtPrice, t.common.currency)}</span> : null}
+                      <td className="hidden p-3 font-semibold whitespace-nowrap tabular-nums md:table-cell" data-col="price">
+                        {formatPrice(r.price, t.common.currency)}
                       </td>
-                      <td className="hidden p-3 whitespace-nowrap md:table-cell">
-                        {!r.trackStock ? <span className="text-muted">{p.notTracked}</span> : r.totalStock > 0 ? r.totalStock : <Badge tone="danger">{p.outOfStock}</Badge>}
+                      <td className="hidden p-3 whitespace-nowrap text-muted tabular-nums md:table-cell" data-col="oldPrice">
+                        {r.compareAtPrice ? <span className="line-through">{formatPrice(r.compareAtPrice, t.common.currency)}</span> : "—"}
                       </td>
-                      <td className="hidden p-3 sm:table-cell">
+                      <td className="hidden p-3 whitespace-nowrap text-muted md:table-cell">
+                        {formatDate(r.createdAt, lang)}
+                      </td>
+                      <td className="hidden p-3 whitespace-nowrap md:table-cell" data-col="stock">
+                        {!r.trackStock ? <span className="text-muted">{p.notTracked}</span> : r.totalStock > 0 ? <span className="tabular-nums">{r.totalStock}</span> : <Badge tone="danger">{p.outOfStock}</Badge>}
+                      </td>
+                      <td className="hidden p-3 tabular-nums md:table-cell" data-col="units">
+                        {r.units}
+                      </td>
+                      <td className="hidden p-3 md:table-cell">
                         <Badge tone={r.status === "active" ? "accent" : "neutral"}>{p.statuses[r.status]}</Badge>
                       </td>
                       <td className="p-2 sm:p-3">

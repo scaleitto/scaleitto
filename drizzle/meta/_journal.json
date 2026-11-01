@@ -204,6 +204,13 @@
       "when": 1793382625999,
       "tag": "0028_zimam_orders_drop",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1793388070395,
+      "tag": "0029_products_zimam",
+      "breakpoints": true
     }
   ]
 }

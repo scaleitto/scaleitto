@@ -33,11 +33,12 @@ export default async function phase22(browser) {
     await owner.goto(`${BASE}/ar/dashboard/products/new`);
     await owner.fill("#name", "حقيبة");
     await owner.fill("#price", "3000");
+    await owner.click("[data-form-tab=variants]");
     await owner.click("[data-testid=add-color-option]");
     const palette = owner.locator("[data-testid=color-palette]");
     await palette.locator('button[aria-label="أسود"]').click();
     await palette.locator('button[aria-label="أحمر"]').click();
-    await Promise.all([owner.waitForURL("**/products?created=1"), owner.locator("button[type=submit]").first().click()]);
+    await Promise.all([owner.waitForURL("**/products?created=1"), owner.locator("[data-testid=save-product]").click()]);
     const [[p]] = await db.query("SELECT slug, options FROM products WHERE shop_id = ? AND name = 'حقيبة'", [shopId]);
     const [color] = json(p.options);
     expect(color.kind === "color" && color.values.join() === "أسود,أحمر" && color.colors["أحمر"] === "#dc2626", `color option saved (got ${JSON.stringify(color)})`);

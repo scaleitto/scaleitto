@@ -202,6 +202,18 @@ export const products = mysqlTable(
     externalRef: varchar("external_ref", { length: 191 }),
     // The order form template for this product (form_templates), null = the store's form
     formTemplateId: id("form_template_id"),
+    // A few words under the name on the product page (7 words at most)
+    shortDescription: varchar("short_description", { length: 120 }),
+    // Photos shown with the description (/uploads paths)
+    descriptionImages: json("description_images").$type<string[] | null>(),
+    // Alert from this many pieces (null = the store's threshold, shops.low_stock)
+    lowStock: int("low_stock"),
+    // Sold-out products stay visible in the store (off = hidden from the store's lists)
+    showOutOfStock: boolean("show_out_of_stock").notNull().default(true),
+    // New orders of this product go to this delivery company (null = the store's rules)
+    carrierAccountId: id("carrier_account_id"),
+    // The products shown under this one (null = the store's other products)
+    similarIds: json("similar_ids").$type<string[] | null>(),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },

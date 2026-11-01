@@ -293,6 +293,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   shipment, messages, call guide, risk, history. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx`, `scanParcel`): dispatch
   confirmed → in transit, recuperate → returned + `return_received_at`. Home = `analytics/overview.ts overviewData`. Old
   sub-pages redirect to tabs (next.config.ts); Protection sits under Apps until the apps phase.
+- Zimam parity phase 3 (phase27.mjs) — products: `ProductForm.tsx` = tabs (details / description / variants & stock / checkout &
+  delivery / offers; panels stay in the DOM with `hidden`, `data-form-tab` / `data-panel`, a failed save opens the first tab with an
+  error), `PhonePreview`, sticky actions (clear, "create & add another" = submit `intent=another` → `/products/new?created=<id>`,
+  the page keys the form on it; `useActionForm` passes the submitter). New columns: `short_description` (≤ 7 words),
+  `description_images`, `low_stock` (wins over `shops.low_stock` in `inventory/stock.ts`), `show_out_of_stock` (off = sold-out
+  products leave store lists: `storefront/queries.ts inStock`), `carrier_account_id` (copied to new orders in `place-order.ts`),
+  `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
+  List columns: current/old price, published, stock, units sold, status, actions.
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

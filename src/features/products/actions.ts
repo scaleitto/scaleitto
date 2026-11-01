@@ -61,7 +61,27 @@ function productRow(input: ProductInput) {
     options: input.options,
     offers: input.offers,
     status: input.status,
+    shortDescription: input.shortDescription || null,
+    descriptionImages: input.descriptionImages.length ? input.descriptionImages : null,
+    lowStock: input.lowStock,
+    showOutOfStock: input.showOutOfStock,
+    carrierAccountId: input.carrierAccountId || null,
+    similarIds: input.similar === "chosen" ? input.similarIds : null,
   };
+}
+
+// The delivery company and the similar products must belong to the shop
+async function checkLinks(shopId: string, input: ProductInput, productId: string | null) {
+  if (input.carrierAccountId) {
+    const [account] = await db.select({ id: schema.carrierAccounts.id }).from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shopId), eq(schema.carrierAccounts.id, input.carrierAccountId)));
+    if (!account) return false;
+  }
+  const ids = input.similarIds.filter((id) => id !== productId);
+  if (ids.length) {
+    const found = await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shopId), inArray(schema.products.id, ids)));
+    input.similarIds = found.map((f) => f.id);
+  } else input.similarIds = [];
+  return true;
 }
 
 export async function saveProduct(lang: string, productId: string | null, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -71,6 +91,7 @@ export async function saveProduct(lang: string, productId: string | null, _prev:
     const parsed = productSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const input = parsed.data;
+    if (!(await checkLinks(shop.id, input, productId))) return { ok: false, error: "notFound" };
 
     if (productId) {
       const [before] = await db.select({ stock: schema.products.stock }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
@@ -95,8 +116,8 @@ export async function saveProduct(lang: string, productId: string | null, _prev:
     });
     return { ok: true, message: id };
   });
-  // Created → open the list (redirect must happen outside the try/catch of safeAction anyway)
-  if (!productId && result.ok) redirect(`${sectionHref(locale, "products")}?created=1`);
+  // Created → open the list, or a new empty form for "create & add another" (redirect must happen outside safeAction)
+  if (!productId && result.ok) redirect(formData.get("intent") === "another" ? `${sectionHref(locale, "products")}/new?created=${result.message}` : `${sectionHref(locale, "products")}?created=1`);
   return result;
 }
 

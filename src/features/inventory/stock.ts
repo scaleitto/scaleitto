@@ -1,5 +1,5 @@
 // Pure: the inventory lines of a shop (unit-tested)
-type Product = { id: string; name: string; sku: string | null; stock: number; costPrice: number | null; price: number; trackStock: boolean; images: string[]; status: string };
+type Product = { id: string; name: string; sku: string | null; stock: number; costPrice: number | null; price: number; trackStock: boolean; images: string[]; status: string; lowStock?: number | null };
 type Variant = { id: string; productId: string; title: string; sku: string | null; stock: number; price: number | null };
 type Held = { productId: string | null; variantId: string | null; n: number };
 
@@ -42,7 +42,8 @@ export function stockRows(products: Product[], variants: Variant[], held: Held[]
         held: heldOf(p.id, l.variantId),
         costPrice: p.costPrice,
         value: p.costPrice == null ? null : Math.max(0, l.stock) * p.costPrice,
-        state: stockState(l.stock, lowStock),
+        // The product's own threshold wins over the store's
+        state: stockState(l.stock, p.lowStock ?? lowStock),
       });
     }
   }

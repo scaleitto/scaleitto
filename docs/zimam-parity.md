@@ -13,8 +13,12 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    Our additions kept on the order page under the form: courier sending, customer messages, call guide, risk check,
    history. The round 8/9 models (five status sections, call counts, returns sub-page, leads table) were dropped; the
    migration 0027 maps the old statuses and turns saved carts into "abandoned" orders.
-3. **Products** — editor tabs (details, description, variants & stock, checkout & delivery, offers), physical/digital,
-   collections, live phone preview, sticky footer actions; products list columns.
+3. **Products** — done (phase27.mjs): editor tabs (details, description, variants & stock, checkout & delivery, offers), physical/digital,
+   collections, live phone preview, sticky footer actions; products list columns. Built: tabs, phone preview, clear /
+   create & add another / create, short description (7 words), description images, alert threshold, show when sold
+   out, the product's delivery company (copied to its orders), similar products (auto or chosen), list columns with
+   units sold. Waiting for their phase: collections (apps), digital products and online-payment-only (online payments),
+   the delivery option (delivery settings).
 4. **Delivery** — general settings (delivery options and prices), delivery companies (catalog, auto-send on confirm),
    handover manifest template (fields, branding, paper, language, preview, draft/publish).
 5. **Connected platforms, call center, team** — channel cards (Google Sheets, Shopify, WooCommerce, YouCan…), agents,

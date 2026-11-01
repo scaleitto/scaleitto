@@ -10,7 +10,7 @@ export async function inventory(shopId: string) {
   const p = schema.products;
   const v = schema.productVariants;
   const [products, variants, held, [shop]] = await Promise.all([
-    db.select({ id: p.id, name: p.name, sku: p.sku, stock: p.stock, costPrice: p.costPrice, price: p.price, trackStock: p.trackStock, images: p.images, status: p.status }).from(p).where(eq(p.shopId, shopId)),
+    db.select({ id: p.id, name: p.name, sku: p.sku, stock: p.stock, costPrice: p.costPrice, price: p.price, trackStock: p.trackStock, images: p.images, status: p.status, lowStock: p.lowStock }).from(p).where(eq(p.shopId, shopId)),
     db.select({ id: v.id, productId: v.productId, title: v.title, sku: v.sku, stock: v.stock, price: v.price }).from(v).where(eq(v.shopId, shopId)),
     db
       .select({ productId: schema.orderItems.productId, variantId: schema.orderItems.variantId, n: sql<number>`sum(${schema.orderItems.quantity})` })

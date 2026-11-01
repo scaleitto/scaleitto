@@ -30,6 +30,8 @@ const json = <T extends z.ZodType>(inner: T, message: string) =>
       return z.NEVER;
     });
 
+const imagePath = z.string().regex(/^(\/uploads\/[\w-]+\/[\w.-]+|https:\/\/\S+)$/);
+
 const optionSchema = z
   .object({
     name: z.string().trim().min(1).max(40),
@@ -64,6 +66,14 @@ export const productSchema = z
     name: z.string().trim().min(2, "e:tooShort").max(200, "e:invalid"),
     slug: z.string().trim().max(120).optional().default(""),
     description: z.string().trim().max(20_000, "e:invalid").optional().default(""),
+    // At most 7 words (Zimam's short description)
+    shortDescription: z
+      .string()
+      .trim()
+      .max(120, "e:invalid")
+      .optional()
+      .default("")
+      .refine((v) => v.split(/\s+/).filter(Boolean).length <= 7, "e:shortDescription"),
     price: money("e:price").refine((v) => v !== null, "e:price"),
     compareAtPrice: money("e:price"),
     costPrice: money("e:price"),
@@ -71,7 +81,14 @@ export const productSchema = z
     trackStock: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     stock: money("e:stock").transform((v) => v ?? 0),
     status: z.enum(productStatuses),
-    images: json(z.array(z.string().regex(/^(\/uploads\/[\w-]+\/[\w.-]+|https:\/\/\S+)$/)).max(MAX_IMAGES), "e:images"),
+    images: json(z.array(imagePath).max(MAX_IMAGES), "e:images"),
+    descriptionImages: json(z.array(imagePath).max(MAX_IMAGES), "e:images"),
+    lowStock: money("e:stock"),
+    showOutOfStock: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    carrierAccountId: z.string().optional().default(""),
+    // "auto" = the store's other products; otherwise the chosen ones
+    similar: z.enum(["auto", "chosen"]).optional().default("auto"),
+    similarIds: json(z.array(z.string().uuid()).max(50), "e:invalid"),
     options: json(
       z
         .array(optionSchema)

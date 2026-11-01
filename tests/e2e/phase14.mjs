@@ -83,11 +83,12 @@ export default async function phase14(browser) {
 
   await step("product description written by the AI into the form, saved with the product", async () => {
     await owner.goto(`${BASE}/ar/dashboard/products/${productId}`);
+    await owner.click("[data-form-tab=description]");
     await owner.fill("#description", "مقاومة للماء، شاشة ملونة");
     await owner.locator("[data-testid=ai-description]").click();
     await owner.waitForFunction(() => document.querySelector("#description")?.value.startsWith("وصف من الذكاء الاصطناعي"), null, { timeout: 30_000 });
     expect((await owner.locator("#description").inputValue()).includes("ساعة ذكية"), "written for this product");
-    await owner.locator("button[type=submit]").first().click();
+    await owner.locator("[data-testid=save-product]").click();
     let saved = "";
     for (let i = 0; i < 30 && !saved.startsWith("وصف من الذكاء الاصطناعي"); i++) {
       [[{ description: saved }]] = await db.query("SELECT description FROM products WHERE id = ?", [productId]);
