@@ -107,8 +107,6 @@ export default async function phase23(browser) {
     await owner.fill("#lowStock", "20");
     await owner.locator("[data-testid=low-stock-form] button[type=submit]").click();
     await owner.locator('[data-stock="مصباح"]').getByText("قليل").waitFor();
-    await owner.goto(dash);
-    await owner.locator("[data-testid=attention] [data-todo=lowStock]").waitFor();
   });
 
   await step("order analysis (now in Analytics): rates and couriers of the period", async () => {

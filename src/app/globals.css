@@ -231,3 +231,9 @@ input[type="range"] {
     animation: none;
   }
 }
+
+/* Overview: amounts hidden with the eye button (screen sharing) */
+[data-hide-amounts] [data-amount] {
+  filter: blur(7px);
+  user-select: none;
+}

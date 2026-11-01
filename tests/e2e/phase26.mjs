@@ -31,11 +31,12 @@ export default async function phase26(browser) {
   const statusOf = async (id) => (await db.query("SELECT * FROM orders WHERE id = ?", [id]))[0][0];
 
   await step("home: greeting, what needs the merchant, the 7-day numbers and the checklist", async () => {
-    await owner.goto(dash);
+    await owner.goto(`${dash}?period=7d`);
     expect(/(صباح|مساء) الخير/.test(await owner.locator("main h1").innerText()), "greeting");
     expect((await owner.locator("[data-testid=attention] [data-todo=pending]").innerText()).includes("2"), "2 orders waiting");
     expect((await owner.locator("[data-stat=orders] [data-value]").innerText()) === "4", "4 orders in 7 days");
-    expect((await owner.locator("[data-testid=checklist] [data-step=products]").getAttribute("data-done")) === "true", "a product exists");
+    expect((await owner.locator("[data-testid=checklist] [data-step=pixels]").getAttribute("data-done")) === "false", "no pixel yet");
+    expect((await owner.locator("[data-testid=summary]").innerText()).includes("بانتظارك"), "the summary says what is waiting");
     expect((await owner.locator("[data-testid=latest-orders] li").count()) === 4, "latest orders");
   });
 
