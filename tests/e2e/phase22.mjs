@@ -51,58 +51,6 @@ export default async function phase22(browser) {
     await page.close();
   });
 
-  await step("order form section: order, hide, labels, popup, WhatsApp, delivery names, thank-you", async () => {
-    await owner.goto(`${BASE}/ar/dashboard/store-design/order-form`);
-    await owner.waitForSelector("[data-testid=form-editor]");
-    // Phone above the name, note hidden, the name renamed
-    await owner.click('[data-element=phone] button[aria-label^="إلى الأعلى"]');
-    await owner.click("[data-element=note] [data-testid=element-visibility]");
-    await owner.click("[data-element=name] [data-testid=element-settings]");
-    await owner.fill('input[aria-label="عنوان الحقل الاسم الكامل"]', "اسمك ولقبك");
-    await owner.click("[data-testid=appearance-popup]");
-    await owner.click("[data-testid=form-tab-settings]");
-    await owner.check("[data-testid=form-whatsapp]");
-    await owner.selectOption('select[aria-label="حركة زر الطلب"]', "pulse");
-    await owner.click("[data-testid=form-tab-delivery]");
-    await owner.fill('input[aria-label="اسم التوصيل للمكتب"]', "استلام من المكتب");
-    await owner.locator("[data-testid=form-editor] label", { hasText: "استلام من المكتب" }).click();
-    await owner.click("[data-testid=form-tab-thanks]");
-    await owner.fill('textarea[aria-label="رسالة بعد الطلب (اختياري)"]', "شكراً، سنتصل بك قريباً");
-    // The preview follows the changes
-    const preview = owner.locator("[data-testid=order-form-preview]");
-    expect((await preview.locator("label[for=name]").innerText()) === "اسمك ولقبك", "preview shows the new label");
-    await owner.click("[data-testid=save-order-form]");
-    await owner.waitForSelector("text=تم الحفظ");
-    const [[row]] = await db.query("SELECT order_form FROM shops WHERE id = ?", [shopId]);
-    const form = json(row.order_form);
-    expect(form.order.indexOf("phone") < form.order.indexOf("name") && !form.note && form.appearance === "popup" && form.whatsapp, "form saved");
-    expect(form.labels.name.label === "اسمك ولقبك" && form.officeLabel === "استلام من المكتب" && form.preferDelivery === "office", "labels saved");
-  });
-
-  await step("the store's product page uses that form (popup, order, WhatsApp) and its thank-you message", async () => {
-    const p = await browser.newPage();
-    await p.goto(`${store}/p/lamp`);
-    expect(await p.locator("[data-testid=order-overlay]").isHidden(), "form closed behind its button");
-    await p.click("[data-testid=open-order-form]", { force: true }); // the button pulses (never "stable")
-    await p.waitForSelector("[data-testid=order-overlay][data-kind=popup] #name");
-    const keys = await p.locator("#order-form-fields [data-element]").evaluateAll((els) => els.map((e) => e.dataset.element));
-    expect(keys.indexOf("phone") < keys.indexOf("name") && !keys.includes("note"), `fields in the merchant's order (got ${keys.join()})`);
-    expect((await p.locator("label[for=name]").innerText()) === "اسمك ولقبك", "own label");
-    expect(await p.locator("[data-testid=whatsapp-order]").count(), "WhatsApp order button");
-    expect((await p.locator("input[name=deliveryType][value=office]").isChecked()) && (await p.locator("text=استلام من المكتب").count()), "office first, with its own name");
-    await p.click("[data-testid=close-order-form]");
-    await p.click("[data-testid=open-order-form]", { force: true }); // the button pulses (never "stable")
-    await p.fill("#name", "زبون الاستمارة");
-    await p.fill("#phone", "0661 22 33 44");
-    await p.selectOption("#wilaya", "16");
-    await p.selectOption("#commune", "Hydra");
-    await Promise.all([p.waitForURL(/\/thanks\?o=/), p.locator("#order-form-fields button[type=submit]").click({ force: true })]);
-    expect((await p.locator("[data-testid=thank-you-message]").innerText()).includes("شكراً، سنتصل بك قريباً"), "store thank-you message");
-    const [[order]] = await db.query("SELECT commune, delivery_type FROM orders WHERE id = ?", [new URL(p.url()).searchParams.get("o")]);
-    expect(order.commune === "Hydra" && order.delivery_type === "office", "order saved");
-    await p.close();
-  });
-
   await step("store design: own font, corners and columns over the theme, floating WhatsApp", async () => {
     await owner.goto(`${BASE}/ar/dashboard/store-design`);
     await owner.selectOption("#styleFont", "changa");

@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
       { source: "/:lang(ar|fr|en)/dashboard/pixels", destination: "/:lang/dashboard/integrations/pixels", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/apps", destination: "/:lang/dashboard/integrations/apps", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/themes", destination: "/:lang/dashboard/store-design/themes", permanent: true },
-      { source: "/:lang(ar|fr|en)/dashboard/order-form", destination: "/:lang/dashboard/store-design/order-form", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/orders/insights", destination: "/:lang/dashboard/analytics", permanent: true },
       { source: "/:lang(ar|fr|en)/dashboard/delivery/rates", destination: "/:lang/dashboard/delivery/settings", permanent: true },
       // The orders sub-pages became status tabs (Zimam parity)

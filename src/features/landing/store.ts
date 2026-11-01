@@ -21,7 +21,7 @@ export async function shopProduct(shopId: string, productId: string) {
 }
 
 // Inserts a page (used by manual creation and by the AI).
-export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; status?: "draft" | "published"; formTemplateId?: string | null; variants?: unknown; metaDescription?: string | null; pixels?: Record<string, string[]> | null }) {
+export async function insertLandingPage(shopId: string, data: { productId: string; title: string; language: string; color?: string | null; sections: unknown; status?: "draft" | "published"; variants?: unknown; metaDescription?: string | null; pixels?: Record<string, string[]> | null }) {
   const id = newId();
   await db.insert(schema.landingPages).values({
     id,
@@ -34,7 +34,6 @@ export async function insertLandingPage(shopId: string, data: { productId: strin
     status: data.status ?? "draft",
     sections: sanitizeSections(data.sections),
     variants: data.variants ?? [],
-    formTemplateId: data.formTemplateId ?? null,
     metaDescription: data.metaDescription ?? null,
     pixels: data.pixels ?? null,
   });

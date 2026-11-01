@@ -13,14 +13,13 @@ import { sectionHref } from "@/lib/permissions";
 import type { ActionState } from "@/lib/action";
 import { productSchema, type ProductInput } from "./validators";
 import { combinations, variantTitle } from "./variants";
-import { logStock } from "@/features/inventory/movements";
 import { uniqueSlug } from "./slug";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Variants are rebuilt from the options on the server; the form only supplies price/SKU/stock per title.
 // Existing rows keep their id (orders will point to them).
-async function saveVariants(tx: Tx, shopId: string, productId: string, input: ProductInput, userId: string) {
+async function saveVariants(tx: Tx, shopId: string, productId: string, input: ProductInput) {
   const supplied = new Map(input.variants.map((v) => [v.title, v]));
   const existing = new Map(
     (await tx.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, productId)))).map((v) => [v.title, v]),
@@ -31,15 +30,12 @@ async function saveVariants(tx: Tx, shopId: string, productId: string, input: Pr
     const data = supplied.get(title);
     const row = { optionValues: values, title, position, sku: data?.sku || null, price: data?.price ?? null, stock: data?.stock ?? 0 };
     const current = existing.get(title);
-    // A stock typed in the product form is an "edit" in the inventory history
     if (current) {
       await tx.update(schema.productVariants).set(row).where(eq(schema.productVariants.id, current.id));
-      if (input.trackStock) await logStock(tx, [{ shopId, productId, variantId: current.id, delta: row.stock - current.stock, reason: "edit", userId }]);
       keep.push(current.id);
     } else {
       const id = newId();
       await tx.insert(schema.productVariants).values({ id, productId, shopId, ...row });
-      if (input.trackStock) await logStock(tx, [{ shopId, productId, variantId: id, delta: row.stock, reason: "edit", userId }]);
       keep.push(id);
     }
   }
@@ -87,7 +83,7 @@ async function checkLinks(shopId: string, input: ProductInput, productId: string
 export async function saveProduct(lang: string, productId: string | null, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const locale = asLocale(lang);
   const result = await safeAction("products/save", async () => {
-    const { shop, user } = await requireSection(locale, "products");
+    const { shop } = await requireSection(locale, "products");
     const parsed = productSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const input = parsed.data;
@@ -99,8 +95,7 @@ export async function saveProduct(lang: string, productId: string | null, _prev:
       await db.transaction(async (tx) => {
         const slug = await uniqueSlug(tx, shop.id, input.slug, productId);
         await tx.update(schema.products).set({ ...productRow(input), slug }).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
-        if (input.trackStock && !input.options.length) await logStock(tx, [{ shopId: shop.id, productId, delta: input.stock - before.stock, reason: "edit", userId: user.id }]);
-        await saveVariants(tx, shop.id, productId, input, user.id);
+        await saveVariants(tx, shop.id, productId, input);
       });
       refresh();
       return { ok: true };
@@ -111,8 +106,7 @@ export async function saveProduct(lang: string, productId: string | null, _prev:
     await db.transaction(async (tx) => {
       const slug = await uniqueSlug(tx, shop.id, input.slug);
       await tx.insert(schema.products).values({ id, shopId: shop.id, slug, ...productRow(input) });
-      if (input.trackStock && !input.options.length) await logStock(tx, [{ shopId: shop.id, productId: id, delta: input.stock, reason: "edit", userId: user.id }]);
-      await saveVariants(tx, shop.id, id, input, user.id);
+      await saveVariants(tx, shop.id, id, input);
     });
     return { ok: true, message: id };
   });

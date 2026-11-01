@@ -4,7 +4,6 @@ import { fmt, formatDate, formatTime } from "@/lib/format";
 import { listTeam } from "@/features/team/queries";
 import { teamPerformance } from "@/features/team/metrics";
 import { TeamManager } from "@/features/team/TeamManager";
-import { CallCenterHeader } from "@/features/team/views";
 
 // Call center (Zimam): the agents as cards, "Add agent", and where they sign in. Agents use their own portal.
 export default async function CallCentersPage({ params }: PageProps<"/[lang]/dashboard/call-centers">) {
@@ -17,7 +16,6 @@ export default async function CallCentersPage({ params }: PageProps<"/[lang]/das
   const presence = new Map(today.map((p) => [p.userId, p]));
   return (
     <>
-      <CallCenterHeader lang={lang} t={t} current="team" />
       <TeamManager
         lang={lang}
         viewer={{ userId: user.id, role }}

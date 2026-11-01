@@ -141,21 +141,6 @@ export async function getOrder(viewer: OrderViewer, id: string) {
 }
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
-// Orders → Protection: suspicious orders this week and the blocked phones
-export async function protectionOverview(shopId: string, riskThreshold: number) {
-  const o = schema.orders;
-  const [[suspicious], blocked] = await Promise.all([
-    db.select({ n: count() }).from(o).where(and(eq(o.shopId, shopId), gte(o.risk, riskThreshold), gte(o.createdAt, new Date(Date.now() - 7 * 86400_000)))),
-    db
-      .select({ phone: schema.blockedPhones.phone, reason: schema.blockedPhones.reason, createdAt: schema.blockedPhones.createdAt })
-      .from(schema.blockedPhones)
-      .where(eq(schema.blockedPhones.shopId, shopId))
-      .orderBy(desc(schema.blockedPhones.createdAt))
-      .limit(300),
-  ]);
-  return { suspicious: suspicious.n, blocked };
-}
-
 // The products to pick from in the order dialogs (name, price, photo, variants)
 export async function orderProducts(shopId: string) {
   const [products, variants] = await Promise.all([

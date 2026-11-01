@@ -1,6 +1,6 @@
 // Phase 7 (landing pages like Zimam): design manually (a blank canvas), the builder's components and settings, the
-// builder saving by itself, the form chosen from Store design → Order form, publish (the draft stays private until
-// then), the public page and its orders (with the version seen), the embeddable form, duplicate / delete from the list,
+// builder saving by itself, the store's order form, publish (the draft stays private until then), the public page and
+// its orders (with the version seen), duplicate / delete from the list,
 // plan limits, roles and tenant isolation.
 import { randomUUID } from "node:crypto";
 import { BASE, createLandingManually, createSession, createShop, db, expect, landingRow, pngBuffer, step, until } from "./helpers.mjs";
@@ -19,10 +19,9 @@ export default async function phase7(browser) {
     [productId, shopId],
   );
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 500, 350)", [shopId]);
-  // A template of the store's order forms (Store design → Order form): the page picks it, it has no form of its own
-  const templateId = randomUUID();
-  const templateForm = { buttonText: "اطلب ساعتك الآن", address: "required", delivery: "home", thankYou: "شكراً! سنتصل بك اليوم.", custom: [{ id: "c1", label: "لون السوار", type: "select", options: ["أسود", "أزرق"], required: true }] };
-  await db.query("INSERT INTO form_templates (id, shop_id, name, form) VALUES (?, ?, 'فورم الساعات', ?)", [templateId, shopId, JSON.stringify(templateForm)]);
+  // The store's order form: landing pages use it (they have no form of their own)
+  const storeForm = { buttonText: "اطلب ساعتك الآن", address: "required", delivery: "home", thankYou: "شكراً! سنتصل بك اليوم.", custom: [{ id: "c1", label: "لون السوار", type: "select", options: ["أسود", "أزرق"], required: true }] };
+  await db.query("UPDATE shops SET order_form = ? WHERE id = ?", [JSON.stringify(storeForm), shopId]);
   const preview = (type) => owner.locator(`[data-testid=landing-preview] [data-type=${type}]`);
   const panel = owner.locator("[data-testid=section-panel]");
   let pageId;
@@ -59,9 +58,9 @@ export default async function phase7(browser) {
     await owner.waitForSelector("[data-testid=save-state][data-state=saved]");
   });
 
-  await step("the form: one of Store design → Order form's forms; a sticky button and a block moved with its toolbar", async () => {
+  await step("the form: the store's form; a sticky button and a block moved with its toolbar", async () => {
     await preview("form").click();
-    await panel.locator("[data-testid=landing-form-template]").selectOption(templateId);
+    await panel.locator("[data-testid=landing-form-style]").waitFor();
     await owner.waitForSelector('[data-testid=landing-preview] button:has-text("اطلب ساعتك الآن")');
     await owner.click("[data-add=sticky]");
     expect(await owner.locator("[data-add=sticky]").isDisabled(), "one sticky button per page");
@@ -69,8 +68,8 @@ export default async function phase7(browser) {
     await owner.locator('[data-testid=landing-preview] [data-type=text] button[aria-label="إلى الأعلى"]').click();
     await until(async () => {
       const r = await landingRow(pageId);
-      return r.form_template_id === templateId && r.sections.map((s) => s.type).join() === "text,image,form,sticky";
-    }, "form template and order saved");
+      return r.sections.map((s) => s.type).join() === "text,image,form,sticky";
+    }, "order saved");
   });
 
   await step("a draft page is not public; Publish puts it online", async () => {
@@ -156,33 +155,13 @@ export default async function phase7(browser) {
     await owner.keyboard.press("Escape");
   });
 
-  await step("embed: the form alone, with the embed code, and its own thank-you page", async () => {
-    await owner.goto(`${BASE}/ar/dashboard/store-design/order-form`);
-    await owner.locator("[data-testid=embed-source]").selectOption(pageId);
-    const code = await owner.locator("[data-testid=embed-code]").inputValue();
-    expect(code.includes(`/embed/shop-${tag}/${encodeURIComponent(pageSlug)}`) && code.includes("<iframe"), "embed code has the iframe URL");
-    const embed = await browser.newPage({ viewport: { width: 420, height: 900 } });
-    await embed.goto(`${BASE}/embed/shop-${tag}/${pageSlug}`);
-    await embed.waitForSelector('button[type=submit]:has-text("اطلب ساعتك الآن")');
-    expect(!(await embed.locator("[data-section=text]").count()), "no page components in the embed");
-    await embed.fill("#name", "سارة");
-    await embed.fill("#phone", "0770 11 22 33");
-    await embed.selectOption("#wilaya", "16");
-    await embed.selectOption("#commune", "القبة");
-    await embed.fill("#address", "شارع 1");
-    await embed.locator("select[name^=custom_]").selectOption("أسود");
-    await Promise.all([embed.waitForURL(/\/embed\/[^/]+\/thanks\?o=/), embed.click("button[type=submit]")]);
-    await embed.waitForSelector("text=شكراً! سنتصل بك اليوم.");
-    await embed.close();
-  });
-
   await step("the list's actions: duplicate opens a draft copy, unpublish / publish, delete", async () => {
     await owner.goto(section);
     const original = owner.locator("[data-testid=landing-list] [data-page]").first();
     await original.locator("[data-action=more]").click();
     await Promise.all([owner.waitForURL((u) => /landing-pages\/[0-9a-f-]{36}$/.test(u.pathname) && !u.pathname.endsWith(pageId)), original.locator("[data-action=duplicate]").click()]);
     const copy = await landingRow(owner.url().split("/").pop());
-    expect(copy.status === "draft" && copy.form_template_id === templateId, "copy is a draft with the same form");
+    expect(copy.status === "draft" && copy.sections.length === 5, "copy is a draft with the same components");
     await owner.goto(section);
     await owner.waitForFunction(() => document.querySelectorAll("[data-testid=landing-list] [data-page]").length === 2);
     const live = owner.locator('[data-testid=landing-list] [data-page][data-status="published"]');

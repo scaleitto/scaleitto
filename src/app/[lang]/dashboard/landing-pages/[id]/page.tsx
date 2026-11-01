@@ -10,8 +10,8 @@ import { resolveDesign, storeTheme } from "@/features/design/types";
 import { getShippingRates } from "@/features/storefront/queries";
 import { getLandingPage, landingProduct } from "@/features/landing/queries";
 import { LandingEditor } from "@/features/landing/LandingEditor";
-import { interfaceLocale, pageLanguage, resolveForm, sanitizeSections, sanitizeVariants } from "@/features/landing/types";
-import { productForm } from "@/features/order-form/resolve";
+import { interfaceLocale, pageLanguage, sanitizeSections, sanitizeVariants } from "@/features/landing/types";
+import { storeForm } from "@/features/order-form/resolve";
 
 // The landing page builder (Zimam's, full screen over the dashboard)
 export default async function EditLandingPage({ params }: PageProps<"/[lang]/dashboard/landing-pages/[id]">) {
@@ -23,8 +23,7 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
   if (!page) notFound();
   const product = await landingProduct(shop.id, page.productId);
   if (!product) notFound();
-  const [templates, pixels, productImages] = await Promise.all([
-    db.select({ id: schema.formTemplates.id, name: schema.formTemplates.name, form: schema.formTemplates.form }).from(schema.formTemplates).where(eq(schema.formTemplates.shopId, shop.id)),
+  const [pixels, productImages] = await Promise.all([
     db.select({ id: schema.pixels.id, platform: schema.pixels.platform, name: schema.pixels.name }).from(schema.pixels).where(eq(schema.pixels.shopId, shop.id)),
     db.select({ images: schema.products.images }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), isNotNull(schema.products.images))),
   ]);
@@ -39,7 +38,7 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
       key={page.id}
       lang={lang}
       pageId={page.id}
-      initial={{ title: page.title, slug: page.slug, metaDescription: page.metaDescription ?? "", formTemplateId: page.formTemplateId ?? "", pixels: page.pixels ?? null, content: { sections, variants } }}
+      initial={{ title: page.title, slug: page.slug, metaDescription: page.metaDescription ?? "", pixels: page.pixels ?? null, content: { sections, variants } }}
       live={page.status === "published"}
       hasPublished={Boolean(page.published)}
       product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
@@ -51,7 +50,7 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
       color={page.color ?? shop.primaryColor}
       pageUrl={`${storeUrl(shop)}/lp/${encodeURIComponent(page.slug)}`}
       backHref={sectionHref(lang, "landingPages")}
-      forms={{ product: await productForm(shop, product.formTemplateId), templates: templates.map((x) => ({ id: x.id, name: x.name, form: resolveForm(x.form) })), editHref: sectionHref(lang, "orderForm") }}
+      form={storeForm(shop)}
       pixels={pixels}
       library={library}
       t={{ landingPages: t.landingPages, media: t.media, errors: t.errors, common: t.common }}

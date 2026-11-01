@@ -3,9 +3,9 @@ import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mys
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 // Value lists shared with browser code live in a plain module (no database code in client bundles)
-import { expenseCategories, limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
-export { expenseCategories, limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
-export type { ExpenseCategory, LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
+import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
+export { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
+export type { LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
 
 const id = (name = "id") => varchar(name, { length: 36 });
 const createdAt = () => timestamp("created_at").notNull().defaultNow();
@@ -103,8 +103,6 @@ export const shops = mysqlTable(
     // The store's order form (features/landing/types.ts FormSettings, read through resolveForm): product pages use it,
     // new landing pages start from it
     orderForm: json("order_form"),
-    // Inventory: a product or variant at or under this quantity is "low" (Inventory section, overview alert)
-    lowStock: int("low_stock").notNull().default(5),
     // Delivery general settings (src/features/delivery/settings.ts resolveDelivery): on/off, auto-send, options
     delivery: json("delivery"),
     // Handover manifest template, draft + published (resolveManifest)
@@ -218,13 +216,11 @@ export const products = mysqlTable(
     callGuide: json("call_guide"),
     // Where an imported product came from ("shopify:<store>:<id>", "youcan:<id>"), so it is never imported twice
     externalRef: varchar("external_ref", { length: 191 }),
-    // The order form template for this product (form_templates), null = the store's form
-    formTemplateId: id("form_template_id"),
     // A few words under the name on the product page (7 words at most)
     shortDescription: varchar("short_description", { length: 120 }),
     // Photos shown with the description (/uploads paths)
     descriptionImages: json("description_images").$type<string[] | null>(),
-    // Alert from this many pieces (null = the store's threshold, shops.low_stock)
+    // Alert from this many pieces (null = no alert)
     lowStock: int("low_stock"),
     // Sold-out products stay visible in the store (off = hidden from the store's lists)
     showOutOfStock: boolean("show_out_of_stock").notNull().default(true),
@@ -306,8 +302,6 @@ export const orders = mysqlTable(
     // set back to 0 when someone marks the order as trusted
     risk: int("risk").notNull().default(0),
     riskReasons: json("risk_reasons").$type<string[] | null>(),
-    // Finance: when the cash-on-delivery money of this delivered order was received from the courier (null: still owed)
-    paidAt: datetime("paid_at"),
     // The team's note on the order (the orders table's note column and the edit dialog)
     note: varchar("note", { length: 500 }),
     // The order's own delivery fee was waived by the team (edit dialog)
@@ -376,9 +370,6 @@ export const landingPages = mysqlTable(
     variants: json("variants"),
     // What visitors see, copied from the draft on "Publish" ({ sections, variants }); "Discard changes" goes back to it
     published: json("published"),
-    // The order form: one of the store's form templates (null → the product's form, else the store's form;
-    // src/features/order-form/resolve.ts). Forms are edited in one place: Store design → Order form.
-    formTemplateId: id("form_template_id"),
     // Search and social preview text (Advanced: SEO)
     metaDescription: varchar("meta_description", { length: 300 }),
     // Which of the store's pixels fire on this page, per platform (null / missing platform = all of them)
@@ -411,7 +402,6 @@ export const landingVersions = mysqlTable(
     pageId: id("page_id").notNull(),
     title: varchar("title", { length: 200 }).notNull(),
     sections: json("sections").notNull(),
-    formTemplateId: id("form_template_id"),
     userId: id("user_id"),
     // Milliseconds: two saves in the same second stay in order in the history
     createdAt: timestamp("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
@@ -741,54 +731,3 @@ export const planRequests = mysqlTable(
   (t) => [index("plan_requests_shop_idx").on(t.shopId, t.createdAt), index("plan_requests_status_idx").on(t.status, t.createdAt)],
 );
 
-// ─── Inventory, finance, form templates (round 7) ─────────
-
-// Every change of a product's (or variant's) stock and why: orders take it, cancellations/returns give it back,
-// the merchant restocks, corrects or writes off. delta < 0 = out.
-export const stockReasons = ["order", "cancel", "return", "reopen", "restock", "adjust", "damaged", "edit"] as const;
-export type StockReason = (typeof stockReasons)[number];
-export const stockMovements = mysqlTable(
-  "stock_movements",
-  {
-    id: id().primaryKey(),
-    shopId: id("shop_id").notNull(),
-    productId: id("product_id").notNull(),
-    variantId: id("variant_id"),
-    delta: int("delta").notNull(),
-    reason: mysqlEnum("reason", stockReasons).notNull(),
-    note: varchar("note", { length: 200 }),
-    orderId: id("order_id"),
-    userId: id("user_id"),
-    createdAt: createdAt(),
-  },
-  (t) => [index("stock_movements_shop_idx").on(t.shopId, t.createdAt), index("stock_movements_product_idx").on(t.productId, t.createdAt)],
-);
-
-// Money the shop spends (entered by the merchant), for the net profit in Finance
-export const expenses = mysqlTable(
-  "expenses",
-  {
-    id: id().primaryKey(),
-    shopId: id("shop_id").notNull(),
-    day: date("day", { mode: "string" }).notNull(),
-    category: mysqlEnum("category", expenseCategories).notNull(),
-    amount: int("amount").notNull(),
-    note: varchar("note", { length: 200 }),
-    createdBy: id("created_by"),
-    createdAt: createdAt(),
-  },
-  (t) => [index("expenses_shop_day_idx").on(t.shopId, t.day)],
-);
-
-// Order form templates: a product with formTemplateId uses its template instead of the store's form
-export const formTemplates = mysqlTable(
-  "form_templates",
-  {
-    id: id().primaryKey(),
-    shopId: id("shop_id").notNull(),
-    name: varchar("name", { length: 80 }).notNull(),
-    form: json("form").notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [index("form_templates_shop_idx").on(t.shopId)],
-);

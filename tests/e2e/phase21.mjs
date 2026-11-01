@@ -185,28 +185,5 @@ export default async function phase21(browser) {
     expect(after.risk === 0, "trusted");
   });
 
-  await step("Protection settings: limits saved, a number blocked and unblocked; agents do not see it", async () => {
-    await owner.goto(`${dash}/orders/protection`);
-    const form = owner.locator("[data-testid=protection-form]");
-    await owner.fill("#pr-riskThreshold", "5");
-    await form.locator("button[type=submit]").click();
-    await form.getByText("قيمة غير صحيحة").waitFor();
-    await owner.fill("#pr-riskThreshold", "30");
-    await owner.fill("#pr-maxPerPhonePerDay", "2");
-    await form.locator('input[name="holdSuspicious"]').check();
-    await form.locator("button[type=submit]").click();
-    await form.getByText("تم الحفظ").waitFor();
-    const [[shop]] = await db.query("SELECT protection FROM shops WHERE id = ?", [shopId]);
-    const p = typeof shop.protection === "string" ? JSON.parse(shop.protection) : shop.protection;
-    expect(p.riskThreshold === 30 && p.maxPerPhonePerDay === 2 && p.holdSuspicious === true && p.blockBots === true, `settings (got ${JSON.stringify(p)})`);
-    const blocked = owner.locator("[data-testid=blocked-phones]");
-    await owner.fill("#bp-phone", "0777 12 34 56");
-    await owner.fill("#bp-reason", "طلبيات وهمية");
-    await blocked.locator("[data-testid=block-phone]").click();
-    await blocked.locator('[data-blocked="0777123456"]').getByText("طلبيات وهمية").waitFor();
-    await blocked.locator('[data-blocked="0777123456"] button').click();
-    await blocked.locator('[data-blocked="0777123456"]').waitFor({ state: "detached" });
-  });
-
   await context.close();
 }

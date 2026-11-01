@@ -12,16 +12,12 @@ import { badgeIconOf } from "./blocks";
 import { badgeIcons, bulletStyles, imageFits, MAX_POSTER_HISTORY, textAligns, textSizes, type LandingSection } from "./types";
 
 export type EditorText = Pick<Dictionary, "landingPages" | "media" | "errors" | "common">;
-type Forms = { templates: { id: string; name: string }[]; editHref: string };
 type Props = {
   lang: string;
   pageId: string;
   section: LandingSection;
   set: (patch: Partial<LandingSection>) => void;
   library: string[];
-  forms: Forms;
-  formTemplateId: string;
-  setFormTemplateId: (id: string) => void;
   t: EditorText;
 };
 
@@ -216,7 +212,7 @@ function ImageFields({ lang, pageId, section: s, set, library, t }: Props & { se
 
 // The settings of the selected component (Zimam's right panel)
 export function SectionFields(props: Props) {
-  const { section: s, set, forms, formTemplateId, setFormTemplateId, t } = props;
+  const { section: s, set, t } = props;
   const f = t.landingPages.editor.fields;
   switch (s.type) {
     case "image":
@@ -254,21 +250,13 @@ export function SectionFields(props: Props) {
       );
     case "form":
       return (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <p className={label}>{t.landingPages.editor.types.form}</p>
           <Field label={f.formStyle}>
-            <Select value={formTemplateId} onChange={(e) => setFormTemplateId(e.target.value)} data-testid="landing-form-template">
-              <option value="">{f.storeTheme}</option>
-              {forms.templates.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
+            <Select value="store" disabled data-testid="landing-form-style">
+              <option value="store">{f.storeTheme}</option>
             </Select>
           </Field>
-          <a href={formTemplateId ? `${forms.editHref}?template=${formTemplateId}` : forms.editHref} className="text-xs font-semibold text-accent hover:underline">
-            {f.editForm}
-          </a>
         </div>
       );
     case "sticky":

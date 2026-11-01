@@ -91,9 +91,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `pixels` (per platform, pixel row ids; `pagePixels(shop, products, only)`). Public page `/store/<slug>/lp/<page>`: version from the
   `lpv_<id>` cookie or a random running one (`LandingView` stores it and counts the visit in `landing_stats`), `orders.landing_version`;
   a page with a thankYou component sends the buyer back to `?thanks=<order>` (`ThankYouPopup` + purchase pixels). Blocks drawn by
-  `blocks.tsx` (one 520px column, shared with the builder). One order form system: the page picks a template (form component →
-  `landing_pages.form_template_id`). List = `LandingList.tsx` (counters, search, filters, list/grid, row actions: copy link, open,
-  versions' numbers `pageVersionStats`, publish/unpublish `setLandingLive`, duplicate, delete). Embeddable form `/embed/<slug>/<page>`.
+  `blocks.tsx` (one 520px column, shared with the builder). The form component shows the store's order form
+  (`storeForm`). List = `LandingList.tsx` (counters, search, filters, list/grid, row actions: copy link, open,
+  versions' numbers `pageVersionStats`, publish/unpublish `setLandingLive`, duplicate, delete).
 - AI pages ("Generate with AI", `landing/AiBuilder.tsx` at `/landing-pages/new`): product, language of the texts in the images
   (ar/fr/en), brief (≤ 900), writing framework and style family (`landing/ai-options.ts`), 2/4/6 images, price text, cost = 1 + images
   in `maxAiPerMonth`. `ai-actions.ts startAiLanding` → plan (`posters.ts buildPosterPlanRequest`, honesty rules, short texts) via
@@ -150,16 +150,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Call-center AI (`src/features/ai/`): small AI tasks share `tasks.ts` (`startTask` → background request + an
   `ai_generations` row with `kind`, counted in `maxAiPerMonth`; `pollTask` → clean, save, return `result`) and the browser
   hook `useAiTask`. Prompts/schemas in `prompts.ts` (same honesty rules as landing pages): `call_guide` (saved on
-  `products.call_guide`, shown on the order page by `CallGuideCard`), `messages` (rewrites the customer messages, returned
-  to the editor), `description` (fills the product form). Customer messages (`src/features/messages/`): `templates.ts`
+  `products.call_guide`, shown on the order page by `CallGuideCard`), `description` (fills the product form). Customer messages (`src/features/messages/`): `templates.ts`
   (defaults in dz/ar/fr/en, `{placeholders}`, `shops.messages` holds only changed texts), `MessageCard` on the order page
-  (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message"),
-  `MessagesEditor` on Call Centers → settings.
+  (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message").
 - Owner feedback round (phase16.mjs): a shop whose owner is the platform admin has no plan limits (`isPlatformShop` in
   `limits.ts`, every limit -1, custom domain allowed, Plans page shows "platform store"). Agents never get store links.
-  Distribution: `team/distribution.ts` (`distributionBoard` per agent load, `spreadOrders` = same fewest-open-orders rule),
-  shown on Call Centers → team (`DistributionBoard`, "share now" for unassigned orders); the orders list has a bulk bar
-  (`orders/BulkAssign.tsx`: row checkboxes `data-bulk-order`, assign / unassign / share between agents). Google Sheets script
+  New orders go to agents by `shops.assign_mode` (`team/assign.ts`). Google Sheets script
   v2 (`SCRIPT_VERSION`): uses the first empty tab renamed "Orders", answers its version; "Test" writes a visible TEST row and
   asks for the new script when the copy is older. The database is converted to utf8mb4 at startup (`migrate-lib.mjs`).
 - Owner feedback round 2 (phase18.mjs): product links go through `src/lib/product-page.ts` (canonical URL — AliExpress
@@ -207,61 +203,19 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   password; `requireShop` sends unconfirmed owners to `/[lang]/verify`; PLATFORM_ADMIN_EMAIL is promoted at login too. Communes:
   `lib/communes.ts` (1541, [latin, arabic]) via `/api/communes?w=` → `checkout/CommuneSelect.tsx` (value = Latin name, Arabic
   label in Arabic stores; give it key={wilaya}). Product color options: `ProductOption.kind = "color"` + `colors` (value → hex),
-  palette in `lib/colors.ts`, swatches in `CheckoutForm`. Order form section (`/dashboard/order-form`, `features/order-form/`):
-  `FormBuilder` (also the landing editor's form tab) edits `FormSettings` — `order` (built-ins + `custom:<id>`, fixed by
-  `resolveForm`), labels/placeholders, icons, appearance direct/popup/drawer (popup forms answer every `#order-form` link),
-  button effect (`btn-pulse`/`btn-shake`), delivery labels + preferred type, WhatsApp order button (store phone) —; the store's
-  form is `shops.order_form` (product pages, `submitOrder`, store thank-you, starting point of new landing pages). Store design
+  palette in `lib/colors.ts`, swatches in `CheckoutForm`. The order form is the store's
+  `shops.order_form` (`FormSettings` read by `order-form/resolve.ts storeForm`; product pages, landing pages, `submitOrder`, thank-you;
+  popup forms answer every `#order-form` link); its editing page was removed in the Zimam cleanup (Zimam: Store settings → Checkout). Store design
   `style` overrides the theme (font, header, hero, columns, image, cards, corners) through `storeTheme(design)` — use it instead of
   `findTheme` for storefront pages —, plus `showOrderSteps` and `floatingWhatsapp`. Logo: `ui/Logo.tsx`, `app/icon.svg`. The
   audit of what is still missing is `docs/next-round.md`.
-- Owner feedback round 7 (phase23.mjs): pages moved under groups (`/integrations/pixels|apps`, `/store-design/themes|order-form`,
-  old URLs redirect in next.config.ts); the admin area has "back to the dashboard" (`backLink`). Orders: one list component
-  (`orders/OrderListPage.tsx` → `OrderList` with `section` orders/shipping/tracking/returns; `?view=ship|transit` redirect),
-  Returns = returned orders + parcels "returning" (`handleReturn`: receive → `shipments.return_received_at`, resend → shipment
-  removed + order back to confirmed, cancel), a typed tracking number can belong to a connected courier (auto-tracked),
-  Order analysis (`orders/insights-math.ts`, pure: rates, median step times from order events, couriers; funnel/statuses/
-  wilayas moved here from Analytics). Inventory (`features/inventory/`): `stock_movements` written by `logStock` wherever
-  stock changes (place-order, `applyOrderStatus`, product form, adjustments), `stock.ts` (pure lines/totals),
-  `shops.low_stock` threshold + overview alert. Finance (`features/finance/`, owner): `compute.ts` (net = delivered products −
-  cost − expenses), `orders.paid_at` (COD received from the courier, bulk "money received"), `expenses`. Order form:
-  custom field types (text, textarea, number, email, date, select, radio, checkbox — `customFieldValid` on the server),
-  `blocks` (heading/text/image/divider/badges/notice, "el:<id>" in `order`), `stepper` (name + phone first), templates per
-  product (`form_templates`, `products.form_template_id`, `order-form/resolve.ts productForm`, `TemplatePicker`).
-- Owner feedback round 8 (phase24.mjs): the owner's status model, all in `orders/statuses.ts` (`callStatuses` = Statut de la
-  commande: new, confirmed, callback (Rappel, was "postponed"), no_answer, voicemail, remark, cancelled, fake, wrong_number,
-  duplicate; groups `PENDING_STATUSES` / `REJECTED_STATUSES` (give stock back) / `REFUSED_STATUSES` (count against the
-  confirmation rate; duplicates do not) / `CONFIRMED_STATUSES` / `PARCEL_STATUSES` shipped-delivered-returned — never write status
-  lists elsewhere). The status picker only sets call statuses and refuses while a parcel exists ("parcelExists"). After sending:
-  `orders.delivery_state` (Livraison: shipped/postponed/no_answer/delivered/returned — set by `applyOrderStatus`, by tracking
-  (suspended → postponed) and by the order page), `delivery_fault` (Remarque: courier/customer/company), `processing`
-  (Traitement: claim/reinjected — "resend" in Returns sets reinjected); Injection = a parcel exists; Livraison finale = status
-  delivered/returned. `orders/followup.ts` `setFollowUp` (delivered/returned close the order, others reopen to shipped; event
-  "followup"); `FollowUpCard` on the order page. Lists (`orders/views.ts`): one chip row per sub-section (`order-chips`): list =
-  call + parcel statuses + suspicious; send = `inj` pending/done; tracking = every sent parcel, `trackingStages` in the Ecotrack
-  order with `stageNames` (the courier's French words; "returns" = returning + returned), filter `ds`; returns as before.
-  Order analysis merged into Analytics (`analytics/insights*.ts`, `InsightsViews.tsx` + `FollowUpCard`; /orders/insights
-  redirects). Protection (`shops.protection`, `resolveProtection`): + weekly phone limit, duplicate window, max quantity, blocked
-  IPs / words / wilayas (store errors "quantity", "noWilaya"), automatic "fake" from a risk score (`autoFakeScore`), phone blocked
-  after N fake/wrong-number orders (`autoBlockFakePhone`), risk reason "fake". Offers (`QuantityOffer`): freeShipping (`lineShipping`),
-  gift (written into the order line's `offer_label`), badge (`offerBadges`), preselected (`defaultQuantity`), quick templates
-  (`offerTemplate`); offer cards in `CheckoutForm`. Store design preview: the scrolling box is never `inert`/`pointer-events-none`, its
-  child is. Admin → plans shows the active plans (= the subscription page), older ones folded.
-- Owner feedback round 9 (phase25.mjs): the order page's status card (`OrderStatusCard`) = the owner's five sections as
-  dropdowns, in his order: 1 Statut (`callStatuses`, a sent order shows "confirmed"), 2 Injection (pending/done: done by hand
-  = shipped without a courier parcel; back to pending only without a parcel), 3 Livraison (`deliveryOrder`) + 3.1 Remarque,
-  4 Traitement, 5 Livraison finale — all read through `orderModel()` (statuses.ts) so the order page and the orders list
-  (`modelCounts`, grouped chips `call-*`, `inj-*`, `ds-*`, `fault-*`, `proc-*`, `fin-*`, zeros hidden; filters status/inj/ds/
-  fault/proc/fin) always agree. Calls: `orders.call_attempts` / `last_call_at`, every call status chosen counts, the same
-  outcome again = event "call" ("call again" button); after `MAX_CALLS` (3) without a decision the card says to send a message.
-  Distribution happens only in Call centers → distribution tab (`team/OpenOrders.tsx` + `BulkAssignBar`); the orders list has
-  none (the order page keeps assigning one order). Abandoned carts (`orders/recovery.ts`, pure): `suggestedStep` (fresh → call,
-  older → message, contacted → offer), WhatsApp recovery/offer messages in the store's message language with the product link,
-  "take the order" = `convertLead` → `placeOrder(…, { memberId })` (protection checks and risk skipped, event by the member),
-  `recoveryStats`. One order form system: landing pages have no form of their own (`landing_pages.form` dropped) — they pick a
-  template (`landing_pages.form_template_id`, null = the product's form); `order-form/resolve.ts formFor(shop, ...templateIds)`
-  is used by every form, thank-you page and checkout validation. Embed codes live in Store design → Order form (`EmbedCode`:
-  products → `/embed/<slug>/p/<product>`, published landing pages → `/embed/<slug>/<page>`).
+- Owner feedback round 7 (phase23.mjs): pages moved under groups (`/integrations/pixels|apps`, `/store-design/themes`, old URLs
+  redirect in next.config.ts); the admin area has "back to the dashboard" (`backLink`). A typed tracking number can belong to a
+  connected courier (auto-tracked). Order analysis (`analytics/insights-math.ts`, pure). Order form settings: custom field types
+  (text, textarea, number, email, date, select, radio, checkbox — `customFieldValid` on the server), `blocks`, `stepper`.
+- Offers (`QuantityOffer`, round 8): freeShipping (`lineShipping`), gift (written into the order line's `offer_label`), badge
+  (`offerBadges`), preselected (`defaultQuantity`), quick templates (`offerTemplate`); offer cards in `CheckoutForm`. Fake-order
+  protection runs from the store's saved settings (`shops.protection`, `resolveProtection`; no page since the Zimam cleanup).
 - Zimam parity phase 2 (phase26.mjs) — replaces rounds 8/9's order model: statuses (`orders/statuses.ts`) pending, call_back,
   confirmed, in_transit, delivered, returned, abandoned (checkout left: `place-order.ts saveAbandoned`, a draft order with the
   status "abandoned"; the real order takes its number), cancelled, flagged (fake; autoBlockFakePhone). Orders page
@@ -271,12 +225,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `/orders/[id]` = `OrderForm.tsx` (`saveOrder`: lines, customer, delivery, fee from the rates or waived, status, agent) +
   shipment, messages, call guide, risk, history. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx`, `scanParcel`): dispatch
   confirmed → in transit, recuperate → returned + `return_received_at`. Home = `analytics/overview.ts overviewData`. Old
-  sub-pages redirect to tabs (next.config.ts); Protection sits under Apps until the apps phase.
+  sub-pages redirect to tabs (next.config.ts).
 - Zimam parity phase 3 (phase27.mjs) — products: `ProductForm.tsx` = tabs (details / description / variants & stock / checkout &
   delivery / offers; panels stay in the DOM with `hidden`, `data-form-tab` / `data-panel`, a failed save opens the first tab with an
   error), `PhonePreview`, sticky actions (clear, "create & add another" = submit `intent=another` → `/products/new?created=<id>`,
   the page keys the form on it; `useActionForm` passes the submitter). New columns: `short_description` (≤ 7 words),
-  `description_images`, `low_stock` (wins over `shops.low_stock` in `inventory/stock.ts`), `show_out_of_stock` (off = sold-out
+  `description_images`, `low_stock` (the product's alert threshold), `show_out_of_stock` (off = sold-out
   products leave store lists: `storefront/queries.ts inStock`), `carrier_account_id` (copied to new orders in `place-order.ts`),
   `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
   List columns: current/old price, published, stock, units sold, status, actions.
@@ -302,6 +256,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   + pure `agent-stats.ts`, `AgentDashboard.tsx`) and Orders (`OrdersPage portal`, `OrderDetailPage`). Agents reach no dashboard
   page: `requireSection` sends them to the portal (only order actions accept them); dashboard order URLs redirect there.
   Owner page = `TeamManager` (agent cards, `AddAgentDialog`: email optional → internal `@agents.invalid` address, hidden).
+- Zimam cleanup: Inventory, Finance, the call-center tabs (performance, activity, distribution, customer messages editor), the
+  Protection page, the Order form page (with form templates) and the embeddable form were removed (owner's choice: not in
+  Zimam; migration 0036). The overview is Zimam's (`analytics/overview.ts`: period today/7d/30d, previous period, tasks with
+  minutes, line chart 7/30 days, best sellers, latest orders, four set-up steps; `OverviewControls.tsx` hides amounts).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

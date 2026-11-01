@@ -18,7 +18,7 @@ import { formatPrice } from "@/lib/format";
 import { ProductGrid, discountOf } from "@/features/storefront/blocks";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
-import { productForm } from "@/features/order-form/resolve";
+import { storeForm } from "@/features/order-form/resolve";
 
 const decode = (s: string) => {
   try {
@@ -138,15 +138,9 @@ export default async function ProductPage({
                 code: w.code,
                 name: `${String(w.code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}`,
               }))}
-              action={submitOrder.bind(
-                null,
-                shop.slug,
-                product.id,
-                null,
-                false,
-              )}
+              action={submitOrder.bind(null, shop.slug, product.id, null)}
               saveLead={saveLead.bind(null, shop.slug, product.id)}
-              settings={await productForm(shop, product.formTemplateId)}
+              settings={storeForm(shop)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
             />
           </PixelScope>

@@ -6,7 +6,6 @@ import { holdsStock, type OrderStatus } from "./statuses";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { scheduleAutoSend } from "@/features/delivery/send";
-import { logStock } from "@/features/inventory/movements";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -26,10 +25,6 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
     const items = await tx.select().from(schema.orderItems).where(and(eq(schema.orderItems.orderId, orderId), eq(schema.orderItems.stockTracked, true)));
     for (const item of items) {
       const delta = after ? -item.quantity : item.quantity;
-      if (item.productId) {
-        const reason = after ? "reopen" : status === "returned" ? "return" : "cancel";
-        await logStock(tx, [{ shopId, productId: item.productId, variantId: item.variantId, delta, reason, orderId, userId }]);
-      }
       if (item.variantId) {
         await tx
           .update(schema.productVariants)

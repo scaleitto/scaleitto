@@ -55,7 +55,7 @@ import { newImage, newSectionId, sectionTypes, type FormSettings, type LandingSe
 type Product = Parameters<typeof CheckoutForm>[0]["product"];
 type Variant = Parameters<typeof CheckoutForm>[0]["variants"][number];
 type Content = { sections: LandingSection[]; variants: PageVariant[] };
-type Doc = { title: string; slug: string; metaDescription: string; formTemplateId: string; pixels: Record<string, string[]> | null; content: Content };
+type Doc = { title: string; slug: string; metaDescription: string; pixels: Record<string, string[]> | null; content: Content };
 type Pixel = { id: string; platform: string; name: string };
 
 export const componentIcons: Record<SectionType, LucideIcon> = {
@@ -129,7 +129,7 @@ export function LandingEditor({
   color,
   pageUrl,
   backHref,
-  forms,
+  form,
   pixels,
   library,
   t,
@@ -148,7 +148,7 @@ export function LandingEditor({
   color: string;
   pageUrl: string;
   backHref: string;
-  forms: { product: FormSettings; templates: { id: string; name: string; form: FormSettings }[]; editHref: string };
+  form: FormSettings;
   pixels: Pixel[];
   library: string[];
   t: EditorText;
@@ -213,7 +213,7 @@ export function LandingEditor({
     const d = docRef.current;
     if (d === savedDoc.current) return true;
     setSave("saving");
-    const r = await saveLandingDraft(lang, pageId, { title: d.title, slug: d.slug, metaDescription: d.metaDescription, sections: d.content.sections, variants: d.content.variants, formTemplateId: d.formTemplateId || null, pixels: d.pixels }).catch(() => ({ ok: false as const, error: "unexpected" }));
+    const r = await saveLandingDraft(lang, pageId, { title: d.title, slug: d.slug, metaDescription: d.metaDescription, sections: d.content.sections, variants: d.content.variants, pixels: d.pixels }).catch(() => ({ ok: false as const, error: "unexpected" }));
     if (!r.ok) {
       setSave("failed");
       return false;
@@ -316,7 +316,7 @@ export function LandingEditor({
     startTransition(async () => {
       const v = await getHistoryEntry(lang, pageId, entryId);
       if (!v) return;
-      change((d) => ({ ...d, title: v.title, formTemplateId: v.formTemplateId ?? "", content: { sections: v.sections, variants: v.variants } }));
+      change((d) => ({ ...d, title: v.title, content: { sections: v.sections, variants: v.variants } }));
       setVersion("A");
       setSelected(null);
       historyDialog.current?.close();
@@ -357,7 +357,6 @@ export function LandingEditor({
   const current = sections.find((s) => s.id === selected) ?? null;
   const has = (type: SectionType) => sections.some((s) => s.type === type);
   const suggestions = suggestionTypes.filter((k) => !has(k) && !dismissed.includes(k));
-  const form = forms.templates.find((x) => x.id === doc.formTemplateId)?.form ?? forms.product;
   const platforms = [...new Set(pixels.map((p) => p.platform))];
   const variant = doc.content.variants.find((v) => v.key === version);
   const iconBtn = "grid size-9 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-fg disabled:opacity-30";
@@ -671,9 +670,6 @@ export function LandingEditor({
                 section={current}
                 set={(patch) => update(current.id, patch)}
                 library={library}
-                forms={forms}
-                formTemplateId={doc.formTemplateId}
-                setFormTemplateId={(id) => change((d) => ({ ...d, formTemplateId: id }))}
                 t={t}
               />
             </>

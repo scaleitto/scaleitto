@@ -9,24 +9,23 @@ test("sidebar: the overview, then the sell / grow / storefront / account groups 
   assert.deepEqual(nav.find((g) => g.key === "grow")!.items.map((e) => e.key), ["landingPages", "analytics", "pixels", "apps"]);
   assert.deepEqual(nav.find((g) => g.key === "storefront")!.items.map((e) => e.key), ["storeDesign", "themes", "settings"]);
   assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["team", "plans", "profile"]);
-  assert.deepEqual(nav.find((g) => g.key === "grow")!.items.find((e) => e.key === "apps")!.children, ["apps", "protection"]);
-  assert.equal(entryOf("protection"), "apps");
+  assert.deepEqual(nav.find((g) => g.key === "sell")!.items.find((e) => e.key === "delivery")!.children, ["delivery", "manifest", "deliverySettings"]);
+  assert.equal(entryOf("manifest"), "delivery");
   assert.equal(entryOf("themes"), "themes");
 });
 
-test("owners see everything; managers all but plans and finance", () => {
+test("owners see everything; managers all but plans", () => {
   assert.equal(sectionsFor("owner").length, sections.length);
   assert.ok(!canAccess("manager", "plans"));
-  assert.ok(!canAccess("manager", "finance"));
-  assert.ok(canAccess("manager", "inventory"));
-  assert.equal(sectionsFor("manager").length, sections.length - 2);
+  assert.ok(canAccess("manager", "products"));
+  assert.equal(sectionsFor("manager").length, sections.length - 1);
 });
 
 test("call center agents only reach orders (they work in their own portal)", () => {
   const nav = navFor("agent");
   assert.deepEqual(nav.map((g) => g.key), ["sell"]);
   assert.deepEqual(nav[0].items.map((e) => e.key), ["orders"]);
-  for (const k of ["protection", "scan", "callCenters", "profile"] as const) assert.ok(!canAccess("agent", k));
+  for (const k of ["scan", "callCenters", "profile"] as const) assert.ok(!canAccess("agent", k));
   assert.equal(homeSection("agent").key, "orders");
   assert.equal(homeSection("owner").key, "overview");
 });

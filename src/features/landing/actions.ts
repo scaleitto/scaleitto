@@ -50,20 +50,18 @@ const draftSchema = z.object({
   metaDescription: z.string().trim().max(300, "e:invalid").optional().default(""),
   sections: z.unknown(),
   variants: z.unknown(),
-  // One of the store's form templates (null: the product's form)
-  formTemplateId: z.string().max(36).nullable().optional().default(null),
   // Per platform: the pixel ids that fire on the page (missing platform = all the store's pixels)
   pixels: z.record(z.string(), z.array(z.string().max(36)).max(20)).nullable().optional().default(null),
 });
 export type LandingDraft = z.input<typeof draftSchema>;
 
-async function addHistory(shopId: string, pageId: string, userId: string, title: string, content: { sections: LandingSection[]; variants: PageVariant[] }, formTemplateId: string | null, force: boolean) {
+async function addHistory(shopId: string, pageId: string, userId: string, title: string, content: { sections: LandingSection[]; variants: PageVariant[] }, force: boolean) {
   const v = schema.landingVersions;
   if (!force) {
     const [last] = await db.select({ at: v.createdAt }).from(v).where(eq(v.pageId, pageId)).orderBy(desc(v.createdAt)).limit(1);
     if (last && Date.now() - new Date(last.at).getTime() < HISTORY_EVERY_MS) return;
   }
-  await db.insert(v).values({ id: newId(), shopId, pageId, title, sections: content, formTemplateId, userId });
+  await db.insert(v).values({ id: newId(), shopId, pageId, title, sections: content, userId });
   const old = await db.select({ id: v.id }).from(v).where(eq(v.pageId, pageId)).orderBy(desc(v.createdAt)).limit(100).offset(MAX_HISTORY);
   if (old.length) await db.delete(v).where(inArray(v.id, old.map((x) => x.id)));
 }
@@ -78,11 +76,7 @@ export async function saveLandingDraft(lang: string, pageId: string, draft: Land
     const d = parsed.data;
     const page = await pageOf(shop.id, pageId);
     if (!page) return { ok: false, error: "notFound" };
-    // Never trust ids from the browser: the template and the pixels must be this store's
-    if (d.formTemplateId) {
-      const [tpl] = await db.select({ id: schema.formTemplates.id }).from(schema.formTemplates).where(and(eq(schema.formTemplates.shopId, shop.id), eq(schema.formTemplates.id, d.formTemplateId)));
-      if (!tpl) return { ok: false, error: "notFound" };
-    }
+    // Never trust ids from the browser: the pixels must be this store's
     let pixels: Record<string, string[]> | null = null;
     if (d.pixels) {
       const own = await db.select({ id: schema.pixels.id, platform: schema.pixels.platform }).from(schema.pixels).where(eq(schema.pixels.shopId, shop.id));
@@ -93,9 +87,9 @@ export async function saveLandingDraft(lang: string, pageId: string, draft: Land
     const slug = d.slug ? await freeSlug(shop.id, d.slug, pageId) : page.slug;
     await db
       .update(schema.landingPages)
-      .set({ title: d.title, slug, metaDescription: d.metaDescription || null, sections, variants, formTemplateId: d.formTemplateId, pixels })
+      .set({ title: d.title, slug, metaDescription: d.metaDescription || null, sections, variants, pixels })
       .where(eq(schema.landingPages.id, pageId));
-    await addHistory(shop.id, pageId, user.id, d.title, { sections, variants }, d.formTemplateId, false);
+    await addHistory(shop.id, pageId, user.id, d.title, { sections, variants }, false);
     return { ok: true, message: slug };
   });
 }
@@ -108,7 +102,7 @@ export async function publishLandingPage(lang: string, pageId: string): Promise<
     if (!page) return { ok: false, error: "notFound" };
     const content = { sections: sanitizeSections(page.sections), variants: sanitizeVariants(page.variants) };
     await db.update(schema.landingPages).set({ status: "published", published: content }).where(eq(schema.landingPages.id, pageId));
-    await addHistory(shop.id, pageId, user.id, page.title, content, page.formTemplateId, true);
+    await addHistory(shop.id, pageId, user.id, page.title, content, true);
     refresh();
     return { ok: true };
   });
@@ -168,7 +162,7 @@ export async function getHistoryEntry(lang: string, pageId: string, entryId: str
   const { shop } = await guard(lang);
   const v = schema.landingVersions;
   const [row] = await db.select().from(v).where(and(eq(v.shopId, shop.id), eq(v.pageId, pageId), eq(v.id, entryId)));
-  return row ? { title: row.title, formTemplateId: row.formTemplateId, ...contentOf(row.sections) } : null;
+  return row ? { title: row.title, ...contentOf(row.sections) } : null;
 }
 
 export async function deleteLandingPage(lang: string, pageId: string): Promise<ActionState> {

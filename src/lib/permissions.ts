@@ -8,20 +8,16 @@ const managers = ["owner", "manager"] as const;
 export const sections = [
   { key: "overview", path: "", roles: managers },
   { key: "products", path: "products", roles: managers },
-  { key: "inventory", path: "inventory", roles: managers },
   // Orders: one page with a tab per status; Scan sends and receives parcels by their label
   { key: "orders", path: "orders", roles: all },
   { key: "scan", path: "scan", roles: managers },
-  { key: "protection", path: "orders/protection", roles: managers },
   // Delivery (Zimam): the companies, the handover manifest template, the general settings (options, prices)
   { key: "delivery", path: "delivery", roles: managers },
   { key: "manifest", path: "delivery/manifest", roles: managers },
   { key: "deliverySettings", path: "delivery/settings", roles: managers },
-  { key: "finance", path: "finance", roles: ["owner"] },
-  // Store design: the look, the themes, the order form
+  // Store design: the look and the themes
   { key: "storeDesign", path: "store-design", roles: managers },
   { key: "themes", path: "store-design/themes", roles: managers },
-  { key: "orderForm", path: "store-design/order-form", roles: managers },
   { key: "channels", path: "channels", roles: managers },
   { key: "callCenters", path: "call-centers", roles: managers },
   { key: "team", path: "team", roles: managers },
@@ -46,7 +42,7 @@ export const navGroups = [
     key: "sell",
     items: [{ key: "products" }, { key: "orders" }, { key: "scan" }, { key: "delivery", children: ["delivery", "manifest", "deliverySettings"] }, { key: "channels" }, { key: "callCenters" }],
   },
-  { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps", children: ["apps", "protection"] }] },
+  { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps" }] },
   { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },
   { key: "account", items: [{ key: "team" }, { key: "plans" }, { key: "profile" }] },
 ] as const satisfies readonly { key: string; items: readonly NavEntry[] }[];

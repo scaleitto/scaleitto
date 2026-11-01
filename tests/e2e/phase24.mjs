@@ -14,32 +14,6 @@ export default async function phase24(browser) {
   const lamp = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 2000, '[]', '[]', '[]')", [lamp, shopId]);
 
-  await step("protection: blocked words, wilayas not served, most pieces per order", async () => {
-    await owner.goto(`${dash}/orders/protection`);
-    await owner.fill("#pr-blockedWords", "test\nfake");
-    await owner.locator('[data-testid=blocked-wilayas] input[value="31"]').check();
-    await owner.fill("#pr-maxQuantity", "3");
-    await owner.fill("#pr-maxPerPhonePerWeek", "20");
-    await owner.locator("[data-testid=protection-form] button[type=submit]").click();
-    await owner.waitForSelector("text=تم الحفظ");
-    const [[row]] = await db.query("SELECT protection FROM shops WHERE id = ?", [shopId]);
-    const pr = json(row.protection);
-    expect(pr.blockedWords.join() === "test,fake" && pr.blockedWilayas.join() === "31" && pr.maxQuantity === 3 && pr.maxPerPhonePerWeek === 20, `saved (got ${JSON.stringify(pr)})`);
-    // The store refuses an order from a wilaya the store does not serve
-    const p = await browser.newPage();
-    await p.goto(`${store}/p/lamp`);
-    await p.fill("#name", "زبون وهران");
-    await p.fill("#phone", "0661 55 44 33");
-    await p.selectOption("#wilaya", "31");
-    await p.waitForSelector("#commune option[value='Es Senia']", { state: "attached" });
-    await p.selectOption("#commune", "Es Senia");
-    await p.waitForTimeout(4500); // a human fills the form in more than a few seconds
-    await p.locator("button[type=submit]").click({ force: true });
-    await p.waitForSelector("text=التوصيل غير متوفر لهذه الولاية حالياً");
-    await p.close();
-    await db.query("UPDATE shops SET protection = NULL WHERE id = ?", [shopId]);
-  });
-
   await step("offers: a ready-made offer with free delivery, a badge and preselected; the store and the order honour it", async () => {
     await owner.goto(`${dash}/products/${lamp}`);
     await owner.click("[data-form-tab=offers]");

@@ -13,7 +13,7 @@ import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
 import { customFieldValid, liveVersions, readPublished, versionSections, type VersionKey } from "@/features/landing/types";
-import { formFor, productForm } from "@/features/order-form/resolve";
+import { storeForm } from "@/features/order-form/resolve";
 import { placeOrder, saveAbandoned } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
@@ -33,37 +33,31 @@ async function adTracking(): Promise<OrderTracking> {
   return { url: (await headers()).get("referer")?.slice(0, 500) || undefined, fbp: get("_fbp"), fbc: get("_fbc"), ttp: get("_ttp"), ttclid: get("sc_ttclid"), gaClientId: ga };
 }
 
-// The order form template of a product (null: the store's form)
-async function templateOf(shopId: string, productId: string) {
-  const [p] = await db.select({ t: schema.products.formTemplateId }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
-  return p?.t ?? null;
-}
-
-// A published landing page: its form (its template, else the product's, else the store's) and whether the version
+// A published landing page: its form (the store's) and whether the version
 // the visitor saw ends with a thank-you window (then the visitor comes back to the page instead of the thanks page)
 async function landingOf(shop: { id: string; orderForm: unknown }, landing: { id: string; version: string }, productId: string) {
   const [page] = await db
-    .select({ templateId: schema.landingPages.formTemplateId, slug: schema.landingPages.slug, published: schema.landingPages.published })
+    .select({ slug: schema.landingPages.slug, published: schema.landingPages.published })
     .from(schema.landingPages)
     .where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.id, landing.id), eq(schema.landingPages.productId, productId), eq(schema.landingPages.status, "published")));
   if (!page) return null;
   const published = readPublished(page.published);
   const version = published && liveVersions(published).includes(landing.version as VersionKey) ? (landing.version as VersionKey) : "A";
   const popup = published ? versionSections(published, version).some((s) => s.type === "thankYou" && !s.hidden) : false;
-  return { settings: await formFor(shop, page.templateId, await templateOf(shop.id, productId)), slug: page.slug, version, popup };
+  return { settings: storeForm(shop), slug: page.slug, version, popup };
 }
 
 // The customer's order form (store product page, landing page or embedded form).
 // Errors are keys of the storefront strings.
 // landing: the landing page and the version the visitor saw (A, B, C)
-export async function submitOrder(slug: string, productId: string, landing: { id: string; version: string } | null, embedded: boolean, _prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function submitOrder(slug: string, productId: string, landing: { id: string; version: string } | null, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const shop = await getShopBySlug(slug);
   if (!shop) return { ok: false, error: "unavailable" };
   let page: Awaited<ReturnType<typeof landingOf>> = null;
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
     page = landing ? await landingOf(shop, landing, productId) : null;
-    const settings = landing ? page?.settings : await productForm(shop, await templateOf(shop.id, productId));
+    const settings = landing ? page?.settings : storeForm(shop);
     if (!settings) return { ok: false, error: "unavailable" };
 
     // What the landing page's form asks on top of the standard fields
@@ -93,7 +87,6 @@ export async function submitOrder(slug: string, productId: string, landing: { id
   });
   const shown = page as Awaited<ReturnType<typeof landingOf>>;
   if (result.ok && result.message) {
-    if (embedded) redirect(`/embed/${shop.slug}/thanks?o=${result.message}`);
     // The page's thank-you window: back to the same page, which shows it
     if (shown?.popup) redirect(`${await storeBase(shop.slug)}/lp/${encodeURIComponent(shown.slug)}?thanks=${result.message}`);
     redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}`);

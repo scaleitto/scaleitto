@@ -1,5 +1,5 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
-import { formFor } from "@/features/order-form/resolve";
+import { storeForm } from "@/features/order-form/resolve";
 import type { Metadata } from "next";
 import { randomInt } from "node:crypto";
 import { cookies } from "next/headers";
@@ -61,11 +61,11 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         language={page.language}
         color={page.color}
         sections={sections}
-        settings={await formFor(shop, page.formTemplateId, product.formTemplateId)}
+        settings={storeForm(shop)}
         product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}
-        action={submitOrder.bind(null, shop.slug, product.id, { id: page.id, version }, false)}
+        action={submitOrder.bind(null, shop.slug, product.id, { id: page.id, version })}
         saveLead={saveLead.bind(null, shop.slug, product.id)}
         whatsapp={{ phone: shop.phone ?? "", product: product.name }}
         theme={storeTheme(resolveDesign(shop.design))}

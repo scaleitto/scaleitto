@@ -24,7 +24,6 @@ export function PublicLanding({
   rates,
   action,
   saveLead,
-  embedded = false,
   whatsapp,
   theme,
   children,
@@ -38,7 +37,6 @@ export function PublicLanding({
   rates: RateMap;
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   saveLead: Parameters<typeof CheckoutForm>[0]["saveLead"];
-  embedded?: boolean;
   whatsapp?: Parameters<typeof CheckoutForm>[0]["whatsapp"];
   // The store's theme, so the page's own color gets readable text on and around it
   theme: Theme;
@@ -57,14 +55,13 @@ export function PublicLanding({
       action={action}
       saveLead={saveLead}
       settings={{ ...settings, stickyButton: false }}
-      embedded={embedded}
       whatsapp={whatsapp}
     />
   );
   return (
     // The page reaches the screen edges on phones
-    <div lang={locale} dir={dir(locale)} style={color ? brandVars(color, theme) : undefined} className={embedded ? "" : "-mx-4 -mt-6 sm:mx-0 sm:mt-0"}>
-      {embedded ? form : <LandingSections sections={sections} form={form} t={t} />}
+    <div lang={locale} dir={dir(locale)} style={color ? brandVars(color, theme) : undefined} className="-mx-4 -mt-6 sm:mx-0 sm:mt-0">
+      <LandingSections sections={sections} form={form} t={t} />
       {children}
     </div>
   );

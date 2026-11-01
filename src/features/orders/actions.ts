@@ -16,14 +16,11 @@ import { holdsStock, isOrderStatus } from "./statuses";
 import { applyOrderStatus } from "./transition";
 import { canTouchOrder, viewerOf } from "./access";
 import { scheduleOrderSync } from "@/features/apps/sync";
-import { spreadOrders, type Spread } from "@/features/team/distribution";
 import { pickAgent } from "@/features/team/assign";
-import { isIp, listOf, resolveProtection } from "@/features/checkout/protection-settings";
 import { autoBlockFakePhone } from "@/features/checkout/protection";
 import { nextOrderNumber } from "@/features/checkout/place-order";
 import { getShippingRates } from "@/features/storefront/queries";
 import { shippingPrice } from "@/features/checkout/pricing";
-import { logStock } from "@/features/inventory/movements";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
 
@@ -129,13 +126,12 @@ async function buildLines(shopId: string, lines: z.infer<typeof lineSchema>[]) {
 }
 
 // Takes (sign -1) or gives back (+1) the pieces of tracked lines
-async function moveStock(tx: Tx, shopId: string, orderId: string, userId: string, lines: { productId: string | null; variantId: string | null; quantity: number; stockTracked: boolean }[], sign: 1 | -1, reason: "edit" | "order") {
+async function moveStock(tx: Tx, shopId: string, orderId: string, userId: string, lines: { productId: string | null; variantId: string | null; quantity: number; stockTracked: boolean }[], sign: 1 | -1) {
   for (const l of lines) {
     if (!l.stockTracked || !l.productId) continue;
     const delta = sign * l.quantity;
     if (l.variantId) await tx.update(schema.productVariants).set({ stock: sql`GREATEST(${schema.productVariants.stock} + ${delta}, 0)` }).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.id, l.variantId)));
     else await tx.update(schema.products).set({ stock: sql`GREATEST(${schema.products.stock} + ${delta}, 0)` }).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, l.productId)));
-    await logStock(tx, [{ shopId, productId: l.productId, variantId: l.variantId, delta, reason, orderId, userId }]);
   }
 }
 
@@ -178,8 +174,8 @@ export async function saveOrder(lang: string, orderId: string | null, _prev: Act
         const old = await tx.select().from(schema.orderItems).where(and(eq(schema.orderItems.shopId, shop.id), eq(schema.orderItems.orderId, orderId)));
         // The pieces follow the new lines (only while the order holds stock)
         if (holdsStock(order.status)) {
-          await moveStock(tx, shop.id, orderId, user.id, old, 1, "edit");
-          await moveStock(tx, shop.id, orderId, user.id, lines, -1, "edit");
+          await moveStock(tx, shop.id, orderId, user.id, old, 1);
+          await moveStock(tx, shop.id, orderId, user.id, lines, -1);
         }
         await tx.delete(schema.orderItems).where(and(eq(schema.orderItems.shopId, shop.id), eq(schema.orderItems.orderId, orderId)));
         await tx.insert(schema.orderItems).values(lines.map((l) => ({ id: newId(), orderId, shopId: shop.id, ...l })));
@@ -200,7 +196,7 @@ export async function saveOrder(lang: string, orderId: string | null, _prev: Act
       const locked = await takeOrderSlot(tx, shop.id, rule);
       await tx.insert(schema.orders).values({ id, shopId: shop.id, number, status: "pending", locked, ...values });
       await tx.insert(schema.orderItems).values(lines.map((l) => ({ id: newId(), orderId: id, shopId: shop.id, ...l })));
-      await moveStock(tx, shop.id, id, user.id, lines, -1, "order");
+      await moveStock(tx, shop.id, id, user.id, lines, -1);
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId: id, shopId: shop.id, userId: user.id, type: "created", toStatus: "pending", note: "↺" });
       const agent = locked ? null : await pickAgent(tx, shop.id);
       if (agent) {
@@ -264,73 +260,6 @@ export async function assignOrder(lang: string, orderId: string, userId: string 
 // The orders list's bulk bar: the selected orders to one member, or to nobody
 export async function assignOrders(lang: string, orderIds: string[], userId: string | null) {
   return safeAction("orders/assign-many", () => assignMany(lang, orderIds, userId));
-}
-
-// Shares orders between the active agents (fewest open orders first): the selected ones, or (null) every
-// unassigned open order. Returns who got how many, so the manager sees what happened.
-export async function spreadOrdersAction(lang: string, orderIds: string[] | null): Promise<ActionState & { spread?: Spread }> {
-  let spread: Spread | undefined;
-  const state = await safeAction("orders/spread", async () => {
-    const { shop, user, role } = await guard(lang);
-    if (role === "agent") return { ok: false, error: "forbidden" };
-    const ids = orderIds === null ? null : z.array(z.string().uuid()).min(1).max(500).safeParse(orderIds);
-    if (ids && !ids.success) return { ok: false, error: "invalid" };
-    const result = await spreadOrders(shop.id, user.id, ids ? ids.data : null);
-    if (result === "noAgents") return { ok: false, error: "noAgents" };
-    spread = result;
-    refresh();
-    return { ok: true };
-  });
-  return { ...state, spread };
-}
-
-// ─── Fake-order protection ────────────────────────────────
-
-// The store's protection settings (owners and managers: Orders → Protection)
-export async function saveProtection(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("orders/protection", async () => {
-    const { shop, role } = await guard(lang);
-    if (role === "agent") return { ok: false, error: "forbidden" };
-    const num = (k: string) => Number(formData.get(k));
-    const on = (k: string) => formData.get(k) === "on";
-    const raw = {
-      maxPerPhonePerDay: num("maxPerPhonePerDay"),
-      maxPerIpPerHour: num("maxPerIpPerHour"),
-      blockDuplicates: on("blockDuplicates"),
-      minFillSeconds: num("minFillSeconds"),
-      blockBots: on("blockBots"),
-      riskThreshold: num("riskThreshold"),
-      holdSuspicious: on("holdSuspicious"),
-      useNetwork: on("useNetwork"),
-      maxPerPhonePerWeek: num("maxPerPhonePerWeek"),
-      duplicateHours: num("duplicateHours"),
-      maxQuantity: num("maxQuantity"),
-      autoFakeScore: num("autoFakeScore"),
-      autoBlockFake: num("autoBlockFake"),
-      blockedIps: listOf(formData.get("blockedIps")),
-      blockedWords: listOf(formData.get("blockedWords")),
-      blockedWilayas: formData.getAll("blockedWilayas").map(Number),
-    };
-    // Out-of-range numbers are refused (resolveProtection would silently use the default)
-    const bounds: [keyof typeof raw, number, number][] = [
-      ["maxPerPhonePerDay", 1, 50],
-      ["maxPerPhonePerWeek", 1, 100],
-      ["maxPerIpPerHour", 1, 500],
-      ["duplicateHours", 1, 168],
-      ["maxQuantity", 0, 1000],
-      ["minFillSeconds", 0, 60],
-      ["riskThreshold", 10, 100],
-      ["autoBlockFake", 0, 10],
-    ];
-    const fieldErrors: Record<string, string> = {};
-    for (const [k, min, max] of bounds) if (!Number.isInteger(raw[k]) || (raw[k] as number) < min || (raw[k] as number) > max) fieldErrors[k] = "invalid";
-    if (raw.autoFakeScore !== 0 && (!Number.isInteger(raw.autoFakeScore) || raw.autoFakeScore < raw.riskThreshold || raw.autoFakeScore > 100)) fieldErrors.autoFakeScore = "invalid";
-    if (raw.blockedIps.some((ip) => !isIp(ip))) fieldErrors.blockedIps = "invalid";
-    if (Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
-    await db.update(schema.shops).set({ protection: resolveProtection(raw) }).where(eq(schema.shops.id, shop.id));
-    refresh();
-    return { ok: true };
-  });
 }
 
 // "This order is fine": the risk flag is removed and, when suspicious orders were held, it goes to an agent now

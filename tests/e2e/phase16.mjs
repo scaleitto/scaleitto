@@ -41,47 +41,7 @@ export default async function phase16(browser) {
     );
   }
 
-  await step("call centers: the distribution mode explained, unassigned orders shared between the agents", async () => {
-    await owner.goto(`${dash}/call-centers/settings`);
-    const board = owner.locator("[data-testid=distribution]");
-    await board.waitFor();
-    expect((await board.locator("[data-mode]").getAttribute("data-mode")) === "balanced", "current mode shown");
-    expect((await owner.locator("[data-testid=unassigned]").getAttribute("data-n")) === "5", "5 unassigned orders");
-    await owner.locator("[data-testid=unassigned] button").click();
-    await owner.locator("[data-testid=spread-result]").getByText("تم توزيع 5 طلبية").waitFor();
-    const [rows] = await db.query("SELECT assigned_to AS a, COUNT(*) AS n FROM orders WHERE shop_id = ? GROUP BY assigned_to", [shopId]);
-    const counts = rows.map((r) => Number(r.n)).sort();
-    expect(rows.every((r) => agents.some((a) => a.userId === r.a)) && counts.join() === "2,3", `shared 2/3 (got ${JSON.stringify(rows)})`);
-    await owner.reload();
-    expect((await owner.locator("[data-testid=unassigned]").getAttribute("data-n")) === "0", "nothing left unassigned");
-    expect((await owner.locator("[data-agent] [data-open]").allInnerTexts()).map(Number).sort().join() === "2,3", "each agent's open orders");
-  });
-
-  await step("call centers → distribution: select orders, give them to one member, take one back (the only place)", async () => {
-    await owner.goto(`${dash}/orders`);
-    expect(!(await owner.locator("[data-testid=bulk-assign]").count()), "no distribution in the orders list");
-    await owner.goto(`${dash}/call-centers/settings`);
-    const bar = owner.locator("[data-testid=bulk-assign]");
-    await bar.waitFor();
-    await owner.locator('tr[data-order="2001"] input[data-bulk-order]').check();
-    await owner.locator('tr[data-order="2002"] input[data-bulk-order]').check();
-    await bar.getByText("2 طلبية محددة").waitFor();
-    await bar.locator("select").selectOption(agents[0].userId);
-    await bar.locator("button", { hasText: "إسناد" }).first().click();
-    await bar.getByText("تم إسناد 2 طلبية").waitFor();
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE id IN (?, ?) AND assigned_to = ?", [orderIds[0], orderIds[1], agents[0].userId]);
-    expect(n === 2, "both orders given to the agent");
-    await owner.locator("[aria-label='تحديد كل الطلبيات في الصفحة']").check();
-    await bar.getByText("5 طلبية محددة").waitFor();
-    await owner.locator("[aria-label='تحديد كل الطلبيات في الصفحة']").uncheck();
-    await owner.locator('tr[data-order="2003"] input[data-bulk-order]').check();
-    await bar.locator("button", { hasText: "إلغاء الإسناد" }).click();
-    await bar.getByText("تم إسناد 1 طلبية").waitFor();
-    const [[o]] = await db.query("SELECT assigned_to FROM orders WHERE id = ?", [orderIds[2]]);
-    expect(o.assigned_to === null, "order taken back");
-  });
-
-  await step("agents see no store link and no bulk tools", async () => {
+  await step("agents see no store link", async () => {
     const ctx = await browser.newContext();
     await ctx.addCookies([{ name: "sc_session", value: agents[0].token, url: BASE }]);
     const agent = await ctx.newPage();
@@ -89,7 +49,6 @@ export default async function phase16(browser) {
     await agent.waitForSelector("tr[data-order]");
     expect(!(await agent.locator("[data-testid=top-link]").count()), "no 'view store' in the header");
     expect(!(await agent.getByText("افتح متجرك").count()), "no 'open your store' button");
-    expect(!(await agent.locator("[data-testid=bulk-assign]").count()), "no bulk assignment");
     await ctx.close();
   });
 

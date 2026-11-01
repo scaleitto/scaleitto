@@ -60,27 +60,6 @@ export default async function phase14(browser) {
     await guide.locator("button", { hasText: "إعادة الإنشاء" }).waitFor();
   });
 
-  await step("customer messages: language defaults, AI rewrite (placeholders kept), saved texts used on orders", async () => {
-    await owner.goto(`${BASE}/ar/dashboard/call-centers/settings`);
-    const editor = owner.locator("[data-testid=messages-editor]");
-    await editor.waitFor();
-    await owner.selectOption("#msg-language", "fr");
-    expect((await owner.locator("#msg-confirm").inputValue()).startsWith("Bonjour {name}"), "French defaults");
-    await editor.locator("button", { hasText: "إعادة كتابتها بالذكاء الاصطناعي" }).click();
-    await editor.getByText("تمت الكتابة").waitFor({ timeout: 30_000 });
-    const confirm = await owner.locator("#msg-confirm").inputValue();
-    expect(confirm.includes("{name}") && !confirm.includes("{unknown}"), `AI text cleaned (got ${confirm})`);
-    await owner.fill("#msg-postponed", "Nrappelou {name} 3la {order} ⏰");
-    await editor.locator("button[type=submit]").click();
-    await editor.getByText("تم الحفظ").waitFor();
-    const [[shop]] = await db.query("SELECT messages FROM shops WHERE id = ?", [shopId]);
-    const messages = typeof shop.messages === "string" ? JSON.parse(shop.messages) : shop.messages;
-    expect(messages.language === "fr" && messages.templates.postponed === "Nrappelou {name} 3la {order} ⏰", "saved");
-    await owner.goto(orderPage);
-    await owner.locator("[data-testid=message-card] select").selectOption("postponed");
-    expect((await owner.locator("[data-testid=message-text]").inputValue()) === "Nrappelou سمير 3la 1001 ⏰", "order uses the saved text");
-  });
-
   await step("product description written by the AI into the form, saved with the product", async () => {
     await owner.goto(`${BASE}/ar/dashboard/products/${productId}`);
     await owner.click("[data-form-tab=description]");
@@ -111,8 +90,8 @@ export default async function phase14(browser) {
     await agent.goto(orderPage);
     await agent.locator("[data-testid=call-guide]").getByText("نعيطلك على الطلبية تاعك").waitFor();
     await agent.locator("[data-testid=message-card]").waitFor();
-    await agent.goto(`${BASE}/ar/dashboard/call-centers/settings`);
-    await agent.waitForURL((u) => !u.pathname.endsWith("/settings"));
+    await agent.goto(`${BASE}/ar/dashboard/call-centers`);
+    await agent.waitForURL((u) => u.pathname === "/ar/call-center");
     await ctx.close();
   });
 

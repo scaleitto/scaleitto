@@ -253,6 +253,13 @@
       "when": 1793550958739,
       "tag": "0035_zimam_landing",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1793567923479,
+      "tag": "0036_remove_old_sections",
+      "breakpoints": true
     }
   ]
 }

@@ -9,8 +9,7 @@ import { asLocale } from "@/i18n";
 import { isSafeImage, pageLanguage } from "@/features/landing/types";
 import { posterPrompt } from "@/features/landing/posters";
 import { aiLanguages } from "./languages";
-import { resolveMessages } from "@/features/messages/templates";
-import { callGuideRequest, descriptionRequest, messagesRequest } from "./prompts";
+import { callGuideRequest, descriptionRequest } from "./prompts";
 import { pollTask, startPosterTask, startTask, type TaskStart, type TaskState } from "./tasks";
 
 const language = z.enum(aiLanguages);
@@ -37,16 +36,6 @@ export async function startCallGuide(lang: string, productId: string, lng: strin
   if (!p) return { ok: false, error: "notFound" };
   const request = callGuideRequest(p, parsed.data, { shopName: shop.name, delivery: await deliverySummary(shop.id), notes: "" });
   return startTask(shop.id, user.id, "call_guide", request, { language: parsed.data, productId: p.id });
-}
-
-// The shop's customer messages rewritten by the AI (returned to the editor, saved by the merchant)
-export async function startMessagesAi(lang: string, lng: string, tone: string): Promise<TaskStart> {
-  const { shop, user, role } = await requireSection(asLocale(lang), "callCenters");
-  if (role === "agent") return { ok: false, error: "forbidden" };
-  const parsed = language.safeParse(lng);
-  if (!parsed.success) return { ok: false, error: "invalid" };
-  const current = resolveMessages({ ...(shop.messages as object | null), language: parsed.data }).texts;
-  return startTask(shop.id, user.id, "messages", messagesRequest(parsed.data, { shopName: shop.name, tone: tone.slice(0, 200), current }), { language: parsed.data });
 }
 
 const descriptionInput = z.object({ name: z.string().trim().min(1).max(200), price: z.number().int().min(0).nullable(), notes: z.string().max(5000), images: z.array(z.string()).max(10), language });

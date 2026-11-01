@@ -1,5 +1,5 @@
 import "server-only";
-import { formFor } from "@/features/order-form/resolve";
+import { storeForm } from "@/features/order-form/resolve";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
@@ -89,17 +89,10 @@ export async function getOrderSummary(shopId: string, orderId: string) {
   const [order] = await db.select().from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)));
   if (!order) return null;
   const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
-  // Landing page orders are shown in the page's language; the thank-you message is the form's (the page's template,
-  // else the product's, else the store's — the same form the customer filled)
-  const [landing] = order.landingPageId
-    ? await db.select({ language: schema.landingPages.language, templateId: schema.landingPages.formTemplateId }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId))
-    : [];
-  const productId = items[0]?.productId;
-  const [[product], [shop]] = await Promise.all([
-    productId ? db.select({ templateId: schema.products.formTemplateId }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId))) : Promise.resolve([]),
-    db.select({ id: schema.shops.id, orderForm: schema.shops.orderForm }).from(schema.shops).where(eq(schema.shops.id, shopId)),
-  ]);
-  const form = await formFor(shop, landing?.templateId, product?.templateId);
+  // Landing page orders are shown in the page's language; the thank-you message is the store form's
+  const [landing] = order.landingPageId ? await db.select({ language: schema.landingPages.language }).from(schema.landingPages).where(eq(schema.landingPages.id, order.landingPageId)) : [];
+  const [shop] = await db.select({ orderForm: schema.shops.orderForm }).from(schema.shops).where(eq(schema.shops.id, shopId));
+  const form = storeForm(shop);
   return { ...order, items, landing: landing ? { language: landing.language } : null, thankYou: form.thankYou };
 }
 

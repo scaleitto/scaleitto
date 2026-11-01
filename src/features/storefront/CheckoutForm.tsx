@@ -51,7 +51,7 @@ export function CheckoutForm({
   saveLead: (input: LeadInput) => Promise<void>;
   // The order form's settings (the store's form on product pages, the page's own on landing pages)
   settings?: FormSettings;
-  // Inside an iframe on another site: no sticky button, no popup
+  // Inside the landing builder's preview: no sticky button, no popup
   embedded?: boolean;
   // "Order on WhatsApp": the store's number and the product's name for the message
   whatsapp?: { phone: string; product: string };

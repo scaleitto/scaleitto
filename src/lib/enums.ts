@@ -74,6 +74,3 @@ export type ProtectionSettings = {
 };
 
 
-// Finance: kinds of expenses the merchant records
-export const expenseCategories = ["ads", "shipping", "returns", "packaging", "salaries", "subscription", "other"] as const;
-export type ExpenseCategory = (typeof expenseCategories)[number];

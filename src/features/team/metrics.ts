@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { addDays, algeriaParts } from "@/lib/time";
 import { scheduleAdherence, type DayActivity } from "./schedule";
@@ -108,15 +108,3 @@ export async function teamPerformance(shopId: string, team: TeamMember[], period
 
 export type MemberPerformance = Awaited<ReturnType<typeof teamPerformance>>[number];
 
-// Latest actions of the team on orders (the activity log).
-export async function teamActivityLog(shopId: string, userId?: string, limit = 100) {
-  const e = schema.orderEvents;
-  return db
-    .select({ id: e.id, type: e.type, fromStatus: e.fromStatus, toStatus: e.toStatus, note: e.note, createdAt: e.createdAt, userName: schema.users.name, orderId: e.orderId, orderNumber: schema.orders.number })
-    .from(e)
-    .innerJoin(schema.users, eq(schema.users.id, e.userId))
-    .innerJoin(schema.orders, eq(schema.orders.id, e.orderId))
-    .where(and(eq(e.shopId, shopId), isNotNull(e.userId), userId ? eq(e.userId, userId) : undefined))
-    .orderBy(desc(e.createdAt))
-    .limit(limit);
-}

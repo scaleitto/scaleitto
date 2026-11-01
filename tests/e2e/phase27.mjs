@@ -109,14 +109,12 @@ export default async function phase27(browser) {
     await p.close();
   });
 
-  await step("list: current and old price, stock, units sold; the product's own alert threshold in Inventory", async () => {
+  await step("list: current and old price, stock, units sold", async () => {
     await owner.goto(list);
     const fan = owner.locator('[data-product="مروحة صغيرة"]');
     expect((await fan.locator("[data-col=units]").innerText()) === "1", "1 unit sold");
     const lamp = owner.locator('[data-product="مصباح مكتب"]');
     expect((await lamp.locator("[data-col=oldPrice]").innerText()).replace(/\s/g, "").includes("3200") && (await lamp.locator("[data-col=stock]").innerText()) === "8", "old price and stock");
-    await owner.goto(`${BASE}/ar/dashboard/inventory`);
-    await owner.locator('[data-stock="مصباح مكتب"]').getByText("قليل").waitFor();
   });
 
   await context.close();

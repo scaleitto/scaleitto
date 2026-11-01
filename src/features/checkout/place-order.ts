@@ -11,7 +11,6 @@ import { pickAgent } from "@/features/team/assign";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
 import type { OrderInput } from "./validators";
-import { logStock } from "@/features/inventory/movements";
 import { applyOrderStatus } from "@/features/orders/transition";
 import type { OrderTracking } from "@/server/db/schema";
 
@@ -71,7 +70,6 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
               .set({ stock: sql`${schema.products.stock} - ${input.quantity}` })
               .where(and(eq(schema.products.id, product.id), gte(schema.products.stock, input.quantity)));
         if (res.affectedRows === 0) throw new OutOfStock();
-        await logStock(tx, [{ shopId: shop.id, productId: product.id, variantId: variant?.id, delta: -input.quantity, reason: "order", orderId }]);
       }
 
       // The visitor's abandoned checkout (the draft saved while they typed) becomes this order: it gives its number

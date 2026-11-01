@@ -123,13 +123,3 @@ export async function resetMemberPassword(lang: string, userId: string, _prev: A
   });
 }
 
-export async function setAssignMode(lang: string, mode: string): Promise<ActionState> {
-  return safeAction("team/assign-mode", async () => {
-    const ctx = await managerOf(lang);
-    if (!ctx) return { ok: false, error: "forbidden" };
-    if (mode !== "manual" && mode !== "balanced" && mode !== "on_shift") return { ok: false, error: "invalid" };
-    await db.update(schema.shops).set({ assignMode: mode }).where(eq(schema.shops.id, ctx.shop.id));
-    refresh();
-    return { ok: true };
-  });
-}
