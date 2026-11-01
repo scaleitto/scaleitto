@@ -37,6 +37,7 @@ import { shippingPrice, type RateMap } from "@/features/checkout/pricing";
 import { saveOrder, setPhoneBlocked } from "./actions";
 import type { OrderProduct } from "./queries";
 import type { OrderStatus } from "./statuses";
+import { useModal } from "@/ui/useModal";
 
 type Text = Pick<Dictionary, "orderPage" | "orders" | "errors" | "common">;
 type Line = {
@@ -672,7 +673,7 @@ export function NewOrderButton(
   >,
 ) {
   const p = props.t.orderPage;
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useModal();
   const [open, setOpen] = useState(0);
   return (
     <>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Copy, Mail, Plus, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
 import { Alert, Badge, Button, Card, Field, Input, Select, inputClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { cancelInvite, inviteMember } from "./invites";
+import { useModal } from "@/ui/useModal";
 
 type Text = Pick<Dictionary, "team" | "errors" | "profile">;
 type Member = { userId: string; name: string; email: string; role: "owner" | "manager" | "agent"; active: boolean };
@@ -17,7 +18,7 @@ type Invite = { id: string; email: string; role: "owner" | "manager" | "agent"; 
 export function TeamInvites({ lang, members, invites, used, max, canInviteManagers, t }: { lang: string; members: Member[]; invites: Invite[]; used: number; max: number; canInviteManagers: boolean; t: Text }) {
   const i = t.team.invite;
   const errors = t.errors as Record<string, string>;
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dialog = useModal();
   const { state, pending, onSubmit } = useActionForm(inviteMember.bind(null, lang));
   const [busy, start] = useTransition();
   const [copied, setCopied] = useState(false);

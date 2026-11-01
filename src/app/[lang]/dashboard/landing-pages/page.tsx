@@ -1,12 +1,12 @@
-import Link from "next/link";
-import { ImageOff, LayoutTemplate, Plus } from "lucide-react";
+import { LayoutTemplate } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
-import { Badge, Card, EmptyState, PageHeader, buttonClass } from "@/ui";
-import { listLandingPages } from "@/features/landing/queries";
-import { PageActions } from "@/features/landing/PageActions";
+import { Card, EmptyState, PageHeader } from "@/ui";
+import { formatDate } from "@/lib/format";
+import { listLandingPages, productChoices } from "@/features/landing/queries";
+import { LandingList } from "@/features/landing/LandingList";
 import { AiTestCard } from "@/features/landing/AiTestCard";
 import { testAi } from "@/features/landing/ai-actions";
 
@@ -15,76 +15,63 @@ export default async function LandingPagesPage({ params }: PageProps<"/[lang]/da
   const t = getDictionary(lang);
   const lp = t.landingPages;
   const { shop, role } = await requireSection(lang, "landingPages");
-  const pages = await listLandingPages(shop.id);
+  const [pages, products] = await Promise.all([listLandingPages(shop.id), productChoices(shop.id)]);
   const base = sectionHref(lang, "landingPages");
   const store = storeUrl(shop);
-  const text = { landingPages: lp, errors: t.errors, common: t.common };
+  const live = pages.filter((p) => p.status === "published").length;
+  const views = pages.reduce((s, p) => s + p.views, 0);
+  const stats = [
+    { key: "total", label: lp.stats.total, hint: lp.stats.totalHint, value: pages.length },
+    { key: "live", label: lp.stats.live, hint: lp.stats.liveHint, value: live },
+    { key: "draft", label: lp.stats.draft, hint: lp.stats.draftHint, value: pages.length - live },
+    { key: "views", label: lp.stats.views, hint: "", value: views },
+  ];
 
   return (
     <>
-      <PageHeader
-        title={t.sections.landingPages.title}
-        description={t.sections.landingPages.description}
-        actions={
-          <Link href={`${base}/new`} className={buttonClass("primary")}>
-            <Plus size={16} /> {lp.newPage}
-          </Link>
-        }
-      />
-      {pages.length === 0 ? (
-        <EmptyState icon={<LayoutTemplate size={40} />} title={lp.emptyTitle}>
-          <p>{lp.emptyBody}</p>
-          <Link href={`${base}/new`} className={buttonClass("primary", "mt-4")}>
-            <Plus size={16} /> {lp.newPage}
-          </Link>
-        </EmptyState>
-      ) : (
-        <Card className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted">
-              <tr className="border-b border-line">
-                <th className="p-3 text-start font-medium">{lp.columns.page}</th>
-                <th className="hidden p-3 text-start font-medium sm:table-cell">{lp.columns.status}</th>
-                <th className="p-3 text-start font-medium">{lp.columns.views}</th>
-                <th className="p-3 text-start font-medium">{lp.columns.orders}</th>
-                <th className="hidden p-3 text-start font-medium sm:table-cell">{lp.columns.conversion}</th>
-                <th className="p-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {pages.map((p) => (
-                <tr key={p.id} className="border-b border-line last:border-0" data-page={p.title}>
-                  <td className="p-3">
-                    <Link href={`${base}/${p.id}`} className="flex items-center gap-3">
-                      <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-bg">
-                        {p.productImages?.[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.productImages[0]} alt="" className="size-full object-cover" />
-                        ) : (
-                          <ImageOff size={18} className="text-muted" />
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-semibold">{p.title}</span>
-                        <span className="block truncate text-xs text-muted">{p.productName}</span>
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="hidden p-3 sm:table-cell">
-                    <Badge tone={p.status === "published" ? "accent" : "neutral"}>{lp.statuses[p.status]}</Badge>
-                  </td>
-                  <td className="p-3 font-semibold">{p.views}</td>
-                  <td className="p-3 font-semibold">{p.orders}</td>
-                  <td className="hidden p-3 font-semibold sm:table-cell">{p.conversion == null ? "—" : `${p.conversion}%`}</td>
-                  <td className="p-2">
-                    <PageActions lang={lang} id={p.id} editHref={`${base}/${p.id}`} viewHref={p.status === "published" ? `${store}/lp/${encodeURIComponent(p.slug)}` : null} t={text} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+      <PageHeader title={t.sections.landingPages.title} description={t.sections.landingPages.description} />
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="landing-stats">
+        {stats.map((s) => (
+          <Card key={s.key} className="space-y-1" data-stat={s.key}>
+            <p className="text-sm text-muted">{s.label}</p>
+            <p className="text-2xl font-bold tabular-nums" data-value>
+              {s.value}
+            </p>
+            {s.hint && <p className="text-xs text-muted">{s.hint}</p>}
+          </Card>
+        ))}
+      </div>
+      {pages.length === 0 && (
+        <div className="mb-4">
+          <EmptyState icon={<LayoutTemplate size={40} />} title={lp.emptyTitle}>
+            <p>{lp.emptyBody}</p>
+          </EmptyState>
+        </div>
       )}
+      <LandingList
+        lang={lang}
+        base={base}
+        defaultLanguage={shop.defaultLocale === "fr" || shop.defaultLocale === "en" ? shop.defaultLocale : "ar"}
+        products={products.map((p) => ({ id: p.id, name: p.name }))}
+        t={{ landingPages: lp, errors: t.errors, common: t.common }}
+        pages={pages.map((p) => ({
+          id: p.id,
+          title: p.title,
+          slug: p.slug,
+          status: p.status,
+          productId: p.productId,
+          productName: p.productName,
+          image: p.productImages?.[0] ?? null,
+          views: p.views,
+          orders: p.orders,
+          conversion: p.conversion,
+          images: p.images,
+          formBottom: p.formBottom,
+          updated: formatDate(p.updatedAt, lang),
+          updatedAt: p.updatedAt.getTime(),
+          viewHref: p.status === "published" ? `${store}/lp/${encodeURIComponent(p.slug)}` : null,
+        }))}
+      />
       {role !== "agent" && (
         <div className="mt-6">
           <AiTestCard test={testAi.bind(null, lang)} t={lp.ai} />

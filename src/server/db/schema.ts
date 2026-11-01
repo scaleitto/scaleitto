@@ -387,6 +387,22 @@ export const landingPages = mysqlTable(
   (t) => [uniqueIndex("landing_shop_slug_uq").on(t.shopId, t.slug)],
 );
 
+// Saved versions of a landing page (the builder's History): one per save, the last 20 kept
+export const landingVersions = mysqlTable(
+  "landing_versions",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    pageId: id("page_id").notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    sections: json("sections").notNull(),
+    formTemplateId: id("form_template_id"),
+    userId: id("user_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("landing_versions_page_idx").on(t.pageId, t.createdAt)],
+);
+
 // AI landing page generations: one row per request sent to OpenAI (also counts the monthly AI limit).
 export const aiGenerations = mysqlTable(
   "ai_generations",

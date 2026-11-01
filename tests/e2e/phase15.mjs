@@ -50,11 +50,10 @@ export default async function phase15(browser) {
   });
 
   await step("editor: the new sections can be added, a photo can be reworked by the AI", async () => {
-    await owner.selectOption('select[aria-label="إضافة قسم"]', "benefits");
+    await owner.click("[data-add=benefits]");
     await owner.locator("[data-editor-section=benefits]").last().waitFor();
-    const block = owner.locator("[data-editor-section=imageText]").first();
-    await block.locator("button[aria-expanded]").click();
-    const enhance = block.locator("[data-testid=enhance-image]");
+    await owner.locator("[data-editor-section=imageText]").first().locator("button[aria-expanded]").click();
+    const enhance = owner.locator("[data-testid=section-panel] [data-testid=enhance-image]");
     await enhance.waitFor();
     const before = await owner.locator("[data-testid=landing-preview] [data-section=imageText] img").getAttribute("src");
     await enhance.locator("select").selectOption("lifestyle");
@@ -97,9 +96,8 @@ export default async function phase15(browser) {
   await step("image work counts in the monthly AI quota", async () => {
     await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 3 }), contractId]);
     await owner.goto(`${section}/${pageId}`);
-    const block = owner.locator("[data-editor-section=hero]").first();
-    await block.locator("button[aria-expanded]").click();
-    const enhance = block.locator("[data-testid=enhance-image]");
+    await owner.locator("[data-editor-section=hero]").first().locator("button[aria-expanded]").click();
+    const enhance = owner.locator("[data-testid=section-panel] [data-testid=enhance-image]");
     await enhance.locator("button").click();
     await enhance.getByText("وصلت إلى الحد الشهري لاستعمال الذكاء الاصطناعي").waitFor();
     expect(uploaded.length === 2, "originals kept");

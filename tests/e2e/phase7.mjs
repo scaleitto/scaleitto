@@ -31,7 +31,9 @@ export default async function phase7(browser) {
   await step("empty list, then a page made by hand opens in the editor", async () => {
     await owner.goto(section);
     await owner.waitForSelector("text=لا توجد صفحات هبوط بعد");
-    await owner.locator("a", { hasText: "صفحة جديدة" }).first().click();
+    // Create → the two paths (Zimam): the AI builder holds the template-based manual page too
+    await owner.click("[data-testid=create-landing]");
+    await owner.click("[data-create=ai]");
     await owner.waitForSelector("[data-testid=ai-wizard]");
     await wizardMode(owner, "manual");
     await wizardStyle(owner, "sections");
@@ -46,11 +48,11 @@ export default async function phase7(browser) {
   });
 
   await step("editor: add a text section, hide the badges, move a section", async () => {
-    await owner.selectOption('select[aria-label="إضافة قسم"]', "text");
-    const added = owner.locator("[data-editor-section=text]").last();
-    await added.locator("textarea").fill("نص كتبه التاجر بنفسه");
+    await owner.click("[data-add=text]");
+    // A new component is selected: its settings open in the panel
+    await owner.locator("[data-testid=section-panel][data-selected=text] textarea").fill("نص كتبه التاجر بنفسه");
     await owner.waitForSelector('[data-testid=landing-preview] [data-section=text]:has-text("نص كتبه التاجر بنفسه")');
-    await added.locator('button[aria-label="للأعلى"]').click();
+    await owner.locator('[data-testid=section-panel] button[aria-label="للأعلى"]').click();
     await owner.locator("[data-editor-section=badges]").first().locator('button[aria-label="إخفاء"]').click();
     expect(!(await owner.locator("[data-testid=landing-preview] [data-section=badges]").count()), "hidden section left the preview");
     await owner.waitForSelector("text=تغييرات غير محفوظة");
@@ -127,10 +129,10 @@ export default async function phase7(browser) {
     await card.waitFor();
     expect((await card.innerText()).includes("أزرق"), "custom answer on the order page");
     await owner.goto(section);
-    const row = owner.locator("tr[data-page]").first();
-    await row.waitFor();
-    const cells = await row.locator("td").allInnerTexts();
-    expect(cells[2].trim() === "1" && cells[3].trim() === "1", `1 visit and 1 order in the list (got ${cells.join(" | ")})`);
+    const listCard = owner.locator("[data-page]").first();
+    await listCard.waitFor();
+    const stats = await listCard.locator("dl dd").allInnerTexts();
+    expect(stats[0].trim() === "1" && stats[1].trim() === "1", `1 visit and 1 order in the list (got ${stats.join(" | ")})`);
   });
 
   await step("embed: the form alone, with the embed code, and its own thank-you page", async () => {
@@ -156,13 +158,13 @@ export default async function phase7(browser) {
 
   await step("duplicate opens a draft copy in the editor, delete removes it", async () => {
     await owner.goto(section);
-    await Promise.all([owner.waitForURL((u) => /landing-pages\/[0-9a-f-]{36}$/.test(u.pathname) && !u.pathname.endsWith(pageId)), owner.locator('tr[data-page] button[aria-label="نسخ"]').first().click()]);
+    await Promise.all([owner.waitForURL((u) => /landing-pages\/[0-9a-f-]{36}$/.test(u.pathname) && !u.pathname.endsWith(pageId)), owner.locator('[data-page] button[aria-label="نسخ"]').first().click()]);
     const [[copy]] = await db.query("SELECT status, form_template_id AS t FROM landing_pages WHERE id = ? AND shop_id = ?", [owner.url().split("/").pop(), shopId]);
     expect(copy.status === "draft" && copy.t !== null, "copy is a draft with the same form");
     await owner.goto(section);
-    await owner.waitForFunction(() => document.querySelectorAll("tr[data-page]").length === 2);
-    await owner.locator("tr[data-page]", { has: owner.locator("text=مسودة") }).locator('button[aria-label="حذف"]').click();
-    await owner.waitForFunction(() => document.querySelectorAll("tr[data-page]").length === 1);
+    await owner.waitForFunction(() => document.querySelectorAll("[data-testid=landing-list] [data-page]").length === 2);
+    await owner.locator("[data-testid=landing-list] [data-page]", { has: owner.locator("text=مسودة") }).locator('button[aria-label="حذف"]').click();
+    await owner.waitForFunction(() => document.querySelectorAll("[data-testid=landing-list] [data-page]").length === 1);
   });
 
   await step("AI connection test shows every step", async () => {

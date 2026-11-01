@@ -1,11 +1,11 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
-import { requireSection } from "@/server/auth/context";
+import { newId, requireSection } from "@/server/auth/context";
 import { safeAction } from "@/server/errors";
 import { canAdd } from "@/server/limits";
 import { asLocale } from "@/i18n";
@@ -17,11 +17,13 @@ import { freeSlug, insertLandingPage, shopProduct } from "./store";
 import { starterImageSections, starterSections } from "./template";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "landingPages");
+const MAX_VERSIONS = 20;
 
 const createSchema = z.object({
   productId: z.string().min(1, "e:required").max(36),
   language: z.enum(pageLanguages),
-  pageStyle: z.enum(["sections", "images"]).optional().default("sections"),
+  // blank = only the order form (Zimam's "design manually")
+  pageStyle: z.enum(["sections", "images", "blank"]).optional().default("sections"),
 });
 
 // A new page by hand: starts from a ready template filled with the product's data.
@@ -35,7 +37,7 @@ export async function createLandingPage(lang: string, _prev: ActionState, formDa
     const product = await shopProduct(shop.id, parsed.data.productId);
     if (!product) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
     if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
-    pageId = await insertLandingPage(shop.id, { productId: product.id, title: product.name, language: parsed.data.language, sections: (parsed.data.pageStyle === "images" ? starterImageSections : starterSections)(product, parsed.data.language) });
+    pageId = await insertLandingPage(shop.id, { productId: product.id, title: product.name, language: parsed.data.language, sections: parsed.data.pageStyle === "blank" ? [{ id: "form", type: "form" }] : (parsed.data.pageStyle === "images" ? starterImageSections : starterSections)(product, parsed.data.language) });
     return { ok: true };
   });
   if (pageId) redirect(`${sectionHref(locale, "landingPages")}/${pageId}`);
@@ -61,7 +63,7 @@ export type LandingDraft = z.input<typeof saveSchema>;
 
 export async function saveLandingPage(lang: string, pageId: string, draft: LandingDraft): Promise<ActionState> {
   return safeAction("landing/save", async () => {
-    const { shop } = await guard(lang);
+    const { shop, user } = await guard(lang);
     const parsed = saveSchema.safeParse(draft);
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const d = parsed.data;
@@ -77,9 +79,32 @@ export async function saveLandingPage(lang: string, pageId: string, draft: Landi
       .update(schema.landingPages)
       .set({ title: d.title, slug: await freeSlug(shop.id, d.slug || d.title, pageId), language: d.language, color: d.color, status: d.status, sections, formTemplateId: d.formTemplateId })
       .where(eq(schema.landingPages.id, pageId));
+    // History: this save as a version, the last 20 kept
+    await db.insert(schema.landingVersions).values({ id: newId(), shopId: shop.id, pageId, title: d.title, sections, formTemplateId: d.formTemplateId, userId: user.id });
+    const old = await db.select({ id: schema.landingVersions.id }).from(schema.landingVersions).where(eq(schema.landingVersions.pageId, pageId)).orderBy(desc(schema.landingVersions.createdAt)).limit(100).offset(MAX_VERSIONS);
+    if (old.length) await db.delete(schema.landingVersions).where(inArray(schema.landingVersions.id, old.map((v) => v.id)));
     refresh();
     return { ok: true };
   });
+}
+
+// The builder's History: the saved versions, then one of them to load back into the editor
+export async function listVersions(lang: string, pageId: string) {
+  const { shop } = await guard(lang);
+  const rows = await db
+    .select({ id: schema.landingVersions.id, at: schema.landingVersions.createdAt, title: schema.landingVersions.title, sections: schema.landingVersions.sections, by: schema.users.name })
+    .from(schema.landingVersions)
+    .leftJoin(schema.users, eq(schema.users.id, schema.landingVersions.userId))
+    .where(and(eq(schema.landingVersions.shopId, shop.id), eq(schema.landingVersions.pageId, pageId)))
+    .orderBy(desc(schema.landingVersions.createdAt))
+    .limit(MAX_VERSIONS);
+  return rows.map((r) => ({ id: r.id, at: r.at.toISOString(), title: r.title, by: r.by, count: Array.isArray(r.sections) ? r.sections.length : 0 }));
+}
+
+export async function getVersion(lang: string, pageId: string, versionId: string) {
+  const { shop } = await guard(lang);
+  const [v] = await db.select().from(schema.landingVersions).where(and(eq(schema.landingVersions.shopId, shop.id), eq(schema.landingVersions.pageId, pageId), eq(schema.landingVersions.id, versionId)));
+  return v ? { title: v.title, sections: sanitizeSections(v.sections), formTemplateId: v.formTemplateId } : null;
 }
 
 export async function deleteLandingPage(lang: string, pageId: string): Promise<ActionState> {

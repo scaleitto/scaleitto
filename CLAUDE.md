@@ -317,6 +317,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   lines matched by SKU then name, no stock taken, plan slot, agent, sync). Team (`team` section): `member_invites` (sha256 of the
   token, 7 days), `team/invites.ts` (`inviteMember` emails the link and returns it, `staffUsage` = active members + pending
   invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`.
+- Zimam parity phase 6 (phase30.mjs) — landing pages: list = `landing/LandingList.tsx` (filters, list/grid in localStorage
+  `sc_lp_view`, create dialog: manual → `createLandingPage` with `pageStyle: "blank"` = only the form, or the AI wizard `/new`);
+  builder = `LandingEditor.tsx` in three columns (palette `data-add`, page order `data-editor-section`, `suggestions`; preview where
+  `LandingSections editing selected` wraps blocks in `data-sid` and a click selects; `section-panel` with `SectionFields`), top bar
+  save state / history (`landing_versions`, last 20, `listVersions` / `getVersion`) / discard / publish. New section types
+  `announcement` and `spacer`. Modals use `ui/useModal` (closes on leaving the page: Next keeps the previous page mounted).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);

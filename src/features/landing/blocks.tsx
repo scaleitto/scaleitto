@@ -249,6 +249,18 @@ function Section({ section, t, price, flip = false, editing = false }: { section
           <Countdown endsAt={section.endsAt} t={l} />
         </section>
       );
+    case "announcement":
+      return (
+        <p className="rounded-[var(--s-radius)] bg-brand px-4 py-2.5 text-center text-sm font-bold text-brand-fg" data-section="announcement">
+          {section.text}
+        </p>
+      );
+    case "spacer":
+      return (
+        <div aria-hidden className={`flex items-center ${section.size === "sm" ? "h-4" : section.size === "lg" ? "h-20" : "h-10"}`} data-section="spacer">
+          {section.line && <span className="h-px w-full bg-s-edge" />}
+        </div>
+      );
     case "cta":
       return (
         <section className="space-y-4 rounded-[var(--s-radius)] bg-brand/10 p-8 text-center" data-section="cta">
@@ -272,14 +284,23 @@ export const isImagePage = (sections: LandingSection[]) => sections.some((s) => 
 
 // The whole page: visible sections in order, with the order form where the "form" section is
 // (or right after the hero when there is none).
-export function LandingSections({ sections, form, t, price, editing = false }: { sections: LandingSection[]; form: ReactNode; t: StoreText; price?: ReactNode; editing?: boolean }) {
+export function LandingSections({ sections, form, t, price, editing = false, selected = null }: { sections: LandingSection[]; form: ReactNode; t: StoreText; price?: ReactNode; editing?: boolean; selected?: string | null }) {
   const visible = sections.filter((s) => !s.hidden);
+  // In the builder every block carries its id (a click selects it) and the selected one is outlined
+  const pick = (id: string, node: ReactNode) =>
+    editing ? (
+      <div key={id} data-sid={id} className={`relative cursor-pointer outline-offset-2 ${selected === id ? "outline-2 outline-[#4f3bd6] outline-solid" : "hover:outline-1 hover:outline-[#4f3bd6]/50 hover:outline-dashed"}`}>
+        {node}
+      </div>
+    ) : (
+      node
+    );
   // Image pages (Wibi style): one narrow column of full-width images, like a phone screen on every device
   if (visible.some((s) => s.type === "poster")) {
     const formAt = visible.findIndex((s) => s.type === "form");
     const firstPoster = visible.find((s) => s.type === "poster" && s.image)?.id;
     const items = visible.map((s) =>
-      s.type === "form" ? (
+      pick(s.id, s.type === "form" ? (
         <div key={s.id} className="scroll-mt-4 bg-s-surface p-4" data-section="form">
           {form}
         </div>
@@ -296,7 +317,7 @@ export function LandingSections({ sections, form, t, price, editing = false }: {
         <div key={s.id} className="p-4">
           <Section section={s} t={t} price={s.type === "hero" ? price : undefined} editing={editing} />
         </div>
-      ),
+      )),
     );
     // No form section: after the images (the last step of the persuasion sequence)
     if (formAt < 0) {
@@ -320,7 +341,7 @@ export function LandingSections({ sections, form, t, price, editing = false }: {
     if (i === insertAt && formAt < 0) out.push(<FormSlot key="form-slot">{form}</FormSlot>);
     // Image + text blocks alternate sides on large screens
     const flip = s.type === "imageText" && imageTexts++ % 2 === 1;
-    out.push(s.type === "form" ? <FormSlot key={s.id}>{form}</FormSlot> : <Section key={s.id} section={s} t={t} price={s.type === "hero" ? price : undefined} flip={flip} />);
+    out.push(pick(s.id, s.type === "form" ? <FormSlot key={s.id}>{form}</FormSlot> : <Section key={s.id} section={s} t={t} price={s.type === "hero" ? price : undefined} flip={flip} />));
   });
   if (insertAt >= visible.length && formAt < 0) out.push(<FormSlot key="form-slot">{form}</FormSlot>);
   return <div className="space-y-10 sm:space-y-14">{out}</div>;

@@ -6,7 +6,7 @@ import { db, schema } from "@/server/db";
 export async function listLandingPages(shopId: string) {
   const l = schema.landingPages;
   const pages = await db
-    .select({ id: l.id, title: l.title, slug: l.slug, status: l.status, views: l.views, language: l.language, updatedAt: l.updatedAt, productName: schema.products.name, productImages: schema.products.images })
+    .select({ id: l.id, title: l.title, slug: l.slug, status: l.status, views: l.views, language: l.language, updatedAt: l.updatedAt, sections: l.sections, productId: l.productId, productName: schema.products.name, productImages: schema.products.images })
     .from(l)
     .leftJoin(schema.products, eq(schema.products.id, l.productId))
     .where(eq(l.shopId, shopId))
@@ -21,7 +21,11 @@ export async function listLandingPages(shopId: string) {
     : [];
   return pages.map((p) => {
     const n = orders.find((o) => o.id === p.id)?.n ?? 0;
-    return { ...p, orders: n, conversion: p.views > 0 ? Math.round((n / p.views) * 1000) / 10 : null };
+    // The card's one-line summary: how many images, where the form is
+    const sections = Array.isArray(p.sections) ? (p.sections as { type?: string; hidden?: boolean }[]).filter((s) => !s.hidden) : [];
+    const images = sections.filter((s) => s.type === "poster" || s.type === "image").length;
+    const formAt = sections.findIndex((s) => s.type === "form");
+    return { ...p, sections: undefined, images, formBottom: formAt < 0 || formAt === sections.length - 1, orders: n, conversion: p.views > 0 ? Math.round((n / p.views) * 1000) / 10 : null };
   });
 }
 

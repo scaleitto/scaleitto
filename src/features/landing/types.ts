@@ -3,7 +3,8 @@
 // so a page can never contain unknown section types, script URLs or broken data.
 import { isBenefitIcon } from "./icons";
 
-export const sectionTypes = ["poster", "marquee", "hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form"] as const;
+export const sectionTypes = ["poster", "marquee", "hero", "badges", "text", "imageText", "benefits", "image", "gallery", "features", "steps", "faq", "reviews", "video", "countdown", "cta", "form", "announcement", "spacer"] as const;
+export const spacerSizes = ["sm", "md", "lg"] as const;
 // What a poster section is about (the AI designs one marketing image per section)
 export const posterKinds = ["hero", "problem", "solution", "benefits", "features", "howto", "details", "beforeAfter", "objections", "trust", "offer", "cta"] as const;
 export type PosterKind = (typeof posterKinds)[number];
@@ -38,6 +39,10 @@ export type LandingSection = Base &
     | { type: "cta"; title: string; subtitle?: string }
     // Where the order form goes (when absent, right after the hero)
     | { type: "form" }
+    // A short message on a colored band (e.g. "Free delivery this week"), written by the merchant
+    | { type: "announcement"; text: string }
+    // Empty space between blocks, with or without a thin line
+    | { type: "spacer"; size: (typeof spacerSizes)[number]; line: boolean }
   );
 
 // Extra questions of the order form (answers saved in orders.extra). checkbox = one box to tick (e.g. accept the terms).
@@ -291,6 +296,14 @@ export function sanitizeSections(input: unknown): LandingSection[] {
         if (title) section = { ...base, type: "cta", title, subtitle: opt(s.subtitle, 400) };
         break;
       }
+      case "announcement": {
+        const text = str(s.text, 160);
+        if (text) section = { ...base, type: "announcement", text };
+        break;
+      }
+      case "spacer":
+        section = { ...base, type: "spacer", size: oneOf(s.size, spacerSizes, "md"), line: s.line === true };
+        break;
       case "form":
         if (!hasForm) {
           hasForm = true;

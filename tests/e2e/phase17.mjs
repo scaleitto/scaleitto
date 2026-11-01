@@ -66,9 +66,8 @@ export default async function phase17(browser) {
   });
 
   await step("editor: regenerate one image with own background and instructions, then restore it", async () => {
-    const card = owner.locator("[data-editor-section=poster]").nth(1);
-    await card.locator("button[aria-expanded]").click();
-    const fields = card.locator("[data-testid=poster-fields]");
+    await owner.locator("[data-editor-section=poster]").nth(1).locator("button[aria-expanded]").click();
+    const fields = owner.locator("[data-testid=section-panel] [data-testid=poster-fields]");
     const before = (await db.query("SELECT sections FROM landing_pages WHERE id = ?", [pageId]))[0][0];
     const original = json(before.sections).filter((s) => s.type === "poster")[1].image;
     await fields.getByLabel("العنوان").fill("كل ليلة بلا بعوض");

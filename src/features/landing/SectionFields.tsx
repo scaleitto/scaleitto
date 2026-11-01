@@ -5,7 +5,7 @@ import { LoaderCircle, Plus, RotateCcw, Sparkles, Star, Trash2 } from "lucide-re
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { Button, Field, Input, Select, Textarea } from "@/ui";
 import { ImageManager } from "@/ui/ImageManager";
-import { MAX_POSTER_HISTORY, posterKinds, type LandingSection } from "./types";
+import { MAX_POSTER_HISTORY, posterKinds, spacerSizes, type LandingSection } from "./types";
 import { benefitIconNames } from "./icons";
 import { BenefitIcon } from "./blocks";
 import { startImageEnhance, startPosterImage } from "@/features/ai/actions";
@@ -400,6 +400,30 @@ export function SectionFields({ lang, pageId, section, set, productImages, t }: 
       );
     case "form":
       return <p className="text-sm text-muted">{ed.formHint}</p>;
+    case "announcement":
+      return (
+        <Field label={f.announcement}>
+          <Input value={section.text} maxLength={160} onChange={(e) => p({ text: e.target.value })} data-field="announcement" />
+        </Field>
+      );
+    case "spacer":
+      return (
+        <div className="space-y-3">
+          <Field label={f.spacerSize}>
+            <Select value={section.size} onChange={(e) => p({ size: e.target.value })}>
+              {spacerSizes.map((s) => (
+                <option key={s} value={s}>
+                  {f.spacerSizes[s]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={section.line} onChange={(e) => p({ line: e.target.checked })} className="size-4 accent-[var(--color-accent)]" />
+            {f.spacerLine}
+          </label>
+        </div>
+      );
   }
 }
 

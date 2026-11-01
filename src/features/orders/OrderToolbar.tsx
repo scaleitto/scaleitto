@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Filter, RefreshCw, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
@@ -10,6 +10,7 @@ import { Button, Field, Input, Select, buttonClass } from "@/ui";
 import { changeOrderStatus } from "./actions";
 import { selectedRows, useSelectedCount } from "./OrderTools";
 import type { OrderFilters } from "./views";
+import { useModal } from "@/ui/useModal";
 
 type Text = Pick<Dictionary, "orderPage" | "orders" | "errors">;
 
@@ -32,7 +33,7 @@ export function FilterDialog({
   t: Text;
 }) {
   const p = t.orderPage;
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useModal();
   const active = [f.product, f.agent, f.wilaya, f.from, f.to].filter(Boolean).length;
   return (
     <>
@@ -41,7 +42,7 @@ export function FilterDialog({
         {active > 0 && <span className="rounded-full bg-accent px-1.5 text-xs text-accent-fg">{active}</span>}
       </Button>
       <dialog ref={ref} className="m-auto w-[min(520px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="filter-dialog">
-        <form action={base} method="get" className="space-y-4 p-5">
+        <form action={base} method="get" className="space-y-4 p-5" onSubmit={() => ref.current?.close()}>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold">{p.filterTitle}</h2>
             <button type="button" aria-label={p.cancel} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => ref.current?.close()}>

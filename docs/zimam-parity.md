@@ -29,7 +29,12 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    their orders through a signed address; YouCan, LightFunnels, Orderdz, Storeep shown as coming until their formats are
    verified), Team page (invite by email with a role, counter against the staff limit, pending invitations, acceptance
    page). The call center keeps its agents, schedules and distribution.
-6. **Landing pages** — stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.
+6. **Landing pages** — done (phase30.mjs): stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.
+   Built: list (total / live / draft / views, status + product filters, sort, list or grid remembered, create window:
+   design manually = blank page with the form, or the AI builder), builder (components palette, page order, suggestions
+   — real reviews, a countdown only for a real deadline, trust badges, FAQ —, click-to-select preview, settings panel,
+   save state, history of the last 20 saves with restore, discard, publish), new components announcement bar and
+   spacer. Not built: A/B versions (dropped earlier by the owner), thank-you popup.
 7. **Analytics** — tabs (orders, products, impressions, call center), comparisons, status distribution, funnel, insights,
    wilayas.
 8. **Pixels and apps** — pixel cards (GTM, GA, Facebook, Snapchat, TikTok); app store with on/off apps (WhatsApp
