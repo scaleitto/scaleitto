@@ -45,8 +45,8 @@ export default async function phase16(browser) {
     const ctx = await browser.newContext();
     await ctx.addCookies([{ name: "sc_session", value: agents[0].token, url: BASE }]);
     const agent = await ctx.newPage();
-    await agent.goto(`${dash}/orders`);
-    await agent.waitForSelector("tr[data-order]");
+    await agent.goto(`${BASE}/ar/call-center`);
+    await agent.waitForSelector("[data-testid=agent-dashboard]");
     expect(!(await agent.locator("[data-testid=top-link]").count()), "no 'view store' in the header");
     expect(!(await agent.getByText("افتح متجرك").count()), "no 'open your store' button");
     await ctx.close();

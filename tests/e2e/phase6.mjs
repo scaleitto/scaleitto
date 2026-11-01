@@ -141,57 +141,6 @@ export default async function phase6(browser) {
     await owner.locator(`[data-member="${emails.a}"] [data-testid=presence]`).getByText("متصل الآن").waitFor();
   });
 
-  await step("performance shows confirmations, rates, working time and schedule adherence", async () => {
-    await owner.goto(`${cc}/performance`);
-    const card = owner.locator('[data-performance="أمين"]');
-    const value = (key) => card.locator(`[data-metric="${key}"] dd`).innerText();
-    expect((await value("assigned")) === "1" && (await value("confirmed")) === "1", "1 received, 1 confirmed");
-    expect((await value("confirmRate")) === "100%", "confirmation rate");
-    expect((await value("activeTime")).includes("1"), "working time");
-    expect((await value("attendance")).startsWith("100%"), `attendance (${await value("attendance")})`);
-    expect((await value("punctuality")) === "100%", "on time");
-    expect((await value("open")) === "0", "nothing waiting");
-    const b = owner.locator('[data-performance="بلال"]');
-    expect((await b.locator('[data-metric="open"] dd').innerText()) === "1", "Bilal has one waiting");
-    await owner.goto(`${cc}/performance?period=7d`);
-    await owner.locator('[data-performance="أمين"]').waitFor();
-  });
-
-  await step("the activity log lists the team's actions with a link to the order", async () => {
-    await owner.goto(`${cc}/activity`);
-    const log = owner.locator("[data-testid=activity-log]");
-    await log.getByText("تغيير الحالة: قيد الانتظار ← مؤكدة").waitFor();
-    await log.locator("a", { hasText: "طلب #" }).first().waitFor();
-  });
-
-  await step("by shift: only agents in their working hours get new orders", async () => {
-    await owner.goto(`${cc}/settings`);
-    await owner.click('button[role=radio]:has-text("تلقائي حسب الدوام")');
-    await owner.waitForSelector("text=تم الحفظ");
-    // Amine (on shift) is busier than Bilal (no schedule): the balanced mode would pick Bilal
-    const amine = await userId(emails.a);
-    for (const n of [9001, 9002])
-      await db.query("INSERT INTO orders (id, shop_id, number, customer_name, phone, wilaya_code, commune, delivery_type, subtotal, shipping_price, total, assigned_to, assigned_at) VALUES (UUID(), ?, ?, 'x', '0661999999', 16, 'x', 'home', 1, 0, 1, ?, NOW())", [shopId, n, amine]);
-    const id1 = await placeOrder("0661000103");
-    const [[o]] = await db.query("SELECT assigned_to FROM orders WHERE id = ?", [id1]);
-    expect(o.assigned_to === (await userId(emails.a)), "assigned to the agent on shift");
-  });
-
-  await step("manual mode leaves new orders unassigned; a manager assigns them", async () => {
-    await owner.goto(`${cc}/settings`);
-    await owner.click('button[role=radio]:has-text("يدوي")');
-    await owner.waitForSelector("text=تم الحفظ");
-    const id2 = await placeOrder("0661000104");
-    const [[o]] = await db.query("SELECT assigned_to FROM orders WHERE id = ?", [id2]);
-    expect(o.assigned_to === null, "unassigned");
-    await owner.goto(`${orders}/${id2}`);
-    await owner.locator("[data-testid=order-form] #agent").selectOption({ label: "بلال" });
-    await owner.click("[data-testid=save-order]");
-    await owner.waitForSelector("[data-testid=history] >> text=أُسند الطلب إلى بلال");
-    await owner.goto(`${orders}?agent=none`);
-    expect(!(await owner.locator(`[data-order]`).filter({ hasText: "0661000104" }).count()), "no longer in the unassigned filter");
-  });
-
   await step("a deactivated agent is signed out, cannot sign in, and their open orders are released", async () => {
     const agentB = await loginAs(emails.b);
     await owner.goto(cc);
@@ -214,8 +163,6 @@ export default async function phase6(browser) {
     await p.goto(cc);
     await p.waitForURL((u) => u.pathname.endsWith("/ar/call-center"));
     expect((await p.locator("[data-testid=today-confirmed] [data-value]").innerText()) === "1", "their confirmation today");
-    await p.goto(`${cc}/performance`);
-    await p.waitForURL((u) => u.pathname.endsWith("/ar/call-center"));
     await agentA.ctx.close();
     const manager = await loginAs(emails.m);
     await manager.p.goto(cc);

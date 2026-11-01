@@ -281,7 +281,7 @@ export function TeamManager({ lang, members, viewer, portal, t }: { lang: string
   return (
     <div className="space-y-4" data-testid="call-center">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-bold">{ag.title}</h2>
+        <h1 className="text-2xl font-bold tracking-tight">{ag.title}</h1>
         <AddAgentDialog lang={lang} t={t} onDone={() => setAdded(true)} />
       </div>
       {added && <Alert variant="success">{t.team.added}</Alert>}
