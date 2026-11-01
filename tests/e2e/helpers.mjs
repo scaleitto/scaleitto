@@ -98,15 +98,32 @@ export const playwright = () => require("playwright");
 
 // The landing page wizard: manual / AI mode, page style ("images" Wibi style or "sections"), then generate
 // (the AI asks to confirm the settings and their cost first).
-export async function wizardMode(page, mode) {
-  await page.locator("[data-testid=mode] button").nth(mode === "manual" ? 1 : 0).click();
+// Landing pages: "Create Landing Page" → "Design manually" → product → the builder opens (returns the page id)
+export async function createLandingManually(page, productId) {
+  await page.click("[data-testid=create-landing]");
+  await page.click("[data-create=manual]");
+  if (productId) await page.selectOption("#create-product", productId);
+  else await page.locator("#create-product").selectOption({ index: 1 });
+  await Promise.all([page.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), page.click("[data-testid=create-manual]")]);
+  return page.url().split("/").pop();
 }
-export async function wizardStyle(page, style) {
-  await page.locator("[data-testid=page-style] button").nth(style === "images" ? 0 : 1).click();
+
+// Waits until a check (often a database read) is true
+export async function until(check, message = "condition", timeout = 15_000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    if (await check()) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(`Timed out waiting for: ${message}`);
 }
-export async function wizardGenerate(page) {
-  await page.click("[data-testid=ai-next]");
-  await page.locator("[data-testid=ai-confirm] button").last().click();
+
+// A landing page row with its JSON parsed
+export async function landingRow(id) {
+  const [[row]] = await db.query("SELECT * FROM landing_pages WHERE id = ?", [id]);
+  if (!row) return null;
+  const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
+  return { ...row, sections: json(row.sections), variants: json(row.variants) ?? [], published: json(row.published), pixels: json(row.pixels) };
 }
 
 // The order page (edit dialog): choose the status, save, and wait until the page shows it

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import type { PageLanguage } from "@/features/landing/types";
+import type { AiLanguage as PageLanguage } from "./languages";
 import { startDescriptionAi } from "./actions";
 import { useAiTask } from "./useAiTask";
 

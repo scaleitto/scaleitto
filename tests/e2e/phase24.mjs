@@ -2,8 +2,7 @@
 // the store design preview that scrolls, the 11 landing page angles (automatic / chosen) and the admin plans matching the
 // subscription page.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step, wizardGenerate } from "./helpers.mjs";
-import { requests } from "./mock-openai.mjs";
+import { BASE, createShop, db, expect, step } from "./helpers.mjs";
 
 const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
 
@@ -80,24 +79,6 @@ export default async function phase24(browser) {
     await owner.mouse.wheel(0, 600);
     await owner.waitForTimeout(400);
     expect((await preview.evaluate((el) => el.scrollTop)) > 0, "the wheel scrolls the preview");
-  });
-
-  await step("landing pages: the 11 angles, chosen by hand", async () => {
-    await owner.goto(`${dash}/landing-pages/new`);
-    expect((await owner.locator("[data-testid=angle-mode] button[aria-pressed=true]").innerText()).includes("تلقائي"), "automatic by default");
-    await owner.locator("[data-testid=angle-mode] button").nth(1).click();
-    expect((await owner.locator("[data-testid=angle-picker] [data-angle-key]").count()) === 11, "the 11 angles");
-    expect(await owner.locator("[data-testid=ai-next]").isDisabled(), "at least one angle");
-    await owner.locator('[data-angle-key="offer"]').check();
-    await owner.locator('[data-angle-key="problem"]').check();
-    await owner.selectOption("#ai-count", "2");
-    await wizardGenerate(owner);
-    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
-    const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
-    expect(plan?.instructions.includes("The merchant chose these angles: problem, offer."), "the chosen angles, in the library's order, in the prompt");
-    const [[page]] = await db.query("SELECT strategy FROM landing_pages WHERE id = ?", [owner.url().split("/").pop()]);
-    const strategy = json(page.strategy);
-    expect(strategy.mode === "manual" && strategy.angles.map((a) => a.key).join() === "problem,offer", `only the chosen angles (got ${JSON.stringify(strategy.angles)})`);
   });
 
   await step("platform admin: the plans are the subscription page's plans", async () => {

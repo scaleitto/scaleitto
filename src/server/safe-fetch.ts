@@ -1,7 +1,7 @@
 import "server-only";
 import { lookup } from "node:dns/promises";
 import net from "node:net";
-import { cookieHeader, mergeCookies } from "@/lib/product-page";
+import { cookieHeader, mergeCookies } from "@/lib/cookies";
 
 // Fetching URLs typed by merchants must never reach the server's own network
 // (localhost, cPanel services, cloud metadata…): every hop is checked.

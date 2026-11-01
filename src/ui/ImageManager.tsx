@@ -29,7 +29,7 @@ async function shrink(file: File): Promise<Blob> {
 type UploadResult = { url: string } | { error: keyof Dictionary["media"]["errors"] };
 
 // One image per request keeps every request small (shared hosting limits request size).
-async function uploadOne(file: File): Promise<UploadResult> {
+export async function uploadOne(file: File): Promise<UploadResult> {
   try {
     const body = await shrink(file);
     const res = await fetch("/api/uploads", { method: "POST", body, headers: { "Content-Type": body.type || "application/octet-stream" } });

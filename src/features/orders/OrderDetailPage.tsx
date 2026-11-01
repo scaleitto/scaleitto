@@ -151,7 +151,7 @@ export async function OrderDetailPage({ lang, id, list }: { lang: Locale; id: st
                 </Card>
               )}
               {order.guides.map((g) => (
-                <CallGuideCard key={g.product.id} lang={lang} product={g.product} guide={g.guide} t={{ assistant: t.assistant, errors: t.errors, landingPages: t.landingPages }} />
+                <CallGuideCard key={g.product.id} lang={lang} product={g.product} guide={g.guide} t={{ assistant: t.assistant, errors: t.errors }} />
               ))}
             </div>
             <div className="space-y-6">

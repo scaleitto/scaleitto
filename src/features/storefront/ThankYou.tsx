@@ -3,8 +3,7 @@ import { CircleCheckBig } from "lucide-react";
 import { dir, type Locale } from "@/i18n/config";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { fmt, formatPrice } from "@/lib/format";
-import { interfaceLocale } from "@/features/landing/types";
-import { pageLanguage } from "@/features/landing/PublicLanding";
+import { interfaceLocale, pageLanguage } from "@/features/landing/types";
 import type { getOrderSummary } from "./queries";
 
 type Order = NonNullable<Awaited<ReturnType<typeof getOrderSummary>>>;

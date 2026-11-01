@@ -2,8 +2,7 @@ import "server-only";
 import { offerFacts } from "@/features/checkout/pricing";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
-import { languageRules } from "@/features/landing/ai-prompt";
-import type { PageLanguage } from "@/features/landing/types";
+import { aiLanguageRules as languageRules, type AiLanguage as PageLanguage } from "./languages";
 import { MAX_MESSAGE, messageKinds, placeholders } from "@/features/messages/templates";
 
 // Prompts and output schemas of the small AI tasks (call guide, customer messages, product description).

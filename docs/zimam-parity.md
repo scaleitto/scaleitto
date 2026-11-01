@@ -37,12 +37,16 @@ name, logo and wording (no copied texts, images, theme names or code). Each phas
    orders = the same orders page with their orders only, no agent column, no scan/shipping). The other call-center tabs
    (performance, activity, settings with distribution and messages) stay for now; they move to Zimam's places
    (analytics → call center tab, apps) in phases 7–8. Not built: push and Telegram notification cards.
-6. **Landing pages** — done (phase30.mjs): stats cards, list/grid, filters; builder with components, settings panel, suggestions, history.
-   Built: list (total / live / draft / views, status + product filters, sort, list or grid remembered, create window:
-   design manually = blank page with the form, or the AI builder), builder (components palette, page order, suggestions
-   — real reviews, a countdown only for a real deadline, trust badges, FAQ —, click-to-select preview, settings panel,
-   save state, history of the last 20 saves with restore, discard, publish), new components announcement bar and
-   spacer. Not built: A/B versions (dropped earlier by the owner), thank-you popup.
+6. **Landing pages** — done like Zimam (phase7/15/17/30.mjs); every trace of the older system removed (section-style AI pages,
+   marketing angles and strategy, own prompt, photo rework, page from a product link, old block types — older pages are converted
+   to the new components when read). List: counters (total / live / draft / views), search, status + product filters, sort,
+   list/grid, row actions (copy link, open, versions' numbers, publish/unpublish, duplicate, delete, edit). Create: design manually
+   (blank canvas: an image + the form) or "Generate with AI" (product, language of the texts in the images, brief, 7 writing
+   frameworks, 2/4/6 images, 13 style families, price text, cost against the month's AI quota). Builder: Zimam's 13 components,
+   versions A/B/C (copy, run/pause, delete; visitors split between running versions, orders keep their version), saved as it goes,
+   undo/redo, history, discard changes, publish, Improve with AI (another version, paused), image settings (upload, library, AI edit
+   prompt, draw a poster again, fit, margin, border), Advanced SEO (slug, meta description) and per-page tracking pixels, suggestions.
+   Not built: the Snapchat pixel (the store has none yet), Zimam's credits (our AI quota counts uses instead).
 7. **Analytics** — tabs (orders, products, impressions, call center), comparisons, status distribution, funnel, insights,
    wilayas.
 8. **Pixels and apps** — pixel cards (GTM, GA, Facebook, Snapchat, TikTok); app store with on/off apps (WhatsApp

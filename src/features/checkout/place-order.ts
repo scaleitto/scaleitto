@@ -25,7 +25,7 @@ class OutOfStock extends Error {}
 // Creates a cash-on-delivery order for one product. Used by every order form, and by the team when an abandoned cart
 // is recovered by phone (meta.memberId: the protection's customer checks and the risk score are skipped — a person
 // talked to the customer).
-export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null; memberId?: string }): Promise<PlaceOrderResult> {
+export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string, input: OrderInput, meta: { ip: string | null; userAgent: string | null; landingPageId?: string | null; landingVersion?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null; memberId?: string }): Promise<PlaceOrderResult> {
   const [product] = await db
     .select()
     .from(schema.products)
@@ -94,6 +94,7 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
         total: line.total + shipping,
         customerNote: input.note || null,
         landingPageId: meta.landingPageId ?? null,
+        landingVersion: meta.landingPageId ? (meta.landingVersion ?? "A") : null,
         // The product's own delivery company (Zimam: every order of this product goes to it)
         carrierAccountId: product.carrierAccountId,
         extra: meta.extra?.length ? meta.extra : null,

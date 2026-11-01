@@ -7,16 +7,14 @@ import { canAdd } from "@/server/limits";
 import { AiRequestError, aiConfigured, pollBackgroundImage, pollBackgroundJson, startBackgroundImage, startBackgroundJson, type BackgroundRequest } from "@/server/ai/openai";
 import { visionImages } from "@/server/ai/vision";
 import { saveImage } from "@/server/storage";
-import { imageStyles, type ImageStyle } from "@/lib/enums";
-import type { PageLanguage } from "@/features/landing/types";
+import type { AiLanguage as PageLanguage } from "./languages";
 import { cleanCallGuide, cleanDescription, cleanMessages } from "./prompts";
 
 // Small AI tasks share one path: start a background request (a row in ai_generations, counted in the
 // plan's monthly AI quota), then the browser checks every few seconds; when the text is ready it is
 // cleaned, saved where it belongs (e.g. the product's call guide) and returned.
 export type TaskKind = "call_guide" | "messages" | "description" | "image";
-export type TaskBrief = { language: PageLanguage; productId?: string } | { source: string; style: ImageStyle } | { poster: true; references: string[] };
-export { imageStyles, type ImageStyle };
+export type TaskBrief = { language: PageLanguage; productId?: string } | { poster: true; references: string[] };
 export type TaskStart = { ok: true; taskId: string } | { ok: false; error: string; message?: string };
 export type TaskState = { state: "pending" } | { state: "done"; result: unknown } | { state: "failed"; error: string; message?: string };
 
@@ -35,45 +33,15 @@ export async function startTask(shopId: string, userId: string, kind: TaskKind, 
   }
 }
 
-// A product photo reworked by the AI: same product, new background and light (never a different product)
-const IMAGE_RULES = `Create a professional e-commerce product photo of EXACTLY the product shown in the input image.
-Keep the product identical: same shape, proportions, colors, materials, logos, printed text and details. Do not redesign it, do not add or remove parts, do not change its size relative to its features.
-Remove the original background, clutter, watermarks and text overlays. Show the whole product, centered, not cropped, filling about 70% of a square frame, sharp focus, realistic lighting and a natural soft shadow.
-Do not add any text, price, badge, sticker, logo or frame. No faces.`;
-const STYLE_RULES: Record<ImageStyle, string> = {
-  studio: "Background: a clean seamless studio backdrop in a soft color that suits the product, with a gentle gradient.",
-  lifestyle: "Background: a realistic, tasteful scene where this product is naturally used (home, desk, bathroom, kitchen or outdoors, whichever fits), softly blurred so the product stays the hero. Hands only if natural.",
-  premium: "Background: an elegant premium scene with soft dramatic light, subtle reflections and a rich surface (marble, dark wood or velvet), luxury feel.",
-};
-
-// Starts the rework of one of the shop's own photos
-export async function startImageTask(shopId: string, userId: string, source: string, style: ImageStyle): Promise<TaskStart> {
-  try {
-    if (!aiConfigured()) return { ok: false, error: "aiNotConfigured" };
-    if (!source.startsWith(`/uploads/${shopId}/`)) return { ok: false, error: "invalid" };
-    if (!(await canAdd(shopId, "maxAiPerMonth"))) return { ok: false, error: "limitAi" };
-    const [image] = await visionImages([source], 1);
-    if (!image) return { ok: false, error: "notFound" };
-    const started = await startBackgroundImage({ prompt: `${IMAGE_RULES}\n${STYLE_RULES[style]}`, images: [image], size: "1024x1024" });
-    const taskId = newId();
-    await db.insert(schema.aiGenerations).values({ id: taskId, shopId, userId, kind: "image", responseId: started.responseId, model: started.model, brief: { source, style } });
-    return { ok: true, taskId };
-  } catch (err) {
-    if (err instanceof AiRequestError) return { ok: false, error: "aiFailed", message: err.message };
-    await logError("ai/start-image", err);
-    return { ok: false, error: "unexpected" };
-  }
-}
-
 // Designs one image of an image landing page (text inside), from the shop's own photos as references.
 // `references`: our uploads only (the product photos, and possibly the section's current image).
-export async function startPosterTask(shopId: string, userId: string, prompt: string, references: string[]): Promise<TaskStart> {
+export async function startPosterTask(shopId: string, userId: string, prompt: string, references: string[], size: "1024x1536" | "1024x1024" = "1024x1536"): Promise<TaskStart> {
   try {
     if (!aiConfigured()) return { ok: false, error: "aiNotConfigured" };
     const own = references.filter((r) => r.startsWith(`/uploads/${shopId}/`)).slice(0, 4);
     if (!(await canAdd(shopId, "maxAiPerMonth"))) return { ok: false, error: "limitAi" };
     const images = await visionImages(own, 4);
-    const started = await startBackgroundImage({ prompt, images, size: "1024x1536" });
+    const started = await startBackgroundImage({ prompt, images, size });
     const taskId = newId();
     await db.insert(schema.aiGenerations).values({ id: taskId, shopId, userId, kind: "image", responseId: started.responseId, model: started.model, brief: { poster: true, references: own } });
     return { ok: true, taskId };

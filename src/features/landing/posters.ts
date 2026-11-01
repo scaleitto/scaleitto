@@ -1,75 +1,54 @@
 import "server-only";
-import type { AnglePlan } from "@/lib/enums";
 import type { BackgroundRequest } from "@/server/ai/openai";
-import { languageRules } from "./ai-prompt";
-import { cleanStrategy, STRATEGY_SCHEMA, strategyInstructions, type RawStrategy } from "./strategy";
-import { newSectionId, posterKinds, sanitizeSections, type PageLanguage, type PosterKind } from "./types";
+import { newImage, newSectionId, sanitizeSections, type LandingSection, type PageLanguage, type PosterInfo } from "./types";
+import { frameworkGuides, posterSizes, styleFamilies, styleLooks, type Framework, type StyleFamily } from "./ai-options";
 
-// Image pages (Wibi style): the AI first plans the page (texts, colors, one scene per section), then designs
-// one vertical marketing image per section with its text written inside, from the product's own photos.
+// "Generate with AI" (Zimam): the AI first plans the page (one short text and scene per image, following the chosen
+// writing framework), then draws each image with its text inside, from the product's own photos, in the chosen
+// style family. The page = the images, then the order form, a sticky order button and a thank-you window.
 
-export const posterCounts = [2, 4, 6, 8, 10] as const;
-export const posterPeople = ["none", "hands", "people"] as const;
-export const posterAudiences = ["neutral", "women", "men", "kids", "family"] as const;
-export type PosterOptions = { count: (typeof posterCounts)[number]; people: (typeof posterPeople)[number]; audience: (typeof posterAudiences)[number]; color: string | null };
-export type Palette = { background: string; primary: string; accent: string };
+export type PosterOptions = { count: (typeof posterSizes)[number]; framework: Framework; style: StyleFamily; brief: string; priceText: string };
 
-const HEX = /^#[0-9a-f]{6}$/i;
-
-const languageNames: Record<PageLanguage, string> = {
+export const languageNames: Record<PageLanguage, string> = {
   ar: "Modern Standard Arabic (Arabic script, right-to-left)",
-  dz: "Algerian Darija written in Arabic script (right-to-left)",
   fr: "French",
   en: "English",
 };
 
-const PLAN_ROLE = `You are the creative director of a top cash-on-delivery (COD) e-commerce agency (direct marketing, consumer psychology, conversion optimisation). You plan "image landing pages" for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images (each image is one section with its text designed inside), then the order form, with a sticky order button; tapping any image opens the form. Mobile visitors only scroll and look, so every image must sell on its own in 2 seconds.`;
+export const languageRules: Record<PageLanguage, string> = {
+  ar: "Write in clear, modern Standard Arabic that Algerian shoppers read easily. Short sentences.",
+  fr: "Write in natural French as used in Algerian e-commerce. Short sentences.",
+  en: "Write in simple, natural English. Short sentences.",
+};
 
-// Format, copy limits and honesty: always apply, whatever the strategy
-const PLAN_CONTRACT = `Plan exactly the requested number of sections (the order form comes after them automatically). Section kinds, in the reference sequence order:
-- hero: a strong product image and a big headline naming the main benefit, a short subtitle, 2–3 product benefits as bullets. Never payment or delivery here: the band above the page already says it.
-- problem: the pain or frustration the customer lives, as a question headline + 2–3 short pains.
-- solution: the product as the fitting answer, headline + subtitle.
-- benefits: 3–4 concrete gains for the customer (2–3 words each) shown as icon rows next to the product.
-- features: the real properties that support the benefits: the product in the center with callouts (2–4 short labels).
-- howto: usage — how and when it is used, in 2–3 numbered steps.
-- details: visual proof — close-ups of material, finish, size or what is in the box.
-- beforeAfter: visual proof as a before/after split (ONLY when the effect is visual, real and obvious; never for health or body results).
-- objections: 2–3 of the customer's real questions or fears, each answered in a few words (only answers the facts support).
-- trust: delivery to the 58 wilayas, cash on delivery, a confirmation call, and a guarantee ONLY if the merchant gave one.
-- offer: the price as a big badge (and the old price struck through only if given), extra value only when confirmed.
-Order: follow the sequence above, keep hero first and offer last when present. No two sections of the same kind in a row.
-angle: the marketing angle the section serves (one of your chosen angles, a few words, in the page language).
+const PLAN_ROLE = `You are the creative director of a top cash-on-delivery (COD) e-commerce agency (direct marketing, consumer psychology, conversion optimisation). You plan image landing pages for Facebook/TikTok traffic: a vertical stack of full-width, phone-sized ad images, each with its text designed inside, then the order form with a sticky order button; tapping any image opens the form. Visitors only scroll and look, so every image must sell on its own in 2 seconds.`;
 
-Copy rules (the text is rendered inside images, so it must be SHORT): headline max 6 words, subtitle max 10 words, bullets max 4 items of max 3 words. cta: always null (images never contain buttons: the page has real ones). Vivid, specific to THIS product, in the requested language. No emojis.
-scene: in English, one or two sentences describing the visual composition of the image (setting, camera angle, mood, where the product is, what the people are doing if any). Never describe text in the scene.
+// Format, copy limits and honesty: always apply, whatever the framework
+const PLAN_CONTRACT = `Plan exactly the requested number of images, in the order the framework needs (the order form comes after them automatically). The first image is always the strongest hook with the product big and clear.
 
-Strict honesty (non-negotiable): use only facts from the product data, photos and merchant notes. Never invent specs, certifications, awards, statistics, medical or health claims, guarantees, return policies, reviews, ratings, customer counts, stock levels or deadlines. Free delivery only if the merchant notes say so. Prices only as given.
+Copy rules (the text is drawn inside images, so it must be SHORT): headline max 6 words, subtitle max 10 words, bullets max 4 items of max 3 words. Vivid, specific to THIS product, in the requested language. No emojis. Never write buttons or "click here": the page has real buttons.
+scene: in English, one or two sentences describing the visual composition (setting, camera angle, mood, where the product is, what people do if any). Never describe text in the scene.
 
-palette: three hex colors that fit the product and convert well (background, primary, accent with strong contrast for text). marquee: 3 short selling points (max 3 words each) that are true for every order (e.g. cash on delivery, delivery to 58 wilayas, call to confirm).
-product_name / product_description: when asked, a short product name (max 8 words) and a 2–4 sentence description in the page language; otherwise null.
-strategy: the audience and the 3–5 main angles you chose, each with one sentence on why, in the page language.`;
+Strict honesty (non-negotiable): use only facts from the product data, photos and the merchant's brief. Never invent specs, certifications, awards, statistics, medical or health claims, guarantees, return policies, reviews, ratings, customer counts, stock levels or deadlines. Free delivery only if the brief says so. Prices only as given.
+product_name / product_description: when asked, a short product name (max 8 words) and a 2–4 sentence description in the page language; otherwise null.`;
 
 const str = { type: "string" };
 const nullableStr = { type: ["string", "null"] };
 const PLAN_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "product_name", "product_description", "strategy", "palette", "marquee", "sections"],
+  required: ["title", "product_name", "product_description", "images"],
   properties: {
     title: str,
-    strategy: STRATEGY_SCHEMA,
     product_name: nullableStr,
     product_description: nullableStr,
-    palette: { type: "object", additionalProperties: false, required: ["background", "primary", "accent"], properties: { background: str, primary: str, accent: str } },
-    marquee: { type: "array", items: str },
-    sections: {
+    images: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["kind", "angle", "headline", "subtitle", "bullets", "cta", "scene"],
-        properties: { kind: { type: "string", enum: [...posterKinds] }, angle: str, headline: str, subtitle: nullableStr, bullets: { type: "array", items: str }, cta: nullableStr, scene: str },
+        required: ["headline", "subtitle", "bullets", "scene"],
+        properties: { headline: str, subtitle: nullableStr, bullets: { type: "array", items: str }, scene: str },
       },
     },
   },
@@ -77,18 +56,9 @@ const PLAN_SCHEMA = {
 
 export type PosterProduct = { name: string; description: string | null; price: number; compareAtPrice: number | null; images: string[] };
 
-export function buildPosterPlanRequest(brief: {
-  product: PosterProduct;
-  language: PageLanguage;
-  options: PosterOptions;
-  notes: string;
-  sourceText?: string;
-  visionImages: string[];
-  writeProduct: boolean;
-  customPrompt?: string | null;
-  angles?: AnglePlan;
-}): BackgroundRequest {
+export function buildPosterPlanRequest(brief: { product: PosterProduct; language: PageLanguage; options: PosterOptions; visionImages: string[]; writeProduct?: boolean }): BackgroundRequest {
   const p = brief.product;
+  const o = brief.options;
   const data = {
     name: p.name,
     description: p.description ?? "",
@@ -97,114 +67,67 @@ export function buildPosterPlanRequest(brief: {
   };
   const user = [
     languageRules[brief.language],
-    `Number of sections: ${brief.options.count}.`,
-    `Target audience: ${brief.options.audience === "neutral" ? "everyone (infer from the product)" : brief.options.audience}.`,
-    `People in the images: ${peopleRule[brief.options.people]}`,
-    brief.options.color ? `The store's main color is ${brief.options.color}: build the palette around it.` : "Choose the palette freely.",
+    `Number of images: ${o.count}.`,
+    `Writing framework: ${frameworkGuides[o.framework]}`,
+    `Visual style family: ${styleLooks[o.style]}`,
     `Product data (JSON):\n${JSON.stringify(data, null, 2)}`,
-    brief.notes ? `Merchant notes (facts you may use):\n${brief.notes}` : "Merchant notes: none.",
-    brief.sourceText ? `Source text from the product link (raw facts only, never copy its wording):\n${brief.sourceText.slice(0, 4000)}` : "",
+    o.brief ? `Merchant's offer and visual brief (facts and wishes you may use):\n${o.brief}` : "Merchant's brief: none.",
+    o.priceText ? `Price text to show on the offer image, exactly: "${o.priceText}"` : "",
     brief.visionImages.length ? `${brief.visionImages.length} product photo(s) are attached: describe only what is clearly visible.` : "No photos attached.",
-    brief.writeProduct ? "This is a new product: write product_name and product_description." : "Return null for product_name and product_description.",
+    brief.writeProduct ? "Write product_name and product_description." : "Return null for product_name and product_description.",
   ]
     .filter(Boolean)
     .join("\n\n");
-  const instructions = [PLAN_ROLE, strategyInstructions(brief.customPrompt, brief.angles), PLAN_CONTRACT].join("\n\n");
-  return { instructions, user, images: brief.visionImages, schemaName: "image_landing_page", schema: PLAN_SCHEMA };
+  return { instructions: [PLAN_ROLE, PLAN_CONTRACT].join("\n\n"), user, images: brief.visionImages, schemaName: "image_landing_page", schema: PLAN_SCHEMA };
 }
 
 export type PosterPlan = {
   title?: string;
   product_name?: string | null;
   product_description?: string | null;
-  palette?: Partial<Palette>;
-  marquee?: string[];
-  strategy?: RawStrategy;
-  sections?: { kind?: string; angle?: string; headline?: string; subtitle?: string | null; bullets?: string[]; cta?: string | null; scene?: string }[];
+  images?: { headline?: string; subtitle?: string | null; bullets?: string[]; scene?: string }[];
 };
 
-const peopleRule: Record<PosterOptions["people"], string> = {
-  none: "no people and no faces at all — only the product and scenery.",
-  hands: "no faces; hands may appear when the product is held or used.",
-  people: "people may appear naturally using the product (realistic, Algerian/North African look, modest clothing).",
-};
-
-// The look shared by every image of a page (kept on each section so one image can be regenerated alike)
-export function lookOf(palette: Palette, options: Pick<PosterOptions, "people" | "audience">) {
-  return `Palette: background ${palette.background}, main ${palette.primary}, highlight ${palette.accent}. People: ${peopleRule[options.people]} Audience: ${options.audience}.`;
-}
-
-// The model's plan → a page: band of selling points, the images (still to design), then the order form (step 11 of the sequence).
-export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions, custom = false, angles?: AnglePlan) {
-  const raw = plan.palette ?? {};
-  const palette: Palette = {
-    background: HEX.test(raw.background ?? "") ? raw.background! : "#0f172a",
-    primary: options.color ?? (HEX.test(raw.primary ?? "") ? raw.primary! : "#2563eb"),
-    accent: HEX.test(raw.accent ?? "") ? raw.accent! : "#facc15",
-  };
-  const look = lookOf(palette, options);
-  const posters = (plan.sections ?? []).slice(0, options.count).map((s) => ({
-    type: "poster",
-    image: "",
-    kind: s.kind,
-    angle: s.angle,
-    headline: s.headline,
-    subtitle: s.subtitle ?? undefined,
-    bullets: s.bullets ?? [],
-    scene: `${s.scene ?? ""}\n${look}`.trim(),
-    previous: [],
-  }));
-  const sections = sanitizeSections([{ type: "marquee", items: plan.marquee ?? [] }, ...posters]);
-  if (!sections.some((s) => s.type === "poster")) sections.push({ id: newSectionId(), type: "poster", image: "", kind: "hero", headline: fallbackName.slice(0, 160), bullets: [], scene: look, previous: [] });
-  sections.push({ id: newSectionId(), type: "form" });
+// The model's plan → the page's components: the images (still to draw), the order form, a sticky order button and
+// a thank-you window. The style's look is kept in each image's scene so one image can be drawn again alike.
+export function finishPosterPage(plan: PosterPlan, fallbackName: string, options: PosterOptions) {
+  const look = styleLooks[options.style];
+  const images = (plan.images ?? [])
+    .slice(0, options.count)
+    .map((s): LandingSection | null => {
+      const headline = String(s.headline ?? "").trim().slice(0, 160);
+      if (!headline) return null;
+      const poster: PosterInfo = { headline, subtitle: s.subtitle?.trim().slice(0, 240) || undefined, bullets: (s.bullets ?? []).map((b) => String(b).trim().slice(0, 80)).filter(Boolean).slice(0, 5), scene: `${String(s.scene ?? "").slice(0, 400)}\n${look}`.trim().slice(0, 600), previous: [] };
+      return { ...newImage(), poster };
+    })
+    .filter((x): x is LandingSection => x !== null);
+  if (!images.length) images.push({ ...newImage(), poster: { headline: fallbackName.slice(0, 160), bullets: [], scene: look, previous: [] } });
+  const sections = sanitizeSections([...images, { id: newSectionId(), type: "form" }, { id: newSectionId(), type: "sticky", label: "" }, { id: newSectionId(), type: "thankYou", title: "", message: "" }]);
   return {
     title: String(plan.title || fallbackName).slice(0, 200),
     productName: plan.product_name?.trim().slice(0, 200) || null,
     productDescription: plan.product_description?.trim().slice(0, 5000) || null,
-    palette,
-    strategy: cleanStrategy(plan.strategy, custom, angles),
+    color: styleFamilies.find((x) => x.key === options.style)?.colors[1] ?? null,
     sections,
   };
 }
 
-const kindRules: Record<PosterKind, string> = {
-  hero: "Hero image: the headline very large at the top, the subtitle under it, the product big and dominant, the bullets as a column of icon + label rows (product benefits, never payment or delivery).",
-  problem: "Problem image: an emotional scene showing the frustration, the headline as a question, the bullets as pain points with simple icons.",
-  solution: "Solution image: the product presented as the answer, glowing and premium, headline and subtitle.",
-  benefits: "Benefits image: a headline at the top, the bullets as rows of round icons with labels beside the product.",
-  features: "Features image: the product in the center with thin callout lines pointing to its parts, each callout labelled with one bullet.",
-  howto: "Usage image: the headline, then numbered steps (1, 2, 3…) as rounded panels, each showing the action with the product and its bullet as label.",
-  beforeAfter: "Before/after image: a split composition labelled with the bullets (before on one side, after on the other), the headline above.",
-  details: "Details image: macro close-ups of the product's material and finish in rounded frames, the bullets as labels.",
-  objections: "Objections image: the headline, then 2–3 rounded question-and-answer panels (each bullet is one short answer) beside the product.",
-  trust: "Trust image: the product with 3–4 large icon + label rows for delivery, cash on delivery, the confirmation call (and a guarantee only if given).",
-  offer: "Offer image: the product with the price in a big eye-catching badge, the old price struck through if given.",
-  cta: "Closing image: the product hero shot with the headline.",
-};
-
-export type PosterContent = { kind: PosterKind; headline: string; subtitle?: string; bullets: string[]; scene?: string };
-
-// The instructions for one image. The text to write is quoted exactly; nothing else may be written.
+// The instructions to draw one image. The texts are quoted exactly; nothing else may be written.
 export function posterPrompt(
-  s: PosterContent,
-  ctx: { productName: string; language: PageLanguage; price: number; compareAtPrice: number | null; currency: string; extra?: string; background?: string },
+  s: Pick<PosterInfo, "headline" | "subtitle" | "bullets" | "scene"> & { first?: boolean },
+  ctx: { productName: string; language: PageLanguage; priceText?: string; extra?: string },
 ) {
-  const texts = [
-    `Headline: "${s.headline}"`,
-    s.subtitle ? `Subtitle: "${s.subtitle}"` : "",
-    s.bullets.length ? `Labels: ${s.bullets.map((b) => `"${b}"`).join(", ")}` : "",
-    s.kind === "offer" ? `Price: "${ctx.price} ${ctx.currency}"${ctx.compareAtPrice && ctx.compareAtPrice > ctx.price ? ` and the old price struck through: "${ctx.compareAtPrice} ${ctx.currency}"` : ""}` : "",
-  ].filter(Boolean);
+  const texts = [`Headline: "${s.headline}"`, s.subtitle ? `Subtitle: "${s.subtitle}"` : "", s.bullets.length ? `Labels: ${s.bullets.map((b) => `"${b}"`).join(", ")}` : "", ctx.priceText ? `Price badge (only if it fits this image's purpose): "${ctx.priceText}"` : ""].filter(Boolean);
   return [
     "Design one vertical 2:3 image (1024x1536) that is one section of a mobile landing page for an Algerian cash-on-delivery store: a polished, high-converting social media ad creative.",
     `Product: ${ctx.productName}. The attached photo(s) show the real product: reproduce EXACTLY this product (same shape, proportions, colors, materials, logos and details). Never redesign it, never add parts, never show a different product.`,
-    kindRules[s.kind],
-    ctx.background || s.scene ? `Visual direction: ${ctx.background || s.scene}` : "",
+    s.first ? "This is the first image of the page: the product big and dominant, the headline very large." : "",
+    s.scene ? `Visual direction: ${s.scene}` : "",
     `Write ONLY these texts, exactly as given, in ${languageNames[ctx.language]}, perfectly spelled with correctly connected letters, in a bold modern font, large and readable on a phone, with strong contrast:\n${texts.join("\n")}`,
     "Do not write any other word, number or letter. No watermark, no website, no phone number, no fake brand, no ratings, no stars, no reviews, no certification badges.",
     "Never draw buttons, button-like shapes, arrows saying to click, form fields or anything that looks tappable: the page has real buttons.",
-    "Premium modern advertising style: depth, soft cinematic light, rich colors from the palette, clean composition, generous safe margins (nothing important within 6% of the edges).",
-    ctx.extra ? `Additional instructions from the merchant: ${ctx.extra}` : "",
+    "Generous safe margins (nothing important within 6% of the edges).",
+    ctx.extra ? `Instructions from the merchant: ${ctx.extra}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");

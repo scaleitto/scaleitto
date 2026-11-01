@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, LoaderCircle, PhoneCall, Sparkles } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { Alert, Button, Card, Select } from "@/ui";
-import { pageLanguages, type PageLanguage } from "@/features/landing/types";
+import { aiLanguages as pageLanguages, type AiLanguage as PageLanguage } from "./languages";
 import type { CallGuide } from "./prompts";
 import { startCallGuide } from "./actions";
 import { useAiTask } from "./useAiTask";
 
-type Text = Pick<Dictionary, "assistant" | "errors" | "landingPages">;
+type Text = Pick<Dictionary, "assistant" | "errors">;
 
 // The product's call guide on the order page: created once by the AI, read by every agent
 export function CallGuideCard({ lang, product, guide: saved, t }: { lang: string; product: { id: string; name: string }; guide: CallGuide | null; t: Text }) {
@@ -86,7 +86,7 @@ export function CallGuideCard({ lang, product, guide: saved, t }: { lang: string
           <Select aria-label={t.assistant.language} value={language} onChange={(e) => setLanguage(e.target.value as PageLanguage)} className="py-1.5 text-sm">
             {pageLanguages.map((l) => (
               <option key={l} value={l}>
-                {t.landingPages.languages[l]}
+                {t.assistant.languages[l]}
               </option>
             ))}
           </Select>

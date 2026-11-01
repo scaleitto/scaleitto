@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/server/db";
+import { sanitizeSections, type VersionKey } from "./types";
 
 // The shop's landing pages with their visits, orders and conversion rate.
 export async function listLandingPages(shopId: string) {
@@ -21,11 +22,13 @@ export async function listLandingPages(shopId: string) {
     : [];
   return pages.map((p) => {
     const n = orders.find((o) => o.id === p.id)?.n ?? 0;
-    // The card's one-line summary: how many images, where the form is
-    const sections = Array.isArray(p.sections) ? (p.sections as { type?: string; hidden?: boolean }[]).filter((s) => !s.hidden) : [];
-    const images = sections.filter((s) => s.type === "poster" || s.type === "image").length;
-    const formAt = sections.findIndex((s) => s.type === "form");
-    return { ...p, sections: undefined, images, formBottom: formAt < 0 || formAt === sections.length - 1, orders: n, conversion: p.views > 0 ? Math.round((n / p.views) * 1000) / 10 : null };
+    // The card's one-line summary: how many images, where the form is (form, sticky button and thank-you window
+    // count as the end of the page)
+    const sections = sanitizeSections(p.sections).filter((s) => !s.hidden);
+    const images = sections.filter((s) => s.type === "image").length;
+    const content = sections.filter((s) => s.type !== "sticky" && s.type !== "thankYou");
+    const formAt = content.findIndex((s) => s.type === "form");
+    return { ...p, sections: undefined, images, formBottom: formAt < 0 || formAt === content.length - 1, orders: n, conversion: p.views > 0 ? Math.round((n / p.views) * 1000) / 10 : null };
   });
 }
 
@@ -53,4 +56,23 @@ export async function landingProduct(shopId: string, productId: string) {
     .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
     .orderBy(asc(schema.productVariants.position));
   return { ...product, variants };
+}
+
+// Visits and orders of each version of a page (A, B, C), to compare them in the builder and the list
+export async function versionStats(shopId: string, pageId: string) {
+  const [views, orders] = await Promise.all([
+    db.select({ version: schema.landingStats.version, views: schema.landingStats.views }).from(schema.landingStats).where(and(eq(schema.landingStats.shopId, shopId), eq(schema.landingStats.pageId, pageId))),
+    db
+      .select({ version: schema.orders.landingVersion, n: count() })
+      .from(schema.orders)
+      .where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.landingPageId, pageId)))
+      .groupBy(schema.orders.landingVersion),
+  ]);
+  return Object.fromEntries(
+    (["A", "B", "C"] as VersionKey[]).map((k) => {
+      const v = views.find((x) => x.version === k)?.views ?? 0;
+      const o = orders.find((x) => (x.version ?? "A") === k)?.n ?? 0;
+      return [k, { views: v, orders: o, rate: v > 0 ? Math.round((o / v) * 1000) / 10 : null }];
+    }),
+  ) as Record<VersionKey, { views: number; orders: number; rate: number | null }>;
 }

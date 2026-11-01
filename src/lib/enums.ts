@@ -18,10 +18,6 @@ export type PolicyKind = (typeof policyKinds)[number];
 // Plan features the admin can tick. Only custom_domain is enforced so far; the others describe the plan.
 export const planFeatures = ["custom_domain", "landing_pages", "ai", "pixels", "google_sheets", "abandoned_cart", "delivery_integrations", "analytics", "variants", "upsell", "api"] as const;
 
-// Styles of an AI-reworked product photo
-export const imageStyles = ["studio", "lifestyle", "premium"] as const;
-export type ImageStyle = (typeof imageStyles)[number];
-
 // A parcel's options when it is sent to a delivery company (the Packers / Ecotrack fields: operation type, fragile,
 // weight, second phone, item to collect back, map link…). Set per send, with defaults per connected company.
 export const parcelKinds = ["delivery", "exchange", "pickup", "recovery"] as const;
@@ -77,13 +73,6 @@ export type ProtectionSettings = {
   autoBlockFake: number;
 };
 
-// Landing pages: the 11 marketing angles of the owner's method (src/features/landing/strategy.ts). Automatic mode:
-// the AI picks ANGLES_REQUIRED of them plus up to ANGLES_OPTIONAL optional ones; manual mode: the merchant ticks them.
-export const landingAngles = ["problem", "solution", "benefits", "features", "emotional", "audience", "proof", "objections", "offer", "comparison", "advanced"] as const;
-export type LandingAngle = (typeof landingAngles)[number];
-export const ANGLES_REQUIRED = 5;
-export const ANGLES_OPTIONAL = 2;
-export type AnglePlan = { mode: "auto" } | { mode: "manual"; keys: LandingAngle[] };
 
 // Finance: kinds of expenses the merchant records
 export const expenseCategories = ["ads", "shipping", "returns", "packaging", "salaries", "subscription", "other"] as const;

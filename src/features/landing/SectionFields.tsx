@@ -1,457 +1,433 @@
 "use client";
 
-import { useState } from "react";
-import { LoaderCircle, Plus, RotateCcw, Sparkles, Star, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Images, LoaderCircle, Plus, RefreshCw, Sparkles, Trash2, Undo2, Upload, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
-import { Button, Field, Input, Select, Textarea } from "@/ui";
-import { ImageManager } from "@/ui/ImageManager";
-import { MAX_POSTER_HISTORY, posterKinds, spacerSizes, type LandingSection } from "./types";
-import { benefitIconNames } from "./icons";
-import { BenefitIcon } from "./blocks";
-import { startImageEnhance, startPosterImage } from "@/features/ai/actions";
+import { Alert, Button, Field, Input, Select, Textarea } from "@/ui";
+import { uploadOne } from "@/ui/ImageManager";
+import { useModal } from "@/ui/useModal";
+import { startImageEdit, startPosterImage } from "@/features/ai/actions";
 import { useAiTask } from "@/features/ai/useAiTask";
-import { imageStyles as styleKeys } from "@/lib/enums";
+import { badgeIconOf } from "./blocks";
+import { badgeIcons, bulletStyles, imageFits, MAX_POSTER_HISTORY, textAligns, textSizes, type LandingSection } from "./types";
 
 export type EditorText = Pick<Dictionary, "landingPages" | "media" | "errors" | "common">;
+type Forms = { templates: { id: string; name: string }[]; editHref: string };
+type Props = {
+  lang: string;
+  pageId: string;
+  section: LandingSection;
+  set: (patch: Partial<LandingSection>) => void;
+  library: string[];
+  forms: Forms;
+  formTemplateId: string;
+  setFormTemplateId: (id: string) => void;
+  t: EditorText;
+};
 
-const lines = (v: string) => v.split("\n").map((x) => x.trimStart());
-const addButton = "inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline";
+const label = "text-[11px] font-semibold tracking-wide text-muted uppercase";
+const lines = (v: string) => v.split("\n").map((x) => x.trim()).filter(Boolean);
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
 
-// Rework the chosen photo with the AI (same product, new background), then use the new one
-function EnhanceImage({ lang, src, onDone, t }: { lang: string; src: string; onDone: (url: string) => void; t: EditorText }) {
+// "Drop image here, or click to browse" + "Pick from library"
+function ImageSource({ value, onChange, library, t }: { value: string; onChange: (url: string) => void; library: string[]; t: EditorText }) {
   const f = t.landingPages.editor.fields;
-  const [style, setStyle] = useState<(typeof styleKeys)[number]>("studio");
-  const task = useAiTask<{ url: string }>(lang, t.errors as Record<string, string>);
-  return (
-    <div className="space-y-1.5 rounded-lg bg-panel-2 p-2" data-testid="enhance-image">
-      <div className="flex flex-wrap items-center gap-2">
-        <select aria-label={f.enhance} value={style} onChange={(e) => setStyle(e.target.value as typeof style)} className="rounded-md border border-line bg-bg px-2 py-1 text-xs">
-          {styleKeys.map((k) => (
-            <option key={k} value={k}>
-              {f.styles[k]}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled={task.working}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline disabled:opacity-60"
-          onClick={async () => {
-            const result = await task.run(() => startImageEnhance(lang, src, style));
-            if (result) onDone(result.url);
-          }}
-        >
-          {task.working ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />} {task.working ? f.enhancing : f.enhance}
-        </button>
-      </div>
-      {task.error && <p className="text-xs text-danger">{task.error}</p>}
-    </div>
-  );
-}
-
-// One image: pick one of the product's photos or upload a new one.
-function ImagePicker({ lang, value, onChange, productImages, t }: { lang: string; value?: string; onChange: (v: string | undefined) => void; productImages: string[]; t: EditorText }) {
-  const f = t.landingPages.editor.fields;
+  const input = useRef<HTMLInputElement>(null);
+  const dialog = useModal();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [over, setOver] = useState(false);
+  const upload = async (file?: File | null) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    const r = await uploadOne(file);
+    setBusy(false);
+    if ("url" in r) onChange(r.url);
+    else setError(t.media.errors[r.error]);
+  };
   return (
     <div className="space-y-2">
-      {productImages.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs text-muted">{f.productImages}</p>
-          <div className="flex flex-wrap gap-2">
-            {productImages.map((src) => (
-              <button
-                key={src}
-                type="button"
-                onClick={() => onChange(src)}
-                className={`size-14 overflow-hidden rounded-lg border-2 ${value === src ? "border-accent" : "border-transparent opacity-70 hover:opacity-100"}`}
-                aria-label={src}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="size-full object-cover" />
-              </button>
-            ))}
-          </div>
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          void upload(e.dataTransfer.files[0]);
+        }}
+        className={`flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed p-5 text-sm text-muted transition ${over ? "border-accent bg-accent-soft" : "border-line hover:border-accent/50"}`}
+        data-testid="image-drop"
+      >
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="" className="max-h-32 rounded-md object-contain" />
+        ) : busy ? (
+          <LoaderCircle size={20} className="animate-spin" />
+        ) : (
+          <Upload size={20} />
+        )}
+        {busy ? f.uploading : f.upload}
+      </button>
+      <input ref={input} type="file" accept="image/*" hidden onChange={(e) => void upload(e.target.files?.[0])} data-testid="image-file" />
+      <Button type="button" variant="secondary" className="w-full" onClick={() => dialog.current?.showModal()} data-testid="pick-library">
+        <Images size={15} /> {f.library}
+      </Button>
+      {error && <p className="text-xs text-danger">{error}</p>}
+      <dialog ref={dialog} className="m-auto w-[min(560px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="library">
+        <div className="flex items-center justify-between border-b border-line p-4">
+          <h2 className="font-bold">{f.libraryTitle}</h2>
+          <button type="button" aria-label={t.common.cancel} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => dialog.current?.close()}>
+            <X size={18} />
+          </button>
         </div>
-      )}
-      <ImageManager t={t.media} value={value ? [value] : []} onChange={(imgs) => onChange(imgs[0])} max={1} />
-      {value?.startsWith("/uploads/") && <EnhanceImage key={value} lang={lang} src={value} onDone={onChange} t={t} />}
+        <div className="grid max-h-[60vh] grid-cols-3 gap-2 overflow-y-auto p-4 sm:grid-cols-4">
+          {library.length === 0 && <p className="col-span-full text-sm text-muted">{f.libraryEmpty}</p>}
+          {library.map((src) => (
+            <button
+              key={src}
+              type="button"
+              onClick={() => {
+                onChange(src);
+                dialog.current?.close();
+              }}
+              className={`aspect-square overflow-hidden rounded-lg border-2 ${src === value ? "border-accent" : "border-line hover:border-accent/50"}`}
+              data-library-image
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" className="size-full object-cover" />
+            </button>
+          ))}
+        </div>
+      </dialog>
     </div>
   );
 }
 
-type Poster = Extract<LandingSection, { type: "poster" }>;
-
-// A designed marketing image: its texts, the AI regeneration panel (background, instructions, own prompt,
-// reference) and the previous versions to restore. A merchant can also upload their own designed image.
-function PosterFields({ lang, pageId, section, set, t }: { lang: string; pageId: string; section: Poster; set: (patch: Partial<Poster>) => void; t: EditorText }) {
-  const pt = t.landingPages.editor.poster;
-  const task = useAiTask<{ url: string }>(lang, t.errors as Record<string, string>);
-  const [open, setOpen] = useState(!section.image);
-  const [background, setBackground] = useState("");
-  const [extra, setExtra] = useState("");
-  const [useCustom, setUseCustom] = useState(false);
-  const [custom, setCustom] = useState("");
-  const [reference, setReference] = useState<"current" | "product">(section.image ? "current" : "product");
-  // A new image keeps the old ones (newest first) so they can be restored
-  const replace = (image: string) => set({ image, previous: [section.image, ...section.previous].filter(Boolean).slice(0, MAX_POSTER_HISTORY) });
+function ImageFields({ lang, pageId, section: s, set, library, t }: Props & { section: Extract<LandingSection, { type: "image" }> }) {
+  const f = t.landingPages.editor.fields;
+  const errors = t.errors as Record<string, string>;
+  const task = useAiTask<{ url: string }>(lang, errors);
+  const [instruction, setInstruction] = useState("");
+  const [poster, setPoster] = useState({ headline: s.poster?.headline ?? "", subtitle: s.poster?.subtitle ?? "", bullets: (s.poster?.bullets ?? []).join("\n") });
+  // A new image keeps the one it replaces to restore it (AI images only)
+  const replace = (url: string) => set({ url, ...(s.poster ? { poster: { ...s.poster, ...posterTexts(), previous: [s.url, ...s.poster.previous].filter(Boolean).slice(0, MAX_POSTER_HISTORY) } } : {}) });
+  const posterTexts = () => ({ headline: poster.headline.trim() || s.poster?.headline || "", subtitle: poster.subtitle.trim() || undefined, bullets: lines(poster.bullets).slice(0, 5) });
+  const ownImage = s.url.startsWith("/uploads/");
   return (
-    <div className="space-y-3" data-testid="poster-fields">
-      {section.angle && (
-        <p className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent" data-testid="poster-angle">
-          {pt.angle}: {section.angle}
-        </p>
+    <div className="space-y-4">
+      <ImageSource value={s.url} onChange={(url) => replace(url)} library={library} t={t} />
+
+      {s.poster && (
+        <div className="space-y-3 rounded-xl border border-line p-3" data-testid="poster-fields">
+          <p className={label}>{f.poster}</p>
+          <p className="text-xs text-muted">{f.posterHint}</p>
+          <Field label={f.headline}>
+            <Input value={poster.headline} maxLength={160} onChange={(e) => setPoster({ ...poster, headline: e.target.value })} />
+          </Field>
+          <Field label={f.subtitle}>
+            <Input value={poster.subtitle} maxLength={240} onChange={(e) => setPoster({ ...poster, subtitle: e.target.value })} />
+          </Field>
+          <Field label={f.posterBullets}>
+            <Textarea rows={3} value={poster.bullets} onChange={(e) => setPoster({ ...poster, bullets: e.target.value })} />
+          </Field>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={task.working || !poster.headline.trim()}
+            data-testid="draw-again"
+            onClick={async () => {
+              const r = await task.run(() => startPosterImage(lang, { pageId, ...posterTexts(), subtitle: poster.subtitle.trim() || undefined, scene: s.poster?.scene }));
+              if (r?.url) replace(r.url);
+            }}
+          >
+            {task.working ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />} {task.working ? f.aiWorking : f.drawAgain}
+          </Button>
+          {s.poster.previous.length > 0 && (
+            <button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline" onClick={() => set({ url: s.poster!.previous[0], poster: { ...s.poster!, previous: [s.url, ...s.poster!.previous.slice(1)].filter(Boolean).slice(0, MAX_POSTER_HISTORY) } })} data-testid="restore-image">
+              <Undo2 size={13} /> {f.restore}
+            </button>
+          )}
+        </div>
       )}
-      {section.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={section.image} alt="" className="mx-auto max-h-72 rounded-lg border border-line" />
+
+      {ownImage && (
+        <div className="space-y-2 rounded-xl border border-accent/30 bg-accent-soft/50 p-3" data-testid="ai-edit">
+          <p className="flex items-center justify-between">
+            <span className={label}>{f.aiEdit}</span>
+            <span className="rounded-full border border-warning/40 bg-warning-soft px-2 text-[10px] font-bold text-warning uppercase">{t.landingPages.editor.improve.beta}</span>
+          </p>
+          <p className="text-xs text-muted">{f.aiEditHint}</p>
+          <Textarea rows={3} value={instruction} maxLength={600} onChange={(e) => setInstruction(e.target.value)} placeholder={f.aiEditPlaceholder} />
+          <Button
+            type="button"
+            className="w-full"
+            disabled={task.working || instruction.trim().length < 3}
+            onClick={async () => {
+              const r = await task.run(() => startImageEdit(lang, { pageId, current: s.url, instruction, poster: Boolean(s.poster) }));
+              if (r?.url) {
+                replace(r.url);
+                setInstruction("");
+              }
+            }}
+          >
+            {task.working ? <LoaderCircle size={15} className="animate-spin" /> : <Sparkles size={15} />} {task.working ? f.aiWorking : f.aiEditGo}
+          </Button>
+        </div>
       )}
-      <Field label={pt.kind}>
-        <Select value={section.kind} onChange={(e) => set({ kind: e.target.value as Poster["kind"] })} aria-label={pt.kind}>
-          {posterKinds.map((k) => (
+      {(s.poster || ownImage) && <p className="text-[11px] text-muted">{f.aiCost}</p>}
+      {task.error && <Alert>{task.error}</Alert>}
+
+      <Field label={f.fit}>
+        <Select value={s.fit} onChange={(e) => set({ fit: e.target.value as typeof s.fit })} data-field="fit">
+          {imageFits.map((k) => (
             <option key={k} value={k}>
-              {pt.kinds[k]}
+              {f.fits[k]}
             </option>
           ))}
         </Select>
       </Field>
-      <p className="text-xs text-muted">{pt.textsHint}</p>
-      <Field label={pt.headline}>
-        <Input value={section.headline} maxLength={160} onChange={(e) => set({ headline: e.target.value })} aria-label={pt.headline} />
+      <Field label={f.margin}>
+        <Input type="number" min={0} max={120} value={s.margin} onChange={(e) => set({ margin: Number(e.target.value) || 0 })} data-field="margin" />
       </Field>
-      <Field label={pt.subtitle}>
-        <Input value={section.subtitle ?? ""} maxLength={240} onChange={(e) => set({ subtitle: e.target.value })} aria-label={pt.subtitle} />
-      </Field>
-      <Field label={pt.bullets}>
-        <Textarea rows={3} value={section.bullets.join("\n")} onChange={(e) => set({ bullets: lines(e.target.value).slice(0, 5) })} aria-label={pt.bullets} />
-      </Field>
-
-      <div className="space-y-3 rounded-xl border border-accent/30 bg-accent/5 p-3" data-testid="poster-regenerate">
-        <button type="button" className="flex w-full items-center gap-2 text-sm font-bold text-accent" onClick={() => setOpen(!open)} aria-expanded={open}>
-          <Sparkles size={16} /> {pt.regenerate}
-        </button>
-        {open && (
-          <>
-            <Field label={pt.reference}>
-              <Select value={reference} onChange={(e) => setReference(e.target.value as typeof reference)} aria-label={pt.reference} disabled={!section.image}>
-                <option value="current">{pt.refCurrent}</option>
-                <option value="product">{pt.refProduct}</option>
-              </Select>
-            </Field>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={useCustom} onChange={(e) => setUseCustom(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
-              {pt.useCustom}
-            </label>
-            {useCustom ? (
-              <Field label={pt.custom}>
-                <Textarea rows={5} maxLength={4000} value={custom} onChange={(e) => setCustom(e.target.value)} aria-label={pt.custom} />
-              </Field>
-            ) : (
-              <>
-                <Field label={pt.background}>
-                  <Input value={background} maxLength={600} placeholder={pt.backgroundPlaceholder} onChange={(e) => setBackground(e.target.value)} aria-label={pt.background} />
-                </Field>
-                <Field label={pt.extra}>
-                  <Textarea rows={2} maxLength={1000} value={extra} placeholder={pt.extraPlaceholder} onChange={(e) => setExtra(e.target.value)} aria-label={pt.extra} />
-                </Field>
-              </>
-            )}
-            <p className="text-xs text-muted">{pt.cost}</p>
-            <Button
-              disabled={task.working || !section.headline.trim() || (useCustom && !custom.trim())}
-              onClick={async () => {
-                const result = await task.run(() =>
-                  startPosterImage(lang, {
-                    pageId,
-                    kind: section.kind,
-                    headline: section.headline,
-                    subtitle: section.subtitle,
-                    bullets: section.bullets,
-                    scene: section.scene,
-                    background,
-                    extra,
-                    custom: useCustom ? custom : undefined,
-                    current: reference === "current" && section.image ? section.image : undefined,
-                  }),
-                );
-                if (result) replace(result.url);
-              }}
-              data-testid="poster-generate"
-            >
-              {task.working ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />} {task.working ? pt.generating : pt.generate}
-            </Button>
-            {task.error && <p className="text-xs text-danger">{task.error}</p>}
-          </>
-        )}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={f.borderWidth}>
+          <Input type="number" min={0} max={20} value={s.borderWidth} onChange={(e) => set({ borderWidth: Number(e.target.value) || 0 })} />
+        </Field>
+        <Field label={f.radius}>
+          <Input type="number" min={0} max={60} value={s.radius} onChange={(e) => set({ radius: Number(e.target.value) || 0 })} data-field="radius" />
+        </Field>
       </div>
-
-      {section.previous.length > 0 && (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg"
-          onClick={() => set({ image: section.previous[0], previous: [section.image, ...section.previous.slice(1)].filter(Boolean).slice(0, MAX_POSTER_HISTORY) })}
-          data-testid="poster-restore"
-        >
-          <RotateCcw size={15} /> {pt.restore}
-        </button>
-      )}
-      <Field label={pt.upload}>
-        <ImageManager t={t.media} value={[]} onChange={(imgs) => imgs[0] && replace(imgs[0])} max={1} />
+      <Field label={f.borderColor}>
+        <input type="color" aria-label={f.borderColor} value={s.borderColor || "#e2e8f0"} onChange={(e) => set({ borderColor: e.target.value })} className="h-10 w-full cursor-pointer rounded-lg border border-line bg-field p-1" />
       </Field>
     </div>
   );
 }
 
-// The fields of one section. `set` merges changes into the section.
-export function SectionFields({ lang, pageId, section, set, productImages, t }: { lang: string; pageId: string; section: LandingSection; set: (patch: Partial<LandingSection>) => void; productImages: string[]; t: EditorText }) {
-  const ed = t.landingPages.editor;
-  const f = ed.fields;
-  const p = (patch: Record<string, unknown>) => set(patch as Partial<LandingSection>);
-  const titleField = (value: string | undefined, label = f.title) => <Field label={label}><Input value={value ?? ""} maxLength={200} onChange={(e) => p({ title: e.target.value })} /></Field>;
-
-  switch (section.type) {
-    case "poster":
-      return <PosterFields lang={lang} pageId={pageId} section={section} set={(patch) => p(patch)} t={t} />;
-    case "marquee":
-      return (
-        <Field label={f.items}>
-          <Textarea rows={4} value={section.items.join("\n")} onChange={(e) => p({ items: lines(e.target.value).slice(0, 6) })} />
-        </Field>
-      );
-    case "hero":
-      return (
-        <div className="space-y-3">
-          {titleField(section.title)}
-          <Field label={f.subtitle}>
-            <Textarea rows={2} maxLength={400} value={section.subtitle ?? ""} onChange={(e) => p({ subtitle: e.target.value })} />
-          </Field>
-          <Field label={f.badge}>
-            <Input value={section.badge ?? ""} maxLength={40} onChange={(e) => p({ badge: e.target.value })} />
-          </Field>
-          <Field label={f.image}>
-            <ImagePicker lang={lang} value={section.image} onChange={(image) => p({ image })} productImages={productImages} t={t} />
-          </Field>
-        </div>
-      );
-    case "badges":
-    case "features":
-    case "steps":
-      return (
-        <div className="space-y-3">
-          {section.type !== "badges" && titleField(section.title)}
-          <Field label={f.items}>
-            <Textarea rows={5} value={section.items.join("\n")} onChange={(e) => p({ items: lines(e.target.value) })} />
-          </Field>
-        </div>
-      );
+// The settings of the selected component (Zimam's right panel)
+export function SectionFields(props: Props) {
+  const { section: s, set, forms, formTemplateId, setFormTemplateId, t } = props;
+  const f = t.landingPages.editor.fields;
+  switch (s.type) {
+    case "image":
+      return <ImageFields {...props} section={s} />;
     case "text":
       return (
         <div className="space-y-3">
-          {titleField(section.title)}
+          <Field label={f.title}>
+            <Input value={s.title ?? ""} maxLength={200} onChange={(e) => set({ title: e.target.value })} data-field="title" />
+          </Field>
           <Field label={f.body}>
-            <Textarea rows={6} maxLength={3000} value={section.body} onChange={(e) => p({ body: e.target.value })} />
+            <Textarea rows={6} value={s.body} maxLength={3000} onChange={(e) => set({ body: e.target.value })} data-field="body" />
           </Field>
-        </div>
-      );
-    case "imageText":
-      return (
-        <div className="space-y-3">
-          {titleField(section.title)}
-          <Field label={f.body}>
-            <Textarea rows={4} maxLength={2000} value={section.body} onChange={(e) => p({ body: e.target.value })} />
-          </Field>
-          <Field label={f.image}>
-            <ImagePicker lang={lang} value={section.image} onChange={(image) => p({ image })} productImages={productImages} t={t} />
-          </Field>
-        </div>
-      );
-    case "benefits":
-      return (
-        <div className="space-y-3">
-          {titleField(section.title)}
-          {section.items.map((item, i) => {
-            const update = (patch: Partial<typeof item>) => p({ items: section.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
-            return (
-              <div key={i} className="space-y-2 rounded-lg border border-line p-3">
-                <div className="flex gap-2">
-                  <IconPicker value={item.icon} label={f.icon} onChange={(icon) => update({ icon })} />
-                  <Input aria-label={f.benefitTitle} placeholder={f.benefitTitle} value={item.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
-                  <button type="button" aria-label={ed.remove} className="rounded-lg p-2 text-muted hover:text-danger" onClick={() => p({ items: section.items.filter((_, j) => j !== i) })}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-                <Textarea aria-label={f.benefitText} placeholder={f.benefitText} rows={2} maxLength={400} value={item.text} onChange={(e) => update({ text: e.target.value })} />
-              </div>
-            );
-          })}
-          {section.items.length < 9 && (
-            <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { icon: "sparkles", title: "", text: "" }] })}>
-              <Plus size={15} /> {f.addBenefit}
-            </button>
-          )}
-        </div>
-      );
-    case "image":
-      return (
-        <div className="space-y-3">
-          <ImagePicker lang={lang} value={section.url || undefined} onChange={(url) => p({ url: url ?? "" })} productImages={productImages} t={t} />
-          <Field label={f.caption}>
-            <Input value={section.caption ?? ""} maxLength={200} onChange={(e) => p({ caption: e.target.value })} />
-          </Field>
-        </div>
-      );
-    case "gallery":
-      return (
-        <div className="space-y-3">
-          {titleField(section.title)}
-          {productImages.some((src) => !section.images.includes(src)) && (
-            <div className="flex flex-wrap gap-2">
-              {productImages
-                .filter((src) => !section.images.includes(src))
-                .map((src) => (
-                  <button key={src} type="button" onClick={() => p({ images: [...section.images, src].slice(0, 12) })} className="size-12 overflow-hidden rounded-lg border border-line opacity-70 hover:opacity-100" aria-label={`+ ${src}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="size-full object-cover" />
-                  </button>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={f.align}>
+              <Select value={s.align} onChange={(e) => set({ align: e.target.value as typeof s.align })}>
+                {textAligns.map((k) => (
+                  <option key={k} value={k}>
+                    {f.aligns[k]}
+                  </option>
                 ))}
-            </div>
-          )}
-          <ImageManager t={t.media} value={section.images} onChange={(images) => p({ images })} max={12} />
+              </Select>
+            </Field>
+            <Field label={f.size}>
+              <Select value={s.size} onChange={(e) => set({ size: e.target.value as typeof s.size })}>
+                {textSizes.map((k) => (
+                  <option key={k} value={k}>
+                    {f.sizes[k]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         </div>
       );
-    case "faq":
+    case "form":
       return (
         <div className="space-y-3">
-          {titleField(section.title)}
-          {section.items.map((item, i) => (
-            <div key={i} className="space-y-2 rounded-lg border border-line p-3">
-              <div className="flex gap-2">
-                <Input aria-label={f.question} placeholder={f.question} value={item.q} maxLength={300} onChange={(e) => p({ items: section.items.map((x, j) => (j === i ? { ...x, q: e.target.value } : x)) })} />
-                <button type="button" aria-label={ed.remove} className="rounded-lg p-2 text-muted hover:text-danger" onClick={() => p({ items: section.items.filter((_, j) => j !== i) })}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
-              <Textarea aria-label={f.answer} placeholder={f.answer} rows={2} maxLength={1500} value={item.a} onChange={(e) => p({ items: section.items.map((x, j) => (j === i ? { ...x, a: e.target.value } : x)) })} />
-            </div>
-          ))}
-          <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { q: "", a: "" }] })}>
-            <Plus size={15} /> {f.addQuestion}
-          </button>
+          <p className={label}>{t.landingPages.editor.types.form}</p>
+          <Field label={f.formStyle}>
+            <Select value={formTemplateId} onChange={(e) => setFormTemplateId(e.target.value)} data-testid="landing-form-template">
+              <option value="">{f.storeTheme}</option>
+              {forms.templates.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <a href={formTemplateId ? `${forms.editHref}?template=${formTemplateId}` : forms.editHref} className="text-xs font-semibold text-accent hover:underline">
+            {f.editForm}
+          </a>
+        </div>
+      );
+    case "sticky":
+      return (
+        <Field label={f.label} hint={f.labelHint}>
+          <Input value={s.label} maxLength={60} onChange={(e) => set({ label: e.target.value })} data-field="label" />
+        </Field>
+      );
+    case "thankYou":
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-muted">{f.thankHint}</p>
+          <Field label={f.thankTitle}>
+            <Input value={s.title} maxLength={120} onChange={(e) => set({ title: e.target.value })} data-field="thank-title" />
+          </Field>
+          <Field label={f.thankMessage}>
+            <Textarea rows={4} value={s.message} maxLength={600} onChange={(e) => set({ message: e.target.value })} data-field="thank-message" />
+          </Field>
+        </div>
+      );
+    case "countdown":
+      return (
+        <div className="space-y-3">
+          <Field label={f.title}>
+            <Input value={s.title ?? ""} maxLength={200} onChange={(e) => set({ title: e.target.value })} />
+          </Field>
+          <Field label={f.endsAt} hint={f.countdownHint}>
+            <Input type="datetime-local" value={toLocalInput(s.endsAt)} onChange={(e) => e.target.value && set({ endsAt: new Date(e.target.value).toISOString() })} data-field="endsAt" />
+          </Field>
         </div>
       );
     case "reviews":
       return (
         <div className="space-y-3">
-          <p className="text-xs text-warning">{ed.reviewsHint}</p>
-          {titleField(section.title)}
-          {section.items.map((item, i) => {
-            const update = (patch: Partial<typeof item>) => p({ items: section.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+          <p className="text-xs text-warning">{f.reviewsHint}</p>
+          <Field label={f.title}>
+            <Input value={s.title ?? ""} maxLength={200} onChange={(e) => set({ title: e.target.value })} />
+          </Field>
+          {s.items.map((r, i) => (
+            <div key={i} className="space-y-2 rounded-lg border border-line p-2.5" data-review={i}>
+              <div className="flex gap-2">
+                <Input aria-label={f.name} placeholder={f.name} value={r.name} maxLength={80} onChange={(e) => set({ items: s.items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                <Select aria-label={f.rating} value={r.rating} className="w-20" onChange={(e) => set({ items: s.items.map((x, j) => (j === i ? { ...x, rating: Number(e.target.value) } : x)) })}>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>
+                      {n}★
+                    </option>
+                  ))}
+                </Select>
+                <button type="button" aria-label={f.remove} className="rounded p-1.5 text-muted hover:text-danger" onClick={() => set({ items: s.items.filter((_, j) => j !== i) })}>
+                  <Trash2 size={15} />
+                </button>
+              </div>
+              <Textarea aria-label={f.review} placeholder={f.review} rows={2} value={r.text} maxLength={800} onChange={(e) => set({ items: s.items.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
+            </div>
+          ))}
+          <Button type="button" variant="secondary" disabled={s.items.length >= 20} onClick={() => set({ items: [...s.items, { name: "", text: "", rating: 5 }] })} data-testid="add-review">
+            <Plus size={14} /> {f.addReview}
+          </Button>
+        </div>
+      );
+    case "badges":
+      return (
+        <div className="space-y-3">
+          {s.items.map((b, i) => {
+            const Icon = badgeIconOf[b.icon];
             return (
-              <div key={i} className="space-y-2 rounded-lg border border-line p-3">
-                <div className="flex items-center gap-2">
-                  <Input aria-label={f.name} placeholder={f.name} value={item.name} maxLength={80} onChange={(e) => update({ name: e.target.value })} />
-                  <div className="flex shrink-0" aria-label={f.rating}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button key={n} type="button" onClick={() => update({ rating: n })} className="p-0.5 text-warning" aria-label={`${n}/5`}>
-                        <Star size={16} fill={n <= item.rating ? "currentColor" : "none"} />
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" aria-label={ed.remove} className="rounded-lg p-2 text-muted hover:text-danger" onClick={() => p({ items: section.items.filter((_, j) => j !== i) })}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-                <Textarea aria-label={f.review} placeholder={f.review} rows={2} maxLength={800} value={item.text} onChange={(e) => update({ text: e.target.value })} />
+              <div key={i} className="flex items-center gap-2" data-badge={i}>
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-panel-2 text-fg-2">
+                  <Icon size={16} />
+                </span>
+                <Select aria-label={f.badgeIcon} value={b.icon} className="w-28" onChange={(e) => set({ items: s.items.map((x, j) => (j === i ? { ...x, icon: e.target.value as typeof b.icon } : x)) })}>
+                  {badgeIcons.map((k) => (
+                    <option key={k} value={k}>
+                      {f.icons[k]}
+                    </option>
+                  ))}
+                </Select>
+                <Input aria-label={f.badgeText} value={b.text} maxLength={60} onChange={(e) => set({ items: s.items.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
+                <button type="button" aria-label={f.remove} className="rounded p-1.5 text-muted hover:text-danger" onClick={() => set({ items: s.items.filter((_, j) => j !== i) })}>
+                  <Trash2 size={15} />
+                </button>
               </div>
             );
           })}
-          <button type="button" className={addButton} onClick={() => p({ items: [...section.items, { name: "", text: "", rating: 5 }] })}>
-            <Plus size={15} /> {f.addReview}
-          </button>
+          <Button type="button" variant="secondary" disabled={s.items.length >= 6} onClick={() => set({ items: [...s.items, { icon: "check", text: "" }] })}>
+            <Plus size={14} /> {f.addBadge}
+          </Button>
         </div>
       );
-    case "video":
-      return (
-        <Field label={f.videoUrl}>
-          <Input dir="ltr" placeholder="https://www.youtube.com/watch?v=…" value={section.url} onChange={(e) => p({ url: e.target.value })} />
-        </Field>
-      );
-    case "countdown": {
-      // datetime-local works in the browser's time: convert to/from an ISO date
-      const local = new Date(section.endsAt);
-      const value = Number.isNaN(local.getTime()) ? "" : new Date(local.getTime() - local.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    case "faq":
       return (
         <div className="space-y-3">
-          <p className="text-xs text-muted">{ed.countdownHint}</p>
-          {titleField(section.title)}
-          <Field label={f.endsAt}>
-            <Input type="datetime-local" dir="ltr" value={value} onChange={(e) => e.target.value && p({ endsAt: new Date(e.target.value).toISOString() })} />
+          <Field label={f.title}>
+            <Input value={s.title ?? ""} maxLength={200} onChange={(e) => set({ title: e.target.value })} />
           </Field>
+          {s.items.map((x, i) => (
+            <div key={i} className="space-y-2 rounded-lg border border-line p-2.5" data-faq={i}>
+              <div className="flex gap-2">
+                <Input aria-label={f.question} placeholder={f.question} value={x.q} maxLength={300} onChange={(e) => set({ items: s.items.map((y, j) => (j === i ? { ...y, q: e.target.value } : y)) })} />
+                <button type="button" aria-label={f.remove} className="rounded p-1.5 text-muted hover:text-danger" onClick={() => set({ items: s.items.filter((_, j) => j !== i) })}>
+                  <Trash2 size={15} />
+                </button>
+              </div>
+              <Textarea aria-label={f.answer} placeholder={f.answer} rows={2} value={x.a} maxLength={1500} onChange={(e) => set({ items: s.items.map((y, j) => (j === i ? { ...y, a: e.target.value } : y)) })} />
+            </div>
+          ))}
+          <Button type="button" variant="secondary" disabled={s.items.length >= 15} onClick={() => set({ items: [...s.items, { q: "", a: "" }] })} data-testid="add-question">
+            <Plus size={14} /> {f.addQuestion}
+          </Button>
         </div>
-      );
-    }
-    case "cta":
-      return (
-        <div className="space-y-3">
-          {titleField(section.title)}
-          <Field label={f.subtitle}>
-            <Input value={section.subtitle ?? ""} maxLength={400} onChange={(e) => p({ subtitle: e.target.value })} />
-          </Field>
-        </div>
-      );
-    case "form":
-      return <p className="text-sm text-muted">{ed.formHint}</p>;
-    case "announcement":
-      return (
-        <Field label={f.announcement}>
-          <Input value={section.text} maxLength={160} onChange={(e) => p({ text: e.target.value })} data-field="announcement" />
-        </Field>
       );
     case "spacer":
       return (
         <div className="space-y-3">
           <Field label={f.spacerSize}>
-            <Select value={section.size} onChange={(e) => p({ size: e.target.value })}>
-              {spacerSizes.map((s) => (
-                <option key={s} value={s}>
-                  {f.spacerSizes[s]}
+            <Input type="number" min={4} max={200} value={s.size} onChange={(e) => set({ size: Number(e.target.value) || 4 })} data-field="size" />
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={s.line} onChange={(e) => set({ line: e.target.checked })} className="size-4 accent-[var(--color-accent)]" /> {f.line}
+          </label>
+        </div>
+      );
+    case "bullets":
+      return (
+        <div className="space-y-3">
+          <Field label={f.title}>
+            <Input value={s.title ?? ""} maxLength={200} onChange={(e) => set({ title: e.target.value })} />
+          </Field>
+          <Field label={f.items}>
+            <Textarea rows={6} defaultValue={s.items.join("\n")} onChange={(e) => set({ items: lines(e.target.value).slice(0, 12) })} data-field="items" />
+          </Field>
+          <Field label={f.bulletStyle}>
+            <Select value={s.style} onChange={(e) => set({ style: e.target.value as typeof s.style })}>
+              {bulletStyles.map((k) => (
+                <option key={k} value={k}>
+                  {f.bulletStyles[k]}
                 </option>
               ))}
             </Select>
           </Field>
+        </div>
+      );
+    case "video":
+      return (
+        <Field label={f.videoUrl}>
+          <Input dir="ltr" value={s.url} placeholder="https://youtu.be/…" onChange={(e) => set({ url: e.target.value })} data-field="url" />
+        </Field>
+      );
+    case "announcement":
+      return (
+        <div className="space-y-3">
+          <Field label={f.announcement}>
+            <Input value={s.text} maxLength={160} onChange={(e) => set({ text: e.target.value })} data-field="text" />
+          </Field>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={section.line} onChange={(e) => p({ line: e.target.checked })} className="size-4 accent-[var(--color-accent)]" />
-            {f.spacerLine}
+            <input type="checkbox" checked={s.scrolling} onChange={(e) => set({ scrolling: e.target.checked })} className="size-4 accent-[var(--color-accent)]" /> {f.scrolling}
           </label>
         </div>
       );
   }
-}
-
-// The icon of a benefit card: a button showing the current icon, opening a grid of the available ones
-function IconPicker({ value, label, onChange }: { value: string; label: string; onChange: (icon: string) => void }) {
-  return (
-    <details className="relative shrink-0" data-testid="icon-picker">
-      <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-[10px] border border-field-line bg-field text-accent hover:border-muted/50" aria-label={label} title={label}>
-        <BenefitIcon name={value} size={18} />
-      </summary>
-      <div className="absolute start-0 top-11 z-20 grid w-64 grid-cols-6 gap-1 rounded-xl border border-line bg-panel p-2 shadow-lg">
-        {benefitIconNames.map((name) => (
-          <button
-            key={name}
-            type="button"
-            title={name}
-            aria-label={name}
-            aria-pressed={value === name}
-            className={`flex size-9 items-center justify-center rounded-lg ${value === name ? "bg-accent text-accent-fg" : "text-fg hover:bg-panel-2"}`}
-            onClick={(e) => {
-              onChange(name);
-              e.currentTarget.closest("details")?.removeAttribute("open");
-            }}
-          >
-            <BenefitIcon name={name} size={17} />
-          </button>
-        ))}
-      </div>
-    </details>
-  );
 }

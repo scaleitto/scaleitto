@@ -6,14 +6,14 @@ import { db, schema } from "@/server/db";
 import { requireSection, requireShop } from "@/server/auth/context";
 import { visionImages } from "@/server/ai/vision";
 import { asLocale } from "@/i18n";
-import { interfaceLocale, isSafeImage, pageLanguages, posterKinds, type PageLanguage } from "@/features/landing/types";
+import { isSafeImage, pageLanguage } from "@/features/landing/types";
 import { posterPrompt } from "@/features/landing/posters";
-import { currencyLabel } from "@/i18n/store";
+import { aiLanguages } from "./languages";
 import { resolveMessages } from "@/features/messages/templates";
 import { callGuideRequest, descriptionRequest, messagesRequest } from "./prompts";
-import { imageStyles, pollTask, startImageTask, startPosterTask, startTask, type TaskStart, type TaskState } from "./tasks";
+import { pollTask, startPosterTask, startTask, type TaskStart, type TaskState } from "./tasks";
 
-const language = z.enum(pageLanguages);
+const language = z.enum(aiLanguages);
 
 // Delivery prices as one line for the prompts (the real ones of this shop)
 async function deliverySummary(shopId: string) {
@@ -66,55 +66,51 @@ export async function checkAiTask(lang: string, taskId: string): Promise<TaskSta
   return pollTask(shop.id, taskId);
 }
 
-// One of the shop's photos reworked by the AI (landing page editor and wizard)
-export async function startImageEnhance(lang: string, source: string, style: string): Promise<TaskStart> {
-  const { shop, user } = await requireSection(asLocale(lang), "landingPages");
-  const parsed = z.enum(imageStyles).safeParse(style);
-  if (!parsed.success) return { ok: false, error: "invalid" };
-  return startImageTask(shop.id, user.id, source, parsed.data);
+// The page's product (and language) for the landing page image tools
+async function pageProduct(shopId: string, pageId: string) {
+  const [row] = await db
+    .select({ language: schema.landingPages.language, product: schema.products })
+    .from(schema.landingPages)
+    .innerJoin(schema.products, eq(schema.products.id, schema.landingPages.productId))
+    .where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, pageId)));
+  return row ?? null;
 }
 
 const posterInput = z.object({
   pageId: z.string().uuid(),
-  kind: z.enum(posterKinds),
   headline: z.string().trim().min(1).max(160),
   subtitle: z.string().trim().max(240).optional(),
   bullets: z.array(z.string().trim().max(80)).max(5),
-  // Where the image takes place (empty: the section's own direction)
-  background: z.string().trim().max(600).optional(),
-  extra: z.string().trim().max(1000).optional(),
-  // The merchant's own full prompt instead of ours
-  custom: z.string().trim().max(4000).optional(),
-  // The section's current image, used as a reference to keep the same look
-  current: z.string().max(500).optional(),
-  scene: z.string().max(600).optional(),
+  scene: z.string().trim().max(600).optional(),
 });
 
-// Designs (again) one image of an image landing page: the merchant's texts, background and instructions,
-// the product photos (and optionally the current image) as references. One use of the monthly AI quota.
+// "Draw again" in an AI image's settings: the same image with its (possibly corrected) texts, from the product
+// photos. One use of the monthly AI quota.
 export async function startPosterImage(lang: string, input: z.input<typeof posterInput>): Promise<TaskStart> {
   const { shop, user } = await requireSection(asLocale(lang), "landingPages");
   const parsed = posterInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "checkFields" };
   const d = parsed.data;
-  const [row] = await db
-    .select({ language: schema.landingPages.language, product: schema.products })
-    .from(schema.landingPages)
-    .innerJoin(schema.products, eq(schema.products.id, schema.landingPages.productId))
-    .where(and(eq(schema.landingPages.shopId, shop.id), eq(schema.landingPages.id, d.pageId)));
+  const row = await pageProduct(shop.id, d.pageId);
   if (!row) return { ok: false, error: "notFound" };
-  const language = (pageLanguages.includes(row.language as PageLanguage) ? row.language : "ar") as PageLanguage;
-  const references = [...(d.current && isSafeImage(d.current) ? [d.current] : []), ...row.product.images].slice(0, 4);
-  const content = { kind: d.kind, headline: d.headline, subtitle: d.subtitle || undefined, bullets: d.bullets.filter(Boolean), scene: d.scene };
-  const base = posterPrompt(content, {
-    productName: row.product.name,
-    language,
-    price: row.product.price,
-    compareAtPrice: row.product.compareAtPrice,
-    currency: currencyLabel(interfaceLocale(language)),
-    extra: [d.current ? "The first attached image is the current version of this section: keep its style, colors and layout, apply the changes asked." : "", d.extra].filter(Boolean).join(" ") || undefined,
-    background: d.background || undefined,
-  });
-  const prompt = d.custom ? `${d.custom}\n\nThe attached photos show the real product: reproduce exactly this product, never redesign it. Vertical 2:3 image.` : base;
-  return startPosterTask(shop.id, user.id, prompt, references);
+  const prompt = posterPrompt({ headline: d.headline, subtitle: d.subtitle || undefined, bullets: d.bullets.filter(Boolean), scene: d.scene ?? "" }, { productName: row.product.name, language: pageLanguage(row.language) });
+  return startPosterTask(shop.id, user.id, prompt, row.product.images.slice(0, 3));
+}
+
+const editInput = z.object({ pageId: z.string().uuid(), current: z.string().max(500), instruction: z.string().trim().min(3).max(600), poster: z.boolean() });
+
+// "AI image edit prompt": the current image changed as asked, keeping its layout, size and style
+export async function startImageEdit(lang: string, input: z.input<typeof editInput>): Promise<TaskStart> {
+  const { shop, user } = await requireSection(asLocale(lang), "landingPages");
+  const parsed = editInput.safeParse(input);
+  if (!parsed.success || !isSafeImage(parsed.data.current) || !parsed.data.current.startsWith(`/uploads/${shop.id}/`)) return { ok: false, error: "checkFields" };
+  const d = parsed.data;
+  const row = await pageProduct(shop.id, d.pageId);
+  if (!row) return { ok: false, error: "notFound" };
+  const prompt = [
+    "Edit the first attached image. Keep the same layout, framing, size, style, colors and every text that the instruction does not change. The other attached photos show the real product: it must stay exactly this product.",
+    `Change asked by the merchant: ${d.instruction}`,
+    "Any text you write must be perfectly spelled with correctly connected letters. No watermark, no fake reviews, ratings or certification badges, no buttons.",
+  ].join("\n\n");
+  return startPosterTask(shop.id, user.id, prompt, [d.current, ...row.product.images].slice(0, 4), d.poster ? "1024x1536" : "1024x1024");
 }

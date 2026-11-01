@@ -1,6 +1,6 @@
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { storeLanguage } from "@/features/landing/types";
+import { storeAiLanguage as storeLanguage } from "@/features/ai/languages";
 import { sectionHref } from "@/lib/permissions";
 import { saveProduct } from "@/features/products/actions";
 import { ProductForm, type ProductFormValues } from "@/features/products/ProductForm";

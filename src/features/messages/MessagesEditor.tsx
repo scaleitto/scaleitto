@@ -10,7 +10,7 @@ import { useAiTask } from "@/features/ai/useAiTask";
 import { defaultTemplates, messageKinds, messageLanguages, placeholders, type MessageKind, type MessageLanguage } from "./templates";
 import { saveMessages } from "./actions";
 
-type Text = Pick<Dictionary, "assistant" | "errors" | "common" | "landingPages">;
+type Text = Pick<Dictionary, "assistant" | "errors" | "common">;
 
 // The shop's customer messages: one text per situation, AI rewrite, then save
 export function MessagesEditor({ lang, language: initialLanguage, texts: initialTexts, t }: { lang: string; language: MessageLanguage; texts: Record<MessageKind, string>; t: Text }) {
@@ -59,7 +59,7 @@ export function MessagesEditor({ lang, language: initialLanguage, texts: initial
             >
               {messageLanguages.map((l) => (
                 <option key={l} value={l}>
-                  {t.landingPages.languages[l]}
+                  {t.assistant.languages[l]}
                 </option>
               ))}
             </Select>

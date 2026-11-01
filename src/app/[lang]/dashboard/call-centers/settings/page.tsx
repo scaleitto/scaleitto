@@ -36,7 +36,7 @@ export default async function AssignSettingsPage({ params }: PageProps<"/[lang]/
       <AssignSettings lang={lang} mode={shop.assignMode} t={{ team: t.team, errors: t.errors, common: t.common }} />
       <DistributionBoard lang={lang} mode={shop.assignMode} board={board} t={t} />
       <OpenOrders lang={lang} rows={open} members={members} orderBase={sectionHref(lang, "orders")} t={t} />
-      <MessagesEditor lang={lang} language={messages.language} texts={messages.texts} t={{ assistant: t.assistant, errors: t.errors, common: t.common, landingPages: t.landingPages }} />
+      <MessagesEditor lang={lang} language={messages.language} texts={messages.texts} t={{ assistant: t.assistant, errors: t.errors, common: t.common }} />
     </>
   );
 }

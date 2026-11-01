@@ -1,24 +1,23 @@
-import { brandVars, type Theme } from "@/features/themes/themes";
 import type { ReactNode } from "react";
+import { brandVars, type Theme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
 import type { RateMap } from "@/features/checkout/pricing";
 import { CheckoutForm } from "@/features/storefront/CheckoutForm";
 import type { ActionState } from "@/lib/action";
-import { LandingSections, isImagePage } from "./blocks";
-import { PriceTag } from "./PriceTag";
-import { interfaceLocale, sanitizeSections, type FormSettings, type PageLanguage, pageLanguages } from "./types";
+import { LandingSections } from "./blocks";
+import { interfaceLocale, pageLanguage, type FormSettings, type LandingSection } from "./types";
 
-type Product = Parameters<typeof CheckoutForm>[0]["product"] & { compareAtPrice: number | null };
+type Product = Parameters<typeof CheckoutForm>[0]["product"];
 type Variant = Parameters<typeof CheckoutForm>[0]["variants"][number];
-export type LandingRow = { id: string; language: string; color: string | null; sections: unknown };
 
-export const pageLanguage = (v: string): PageLanguage => (pageLanguages.includes(v as PageLanguage) ? (v as PageLanguage) : "ar");
-
-// A landing page in its own language and color, with its order form (formFor: the page's template, the product's or the store's).
+// A landing page (the version the visitor was given) in its own language and color, with its order form (formFor:
+// the page's template, the product's or the store's). The sticky order button is the page's own component.
 export function PublicLanding({
-  page,
+  language,
+  color,
+  sections,
   settings,
   product,
   variants,
@@ -30,7 +29,9 @@ export function PublicLanding({
   theme,
   children,
 }: {
-  page: LandingRow;
+  language: string;
+  color: string | null;
+  sections: LandingSection[];
   settings: FormSettings;
   product: Product;
   variants: Variant[];
@@ -43,29 +44,27 @@ export function PublicLanding({
   theme: Theme;
   children?: ReactNode;
 }) {
-  const locale = interfaceLocale(pageLanguage(page.language));
+  const locale = interfaceLocale(pageLanguage(language));
   const t = getStoreText(locale);
-  const currency = currencyLabel(locale);
   const form = (
     <CheckoutForm
       t={t}
-      currency={currency}
+      currency={currencyLabel(locale)}
       product={product}
       variants={variants}
       rates={rates}
       wilayas={wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}` }))}
       action={action}
       saveLead={saveLead}
-      settings={settings}
+      settings={{ ...settings, stickyButton: false }}
       embedded={embedded}
       whatsapp={whatsapp}
     />
   );
-  const sections = sanitizeSections(page.sections);
   return (
-    // Image pages reach the screen edges on phones
-    <div lang={locale} dir={dir(locale)} style={page.color ? brandVars(page.color, theme) : undefined} className={`pb-20 md:pb-0 ${!embedded && isImagePage(sections) ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0" : ""}`}>
-      {embedded ? form : <LandingSections sections={sections} form={form} t={t} price={<PriceTag price={product.price} compareAtPrice={product.compareAtPrice} currency={currency} />} />}
+    // The page reaches the screen edges on phones
+    <div lang={locale} dir={dir(locale)} style={color ? brandVars(color, theme) : undefined} className={embedded ? "" : "-mx-4 -mt-6 sm:mx-0 sm:mt-0"}>
+      {embedded ? form : <LandingSections sections={sections} form={form} t={t} />}
       {children}
     </div>
   );

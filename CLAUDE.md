@@ -82,19 +82,26 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   from `ActivityPing`, max one minute per minute) into `member_activity`; `metrics.ts` computes performance
   (confirmations, rates, response time, attendance/punctuality/coverage via `schedule.ts`). Times: `src/lib/time.ts`
   (Africa/Algiers); `formatDate`/`formatTime` always render Algeria time.
-- Landing pages (`src/features/landing/`): `landing_pages.sections` (typed in `types.ts`, always read through
-  `sanitizeSections`) and `.form` (`FormSettings`, read through `resolveForm`: title/button texts, layout, address
-  hidden/optional/required — home delivery only —, note, delivery both/home/office, custom fields `custom_<id>` saved in
-  `orders.extra`, thank-you message, sticky button — since round 9 a store template chosen by the page, see below). `blocks.tsx` draws the sections for the public page
-  (`/store/<slug>/lp/<page>`) and the editor preview (`LandingEditor.tsx`); the form is the shared `CheckoutForm`, validated
-  again in `checkout/actions.ts`. Embeddable form: `/embed/<slug>/<page>` (own root layout, `HeightReporter` posts its
-  height to the parent). Visits: `/api/lp/view` once per browser session.
-- AI pages: `src/server/ai/openai.ts` (Responses API in background mode — start, then the browser polls `checkAiLanding`
-  every 3 s; model chain OPENAI_MODEL → gpt-6.1-sol → gpt-6.1-luna → gpt-6-luna; rejected params retried without them;
-  `checkAiConnection` for the dashboard test card). Prompt + schema + post-processing in `ai-prompt.ts` (never invents
-  facts, never writes reviews/countdowns; unknown images dropped; form placed after hero/badges). Generations are rows in
-  `ai_generations` (claimed pending → saving so a page is created once). E2E uses `tests/e2e/mock-openai.mjs`
-  (OPENAI_BASE_URL=http://127.0.0.1:4020/v1, OPENAI_API_KEY=sk-test).
+- Landing pages (Zimam's builder; `src/features/landing/`): a page = components (`types.ts sectionTypes`: image, text, form,
+  sticky, thankYou, countdown, reviews, badges, faq, spacer, bullets, video, announcement — always read through
+  `sanitizeSections`, which also turns pre-Zimam blocks into these) in up to three versions: A = `landing_pages.sections`, B/C =
+  `variants` (paused ones not shown). The builder (`LandingEditor.tsx`, full screen; `SectionFields.tsx` = the right panel)
+  autosaves the draft (`saveLandingDraft`; History entry every few minutes, `landing_versions`), "Publish" copies it into
+  `published` (what visitors see), "Discard changes" goes back to it; undo/redo is in the browser. Advanced: slug + `meta_description`,
+  `pixels` (per platform, pixel row ids; `pagePixels(shop, products, only)`). Public page `/store/<slug>/lp/<page>`: version from the
+  `lpv_<id>` cookie or a random running one (`LandingView` stores it and counts the visit in `landing_stats`), `orders.landing_version`;
+  a page with a thankYou component sends the buyer back to `?thanks=<order>` (`ThankYouPopup` + purchase pixels). Blocks drawn by
+  `blocks.tsx` (one 520px column, shared with the builder). One order form system: the page picks a template (form component →
+  `landing_pages.form_template_id`). List = `LandingList.tsx` (counters, search, filters, list/grid, row actions: copy link, open,
+  versions' numbers `pageVersionStats`, publish/unpublish `setLandingLive`, duplicate, delete). Embeddable form `/embed/<slug>/<page>`.
+- AI pages ("Generate with AI", `landing/AiBuilder.tsx` at `/landing-pages/new`): product, language of the texts in the images
+  (ar/fr/en), brief (≤ 900), writing framework and style family (`landing/ai-options.ts`), 2/4/6 images, price text, cost = 1 + images
+  in `maxAiPerMonth`. `ai-actions.ts startAiLanding` → plan (`posters.ts buildPosterPlanRequest`, honesty rules, short texts) via
+  `src/server/ai/openai.ts` (Responses API in background mode; model chain OPENAI_MODEL → gpt-6.1-sol → gpt-6.1-luna → gpt-6-luna),
+  the browser polls `checkAiLanding`; `finishPosterPage` = images (texts kept in `image.poster`) + form + sticky + thankYou, then one
+  `startPosterTask` per image. "Improve with AI" (`startAiVersion`) returns a new version's components to the builder (added paused).
+  Image tools: `startPosterImage` (draw again with corrected texts), `startImageEdit` (AI edit prompt, current image as reference).
+  E2E uses `tests/e2e/mock-openai.mjs` (OPENAI_BASE_URL=http://127.0.0.1:4020/v1, OPENAI_API_KEY=sk-test).
 - Analytics (`src/features/analytics/`): `range.ts` (presets today…90d/month or custom ≤ 366 days, in Algeria days, plus
   the previous period of the same length), `queries.ts` (loads the period's orders/items/leads once), `compute.ts`
   (pure, unit-tested: confirmation = confirmed ÷ (confirmed + cancelled), delivery = delivered ÷ (delivered + returned),
@@ -148,13 +155,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (defaults in dz/ar/fr/en, `{placeholders}`, `shops.messages` holds only changed texts), `MessageCard` on the order page
   (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message"),
   `MessagesEditor` on Call Centers → settings.
-- AI landing pages v2 (Phase 15): extra photos in the wizard (vision sees up to 10; every image used once), sections
-  `imageText` (photo + text, sides alternate) and `benefits` (icon cards). Photos are never cropped (`Photo` in
-  `landing/blocks.tsx`: `object-contain`, natural height; galleries too). Image rework = `startImageTask` (image_generation
-  tool via `startBackgroundImage`/`pollBackgroundImage`, styles in `enums.ts` `imageStyles`, counted in `maxAiPerMonth`):
-  during generation for the first 1–2 `/uploads/` photos (the generation's `result` holds `{imageTasks, applied}`;
-  `finishImages` swaps the new URLs into the page and puts them first in the product images; failures keep the original),
-  and from the editor's image picker (`EnhanceImage`). E2E: `phase15.mjs`.
 - Owner feedback round (phase16.mjs): a shop whose owner is the platform admin has no plan limits (`isPlatformShop` in
   `limits.ts`, every limit -1, custom domain allowed, Plans page shows "platform store"). Agents never get store links.
   Distribution: `team/distribution.ts` (`distributionBoard` per agent load, `spreadOrders` = same fewest-open-orders rule),
@@ -162,40 +162,21 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (`orders/BulkAssign.tsx`: row checkboxes `data-bulk-order`, assign / unassign / share between agents). Google Sheets script
   v2 (`SCRIPT_VERSION`): uses the first empty tab renamed "Orders", answers its version; "Test" writes a visible TEST row and
   asks for the new script when the copy is older. The database is converted to utf8mb4 at startup (`migrate-lib.mjs`).
-- Image landing pages (Wibi style, phase17.mjs): sections `poster` (a designed image with its text inside; texts, kind,
-  scene + look kept to regenerate, `previous` = images to restore; empty image = hidden on the public page, placeholder in
-  the editor) and `marquee` (scrolling band, CSS in globals.css). `landing/posters.ts`: plan prompt/schema
-  (`buildPosterPlanRequest`, kinds hero/problem/solution/benefits/features/howto/beforeAfter/details/offer/cta, honesty
-  rules, short texts), `finishPosterPage` (band, images, form after the first one), `posterPrompt` (exact quoted texts,
-  same product from the reference photos, 1024x1536). `startPosterTask` (ai/tasks.ts, references = our uploads) per section,
-  started when the plan is ready; `finishImages` puts each image in its section (`sectionId`) and reports done/total.
-  Editor: `PosterFields` (texts, regenerate panel: background, instructions, own full prompt, current image as reference →
-  `startPosterImage`; restore; own upload). `LandingSections` draws image pages as one 520px column (`isImagePage`).
-  Wizard (`NewLanding.tsx`): AI / manual toggle, page style (images / sections), options, confirmation with the AI cost
-  (plan + one per image) against the month's remaining quota; manual image pages use `starterImageSections`.
 - Owner feedback round 2 (phase18.mjs): product links go through `src/lib/product-page.ts` (canonical URL — AliExpress
   `/item/<id>.html` —, AliExpress JSON data, anti-bot page → `importBlocked`) and `safeFetch` keeps cookies across redirects.
   Apps sync is a durable outbox: `app_queue` (one row per shop+order) filled by `scheduleOrderSync`, sent by `processQueue`
   right after the response, by "send now" (`sendQueueNow`, makes the shop's rows due) and by the cron URL
   `/api/cron/apps?key=<cronKey()>` (shown on admin → system; add it in cPanel → Cron Jobs every 5 minutes); retries back off
-  (`RETRY_MINUTES`) then drop. Image pages: 2/4/6/8/10 images (`posterCounts`); A/B variants were dropped by the owner.
-  Performance: only Cairo is preloaded (theme fonts `preload: false`), the first poster / hero / product photo load eagerly
+  (`RETRY_MINUTES`) then drop.
+  Performance: only Cairo is preloaded (theme fonts `preload: false`), the first landing image / hero / product photo load eagerly
   with `fetchPriority="high"`, AI images are webp with `output_compression` 80. Dashboard fields use the `field` /
   `field-line` tokens (tinted fill on white cards). The public homepage is `src/features/marketing/Home.tsx` (not tied to
   one country). Store home shows `OrderSteps` with the trust badges.
 - Owner feedback round 3: Sheets script v4 (`SCRIPT_VERSION`) answers `{sheet, gid, written:[{key,row}]}` → the log says
   "Orders: 1043 → 12" and "Open the sheet" opens `url#gid=`; locked orders are logged (`LOCKED`), never skipped silently; the
   setup steps say to publish a New version after pasting code. Admin → system has the full check (`features/admin/system-check.ts`
-  + `ui/CheckCard.tsx`: database, uploads, APP_URL/APP_SECRET, cron backlog > 15 min, AI steps). AI pages follow the owner's
-  marketing method (`landing/strategy.ts`: analysis → 3–5 angles from the angle library → persuasion map) or the merchant's own
-  prompt in its place (wizard step "method"; `shops.ai_prompt` = saved default); the format/honesty contract always stays.
-  Both schemas return `strategy` (audience + angles, saved in `landing_pages.strategy`, `StrategyCard` in the editor) and posters
-  carry their `angle`. Storefront form fields use `s-field-edge` / `s-field` (mixed from the theme's text color).
-- Owner feedback round 4: persuasion sequence (strategy.ts, both prompts): hero → problem → solution → benefits → features →
-  usage → visual proof → objections → trust → offer → order form, at least 5 steps chosen per product; the form is always the
-  last step (`finishPosterPage` / `finishLandingPage` push it at the end; sticky button + every poster image links to
-  `#order-form`). Posters never contain buttons (no `cta` field any more) and the hero never repeats payment/delivery (the
-  band does); poster kinds add `objections` and `trust`. The language switcher is a dropdown (`ui/LanguageSwitcher.tsx`).
+  + `ui/CheckCard.tsx`: database, uploads, APP_URL/APP_SECRET, cron backlog > 15 min, AI steps). Storefront form fields use `s-field-edge` / `s-field` (mixed from the theme's text color).
+- Owner feedback round 4: AI images never contain buttons (every landing image links to `#order-form`). The language switcher is a dropdown (`ui/LanguageSwitcher.tsx`).
 - WhatsApp Business API (phase19.mjs): `shop_whatsapp` (phone number ID, encrypted token, a Meta-approved template per
   message situation with its `{{n}}` params mapped to our placeholders) — its own table, never in `shop_apps`/the order sync.
   `messages/whatsapp.ts` (`testWhatsapp`, `sendWhatsapp`: template with `buildMessageVars` values, else plain text — Meta only
@@ -264,9 +245,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   IPs / words / wilayas (store errors "quantity", "noWilaya"), automatic "fake" from a risk score (`autoFakeScore`), phone blocked
   after N fake/wrong-number orders (`autoBlockFakePhone`), risk reason "fake". Offers (`QuantityOffer`): freeShipping (`lineShipping`),
   gift (written into the order line's `offer_label`), badge (`offerBadges`), preselected (`defaultQuantity`), quick templates
-  (`offerTemplate`); offer cards in `CheckoutForm`. Landing angles: the 11 `landingAngles` (`lib/enums.ts`), `angleRule` in
-  `strategy.ts` (auto = exactly 5 required + 1–2 optional; manual = exactly the merchant's ticks, wizard step 6), enforced again by
-  `landing/angles.ts cleanStrategy` (pure). Store design preview: the scrolling box is never `inert`/`pointer-events-none`, its
+  (`offerTemplate`); offer cards in `CheckoutForm`. Store design preview: the scrolling box is never `inert`/`pointer-events-none`, its
   child is. Admin → plans shows the active plans (= the subscription page), older ones folded.
 - Owner feedback round 9 (phase25.mjs): the order page's status card (`OrderStatusCard`) = the owner's five sections as
   dropdowns, in his order: 1 Statut (`callStatuses`, a sent order shows "confirmed"), 2 Injection (pending/done: done by hand
@@ -317,12 +296,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   lines matched by SKU then name, no stock taken, plan slot, agent, sync). Team (`team` section): `member_invites` (sha256 of the
   token, 7 days), `team/invites.ts` (`inviteMember` emails the link and returns it, `staffUsage` = active members + pending
   invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`.
-- Zimam parity phase 6 (phase30.mjs) — landing pages: list = `landing/LandingList.tsx` (filters, list/grid in localStorage
-  `sc_lp_view`, create dialog: manual → `createLandingPage` with `pageStyle: "blank"` = only the form, or the AI wizard `/new`);
-  builder = `LandingEditor.tsx` in three columns (palette `data-add`, page order `data-editor-section`, `suggestions`; preview where
-  `LandingSections editing selected` wraps blocks in `data-sid` and a click selects; `section-panel` with `SectionFields`), top bar
-  save state / history (`landing_versions`, last 20, `listVersions` / `getVersion`) / discard / publish. New section types
-  `announcement` and `spacer`. Modals use `ui/useModal` (closes on leaving the page: Next keeps the previous page mounted).
 - Call center like Zimam (phase31.mjs): agents have `shop_members.username` (unique per shop) and sign in at
   `/[lang]/call-center/login` (store slug or domain + username or email + password, `team/portal.ts agentLogin`); the portal
   (`app/[lang]/call-center/(portal)`, `requireAgent`) reuses `DashboardShell` (`logoutInNav`) with Dashboard (`team/agent-overview.ts`
@@ -377,6 +350,6 @@ in `docs/next-round.md`: the homepage only claims what exists. Plans (modelled o
 uses one per order or locks it, top-ups via plan requests where `months` = packs, `releaseLockedOrders` spends the balance) /
 rocket 3,500 / galaxy 6,900 a month / "Universe" custom (contact, a contract set by the admin). Labels: `features/plans/labels.ts`.
 The homepage (`features/marketing/Home.tsx`, phase20.mjs) highlights `rocket`.
-Next: the owner tests image landing pages with a real OpenAI key (image quality / Arabic text), A/B variants of a page; real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
+Next: the owner tests image landing pages with a real OpenAI key (image quality / Arabic text); real-account checks of the integrations with the owner's accounts (carriers, pixels, Sheets, OpenAI images) — code reviewed
 against public docs/clients; ZR Express new platform added.
 The v1 code (main branch) has working versions of most features to consult while rebuilding.

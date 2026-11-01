@@ -2,27 +2,31 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { defaultForm, resolveForm, sanitizeSections, youtubeEmbed } from "../../src/features/landing/types";
 
-test("sections from the editor or the AI are cleaned", () => {
+test("components from the builder or the AI are cleaned", () => {
   const out = sanitizeSections([
-    { type: "hero", title: "  Montre  ", image: "javascript:alert(1)", badge: "-25%" },
-    { type: "image", url: "/uploads/abc-1/pic.webp" },
+    { type: "image", url: "/uploads/abc-1/pic.webp", fit: "cover", margin: 999, radius: "12" },
     { type: "image", url: "http://insecure.com/x.jpg" },
     { type: "script", body: "<script>" },
-    { type: "faq", items: [{ q: "Paiement ?", a: "À la livraison" }, { q: "", a: "x" }] },
+    { type: "faq", items: [{ q: "Paiement ?", a: "À la livraison" }, { q: "", a: "" }] },
     { type: "reviews", items: [{ name: "Karim", text: "Top", rating: 9 }] },
     { type: "video", url: "https://youtu.be/dQw4w9WgXcQ" },
     { type: "video", url: "https://evil.com/v" },
     { type: "form" },
     { type: "form" },
+    { type: "sticky", label: "Commander" },
+    { type: "sticky" },
     { type: "countdown", endsAt: "not a date" },
   ]);
   assert.deepEqual(
     out.map((s) => s.type),
-    ["hero", "image", "faq", "reviews", "video", "form"],
+    ["image", "image", "faq", "reviews", "video", "video", "form", "sticky"],
   );
-  const hero = out[0] as { title: string; image?: string };
-  assert.equal(hero.title, "Montre");
-  assert.equal(hero.image, undefined);
+  const img = out[0] as { url: string; fit: string; margin: number; radius: number };
+  assert.deepEqual([img.url, img.fit, img.margin, img.radius], ["/uploads/abc-1/pic.webp", "cover", 120, 12]);
+  // An unsafe image becomes an empty placeholder, an unknown video link an empty video
+  assert.equal((out[1] as { url: string }).url, "");
+  assert.equal((out[5] as { url: string }).url, "");
+  assert.equal((out[2] as { items: unknown[] }).items.length, 1);
   assert.equal((out[3] as { items: { rating: number }[] }).items[0].rating, 5);
   assert.ok(out.every((s) => typeof s.id === "string" && s.id.length > 0));
   assert.deepEqual(sanitizeSections("nope"), []);

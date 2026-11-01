@@ -46,7 +46,7 @@ import { combinations, variantTitle } from "./variants";
 import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS } from "./constants";
 import type { ProductStatus } from "./types";
 import { DescriptionButton } from "@/features/ai/DescriptionButton";
-import type { PageLanguage } from "@/features/landing/types";
+import type { AiLanguage as PageLanguage } from "@/features/ai/languages";
 
 // The quick offer buttons: 2 pieces −10%, 3 pieces −15%, buy 2 get 1 free, buy 3 get 2 free
 const offerPresets = [

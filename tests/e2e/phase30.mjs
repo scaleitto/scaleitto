@@ -1,93 +1,87 @@
-// Phase 30 (Zimam parity, phase 6): landing pages — the list (numbers, filters, list / grid, create with two paths)
-// and the builder (components to add, a click in the preview selects a block, its settings on the side, suggestions,
-// save state, history with restore, discard, publish).
+// Phase 30 (landing pages like Zimam): the builder's tools — suggestions (add or dismiss), duplicate / hide / delete
+// from a block's toolbar, undo and redo, the page's name, History (restore an earlier save), "Discard changes" back to
+// the published page — and the list's filters and grid view.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step } from "./helpers.mjs";
+import { BASE, createLandingManually, createShop, db, expect, landingRow, step, until } from "./helpers.mjs";
 
 export default async function phase30(browser) {
   const { shopId, context } = await createShop(browser);
   const owner = await context.newPage();
+  owner.on("dialog", (d) => d.accept());
   const section = `${BASE}/ar/dashboard/landing-pages`;
-  const lamp = randomUUID();
-  await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 2000, '[]', '[]', '[]')", [lamp, shopId]);
+  await db.query("INSERT INTO shop_contracts (id, shop_id, start_date, limits) VALUES (?, ?, CURDATE() - INTERVAL 1 DAY, ?)", [randomUUID(), shopId, JSON.stringify({ maxLandingPages: 10 })]);
+  const productId = randomUUID();
+  await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'حذاء رياضي', 'shoe', 4500, '[]', '[]', '[]')", [productId, shopId]);
+  const types = async (id) => (await landingRow(id)).sections.map((s) => s.type).join();
   let pageId;
 
-  await step("design manually: pick a product, a blank page with only the order form opens in the builder", async () => {
+  await step("suggestions: reviews, countdown, trust badges and a sticky button; one added, one dismissed", async () => {
     await owner.goto(section);
-    expect((await owner.locator("[data-testid=landing-stats] [data-stat=total] [data-value]").innerText()) === "0", "no page yet");
+    pageId = await createLandingManually(owner, productId);
+    const box = owner.locator("[data-testid=suggestions]");
+    for (const k of ["reviews", "countdown", "badges", "sticky"]) await box.locator(`[data-suggest=${k}]`).waitFor();
+    await box.locator("[data-suggest=badges] button").last().click();
+    await owner.waitForSelector("[data-testid=section-panel][data-selected=badges]");
+    expect((await owner.locator("[data-testid=landing-preview] [data-section=badges] li").count()) === 4, "four ready badges");
+    await box.locator("[data-suggest=countdown] button").first().click();
+    expect(!(await box.locator("[data-suggest=countdown]").count()) && !(await box.locator("[data-suggest=badges]").count()), "added and dismissed suggestions leave the list");
+    await until(async () => (await types(pageId)) === "image,badges,form", "badges saved after the image");
+  });
+
+  await step("a block's toolbar: duplicate, hide, delete; undo and redo", async () => {
+    const badges = owner.locator("[data-testid=landing-preview] [data-type=badges]").first();
+    await badges.click();
+    await badges.locator("[data-tool=duplicate]").click();
+    expect((await owner.locator("[data-testid=landing-preview] [data-type=badges]").count()) === 2, "duplicated");
+    await owner.locator("[data-testid=landing-preview] [data-type=badges]").first().locator("[data-tool=hide]").click();
+    await owner.click("[data-testid=undo]");
+    await owner.click("[data-testid=undo]");
+    expect((await owner.locator("[data-testid=landing-preview] [data-type=badges]").count()) === 1, "undo twice: back to one block");
+    await owner.click("[data-testid=redo]");
+    expect((await owner.locator("[data-testid=landing-preview] [data-type=badges]").count()) === 2, "redo: duplicated again");
+    await owner.locator("[data-testid=landing-preview] [data-type=badges]").last().click();
+    await owner.click("[data-testid=panel-delete]");
+    await until(async () => (await types(pageId)) === "image,badges,form", "deleted and saved");
+  });
+
+  await step("the page's name, then History restores an earlier save", async () => {
+    await owner.fill("[data-testid=page-title]", "صفحة الحذاء");
+    await until(async () => (await landingRow(pageId)).title === "صفحة الحذاء", "name saved");
+    // An earlier save (History keeps one every few minutes while editing)
+    await db.query("INSERT INTO landing_versions (id, shop_id, page_id, title, sections, created_at) VALUES (?, ?, ?, 'نسخة قديمة', ?, NOW(3) - INTERVAL 1 HOUR)", [randomUUID(), shopId, pageId, JSON.stringify({ sections: [{ id: "t", type: "text", title: "من السجل", body: "" }, { id: "f", type: "form" }], variants: [] })]);
+    await owner.click("[data-testid=open-history]");
+    const dialog = owner.locator("[data-testid=history-dialog]");
+    await dialog.getByText("نسخة قديمة").waitFor();
+    await dialog.locator("li", { hasText: "نسخة قديمة" }).locator("[data-testid=restore-version]").click();
+    await owner.waitForSelector('[data-testid=landing-preview] [data-section=text]:has-text("من السجل")');
+    await until(async () => (await types(pageId)) === "text,form", "restored and saved");
+  });
+
+  await step("Discard changes goes back to the published page", async () => {
+    await owner.click("[data-testid=publish]");
+    await owner.waitForSelector("text=تم النشر");
+    await owner.click("[data-add=video]");
+    await until(async () => (await types(pageId)) === "text,video,form", "draft saved");
+    await owner.click("[data-testid=discard-changes]");
+    await until(async () => !(await owner.locator("[data-testid=landing-preview] [data-type=video]").count()), "video gone from the builder");
+    await until(async () => (await types(pageId)) === "text,form", "draft back to the published page");
+  });
+
+  await step("the list: filters by status and product, the grid view is remembered", async () => {
+    await owner.goto(section);
     await owner.click("[data-testid=create-landing]");
     await owner.click("[data-create=manual]");
-    await owner.selectOption("#create-product", lamp);
+    await owner.selectOption("#create-product", productId);
     await Promise.all([owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), owner.click("[data-testid=create-manual]")]);
-    pageId = owner.url().split("/").pop();
-    await owner.locator("[data-testid=landing-builder]").waitFor();
-    const layers = await owner.locator("[data-editor-section]").evaluateAll((els) => els.map((e) => e.dataset.editorSection));
-    expect(layers.join() === "form", `only the form (got ${layers.join()})`);
-    expect((await owner.locator("[data-testid=save-state]").getAttribute("data-dirty")) === "false", "saved");
-  });
-
-  await step("components: an announcement bar and a spacer; a click in the preview selects a block", async () => {
-    await owner.click("[data-add=announcement]");
-    await owner.locator("[data-testid=section-panel][data-selected=announcement] [data-field=announcement]").fill("توصيل مجاني هذا الأسبوع");
-    await owner.locator('[data-testid=landing-preview] [data-section=announcement]:has-text("توصيل مجاني هذا الأسبوع")').waitFor();
-    await owner.click("[data-add=spacer]");
-    await owner.locator("[data-testid=section-panel][data-selected=spacer]").waitFor();
-    await owner.locator("[data-testid=landing-preview] [data-section=announcement]").click();
-    await owner.locator("[data-testid=section-panel][data-selected=announcement]").waitFor();
-    expect((await owner.locator("[data-testid=save-state]").getAttribute("data-dirty")) === "true", "unsaved changes");
-  });
-
-  await step("suggestions: real reviews, countdown, trust badges, FAQ; adding one opens it", async () => {
-    const kinds = await owner.locator("[data-testid=suggestions] [data-suggest]").evaluateAll((els) => els.map((e) => e.dataset.suggest));
-    expect(kinds.join() === "reviews,countdown,badges,faq", `suggestions (got ${kinds.join()})`);
-    await owner.locator("[data-suggest=faq] button").click();
-    await owner.locator("[data-testid=section-panel][data-selected=faq]").waitFor();
-    expect(!(await owner.locator("[data-suggest=faq]").count()), "the FAQ suggestion goes away");
-  });
-
-  await step("save, history and restore; discard goes back to what was saved", async () => {
-    await owner.click("[data-testid=save-page]");
-    await owner.locator("[data-testid=save-state][data-dirty=false]").waitFor();
-    // A second version without the announcement
-    await owner.locator("[data-editor-section=announcement] button[aria-label='حذف']").click();
-    await owner.click("[data-testid=save-page]");
-    await owner.locator("[data-testid=save-state][data-dirty=false]").waitFor();
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM landing_versions WHERE page_id = ?", [pageId]);
-    expect(n === 2, `two versions (got ${n})`);
-    // Discard
-    await owner.click("[data-add=spacer]");
-    owner.once("dialog", (d) => d.accept());
-    await owner.click("[data-testid=discard-changes]");
-    expect((await owner.locator("[data-editor-section=spacer]").count()) === 1, "back to the saved page");
-    // Restore the older version (with the announcement)
-    await owner.click("[data-testid=open-history]");
-    const versions = owner.locator("[data-testid=history-dialog] [data-version]");
-    await versions.nth(1).waitFor();
-    await versions.nth(1).locator("[data-testid=restore-version]").click();
-    await owner.locator("[data-editor-section=announcement]").waitFor();
-    await owner.click("[data-testid=save-page]");
-    await owner.locator("[data-testid=save-state][data-dirty=false]").waitFor();
-    const [[row]] = await db.query("SELECT sections FROM landing_pages WHERE id = ?", [pageId]);
-    const sections = typeof row.sections === "string" ? JSON.parse(row.sections) : row.sections;
-    expect(sections.some((s) => s.type === "announcement"), "restored and saved");
-  });
-
-  await step("publish; the list shows the numbers, filters and the grid", async () => {
-    await owner.click("[data-testid=toggle-publish]");
-    await owner.waitForFunction(() => document.querySelector("[data-testid=toggle-publish]")?.textContent?.includes("إلغاء النشر"));
     await owner.goto(section);
-    expect((await owner.locator("[data-stat=live] [data-value]").innerText()) === "1", "1 live");
-    const card = owner.locator("[data-page='مصباح']");
-    expect((await card.innerText()).includes("/lp/"), "the page address");
     await owner.selectOption("[data-filter=status]", "draft");
-    expect(!(await owner.locator("[data-page]").count()), "no draft");
-    await owner.selectOption("[data-filter=status]", "published");
-    await owner.locator("[data-page='مصباح']").waitFor();
+    expect((await owner.locator("[data-testid=landing-list] [data-page]").count()) === 1, "one draft");
+    await owner.selectOption("[data-filter=status]", "");
+    await owner.selectOption("[data-filter=product]", productId);
+    expect((await owner.locator("[data-testid=landing-list] [data-page]").count()) === 2, "both for the product");
     await owner.click("[data-view=grid]");
-    await owner.locator("[data-testid=landing-list][data-layout=grid]").waitFor();
     await owner.reload();
-    await owner.locator("[data-testid=landing-list][data-layout=grid]").waitFor();
-    await owner.click("[data-view=list]");
+    await owner.waitForSelector("[data-testid=landing-list][data-layout=grid]");
   });
 
   await context.close();

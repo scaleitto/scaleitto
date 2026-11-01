@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { storeLanguage } from "@/features/landing/types";
+import { storeAiLanguage as storeLanguage } from "@/features/ai/languages";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { saveProduct } from "@/features/products/actions";

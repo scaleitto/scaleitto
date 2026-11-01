@@ -109,8 +109,6 @@ export const shops = mysqlTable(
     delivery: json("delivery"),
     // Handover manifest template, draft + published (resolveManifest)
     manifest: json("manifest"),
-    // The merchant's own prompt for AI landing pages, used by default when set (src/features/landing/strategy.ts)
-    aiPrompt: text("ai_prompt"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
     customDomain: varchar("custom_domain", { length: 191 }),
     // Value of the TXT record _scaleitto.<domain> proving the merchant owns it
@@ -123,10 +121,6 @@ export const shops = mysqlTable(
 
 export type ShopSeo = { title?: string; description?: string };
 export type ShopPolicies = Partial<Record<PolicyKind, string>>;
-// The AI's marketing strategy for a landing page: who it talks to and the angles it chose (with the reason)
-// key = one of the 11 angles (lib/enums.ts landingAngles); required = one of the 5 the automatic mode must use;
-// mode = how they were chosen (auto by the AI, manual by the merchant)
-export type PageStrategy = { audience: string; angles: { name: string; why: string; key?: string; required?: boolean }[]; custom: boolean; mode?: "auto" | "manual" };
 
 export const memberRoles = ["owner", "manager", "agent"] as const;
 export type MemberRole = (typeof memberRoles)[number];
@@ -293,8 +287,9 @@ export const orders = mysqlTable(
     shippingPrice: int("shipping_price").notNull(),
     total: int("total").notNull(),
     customerNote: varchar("customer_note", { length: 500 }),
-    // Landing page the order came from (null: the store's product page)
+    // Landing page the order came from (null: the store's product page) and the version the visitor saw (A, B, C)
     landingPageId: id("landing_page_id"),
+    landingVersion: varchar("landing_version", { length: 1 }),
     // Answers to the landing page's custom form fields: [{ label, value }]
     extra: json("extra").$type<{ label: string; value: string }[] | null>(),
     // Placed after the month's order limit was reached: kept, but the customer's details stay hidden
@@ -372,21 +367,39 @@ export const landingPages = mysqlTable(
     slug: varchar("slug", { length: 120 }).notNull(),
     title: varchar("title", { length: 200 }).notNull(),
     status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
-    // Language of the page's copy: ar, dz (Darija), fr, en
+    // Language of the page (texts in the images, the order form): ar, fr, en (older pages: dz = Arabic)
     language: varchar("language", { length: 5 }).notNull().default("ar"),
     // null → the shop's color
     color: varchar("color", { length: 9 }),
+    // The draft (what the builder edits, saved as it goes): version A's components and the other versions (B, C)
     sections: json("sections").notNull(),
+    variants: json("variants"),
+    // What visitors see, copied from the draft on "Publish" ({ sections, variants }); "Discard changes" goes back to it
+    published: json("published"),
     // The order form: one of the store's form templates (null → the product's form, else the store's form;
     // src/features/order-form/resolve.ts). Forms are edited in one place: Store design → Order form.
     formTemplateId: id("form_template_id"),
-    // What the AI chose for this page (audience, marketing angles and why), shown in the editor
-    strategy: json("strategy").$type<PageStrategy | null>(),
+    // Search and social preview text (Advanced: SEO)
+    metaDescription: varchar("meta_description", { length: 300 }),
+    // Which of the store's pixels fire on this page, per platform (null / missing platform = all of them)
+    pixels: json("pixels").$type<Record<string, string[]> | null>(),
     views: int("views").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
   (t) => [uniqueIndex("landing_shop_slug_uq").on(t.shopId, t.slug)],
+);
+
+// Visits per landing page version (A, B, C), to compare the versions
+export const landingStats = mysqlTable(
+  "landing_stats",
+  {
+    pageId: id("page_id").notNull(),
+    version: varchar("version", { length: 1 }).notNull(),
+    shopId: id("shop_id").notNull(),
+    views: int("views").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.pageId, t.version] })],
 );
 
 // Saved versions of a landing page (the builder's History): one per save, the last 20 kept

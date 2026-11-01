@@ -3,7 +3,7 @@
 // visible, the Google Sheets test writes a visible row (and spots an old script), the storefront themes have
 // their own hero and product card styles.
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step, wizardMode } from "./helpers.mjs";
+import { BASE, createLandingManually, createSession, createShop, db, expect, step } from "./helpers.mjs";
 import { sheet } from "./mock-apps.mjs";
 
 const FAKE = process.env.E2E_APPS_URL;
@@ -19,9 +19,8 @@ export default async function phase16(browser) {
     await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'منتج', 'item', 2500, '[]', '[]', '[]')", [randomUUID(), shopId]);
     // The free plan allows 2 landing pages: the platform store makes a third one
     for (let i = 0; i < 3; i++) {
-      await owner.goto(`${dash}/landing-pages/new`);
-      await wizardMode(owner, "manual");
-      await Promise.all([owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), owner.locator("[data-testid=manual-create] button[type=submit]").click()]);
+      await owner.goto(`${dash}/landing-pages`);
+      await createLandingManually(owner);
     }
     await owner.goto(`${dash}/plans`);
     await owner.waitForSelector("[data-plan=platform]");

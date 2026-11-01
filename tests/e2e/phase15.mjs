@@ -1,10 +1,10 @@
-// Phase 15: better AI landing pages — extra photos, photos reworked by the AI during generation (new
-// background, same product), the editor's "enhance image" button, new sections (image + text, benefits),
-// a mobile-first public page whose photos are never cropped, and the AI quota for image work.
+// Phase 15 (landing pages like Zimam): "Generate with AI" — the product, the language of the texts in the images, the
+// brief, the writing framework, the size (2 / 4 / 6 images), the style family, the price text and the cost against
+// the month's AI quota; the progress until the builder opens with the drawn images, the order form, a sticky button
+// and a thank-you window; the public page and the thank-you window after ordering.
 import { randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, pngBuffer, step, wizardGenerate, wizardStyle } from "./helpers.mjs";
-
-const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
+import { BASE, BROWSER_ARGS, createShop, db, expect, landingRow, pngBuffer, step, until } from "./helpers.mjs";
+import { requests } from "./mock-openai.mjs";
 
 export default async function phase15(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -13,94 +13,85 @@ export default async function phase15(browser) {
   const contractId = randomUUID();
   await db.query("INSERT INTO shop_contracts (id, shop_id, start_date, limits) VALUES (?, ?, CURDATE() - INTERVAL 1 DAY, ?)", [contractId, shopId, JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 20 })]);
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 500, 350)", [shopId]);
+  // The product's photo is one of the store's uploads (the AI draws from it)
+  const upload = await owner.request.post(`${BASE}/api/uploads`, { data: pngBuffer([30, 120, 200]), headers: { "Content-Type": "image/png" } });
+  const photo = (await upload.json()).url;
+  const productId = randomUUID();
+  await db.query("INSERT INTO products (id, shop_id, name, slug, price, compare_at_price, images, options, offers) VALUES (?, ?, 'مصباح ضد البعوض', 'lamp', 2600, 3500, ?, '[]', '[]')", [productId, shopId, JSON.stringify([photo])]);
   let pageId;
-  let uploaded;
 
-  await step("AI page from two photos, both reworked: the page and the product use the new images", async () => {
-    await owner.goto(`${section}/new`);
-    const wizard = owner.locator("[data-testid=ai-wizard]");
-    await wizardStyle(owner, "sections");
-    await wizard.locator("[data-testid=source] button", { hasText: "صور المنتج" }).click();
-    await owner.setInputFiles("[data-testid=ai-wizard] [data-testid=image-input]", [
-      { name: "front.png", mimeType: "image/png", buffer: pngBuffer([20, 90, 200]) },
-      { name: "side.png", mimeType: "image/png", buffer: pngBuffer([200, 90, 20]) },
-    ]);
-    await owner.waitForFunction(() => document.querySelectorAll("[data-testid=ai-wizard] img").length >= 2);
-    await owner.fill("#ai-price", "2500");
-    await owner.fill("#ai-compare", "3500");
-    expect(await owner.locator("[data-testid=ai-enhance] input[type=checkbox]").isChecked(), "enhancement on by default");
-    await owner.selectOption("#ai-style", "studio");
-    await owner.selectOption("#ai-enhance-count", "2");
-    await wizardGenerate(owner);
-    await owner.locator("[data-testid=ai-working]").getByText("تحسين الصور").waitFor();
-    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await step("Generate with AI: the product, the language, the brief, a framework, the size, a style, the price text and the cost", async () => {
+    await owner.goto(section);
+    await owner.click("[data-testid=create-landing]");
+    await Promise.all([owner.waitForURL(/landing-pages\/new$/), owner.click("[data-create=ai]")]);
+    const builder = owner.locator("[data-testid=ai-builder]");
+    await builder.waitFor();
+    expect((await builder.locator("[data-framework]").count()) === 7, "7 writing frameworks");
+    expect((await builder.locator("[data-style]").count()) === 13, "13 style families");
+    expect((await builder.locator("[data-size]").count()) === 3, "small / medium / large");
+    await builder.locator('[data-product="مصباح ضد البعوض"]').click();
+    await builder.locator("[data-language=fr]").click();
+    await builder.locator("#ai-brief").fill("Lampe silencieuse, livraison 58 wilayas, paiement à la livraison.");
+    await builder.locator("[data-framework=pas]").click();
+    await builder.locator("[data-size=\"4\"]").click();
+    await builder.locator("[data-style=blackGold]").click();
+    await builder.locator("#ai-price").fill("2600 DA au lieu de 3500 DA");
+    expect((await owner.locator("[data-testid=ai-cost]").innerText()).includes("4 صور · 5"), "4 images = 5 AI uses");
+    await owner.click("[data-testid=ai-generate]");
+    await owner.waitForSelector("[data-testid=ai-progress]");
+    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
     pageId = owner.url().split("/").pop();
-    const [[page]] = await db.query("SELECT sections, product_id FROM landing_pages WHERE id = ?", [pageId]);
-    const sections = json(page.sections);
-    const [[product]] = await db.query("SELECT images, compare_at_price FROM products WHERE id = ?", [page.product_id]);
-    const images = json(product.images);
-    expect(images.length === 4 && images.every((x) => x.startsWith(`/uploads/${shopId}/`)), `new images added before the originals (got ${images.length})`);
-    uploaded = images.slice(2);
-    const hero = sections.find((s) => s.type === "hero");
-    const imageText = sections.find((s) => s.type === "imageText");
-    expect(hero.image === images[0] && imageText.image === images[1], "hero and image+text use the reworked photos");
-    expect(sections.some((s) => s.type === "benefits"), "benefits section");
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM ai_generations WHERE shop_id = ? AND kind = 'image' AND status = 'done'", [shopId]);
-    expect(n === 2, `two image tasks (got ${n})`);
+    const row = await landingRow(pageId);
+    expect(row.product_id === productId && row.language === "fr" && row.status === "draft", "a French draft page for the product");
+    expect(row.sections.map((s) => s.type).join() === "image,image,image,image,form,sticky,thankYou", `the page's components (got ${row.sections.map((s) => s.type).join()})`);
+    const images = row.sections.filter((s) => s.type === "image");
+    expect(images.every((s) => s.url.startsWith(`/uploads/${shopId}/`) && s.poster?.headline), "every image drawn, with its texts kept");
+    expect(row.color === "#d4a72c", "the style's main color");
+    const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
+    expect(plan.input[0].content[0].text.includes("PAS —") && plan.input[0].content[0].text.includes("Black & gold") && plan.input[0].content[0].text.includes("Lampe silencieuse"), "framework, style and brief in the request");
+    const drawn = requests.filter((r) => r.tools?.some((t) => t.type === "image_generation") && JSON.stringify(r.input).includes("2600 DA au lieu de 3500 DA"));
+    expect(drawn.length === 4, `the price text in every image's instructions (got ${drawn.length})`);
+    const [[used]] = await db.query("SELECT COUNT(*) AS n FROM ai_generations WHERE shop_id = ?", [shopId]);
+    expect(Number(used.n) === 5, "plan + 4 images counted");
+    await owner.waitForSelector("[data-testid=landing-builder]");
+    expect((await owner.locator("[data-testid=landing-preview] [data-type=image] img").count()) === 4, "the images in the builder");
   });
 
-  await step("editor: the new sections can be added, a photo can be reworked by the AI", async () => {
-    await owner.click("[data-add=benefits]");
-    await owner.locator("[data-editor-section=benefits]").last().waitFor();
-    await owner.locator("[data-editor-section=imageText]").first().locator("button[aria-expanded]").click();
-    const enhance = owner.locator("[data-testid=section-panel] [data-testid=enhance-image]");
-    await enhance.waitFor();
-    const before = await owner.locator("[data-testid=landing-preview] [data-section=imageText] img").getAttribute("src");
-    await enhance.locator("select").selectOption("lifestyle");
-    await enhance.locator("button").click();
-    await owner.waitForFunction(
-      (old) => {
-        const src = document.querySelector("[data-testid=landing-preview] [data-section=imageText] img")?.getAttribute("src");
-        return src && src !== old;
-      },
-      before,
-      { timeout: 30_000 },
-    );
-    await owner.click("[data-testid=save-page]");
-    await owner.waitForSelector("text=تم الحفظ");
-    const [[page]] = await db.query("SELECT sections FROM landing_pages WHERE id = ?", [pageId]);
-    const imageText = json(page.sections).find((s) => s.type === "imageText");
-    expect(imageText.image !== before && imageText.image.startsWith(`/uploads/${shopId}/`), "new photo saved");
+  await step("the cost is checked against the month's AI quota", async () => {
+    await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 8 }), contractId]);
+    await owner.goto(`${section}/new`);
+    await owner.locator("[data-size=\"4\"]").click();
+    await owner.getByText("رصيدك المتبقي من الذكاء الاصطناعي هذا الشهر لا يكفي").waitFor();
+    expect(await owner.locator("[data-testid=ai-generate]").isDisabled(), "3 left: 4 images refused");
+    await owner.locator("[data-size=\"2\"]").click();
+    expect(!(await owner.locator("[data-testid=ai-generate]").isDisabled()), "3 left: 2 images allowed");
+    await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 20 }), contractId]);
   });
 
-  await step("public page on a phone: new sections, photos not cropped, full-width order button, discount", async () => {
-    await db.query("UPDATE landing_pages SET status = 'published' WHERE id = ?", [pageId]);
-    const [[{ slug }]] = await db.query("SELECT slug FROM landing_pages WHERE id = ?", [pageId]);
-    const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await phone.goto(`${BASE}/store/shop-${tag}/lp/${slug}`);
-    await phone.waitForSelector("[data-section=imageText] img");
-    await phone.waitForSelector("[data-section=benefits]");
-    const hero = await phone.locator("[data-section=hero] img").evaluate(async (img) => {
-      if (!img.complete) await new Promise((r) => img.addEventListener("load", r, { once: true }));
-      const r = img.getBoundingClientRect();
-      return { fit: getComputedStyle(img).objectFit, ratio: r.width / r.height, natural: img.naturalWidth / img.naturalHeight };
-    });
-    expect(hero.fit === "contain" && Math.abs(hero.ratio - hero.natural) < 0.05, `photo keeps its shape (${JSON.stringify(hero)})`);
-    const button = await phone.locator("[data-section=hero] a[href='#order-form']").boundingBox();
-    expect(button.width > 300, `order button fills the phone width (${button.width})`);
-    await phone.locator("[data-section=hero]").getByText("-29%").waitFor();
-    expect((await phone.evaluate(() => document.documentElement.scrollWidth)) <= 390, "no sideways scrolling");
-    await phone.close();
-  });
-
-  await step("image work counts in the monthly AI quota", async () => {
-    await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 3 }), contractId]);
+  await step("public page on a phone: one column of images, the sticky button; after ordering, the thank-you window", async () => {
     await owner.goto(`${section}/${pageId}`);
-    await owner.locator("[data-editor-section=hero]").first().locator("button[aria-expanded]").click();
-    const enhance = owner.locator("[data-testid=section-panel] [data-testid=enhance-image]");
-    await enhance.locator("button").click();
-    await enhance.getByText("وصلت إلى الحد الشهري لاستعمال الذكاء الاصطناعي").waitFor();
-    expect(uploaded.length === 2, "originals kept");
+    await owner.click("[data-testid=publish]");
+    await owner.waitForSelector("text=تم النشر");
+    const { slug } = await landingRow(pageId);
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: BROWSER_ARGS[0].replace("--user-agent=", "") });
+    const p = await phone.newPage();
+    await p.goto(`${BASE}/store/shop-${tag}/lp/${slug}`);
+    await p.waitForSelector("[data-layout=landing]");
+    expect((await p.locator("[data-section=image] img").count()) === 4, "4 images");
+    expect(await p.locator("[data-testid=sticky-order]").isVisible(), "sticky order button");
+    expect((await p.locator("html").getAttribute("lang")) === "ar" || (await p.locator("[lang=fr]").count()) > 0, "the page in French");
+    await p.fill("#name", "Karim");
+    await p.fill("#phone", "0661 22 33 55");
+    await p.selectOption("#wilaya", "16");
+    await p.selectOption("#commune", { index: 1 });
+    await Promise.all([p.waitForURL(/\/lp\/[^?]+\?thanks=/), p.click("button[type=submit]")]);
+    await p.locator("[data-testid=thank-you-popup]").getByText("Merci, votre commande est reçue !").waitFor();
+    const [[order]] = await db.query("SELECT number, landing_version FROM orders WHERE shop_id = ? AND landing_page_id = ?", [shopId, pageId]);
+    expect(order.landing_version === "A", "order of version A");
+    expect((await p.locator("[data-testid=thank-you-popup]").innerText()).includes(String(order.number)), "the order number in the window");
+    await p.locator("[data-testid=thank-you-popup] button").last().click();
+    await until(async () => !(await p.locator("[data-testid=thank-you-popup]").count()), "window closed");
+    await phone.close();
   });
 
   await context.close();

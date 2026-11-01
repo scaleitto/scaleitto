@@ -1,63 +1,16 @@
-// Phase 18 (owner's feedback): AliExpress-style links that redirect in a loop until their cookie comes back,
-// image pages with 2 images, Google Sheets orders kept in a queue while Google fails (sent later by "send now"
+// Phase 18 (owner's feedback): Google Sheets orders kept in a queue while Google fails (sent later by "send now"
 // or the cron link) and the store's "how to order" steps.
 import { createHash, randomUUID } from "node:crypto";
-import { BASE, createShop, db, expect, step, wizardGenerate } from "./helpers.mjs";
-import { requests } from "./mock-openai.mjs";
+import { BASE, createShop, db, expect, step } from "./helpers.mjs";
 import { sheet } from "./mock-apps.mjs";
 
 const FAKE = process.env.E2E_APPS_URL;
-const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
 
 export default async function phase18(browser) {
   const { shopId, context, tag } = await createShop(browser);
   const owner = await context.newPage();
   const dash = `${BASE}/ar/dashboard`;
   await db.query("INSERT INTO shop_contracts (id, shop_id, start_date, limits) VALUES (?, ?, CURDATE() - INTERVAL 1 DAY, ?)", [randomUUID(), shopId, JSON.stringify({ maxLandingPages: 10, maxAiPerMonth: 30 })]);
-
-  await step("AI image page from a product link that redirects until its cookie is sent, with 2 images", async () => {
-    await owner.goto(`${dash}/landing-pages/new`);
-    await owner.locator("[data-testid=source] button", { hasText: "رابط منتج" }).click();
-    await owner.fill("#ai-url", `${FAKE}/aliexpress/item/1005.html?spm=a2g0o.home&gatewayAdapt=glo2ara`);
-    await owner.fill("#ai-price", "2900");
-    const counts = await owner.locator("#ai-count option").evaluateAll((os) => os.map((o) => o.value).join());
-    expect(counts === "2,4,6,8,10", `image counts (got ${counts})`);
-    await owner.selectOption("#ai-count", "2");
-    await wizardGenerate(owner);
-    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
-    const [[page]] = await db.query("SELECT sections FROM landing_pages WHERE id = ?", [owner.url().split("/").pop()]);
-    expect(json(page.sections).filter((s) => s.type === "poster").length === 2, "2 designed images");
-    const plan = requests.find((r) => JSON.stringify(r.input ?? "").includes("Lampe anti moustique"));
-    expect(plan && !JSON.stringify(plan.input).includes("- AliExpress"), "the page's title read from the product data, without the site name");
-    expect(plan.instructions.includes("STRICT RULE") && plan.instructions.includes("hidden problem") && !plan.instructions.includes("MERCHANT BRIEF"), "the platform's marketing method and angle library");
-  });
-
-  await step("own prompt: used for the generation, saved as the store's default; the strategy is shown in the editor", async () => {
-    await owner.goto(`${dash}/landing-pages/new`);
-    expect((await owner.locator("[data-testid=prompt-mode] button[aria-pressed=true]").innerText()).includes("منهجية المنصة"), "platform method by default");
-    await owner.locator("[data-testid=prompt-mode] button", { hasText: "البرومبت الخاص بي" }).click();
-    expect(await owner.locator("[data-testid=ai-next]").isDisabled(), "an empty prompt cannot be used");
-    await owner.fill("#ai-prompt", "أنت خبير تسويق. ركّز على زاوية راحة البال واسألني قبل التنفيذ.");
-    await owner.locator("[data-testid=save-prompt]").check();
-    await owner.selectOption("#ai-count", "2");
-    await owner.click("[data-testid=ai-next]");
-    await owner.locator("[data-testid=ai-confirm]").getByText("البرومبت الخاص بي").waitFor();
-    await owner.locator("[data-testid=ai-confirm] button").last().click();
-    await owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/, { timeout: 90_000 });
-    const plan = requests.filter((r) => r.text?.format?.name === "image_landing_page").pop();
-    expect(plan?.instructions.includes("MERCHANT BRIEF") && plan.instructions.includes("ركّز على زاوية راحة البال") && plan.instructions.includes("never ask questions") && plan.instructions.includes("STRICT RULE"), "the merchant's prompt replaces the method, with the format and honesty rules kept");
-    const [[shop]] = await db.query("SELECT ai_prompt FROM shops WHERE id = ?", [shopId]);
-    expect(shop.ai_prompt?.includes("راحة البال"), "saved as the store's default");
-    const [[page]] = await db.query("SELECT strategy FROM landing_pages WHERE id = ?", [owner.url().split("/").pop()]);
-    const strategy = json(page.strategy);
-    expect(strategy?.custom === true && strategy.angles.length === 6 && strategy.angles.filter((a) => a.required).length === 5 && strategy.audience === "العائلات", "strategy saved with the page");
-    await owner.locator("[data-testid=page-strategy] summary").click();
-    expect((await owner.locator("[data-testid=page-strategy] [data-angle]").count()) === 6, "the angles shown in the editor");
-    await owner.locator("[data-editor-section=poster]").first().locator("button[aria-expanded]").click();
-    await owner.locator("[data-testid=poster-angle]").getByText("نوم هادئ").waitFor();
-    await owner.goto(`${dash}/landing-pages/new`);
-    expect((await owner.inputValue("#ai-prompt")).includes("راحة البال"), "the saved prompt is ready next time");
-  });
 
   await step("Google fails: the order waits in the queue, then 'send now' delivers it", async () => {
     await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'منتج', 'item', 2500, '[]', '[]', '[]')", [randomUUID(), shopId]);

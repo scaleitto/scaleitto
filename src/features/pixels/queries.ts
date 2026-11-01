@@ -3,14 +3,15 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { isValidTag, type ClientPixel } from "./ids";
 
-// The pixels a storefront page loads: those for every page, plus those of the page's products.
-export async function pagePixels(shopId: string, productIds: string[] = []): Promise<ClientPixel[]> {
+// The pixels a storefront page loads: those for every page, plus those of the page's products. A landing page can
+// keep only some of them per platform (`only`: platform → pixel row ids; a platform not listed keeps all of its).
+export async function pagePixels(shopId: string, productIds: string[] = [], only?: Record<string, string[]> | null): Promise<ClientPixel[]> {
   const rows = await db
-    .select({ platform: schema.pixels.platform, id: schema.pixels.tagId, purchaseOn: schema.pixels.purchaseOn, productIds: schema.pixels.productIds })
+    .select({ rowId: schema.pixels.id, platform: schema.pixels.platform, id: schema.pixels.tagId, purchaseOn: schema.pixels.purchaseOn, productIds: schema.pixels.productIds })
     .from(schema.pixels)
     .where(and(eq(schema.pixels.shopId, shopId), eq(schema.pixels.active, true)));
   return rows
-    .filter((p) => isValidTag(p.platform, p.id) && (!p.productIds || p.productIds.some((id) => productIds.includes(id))))
+    .filter((p) => isValidTag(p.platform, p.id) && (!p.productIds || p.productIds.some((id) => productIds.includes(id))) && (!only?.[p.platform] || only[p.platform].includes(p.rowId)))
     .map((p) => ({ platform: p.platform, id: p.id, purchaseOn: p.purchaseOn }));
 }
 

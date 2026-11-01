@@ -21,20 +21,22 @@ export default async function EmbedForm({ params }: PageProps<"/embed/[slug]/[pa
   const { page, product } = landing;
   return (
     <StoreFrame locale={shopLocale(shop)} color={page.color ?? shop.primaryColor} theme={storeTheme(resolveDesign(shop.design))} className="bg-transparent p-1">
-      <PixelScope pixels={await pagePixels(shop.id, [product.id])} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
+      <PixelScope pixels={await pagePixels(shop.id, [product.id], page.pixels)} item={{ id: product.id, name: product.name, price: product.price, quantity: 1 }}>
       <PublicLanding
-        page={page}
+        language={page.language}
+        color={page.color}
+        sections={[]}
         settings={await formFor(shop, page.formTemplateId, product.formTemplateId)}
-        product={{ price: product.price, compareAtPrice: product.compareAtPrice, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
+        product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}
-        action={submitOrder.bind(null, shop.slug, product.id, page.id, true)}
+        action={submitOrder.bind(null, shop.slug, product.id, { id: page.id, version: "A" }, true)}
         saveLead={saveLead.bind(null, shop.slug, product.id)}
         whatsapp={{ phone: shop.phone ?? "", product: product.name }}
         theme={storeTheme(resolveDesign(shop.design))}
         embedded
       >
-        <LandingView pageId={page.id} />
+        <LandingView pageId={page.id} version="A" />
         <HeightReporter frameId={page.id} />
       </PublicLanding>
       </PixelScope>
