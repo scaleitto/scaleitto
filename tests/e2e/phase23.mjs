@@ -14,7 +14,7 @@ export default async function phase23(browser) {
   const store = `${BASE}/store/shop-${tag}`;
   const lamp = randomUUID();
   const vase = randomUUID();
-  await db.query("INSERT INTO products (id, shop_id, name, slug, price, cost_price, track_stock, stock, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 3000, 1000, 1, 10, '[]', '[]', '[]')", [lamp, shopId]);
+  await db.query("INSERT INTO products (id, shop_id, name, slug, price, track_stock, stock, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 3000, 1, 10, '[]', '[]', '[]')", [lamp, shopId]);
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مزهرية', 'vase', 2000, '[]', '[]', '[]')", [vase, shopId]);
 
   let number = 5000;
