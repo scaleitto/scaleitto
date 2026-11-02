@@ -234,8 +234,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `shops.manifest` via `resolveManifest` (draft + published). Sending lives in `delivery/send.ts` (`sendParcel`, used by
   `sendToCarrier`; `scheduleAutoSend` from `applyOrderStatus` on confirmed: orders with `carrier_account_id`, a refusal becomes
   an order note "⚠ …"). Printing: `/[lang]/print/manifest?ids=` (published template or default) opened by `ManifestButton`.
-- Zimam parity phase 5 (phase29.mjs) — Connected platforms (`channels` section, `/dashboard/channels`): Google Sheets cards
-  (moved from Apps) + `shop_channels` (shopify / woocommerce: random `token`, encrypted secret — Shopify's signing key pasted by
+- Zimam parity phase 5 (phase29.mjs) — Connected platforms (`channels` section, `/dashboard/channels` = Zimam's grid of 7 cards,
+  `channels/ChannelGrid.tsx`; each "Connect" opens `/dashboard/channels/<google_sheets|shopify|woocommerce>` with the setup card;
+  LightFunnels/Orderdz/Storeep/YouCan shown as coming): Google Sheets (moved from Apps) + `shop_channels` (shopify / woocommerce: random `token`, encrypted secret — Shopify's signing key pasted by
   the merchant, never shown back; WooCommerce's made here and shown to paste). Platforms POST to `/api/channels/<token>`, signed
   (base64 HMAC-SHA256: X-Shopify-Hmac-Sha256 / X-WC-Webhook-Signature); `channels/parse.ts` (pure: `parseShopify`, `parseWoo`,
   `wilayaFrom`, `validSignature`) and `channels/receive.ts` (`receiveOrder`: `orders.external_ref` unique per shop + `orders.channel`,

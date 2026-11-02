@@ -22,7 +22,7 @@ export default async function phase10(browser) {
   owner.on("dialog", (d) => d.accept());
   const section = `${BASE}/ar/dashboard/integrations/apps`;
   // Google Sheets lives in Connected platforms
-  const channelsPage = `${BASE}/ar/dashboard/channels`;
+  const channelsPage = `${BASE}/ar/dashboard/channels/google_sheets`;
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'قميص', 'shirt', 2000, '[]', '[]', '[]')", [productId, shopId]);
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 400, 300)", [shopId]);
@@ -32,7 +32,6 @@ export default async function phase10(browser) {
   await step("Google Sheets: script with the shop's token, Google URL required, test writes the header row", async () => {
     await owner.goto(channelsPage);
     await owner.waitForSelector("[data-testid=app-sheets][data-state=off]");
-    expect((await owner.locator("[data-testid=app-ecomanager]").innerText()).includes("اربط Google Sheets أولاً"), "Ecomanager waits for the sheet");
     await sheets.locator("button", { hasText: "ربط" }).click();
     await owner.waitForSelector("[data-testid=app-sheets][data-state=waiting]");
     const script = await owner.locator("[data-testid=sheets-script]").inputValue();
@@ -45,7 +44,6 @@ export default async function phase10(browser) {
     await sheets.locator("button[type=submit]").click();
     await owner.waitForSelector("[data-testid=app-sheets][data-state=on]");
     expect(sheet.headers?.[0] === "رقم الطلب" && sheet.headers.includes("الهاتف"), "header row in the shop's language");
-    expect((await owner.locator("[data-testid=app-ecomanager]").innerText()).includes("جدولك جاهز"), "Ecomanager ready");
   });
 
   let orderId;

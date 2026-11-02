@@ -14,7 +14,7 @@ export default async function phase18(browser) {
 
   await step("Google fails: the order waits in the queue, then 'send now' delivers it", async () => {
     await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'منتج', 'item', 2500, '[]', '[]', '[]')", [randomUUID(), shopId]);
-    await owner.goto(`${dash}/channels`);
+    await owner.goto(`${dash}/channels/google_sheets`);
     const sheets = owner.locator("[data-testid=app-sheets]");
     await sheets.locator("button", { hasText: "ربط" }).click();
     sheet.token = (await owner.locator("[data-testid=sheets-script]").inputValue()).match(/const TOKEN = "([^"]+)"/)?.[1];

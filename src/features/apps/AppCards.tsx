@@ -214,21 +214,6 @@ export function SheetsCard({ lang, view, t }: { lang: string; view: AppView; t: 
   );
 }
 
-export function EcomanagerCard({ sheets, t }: { sheets: AppView; t: AppsText }) {
-  const em = t.apps.ecomanager;
-  const ready = Boolean(sheets?.url && sheets.active);
-  return (
-    <AppCard icon={<FileSpreadsheet size={20} />} title={em.title} description={em.description} view={null} testId="app-ecomanager">
-      <ol className="list-decimal space-y-1.5 ps-5 text-sm text-muted">
-        {em.steps.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ol>
-      <Alert variant={ready ? "success" : "info"}>{ready ? em.ready : em.needsSheets}</Alert>
-    </AppCard>
-  );
-}
-
 export function WebhookCard({ lang, view, t }: { lang: string; view: AppView; t: AppsText }) {
   const w = t.apps.webhook;
   return (

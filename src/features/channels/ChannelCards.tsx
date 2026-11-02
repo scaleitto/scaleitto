@@ -120,16 +120,3 @@ export function PlatformCard({ lang, kind, view, lastOrder, t }: { lang: string;
     </Card>
   );
 }
-
-// Platforms we have not verified yet: shown, honestly, as coming
-export function SoonCard({ name, t }: { name: string; t: Text }) {
-  return (
-    <Card className="space-y-3 opacity-80" data-channel-soon={name}>
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-bold">{name}</h2>
-        <Badge>{t.channels.soon}</Badge>
-      </div>
-      <p className="text-sm text-muted">{t.channels.soonHint}</p>
-    </Card>
-  );
-}

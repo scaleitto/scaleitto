@@ -767,6 +767,7 @@ const fr: Dictionary = {
     mayMiss: "Peut manquer des commandes",
     mayMissHint: "La plateforme envoie chaque commande au moment où elle arrive et rien ne peut être récupéré si l'envoi se perd : comparez de temps en temps ses commandes avec les vôtres.",
     soonHint: "Nous n'avons pas encore vérifié comment connecter cette plateforme ; bientôt disponible.",
+    manage: "Gérer",
     connect: "Connecter",
     save: "Enregistrer",
     pause: "Suspendre la réception",
@@ -1269,13 +1270,6 @@ const fr: Dictionary = {
       backfill: "Envoyer les commandes des 30 derniers jours",
       backfillOk: "{n} commandes envoyées dans la feuille",
       showScript: "Voir le code et les étapes",
-    },
-    ecomanager: {
-      title: "Ecomanager",
-      description: "Ecomanager n'a pas d'API publique, mais il lit les commandes depuis Google Sheets. Connectez Google Sheets ici, puis dans Ecomanager :",
-      steps: ["Allez dans Extensions → Google Sheets.", "Choisissez la même feuille (onglet Orders).", "Associez les colonnes : nom, téléphone, wilaya, commune, produits, total."],
-      needsSheets: "Connectez d'abord Google Sheets.",
-      ready: "Votre feuille est prête : terminez la connexion dans Ecomanager.",
     },
     webhook: {
       title: "Webhook",

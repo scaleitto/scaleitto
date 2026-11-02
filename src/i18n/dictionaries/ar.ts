@@ -765,6 +765,7 @@ const ar = {
     mayMiss: "قد تفوتك طلبات",
     mayMissHint: "المنصة ترسل كل طلب لحظة حدوثه ولا يمكن استرجاع ما ضاع في الطريق: قارن طلباتها مع طلباتك هنا من حين لآخر.",
     soonHint: "لم نتحقق بعد من طريقة ربط هذه المنصة؛ ستتوفر قريباً.",
+    manage: "إدارة",
     connect: "ربط",
     save: "حفظ",
     pause: "إيقاف الاستقبال",
@@ -1267,13 +1268,6 @@ const ar = {
       backfill: "إرسال طلبات آخر 30 يوماً",
       backfillOk: "تم إرسال {n} طلب إلى الجدول",
       showScript: "عرض الكود وخطوات الربط",
-    },
-    ecomanager: {
-      title: "Ecomanager",
-      description: "Ecomanager لا يوفر واجهة ربط مباشرة، لكنه يقرأ الطلبات من Google Sheets. اربط الطلبات بـ Google Sheets هنا، ثم في Ecomanager:",
-      steps: ["اذهب إلى Extensions ← Google Sheets.", "اختر نفس الجدول (ورقة Orders).", "طابق الأعمدة: الاسم، الهاتف، الولاية، البلدية، المنتجات، المجموع."],
-      needsSheets: "اربط Google Sheets أولاً.",
-      ready: "جدولك جاهز: أكمل الربط من Ecomanager.",
     },
     webhook: {
       title: "Webhook",

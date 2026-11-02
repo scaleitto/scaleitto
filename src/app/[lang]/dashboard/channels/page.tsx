@@ -1,41 +1,37 @@
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
+import { sectionHref } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { PageHeader } from "@/ui";
-import { EcomanagerCard, SheetsCard } from "@/features/apps/AppCards";
 import { appViews } from "@/features/apps/queries";
-import { PlatformCard, SoonCard } from "@/features/channels/ChannelCards";
+import { ChannelGrid, type ChannelTile } from "@/features/channels/ChannelGrid";
 import { listChannels } from "@/features/channels/queries";
 
-// Connected platforms (Zimam): Google Sheets (orders written to the sheet), Shopify and WooCommerce (their orders
-// arrive here), the platforms not verified yet shown as coming
+// Connected platforms (Zimam): one card per platform, in Zimam's order; each opens its own setup page
 export default async function ChannelsPage({ params }: PageProps<"/[lang]/dashboard/channels">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const { shop } = await requireSection(lang, "channels");
   const [apps, channels] = await Promise.all([appViews(shop.id), listChannels(shop.id)]);
-  const text = { channels: t.channels, errors: t.errors };
-  const appText = { apps: t.apps, errors: t.errors, common: t.common };
+  const platform = (kind: "shopify" | "woocommerce", name: string): ChannelTile => {
+    const v = channels.find((c) => c.kind === kind);
+    return { key: kind, name, page: kind, connected: Boolean(v), active: v?.active ?? false, orders: v?.ordersCount ?? 0, lastOrder: v?.lastOrderAt ? formatDate(v.lastOrderAt, lang) : null };
+  };
+  const soon = (name: string): ChannelTile => ({ key: name.toLowerCase(), name, page: null, connected: false, active: false, orders: 0, lastOrder: null });
+  const sheets = apps.google_sheets;
+  const tiles: ChannelTile[] = [
+    { key: "google_sheets", name: "Google Sheets", page: "google_sheets", connected: Boolean(sheets), active: sheets?.active ?? false, orders: 0, lastOrder: null },
+    soon("LightFunnels"),
+    soon("Orderdz"),
+    platform("shopify", "Shopify"),
+    soon("Storeep"),
+    platform("woocommerce", "WooCommerce"),
+    soon("YouCan"),
+  ];
   return (
     <>
       <PageHeader title={t.sections.channels.title} description={t.sections.channels.description} />
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="space-y-6" data-channel="google_sheets">
-          <SheetsCard lang={lang} view={apps.google_sheets} t={appText} />
-          <EcomanagerCard sheets={apps.google_sheets} t={appText} />
-        </div>
-        <div className="space-y-6">
-          {(["shopify", "woocommerce"] as const).map((kind) => {
-            const view = channels.find((c) => c.kind === kind) ?? null;
-            return <PlatformCard key={kind} lang={lang} kind={kind} view={view} lastOrder={view?.lastOrderAt ? formatDate(view.lastOrderAt, lang) : null} t={text} />;
-          })}
-        </div>
-      </div>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {["YouCan", "LightFunnels", "Orderdz", "Storeep"].map((name) => (
-          <SoonCard key={name} name={name} t={text} />
-        ))}
-      </div>
+      <ChannelGrid base={sectionHref(lang, "channels")} tiles={tiles} t={t} />
     </>
   );
 }

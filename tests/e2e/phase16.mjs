@@ -53,7 +53,7 @@ export default async function phase16(browser) {
   });
 
   await step("Google Sheets test: a visible TEST row in the Orders tab; an old script is spotted", async () => {
-    await owner.goto(`${dash}/channels`);
+    await owner.goto(`${dash}/channels/google_sheets`);
     const sheets = owner.locator("[data-testid=app-sheets]");
     await sheets.locator("button", { hasText: "ربط" }).click();
     const script = await owner.locator("[data-testid=sheets-script]").inputValue();

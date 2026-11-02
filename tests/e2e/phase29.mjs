@@ -26,15 +26,18 @@ export default async function phase29(browser) {
 
   await step("connected platforms: Google Sheets here, Shopify and WooCommerce to connect, the others coming", async () => {
     await owner.goto(`${dash}/channels`);
-    await owner.locator("[data-channel=google_sheets] [data-testid=app-sheets]").waitFor();
+    expect((await owner.locator("[data-channel=google_sheets][data-state=off]").count()) === 1, "Google Sheets card");
     expect((await owner.locator("[data-channel=shopify][data-state=off]").count()) === 1 && (await owner.locator("[data-channel=woocommerce][data-state=off]").count()) === 1, "both not connected");
     expect((await owner.locator("[data-channel-soon]").count()) === 4, "4 coming");
+    // Each card's Connect opens the platform's own page
+    await Promise.all([owner.waitForURL(/channels\/google_sheets$/), owner.locator("[data-channel=google_sheets] [data-testid=channel-open]").click()]);
+    await owner.locator("[data-testid=app-sheets]").waitFor();
     await owner.goto(`${dash}/integrations/apps`);
     expect(!(await owner.locator("[data-testid=app-sheets]").count()), "no longer in Apps");
   });
 
   await step("WooCommerce: https address required; connected, its signed orders arrive once, with the product matched by SKU", async () => {
-    await owner.goto(`${dash}/channels`);
+    await owner.goto(`${dash}/channels/woocommerce`);
     const card = owner.locator("[data-channel=woocommerce]");
     await card.locator("#woocommerce-storeUrl").fill("http://shop.example.com");
     await card.locator("[data-testid=channel-connect]").click();
@@ -52,11 +55,12 @@ export default async function phase29(browser) {
     const [[o]] = await db.query("SELECT o.status, o.channel, o.wilaya_code, o.total, o.phone, i.name, i.product_id FROM orders o JOIN order_items i ON i.order_id = o.id WHERE o.shop_id = ? AND o.external_ref = 'woocommerce:555'", [shopId]);
     expect(o.status === "pending" && o.channel === "woocommerce" && o.wilaya_code === 16 && o.total === 2400 && o.phone === "0661234567", `order (got ${JSON.stringify(o)})`);
     expect(o.name === "مصباح" && o.product_id, "matched to the store's product");
-    await owner.reload();
+    await owner.goto(`${dash}/channels`);
     expect((await owner.locator("[data-channel=woocommerce] [data-testid=channel-receiving]").innerText()).includes("1"), "the card counts it");
   });
 
   await step("Shopify: myshopify address and signing key; a paused channel receives nothing", async () => {
+    await owner.goto(`${dash}/channels/shopify`);
     const card = owner.locator("[data-channel=shopify]");
     await card.locator("#shopify-storeUrl").fill("my-shop.com");
     await card.locator("#shopify-secret").fill("shopify-signing-key-123456");

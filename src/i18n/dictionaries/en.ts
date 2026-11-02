@@ -767,6 +767,7 @@ const en: Dictionary = {
     mayMiss: "May miss orders",
     mayMissHint: "The platform sends each order the moment it happens and nothing can be fetched if a message is lost: compare its orders with yours from time to time.",
     soonHint: "We have not verified how to connect this platform yet; coming soon.",
+    manage: "Manage",
     connect: "Connect",
     save: "Save",
     pause: "Pause receiving",
@@ -1269,13 +1270,6 @@ const en: Dictionary = {
       backfill: "Send the last 30 days of orders",
       backfillOk: "{n} orders sent to the sheet",
       showScript: "Show the code and steps",
-    },
-    ecomanager: {
-      title: "Ecomanager",
-      description: "Ecomanager has no public API, but it reads orders from Google Sheets. Connect Google Sheets here, then in Ecomanager:",
-      steps: ["Go to Extensions → Google Sheets.", "Pick the same sheet (Orders tab).", "Map the columns: name, phone, wilaya, commune, products, total."],
-      needsSheets: "Connect Google Sheets first.",
-      ready: "Your sheet is ready: finish the connection in Ecomanager.",
     },
     webhook: {
       title: "Webhook",
