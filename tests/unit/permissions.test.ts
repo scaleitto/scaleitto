@@ -14,11 +14,12 @@ test("sidebar: the overview, then the sell / grow / storefront / account groups 
   assert.equal(entryOf("themes"), "themes");
 });
 
-test("owners see everything; managers all but plans", () => {
+test("owners see everything; managers all but plans and the balance", () => {
   assert.equal(sectionsFor("owner").length, sections.length);
   assert.ok(!canAccess("manager", "plans"));
+  assert.ok(!canAccess("manager", "balance"));
   assert.ok(canAccess("manager", "products"));
-  assert.equal(sectionsFor("manager").length, sections.length - 1);
+  assert.equal(sectionsFor("manager").length, sections.length - 2);
 });
 
 test("call center agents only reach orders (they work in their own portal)", () => {
