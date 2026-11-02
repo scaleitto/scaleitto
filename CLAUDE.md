@@ -225,7 +225,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
   List (Zimam's: no tabs or search) columns: current/old price, published, stock, units sold, status, actions = open in store /
   edit / delete. Form header = square back button; underline tabs; Details = one card (type, image drop zone `ImageManager dropzone`, info).
-- Zimam parity phase 4 (phase28.mjs) — delivery: sections `delivery` (companies + `AutoSendSwitch`), `manifest`
+- Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
+  `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`
   (`delivery/settings`: `DeliverySettingsForm` + the wilaya `RatesForm`; `/delivery/rates` redirects). `delivery/settings.ts`
   (pure): `shops.delivery` via `resolveDelivery` (enabled, autoSend, options: one per type, pricing wilaya / flat / free) and

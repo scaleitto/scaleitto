@@ -37,20 +37,19 @@ export function DeliverySettingsForm({ lang, initial, t }: { lang: string; initi
       setMessage(r.ok ? { ok: true, text: g.saved } : { ok: false, text: (t.errors as Record<string, string>)[r.error ?? ""] ?? t.errors.unexpected });
     });
   return (
-    <Card className="space-y-5" data-testid="delivery-general">
+    // Zimam's layout: the title, the "Enable delivery" card, the options (dashed when empty), "Add new option" centred
+    <div className="space-y-5" data-testid="delivery-general">
       <div>
-        <h2 className="font-semibold">{g.title}</h2>
-        <p className="text-sm text-muted">{g.hint}</p>
+        <h1 className="text-2xl font-bold tracking-tight">{g.title}</h1>
+        <p className="mt-1 text-sm text-muted">{g.hint}</p>
       </div>
-      <Switch checked={enabled} onChange={setEnabled} label={g.enabled} hint={g.enabledHint} testId="delivery-enabled" />
-      <div className="space-y-3 border-t border-line pt-4">
-        <div>
-          <h3 className="font-semibold">{g.options}</h3>
-          <p className="text-sm text-muted">{g.optionsHint}</p>
-        </div>
-        {options.length === 0 && <p className="rounded-xl border border-dashed border-line p-4 text-sm text-muted">{g.noOptions}</p>}
+      <Card>
+        <Switch checked={enabled} onChange={setEnabled} label={g.enabled} hint={g.enabledHint} testId="delivery-enabled" />
+      </Card>
+      <div className="space-y-3">
+        {options.length === 0 && <p className="rounded-xl border-2 border-dashed border-line p-8 text-center text-muted">{g.noOptions}</p>}
         {options.map((o, i) => (
-          <div key={o.type} className="space-y-3 rounded-xl border border-line bg-panel-2/50 p-3" data-option={o.type}>
+          <Card key={o.type} className="space-y-3" data-option={o.type}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={g.name} htmlFor={`opt-name-${i}`}>
                 <Input id={`opt-name-${i}`} value={o.name} maxLength={60} placeholder={g.namePlaceholder} onChange={(e) => patch(i, { name: e.target.value })} />
@@ -92,16 +91,19 @@ export function DeliverySettingsForm({ lang, initial, t }: { lang: string; initi
                 <Trash2 size={15} /> {g.remove}
               </button>
             </div>
-          </div>
+          </Card>
         ))}
         {free && options.length < MAX_OPTIONS && (
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
+            className="mx-auto flex items-center gap-2 py-2 font-semibold text-accent hover:underline"
             data-testid="add-delivery-option"
             onClick={() => setOptions((all) => [...all, { id: free, name: "", type: free, pricing: "wilaya", price: 0, days: "", active: true }])}
           >
-            <Plus size={16} /> {g.addOption}
+            <span className="grid size-7 place-items-center rounded-full bg-accent-soft">
+              <Plus size={16} />
+            </span>
+            {g.addOption}
           </button>
         )}
       </div>
@@ -111,7 +113,7 @@ export function DeliverySettingsForm({ lang, initial, t }: { lang: string; initi
           {g.save}
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CircleCheck, Link2, Star, Trash2 } from "lucide-react";
+import { CircleCheck, Search, Star, Trash2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
@@ -33,7 +33,7 @@ export function ConnectedAccounts({ lang, accounts, wilayaNames, t }: { lang: st
       setError(r.ok ? null : errorText(t, r));
     });
   const d = t.delivery;
-  if (!accounts.length) return <Alert variant="info">{d.noneConnected}</Alert>;
+  if (!accounts.length) return null;
   return (
     <div className="space-y-3">
       {error && <Alert>{error}</Alert>}
@@ -159,32 +159,45 @@ function ConnectForm({ lang, carrier, wilayas, t, onDone }: { lang: string; carr
   );
 }
 
+// Zimam's catalog: a search box, then one card per company (mark, name, status, a wide "Integrate" button)
 export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; connected: string[]; wilayas: { code: number; name: string }[]; t: DeliveryText }) {
   const d = t.delivery;
   const [open, setOpen] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const shown = carriers.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
+      <div className="relative max-w-sm">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={d.searchCompanies} aria-label={d.searchCompanies} className="ps-9" data-testid="carrier-search" />
+      </div>
+      <div>
+        <h2 className="font-semibold">{d.available}</h2>
+        <p className="text-sm text-muted">{d.availableHint}</p>
+      </div>
       {done && <Alert variant="success">{`${d.connectedOk}: ${carrierName(done)}`}</Alert>}
-      <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {carriers.map((c) => {
+      <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {shown.map((c) => {
           const isConnected = connected.includes(c.key);
           return (
-            <Card key={c.key} className="p-4" data-carrier={c.key}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2 font-semibold">
-                  <CarrierMark name={c.name} />
-                  <span className="truncate">{c.name}</span>
+            <Card key={c.key} className="space-y-4 p-4" data-carrier={c.key}>
+              <div className="flex items-center gap-3">
+                <CarrierMark name={c.name} />
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{c.name}</span>
+                  <span className={`block text-xs ${isConnected ? "text-accent" : "text-muted"}`}>{!c.platform ? d.soon : isConnected ? d.integrated : d.notIntegrated}</span>
                 </span>
-                {!c.platform ? (
-                  <Badge tone="warning">{d.soon}</Badge>
-                ) : (
-                  <Button variant={isConnected ? "ghost" : "secondary"} className="px-3 py-1 text-xs" onClick={() => setOpen(open === c.key ? null : c.key)}>
-                    <Link2 size={14} /> {isConnected ? d.update : d.connect}
-                  </Button>
-                )}
               </div>
-              {!c.platform && <p className="mt-2 text-xs text-muted">{d.soonHint}</p>}
+              {c.platform ? (
+                <Button variant={isConnected ? "secondary" : "primary"} className="w-full" onClick={() => setOpen(open === c.key ? null : c.key)}>
+                  <CircleCheck size={15} /> {isConnected ? d.update : d.connect}
+                </Button>
+              ) : (
+                <Button variant="secondary" className="w-full" disabled>
+                  {d.soonHint}
+                </Button>
+              )}
               {open === c.key && c.platform && (
                 <ConnectForm
                   lang={lang}
@@ -212,7 +225,7 @@ function CarrierMark({ name }: { name: string }) {
   const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase();
   const color = markColors[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % markColors.length];
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold text-white" style={{ background: color }} aria-hidden>
+    <span className="flex size-14 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold text-white" style={{ background: color }} aria-hidden>
       {initials}
     </span>
   );

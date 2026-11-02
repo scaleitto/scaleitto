@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { db, schema } from "@/server/db";
-import { DeliveryHeader } from "@/features/delivery/DeliveryTabs";
 import { ManifestEditor } from "@/features/delivery/ManifestEditor";
 import { resolveManifest } from "@/features/delivery/settings";
 
@@ -16,7 +15,6 @@ export default async function ManifestPage({ params }: PageProps<"/[lang]/dashbo
   const state = !settings.published ? (row?.manifest ? "draft" : "default") : JSON.stringify(settings.published) === JSON.stringify(settings.draft) ? "published" : "draft";
   return (
     <>
-      <DeliveryHeader t={t} />
       <ManifestEditor lang={lang} initial={settings.draft} state={state} store={{ name: shop.name, logo: shop.logoUrl }} t={{ delivery: t.delivery, errors: t.errors }} />
     </>
   );

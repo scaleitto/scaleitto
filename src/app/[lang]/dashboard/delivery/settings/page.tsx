@@ -3,7 +3,6 @@ import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { db, schema } from "@/server/db";
 import { wilayaName, wilayas } from "@/lib/wilayas";
-import { DeliveryHeader } from "@/features/delivery/DeliveryTabs";
 import { DeliverySettingsForm } from "@/features/delivery/DeliverySettingsForm";
 import { RatesForm } from "@/features/delivery/RatesForm";
 import { listRates } from "@/features/delivery/queries";
@@ -19,7 +18,6 @@ export default async function DeliverySettingsPage({ params }: PageProps<"/[lang
   const text = { delivery: t.delivery, errors: t.errors, common: t.common };
   return (
     <>
-      <DeliveryHeader t={t} />
       <div className="space-y-8">
         <DeliverySettingsForm lang={lang} initial={resolveDelivery(row?.delivery)} t={text} />
         <section className="space-y-3">

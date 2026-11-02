@@ -491,22 +491,20 @@ export function DashboardShell({
         <main className="px-4 pt-4 pb-8 md:px-8">
           {/* The current entry's sub-pages */}
           {tabs && (
-            <nav className="mb-5 -mx-1 overflow-x-auto px-1 pb-1" aria-label={activeEntry?.label} data-testid="section-tabs">
-              <ul className="flex min-w-max gap-2">
+            <nav className="mb-6 overflow-x-auto border-b border-line" aria-label={activeEntry?.label} data-testid="section-tabs">
+              <ul className="flex min-w-max gap-1">
                 {tabs.map((c) => {
                   const here = current?.key === c.key;
-                  const SubIcon = icons[c.key] ?? icons.list!;
                   return (
                     <li key={c.key}>
                       <Link
                         href={c.href}
                         aria-current={here ? "page" : undefined}
                         data-tab={c.key}
-                        className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
-                          here ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-line bg-panel text-fg-2 hover:bg-panel-2"
+                        className={`-mb-px block border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                          here ? "border-accent font-semibold text-accent" : "border-transparent text-fg-2 hover:text-fg"
                         }`}
                       >
-                        <SubIcon size={16} aria-hidden />
                         {c.label}
                       </Link>
                     </li>
