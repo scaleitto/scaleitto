@@ -26,6 +26,7 @@ export function PublicLanding({
   saveLead,
   whatsapp,
   theme,
+  cardPayment = false,
   children,
 }: {
   language: string;
@@ -40,6 +41,8 @@ export function PublicLanding({
   whatsapp?: Parameters<typeof CheckoutForm>[0]["whatsapp"];
   // The store's theme, so the page's own color gets readable text on and around it
   theme: Theme;
+  // Apps → Online payments: the buyer may pay by card
+  cardPayment?: boolean;
   children?: ReactNode;
 }) {
   const locale = interfaceLocale(pageLanguage(language));
@@ -56,6 +59,7 @@ export function PublicLanding({
       saveLead={saveLead}
       settings={{ ...settings, stickyButton: false }}
       whatsapp={whatsapp}
+      cardPayment={cardPayment}
     />
   );
   return (

@@ -85,6 +85,7 @@ const ar = {
     back: "العودة إلى المتجر",
     backProduct: "العودة إلى المنتج",
   },
+  payment: { title: "طريقة الدفع", cod: "الدفع عند الاستلام", card: "الدفع بالبطاقة (CIB / الذهبية)", cardHint: "تُحوَّل إلى صفحة الدفع الآمنة بعد تأكيد الطلب.", paid: "تم استلام دفعتك بالبطاقة. شكراً!", failed: "لم يكتمل الدفع بالبطاقة؛ طلبك مسجل وستدفع عند الاستلام.", pending: "دفعتك قيد التأكيد." },
   cart: {
     title: "السلة",
     add: "أضف إلى السلة",
@@ -242,6 +243,7 @@ const fr: StoreText = {
     back: "Retour à la boutique",
     backProduct: "Retour au produit",
   },
+  payment: { title: "Mode de paiement", cod: "Paiement à la livraison", card: "Paiement par carte (CIB / Edahabia)", cardHint: "Vous serez dirigé vers la page de paiement sécurisée après la commande.", paid: "Votre paiement par carte est reçu. Merci !", failed: "Le paiement par carte n'a pas abouti ; votre commande est enregistrée, vous paierez à la livraison.", pending: "Votre paiement est en cours de confirmation." },
   cart: {
     title: "Panier",
     add: "Ajouter au panier",
@@ -397,6 +399,7 @@ const en: StoreText = {
     back: "Back to the store",
     backProduct: "Back to the product",
   },
+  payment: { title: "Payment method", cod: "Cash on delivery", card: "Pay by card (CIB / Edahabia)", cardHint: "You will go to the secure payment page after ordering.", paid: "Your card payment is received. Thank you!", failed: "The card payment did not go through; your order is saved and you will pay on delivery.", pending: "Your payment is being confirmed." },
   cart: {
     title: "Cart",
     add: "Add to cart",

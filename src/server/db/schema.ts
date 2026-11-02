@@ -304,6 +304,12 @@ export const orders = mysqlTable(
     // set back to 0 when someone marks the order as trusted
     risk: int("risk").notNull().default(0),
     riskReasons: json("risk_reasons").$type<string[] | null>(),
+    // Apps → Online payments: card (Chargily / SlickPay) or cash on delivery; the payment's state at the provider
+    paymentMethod: mysqlEnum("payment_method", ["cod", "card"]).notNull().default("cod"),
+    paymentStatus: mysqlEnum("payment_status", ["none", "pending", "paid", "failed"]).notNull().default("none"),
+    paymentProvider: varchar("payment_provider", { length: 20 }),
+    paymentRef: varchar("payment_ref", { length: 80 }),
+    paidAt: datetime("paid_at"),
     // The team's note on the order (the orders table's note column and the edit dialog)
     note: varchar("note", { length: 500 }),
     // The order's own delivery fee was waived by the team (edit dialog)
@@ -768,4 +774,25 @@ export const collections = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("collections_handle_uq").on(t.shopId, t.handle)],
+);
+
+// Apps → Online payments: the merchant's own Chargily / SlickPay account (keys encrypted). Money goes straight to them.
+export const paymentProviders = ["chargily", "slickpay"] as const;
+export type PaymentProvider = (typeof paymentProviders)[number];
+export const shopPayments = mysqlTable(
+  "shop_payments",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    provider: mysqlEnum("provider", paymentProviders).notNull(),
+    // Chargily: { secretKey }; SlickPay: { publicKey, contactId } — encrypted JSON
+    credentials: text("credentials").notNull(),
+    mode: mysqlEnum("mode", ["test", "live"]).notNull().default("test"),
+    // Chargily: who pays the gateway fees
+    feesOnBuyer: boolean("fees_on_buyer").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    checkedAt: datetime("checked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("shop_payments_uq").on(t.shopId, t.provider)],
 );

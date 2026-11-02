@@ -1,8 +1,12 @@
 // A fake Meta / TikTok / Snapchat / Google Analytics server for the end-to-end tests (server-side events).
 // The app is pointed at it with E2E_PIXEL_URL. Valid secrets: "good-token" (Meta, TikTok, Snapchat), "good-secret" (GA4).
+import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 
 export const received = []; // { platform, path, body, headers }
+export const payments = []; // card checkouts opened: { provider, body }
+const checkouts = new Map();
+const invoices = new Map();
 
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -38,6 +42,56 @@ export function startMockPixels(port) {
       received.push({ platform: "ga4", path, body, query: Object.fromEntries(url.searchParams) });
       if (path.includes("/debug/")) return send(res, 200, { validationMessages: good ? [] : [{ description: "Unable to find api_secret" }] });
       return send(res, 204);
+    }
+    // Card gateways (E2E_PAYMENT_URL = this server): Chargily Pay V2 and SlickPay, with a "payment page" that pays
+    const host = `http://${req.headers.host}`;
+    const bearer = String(req.headers.authorization ?? "").replace(/^Bearer /, "");
+    if (path.startsWith("/chargily/")) {
+      const api = path.replace(/^\/chargily(\/test)?\/api\/v2/, "");
+      if (path.startsWith("/chargily/pay/")) {
+        const c = checkouts.get(path.split("/")[3]);
+        if (!c) return send(res, 404, {});
+        const paid = url.searchParams.get("result") !== "fail";
+        c.status = paid ? "paid" : "failed";
+        if (paid) {
+          const raw = JSON.stringify({ id: `evt_${c.id}`, type: "checkout.paid", data: { id: c.id, status: "paid", metadata: c.metadata } });
+          await fetch(c.webhook_endpoint, { method: "POST", headers: { "Content-Type": "application/json", signature: createHmac("sha256", c.secret).update(raw).digest("hex") }, body: raw }).catch(() => {});
+        }
+        res.writeHead(302, { Location: paid ? c.success_url : c.failure_url });
+        return res.end();
+      }
+      if (!bearer.startsWith("test_sk_good")) return send(res, 401, { message: "Unauthenticated." });
+      if (api === "/balance") return send(res, 200, { entity: "balance", livemode: false, wallets: [] });
+      if (api === "/checkouts" && req.method === "POST") {
+        const id = `ch_${checkouts.size + 1}_${Date.now()}`;
+        checkouts.set(id, { ...body, id, status: "pending", secret: bearer });
+        payments.push({ provider: "chargily", body });
+        return send(res, 200, { id, status: "pending", amount: body.amount, checkout_url: `${host}/chargily/pay/${id}` });
+      }
+      const c = checkouts.get(api.split("/")[2]);
+      if (c) return send(res, 200, { id: c.id, status: c.status });
+      return send(res, 404, { message: "Not found" });
+    }
+    if (path.startsWith("/slickpay/")) {
+      if (path.startsWith("/slickpay/pay/")) {
+        const inv = invoices.get(path.split("/")[3]);
+        if (!inv) return send(res, 404, {});
+        inv.completed = 1;
+        res.writeHead(302, { Location: inv.url });
+        return res.end();
+      }
+      const api = path.replace(/^\/slickpay\/(test|live)\/api\/v2/, "");
+      if (!bearer.startsWith("good-public")) return send(res, 401, { message: "Unauthenticated." });
+      if (api.startsWith("/users/contacts/")) return send(res, 200, { data: { uuid: api.split("/")[3] } });
+      if (api === "/users/invoices" && req.method === "POST") {
+        const id = String(invoices.size + 100);
+        invoices.set(id, { ...body, completed: 0 });
+        payments.push({ provider: "slickpay", body });
+        return send(res, 200, { success: 1, id: Number(id), url: `${host}/slickpay/pay/${id}` });
+      }
+      const inv = invoices.get(api.split("/")[3]);
+      if (inv) return send(res, 200, { data: { completed: inv.completed } });
+      return send(res, 404, { message: "Not found" });
     }
     send(res, 404, { error: { message: "unknown" } });
   });

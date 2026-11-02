@@ -19,6 +19,7 @@ export type AppsContext = Awaited<ReturnType<typeof appsContext>>;
 // The grid's ACTIVE / INACTIVE pill (null = the app has no on/off state)
 export async function appStates(shopId: string): Promise<Partial<Record<AppPageKey, boolean | null>>> {
   const ctx = await appsContext(shopId);
+  const [paymentAccount] = await db.select({ id: schema.shopPayments.id }).from(schema.shopPayments).where(and(eq(schema.shopPayments.shopId, shopId), eq(schema.shopPayments.active, true))).limit(1);
   const [webhook] = await db.select({ active: schema.shopApps.active }).from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.app, "webhook")));
   const a = ctx.apps;
   const running = await runningPercents(shopId);
@@ -36,6 +37,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
     customFields: a.customFields,
     parcelScanner: a.scanner,
     wholesale: a.wholesale,
+    payments: Boolean(paymentAccount),
     webhook: Boolean(webhook?.active),
   };
 }

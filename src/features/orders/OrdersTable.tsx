@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Lock, MessageCircle, Package, Pencil, ShieldAlert } from "lucide-react";
+import { Lock, MessageCircle, Package, Pencil, CreditCard, ShieldAlert } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
@@ -36,6 +36,8 @@ export type TableRow = {
   locked: boolean;
   // At or above the store's risk level (Protection)
   risky: boolean;
+  // Paid by card (Apps → Online payments)
+  paid: boolean;
   risk: number;
 };
 
@@ -113,6 +115,11 @@ export function OrdersTable({
                     <div>
                       <p className="flex items-center gap-1 font-semibold tabular-nums">
                         #{r.number}
+                        {r.paid && (
+                          <span title={t.orders.paidCard} className="text-accent" data-testid="paid-badge">
+                            <CreditCard size={14} />
+                          </span>
+                        )}
                         {r.risky && (
                           <span title={fmt(t.orders.risk.badge, { n: r.risk })} className="text-warning" data-testid="risk-badge">
                             <ShieldAlert size={14} />

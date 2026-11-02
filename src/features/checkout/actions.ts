@@ -1,5 +1,6 @@
 "use server";
 
+import { startCardPayment } from "@/features/payments/flow";
 import { resolveApps } from "@/features/apps/settings";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -94,6 +95,11 @@ export async function submitOrder(slug: string, productId: string, landing: { id
   });
   const shown = page as Awaited<ReturnType<typeof landingOf>>;
   if (result.ok && result.message) {
+    // Pay by card (Apps → Online payments): to the gateway's page; it sends the buyer back to the thank-you page
+    if (formData.get("payment") === "card") {
+      const url = await startCardPayment(shop, result.message);
+      if (url) redirect(url);
+    }
     // The page's thank-you window: back to the same page, which shows it
     if (shown?.popup) redirect(`${await storeBase(shop.slug)}/lp/${encodeURIComponent(shown.slug)}?thanks=${result.message}`);
     redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}`);

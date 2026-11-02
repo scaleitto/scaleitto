@@ -52,6 +52,7 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, maxSize =
         note: o.note,
         locked: o.locked,
         risk: o.risk,
+        paymentStatus: o.paymentStatus,
         assignedTo: o.assignedTo,
         carrierAccountId: o.carrierAccountId,
         shipmentId: sh.id,

@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 2, "2 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 1, "1 coming");
     expect(!(await owner.locator("[data-app-card=whatsapp] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);

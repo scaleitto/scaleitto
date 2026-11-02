@@ -1,4 +1,5 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { cardGateway } from "@/features/payments/flow";
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { resolveApps } from "@/features/apps/settings";
 import { richTextToPlain } from "@/lib/rich-text";
@@ -66,6 +67,7 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         color={page.color}
         sections={sections}
         settings={productForm(shop, product)}
+        cardPayment={Boolean(await cardGateway(shop.id))}
         product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers, wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}

@@ -10,6 +10,8 @@ import { db, schema } from "@/server/db";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { formatDate } from "@/lib/format";
+import { PaymentsApp } from "@/features/payments/PaymentsApp";
+import type { PaymentProvider } from "@/server/db/schema";
 import { RulesApp } from "@/features/apps/RulesApp";
 import { listCarrierAccounts } from "@/features/delivery/queries";
 import { findCarrier } from "@/features/delivery/carriers";
@@ -51,6 +53,15 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
     case "customFields":
       body = <SwitchApp lang={lang} app="customFields" enabled={ctx.apps.customFields} label={a.pages.customFields.enable} hint={a.pages.customFields.enableHint} t={text} />;
       break;
+    case "payments": {
+      const list = await db.select().from(schema.shopPayments).where(eq(schema.shopPayments.shopId, shop.id));
+      const view = (provider: PaymentProvider) => {
+        const r = list.find((x) => x.provider === provider);
+        return r ? { provider, mode: r.mode, feesOnBuyer: r.feesOnBuyer, checkedAt: r.checkedAt ? formatDate(r.checkedAt, lang) : null, hint: provider === "chargily" ? "sk_••••" : "••••" } : null;
+      };
+      body = <PaymentsApp lang={lang} accounts={{ chargily: view("chargily"), slickpay: view("slickpay") }} t={text} />;
+      break;
+    }
     case "cart":
       body = <SwitchApp lang={lang} app="cart" enabled={ctx.apps.cart} label={a.pages.cart.enable} hint={a.pages.cart.enableHint} t={text} />;
       break;

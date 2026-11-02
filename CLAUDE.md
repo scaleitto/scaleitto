@@ -145,7 +145,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   resolveWholesale / linePrice(…, wholesale)`, up to 1000 pieces, product editor tab). Shopping cart (`cart` switch; browser cart
   `storefront/cart.ts` per shop, `CartLink` in the header, `/store/<slug>/cart` = `CartPage` + `cart-actions.ts priceCart/submitCart`;
   `place-order.ts placeCartOrder` = one order with several lines — `placeOrder` is its one-line case).
-  Coming (not built yet): WhatsApp confirmation and online payments (they need the owner's accounts).
+  Online payments (`features/payments`, phase33.mjs): `shop_payments` (chargily / slickpay, merchant keys encrypted, test/live,
+  Chargily fees on buyer, "Save and test" = `providers.ts` test call), `orders.payment_method/status/provider/ref/paid_at`. The order
+  form shows `PaymentChoice` (cod / card) when `cardGateway(shop)` exists; card → `startCardPayment` → gateway page → back to
+  `/thanks?o=&paid=` where `refreshPayment` asks the gateway (after `connection()`); Chargily also calls
+  `/api/payments/chargily/<shopId>` (HMAC-SHA256 of the raw body with the secret, header `signature`) → `markPaid`. A failed start
+  keeps the order cash on delivery. Formats from the official SDKs (Chargily JS, SlickPay npm/WooCommerce): verify with a real
+  account. E2E: `mock-pixels.mjs` also fakes both gateways (E2E_PAYMENT_URL, never in production).
+  Coming (not built yet): WhatsApp confirmation (needs the Balance credits).
 - Apps sync (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
   `app_events` log. `sync.ts`: `scheduleOrderSync` (→ `after()`) is called on placement, every status change
   (`applyOrderStatus`), customer edit and assignment; the sheet gets one row per order keyed by the order number (headers

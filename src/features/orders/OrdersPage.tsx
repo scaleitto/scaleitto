@@ -170,6 +170,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
               locked: r.locked,
               risk: r.risk,
               risky: !r.locked && r.risk >= protection.riskThreshold,
+              paid: r.paymentStatus === "paid",
             }))}
           />
         )}

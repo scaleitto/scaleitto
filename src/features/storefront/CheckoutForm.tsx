@@ -39,6 +39,7 @@ export function CheckoutForm({
   action,
   saveLead,
   cart = null,
+  cardPayment = false,
   settings = defaultForm,
   embedded = false,
   whatsapp,
@@ -59,6 +60,8 @@ export function CheckoutForm({
   whatsapp?: { phone: string; product: string };
   // Apps → Shopping cart: "Add to cart" beside the order button
   cart?: { shopId: string; productId: string; href: string } | null;
+  // Apps → Online payments: the buyer may pay by card
+  cardPayment?: boolean;
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -674,6 +677,7 @@ export function CheckoutForm({
         </p>
       )}
 
+      {cardPayment && (!stepper || step === 2) && <PaymentChoice t={t} />}
       {stepper && step === 1 ? (
         <button type="button" onClick={nextStep} disabled={soldOut} className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60" data-testid="form-next">
           {soldOut ? t.outOfStock : t.form.next} <ChevronLeft size={20} className="ltr:rotate-180" />
@@ -781,5 +785,21 @@ export function CheckoutForm({
         <ShoppingBag size={18} /> {settings.buttonText || t.form.title}
       </a>
     </>
+  );
+}
+
+// Apps → Online payments: cash on delivery (default) or card at the gateway after ordering
+export function PaymentChoice({ t }: { t: StoreText }) {
+  return (
+    <fieldset className="space-y-2" data-testid="payment-choice">
+      <legend className="mb-1 text-sm font-semibold">{t.payment.title}</legend>
+      {(["cod", "card"] as const).map((m) => (
+        <label key={m} className="flex cursor-pointer items-center gap-2 rounded-[var(--s-radius-btn)] border border-s-field-edge p-3 text-sm has-checked:border-brand">
+          <input type="radio" name="payment" value={m} defaultChecked={m === "cod"} className="accent-[var(--brand)]" data-testid={`payment-${m}`} />
+          <span className="flex-1 font-semibold">{m === "cod" ? t.payment.cod : t.payment.card}</span>
+        </label>
+      ))}
+      <p className="text-xs text-s-muted">{t.payment.cardHint}</p>
+    </fieldset>
   );
 }

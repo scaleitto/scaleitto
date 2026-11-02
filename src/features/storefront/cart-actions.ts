@@ -16,6 +16,7 @@ import { MAX_CART_LINES, placeCartOrder } from "@/features/checkout/place-order"
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { getShopBySlug, storeBase } from "./queries";
+import { startCardPayment } from "@/features/payments/flow";
 
 const items = z
   .array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable(), quantity: z.number().int().min(1).max(1000) }))
@@ -70,6 +71,12 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");
     return { ok: true, message: placed.orderId };
   });
-  if (result.ok && result.message) redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}&cart=1`);
+  if (result.ok && result.message) {
+    if (formData.get("payment") === "card") {
+      const url = await startCardPayment(shop, result.message);
+      if (url) redirect(url);
+    }
+    redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}&cart=1`);
+  }
   return result;
 }

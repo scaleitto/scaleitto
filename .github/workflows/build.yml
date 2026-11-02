@@ -32,6 +32,8 @@ jobs:
       OPENAI_API_KEY: sk-test
       # Fake Meta / TikTok / Google server started by the e2e tests (server-side pixel events)
       E2E_PIXEL_URL: http://127.0.0.1:4030
+      # Fake Chargily / SlickPay gateways (the same fake server)
+      E2E_PAYMENT_URL: http://127.0.0.1:4030
       # Fake Google Sheets script / webhook / Shopify store / YouCan API (apps); local URLs allowed in tests only
       E2E_APPS_URL: http://127.0.0.1:4040
       ALLOW_PRIVATE_FETCH: "1"

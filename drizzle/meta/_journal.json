@@ -316,6 +316,13 @@
       "when": 1793643209224,
       "tag": "0044_product_wholesale",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1793645605921,
+      "tag": "0045_online_payments",
+      "breakpoints": true
     }
   ]
 }
