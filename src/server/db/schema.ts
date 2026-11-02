@@ -224,6 +224,8 @@ export const products = mysqlTable(
     carrierAccountId: id("carrier_account_id"),
     // The products shown under this one (null = the store's other products)
     similarIds: json("similar_ids").$type<string[] | null>(),
+    // Apps → Collections the product belongs to (collection ids)
+    collectionIds: json("collection_ids").$type<string[]>(),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },
@@ -744,4 +746,22 @@ export const promotions = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [index("promotions_shop_idx").on(t.shopId, t.endsAt)],
+);
+
+// Apps → Collections: products grouped under a handle, shown at /collections/<handle> (two levels at most)
+export type CollectionTexts = { ar: string; fr: string; en: string };
+export const collections = mysqlTable(
+  "collections",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    handle: varchar("handle", { length: 80 }).notNull(),
+    titles: json("titles").$type<CollectionTexts>().notNull(),
+    descriptions: json("descriptions").$type<CollectionTexts>().notNull(),
+    parentId: id("parent_id"),
+    image: varchar("image", { length: 500 }),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("collections_handle_uq").on(t.shopId, t.handle)],
 );

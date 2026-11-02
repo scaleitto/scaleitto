@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 7, "7 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 6, "6 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
@@ -213,6 +213,49 @@ export default async function phase32(browser) {
     await owner.waitForSelector("[data-campaign='تخفيضات نوفمبر'][data-state=ended]");
     await buyer.goto(`${store}/p/lamp`);
     expect(!(await buyer.locator("main").textContent()).replace(/\s/g, "").includes("1500"), "price back after the end");
+  });
+
+  await step("collections: created with a sub-collection, put on a product from its form, shown in the store; deleted cleanly", async () => {
+    await owner.goto(`${apps}/collections`);
+    await owner.fill("#col-handle", "Bad Handle");
+    await owner.click("[data-testid=collection-save]");
+    await owner.waitForSelector("text=حروف لاتينية صغيرة وأرقام وشرطات فقط");
+    await owner.fill("#col-handle", "home");
+    await owner.click("[data-testid=collection-save]");
+    await owner.waitForSelector("text=اكتب عنواناً بلغة واحدة على الأقل");
+    await owner.fill("#col-title-ar", "المنزل");
+    await owner.fill("#col-desc-ar", "كل ما يحتاجه بيتك");
+    await owner.click("[data-testid=collection-save]");
+    await owner.waitForSelector("[data-collection=home]");
+    await owner.fill("#col-handle", "lights");
+    await owner.fill("#col-title-ar", "الإنارة");
+    await owner.selectOption("#col-parent", { label: "المنزل" });
+    await owner.click("[data-testid=collection-save]");
+    await owner.waitForSelector("[data-collection=lights]");
+    await owner.fill("#col-handle", "lights");
+    await owner.fill("#col-title-ar", "مكرر");
+    await owner.click("[data-testid=collection-save]");
+    await owner.waitForSelector("text=هذا الاسم مستعمل في مجموعة أخرى");
+    // the product joins the sub-collection from its own form
+    const [[lamp]] = await db.query("SELECT id FROM products WHERE shop_id = ? AND slug = 'lamp'", [shopId]);
+    await owner.goto(`${dash}/products/${lamp.id}`);
+    await owner.waitForSelector("[data-testid=product-form][data-ready]");
+    await owner.locator("[data-testid=product-collections] input[data-collection='الإنارة']").check();
+    await owner.click("[data-testid=save-product]");
+    await until(async () => JSON.stringify((await db.query("SELECT collection_ids FROM products WHERE id = ?", [lamp.id]))[0][0].collection_ids ?? "").length > 10, "product saved in the collection");
+    await buyer.goto(store);
+    await buyer.locator("[data-testid=store-collections] a", { hasText: "المنزل" }).click();
+    await buyer.waitForURL(/\/collections\/home$/);
+    expect((await buyer.locator("main").textContent()).includes("كل ما يحتاجه بيتك"), "description shown");
+    expect((await buyer.locator("main a[href$='/p/lamp']").count()) > 0, "the parent shows its sub-collection's products");
+    await buyer.locator("main nav a", { hasText: "الإنارة" }).click();
+    await buyer.waitForURL(/\/collections\/lights$/);
+    await owner.goto(`${apps}/collections`);
+    owner.once("dialog", (d) => d.accept());
+    await owner.locator("[data-collection=lights] [data-testid=collection-delete]").click();
+    await owner.waitForSelector("[data-collection=lights]", { state: "detached" });
+    const ids = (await db.query("SELECT collection_ids FROM products WHERE id = ?", [lamp.id]))[0][0].collection_ids;
+    expect(!JSON.stringify(ids ?? []).includes("-"), "taken off the product");
   });
 
   await step("agent assignment mode and QR codes", async () => {

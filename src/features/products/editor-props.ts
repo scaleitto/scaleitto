@@ -1,4 +1,6 @@
 import "server-only";
+import { collectionChoices } from "@/features/collections/queries";
+import { textIn } from "@/features/collections/types";
 import { resolveApps } from "@/features/apps/settings";
 import { trustBadgeItems } from "@/features/storefront/blocks";
 import type { Locale } from "@/i18n";
@@ -15,13 +17,15 @@ import { editorData } from "./queries";
 // The editor's surroundings: store name and address (product link), delivery companies, other products, and what the
 // live preview needs to draw the real product page (the store's language, theme, color, order form and delivery prices)
 export async function editorProps(lang: Locale, shop: StoreShop, productId: string | null) {
-  const [{ accounts, others }, rates] = await Promise.all([editorData(shop.id, productId), getShippingRates(shop.id)]);
+  const [{ accounts, others }, rates, collections] = await Promise.all([editorData(shop.id, productId), getShippingRates(shop.id), collectionChoices(shop.id)]);
   const locale = shopLocale(shop);
   const design = resolveDesign(shop.design);
   return {
     store: { name: shop.name, host: storeUrl(shop).replace(/^https?:\/\//, "") },
     accounts: accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier })),
     deliveryHref: sectionHref(lang, "delivery"),
+    collections: collections.filter((c) => !c.parentId).flatMap((top) => [top, ...collections.filter((c) => c.parentId === top.id)]).map((c) => ({ id: c.id, title: textIn(c.titles, lang), child: Boolean(c.parentId) })),
+    collectionsHref: `${sectionHref(lang, "apps")}/collections`,
     others,
     preview: {
       locale,

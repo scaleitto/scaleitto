@@ -90,6 +90,7 @@ export const productSchema = z
     // "auto" = the store's other products; otherwise the chosen ones
     similar: z.enum(["auto", "chosen"]).optional().default("auto"),
     similarIds: json(z.array(z.string().uuid()).max(50), "e:invalid"),
+    collectionIds: json(z.array(z.string().uuid()).max(30), "e:invalid"),
     options: json(
       z
         .array(optionSchema)

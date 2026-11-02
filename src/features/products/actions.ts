@@ -1,5 +1,6 @@
 "use server";
 
+import { ownCollections } from "@/features/collections/queries";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
@@ -62,6 +63,7 @@ function productRow(input: ProductInput) {
     showOutOfStock: input.showOutOfStock,
     carrierAccountId: input.carrierAccountId || null,
     similarIds: input.similar === "chosen" ? input.similarIds : null,
+    collectionIds: input.collectionIds.length ? input.collectionIds : null,
   };
 }
 
@@ -76,6 +78,7 @@ async function checkLinks(shopId: string, input: ProductInput, productId: string
     const found = await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shopId), inArray(schema.products.id, ids)));
     input.similarIds = found.map((f) => f.id);
   } else input.similarIds = [];
+  input.collectionIds = await ownCollections(shopId, input.collectionIds);
   return true;
 }
 

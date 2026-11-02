@@ -11,6 +11,8 @@ import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { formatDate } from "@/lib/format";
 import { PromotionsApp } from "@/features/promotions/PromotionsApp";
+import { CollectionsApp } from "@/features/collections/CollectionsApp";
+import { listCollections } from "@/features/collections/queries";
 import { listPromotions, promotionProducts } from "@/features/promotions/queries";
 import { toAlgeriaLocal } from "@/features/promotions/pricing";
 import { Badge, Card, buttonClass } from "@/ui";
@@ -109,6 +111,11 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
           t={text}
         />
       );
+      break;
+    }
+    case "collections": {
+      const rows = await listCollections(shop.id);
+      body = <CollectionsApp lang={lang} rows={rows} storeUrl={storeUrl(shop)} t={{ ...text, media: t.media }} />;
       break;
     }
     case "productImport":

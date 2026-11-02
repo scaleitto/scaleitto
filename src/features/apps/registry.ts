@@ -25,7 +25,7 @@ export const appKeys = [
 ] as const;
 export type AppPageKey = (typeof appKeys)[number];
 
-export const readyApps: AppPageKey[] = ["abandoned", "fakeGuard", "agentAssign", "blacklist", "trustBadges", "quickContact", "thankYou", "qrCode", "orderTracking", "promotions", "productImport", "parcelScanner", "webhook"];
+export const readyApps: AppPageKey[] = ["abandoned", "fakeGuard", "agentAssign", "blacklist", "trustBadges", "quickContact", "thankYou", "qrCode", "orderTracking", "promotions", "productImport", "collections", "parcelScanner", "webhook"];
 
 export const appIcons: Record<AppPageKey, LucideIcon> = {
   whatsapp: MessageCircle,

@@ -99,6 +99,7 @@ export type ProductFormValues = {
   }[];
   carrierAccountId: string | null;
   similarIds: string[] | null;
+  collectionIds: string[] | null;
 };
 
 export type ProductFormText = Pick<
@@ -152,6 +153,8 @@ export function ProductForm({
   deliveryHref,
   others,
   preview,
+  collections,
+  collectionsHref,
   notice,
 }: {
   t: ProductFormText;
@@ -170,6 +173,9 @@ export function ProductForm({
   others: { id: string; name: string; image: string | null }[];
   // What the live preview needs to draw the real product page
   preview: ProductPreviewData;
+  // The store's collections (Apps → Collections) and where to manage them
+  collections: { id: string; title: string; child: boolean }[];
+  collectionsHref: string;
   notice?: string;
 }) {
   const p = t.products;
@@ -214,6 +220,7 @@ export function ProductForm({
   );
   // Similar products: null = all the store's other products (Zimam's default, new products included)
   const [chosen, setChosen] = useState<string[] | null>(values.similarIds);
+  const [inCollections, setInCollections] = useState<string[]>(values.collectionIds ?? []);
   const similar = chosen ?? others.map((o) => o.id);
 
   // After a failed save, open the first tab that holds an error
@@ -512,6 +519,32 @@ export function ProductForm({
                   p.visibleHint,
                   "visible",
                 )}
+                <div className="space-y-2" data-testid="product-collections">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    <Layers size={16} className="text-accent" /> {p.collections.title}
+                  </p>
+                  <p className="text-xs text-muted">{p.collections.hint}</p>
+                  {collections.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {collections.map((col) => {
+                        const on = inCollections.includes(col.id);
+                        return (
+                          <label key={col.id} className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${on ? "border-accent bg-accent-soft text-accent-ink" : "border-line"}`}>
+                            <input type="checkbox" checked={on} onChange={() => setInCollections((list) => (on ? list.filter((x) => x !== col.id) : [...list, col.id]))} className="size-3.5 accent-[var(--color-accent)]" data-collection={col.title} />
+                            {col.child && <span className="text-muted">↳</span>}
+                            {col.title}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">{p.collections.none}</p>
+                  )}
+                  <a href={collectionsHref} className="inline-block text-sm font-semibold text-accent hover:underline">
+                    {p.collections.manage}
+                  </a>
+                  <input type="hidden" name="collectionIds" value={JSON.stringify(inCollections)} />
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
                     label={
