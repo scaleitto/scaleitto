@@ -65,6 +65,7 @@ function productRow(input: ProductInput) {
     similarIds: input.similar === "chosen" ? input.similarIds : null,
     collectionIds: input.collectionIds.length ? input.collectionIds : null,
     customFields: input.customFields.length ? input.customFields : null,
+    wholesale: input.wholesale,
   };
 }
 

@@ -1,4 +1,5 @@
 import { descriptionHtml } from "@/lib/rich-text";
+import { resolveWholesale } from "@/features/checkout/pricing";
 import { productFields } from "@/features/order-form/resolve";
 import { z } from "zod";
 import { offerBadges, productStatuses } from "@/server/db/schema";
@@ -94,6 +95,14 @@ export const productSchema = z
     collectionIds: json(z.array(z.string().uuid()).max(30), "e:invalid"),
     // Apps → Custom fields: the product's own questions, cleaned like the store form's
     customFields: json(z.array(z.unknown()).max(20), "e:invalid").transform((v) => productFields(v)),
+    // Apps → Wholesale: { minQty, tiers }, cleaned (null = none)
+    wholesale: z.string().optional().transform((raw) => {
+      try {
+        return resolveWholesale(JSON.parse(raw || "null"));
+      } catch {
+        return null;
+      }
+    }),
     options: json(
       z
         .array(optionSchema)

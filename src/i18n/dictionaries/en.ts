@@ -418,6 +418,7 @@ const en: Dictionary = {
     roles: { owner: "Owner", manager: "Manager", agent: "Call center agent" },
   },
   products: {
+    wholesale: { title: "Wholesale", hint: "A minimum order and prices by quantity: the tier the quantity reaches sets the price of every piece.", minQty: "Minimum order quantity", minQtyHint: "1 = no minimum.", tiers: "Price tiers", from: "From", pieces: "pieces:", price: "Price per piece", each: "DA each", addTier: "Add a tier" },
     customFields: { title: "Custom fields", hint: "Extra questions the buyer answers when ordering this product (size, gift note…). They show on the order.", label: "Question", labelPlaceholder: "e.g. Size wanted", type: "Type", types: { text: "Short text", textarea: "Long text", number: "Number", email: "Email", date: "Date", select: "Dropdown", radio: "Single choice", checkbox: "Checkbox" }, options: "Choices", optionsPlaceholder: "Choices separated by commas: S, M, L", required: "Required", add: "Add a question" },
     collections: { title: "Collections", hint: "Group this product under one or more storefront collections.", none: "You haven't created any collections yet.", manage: "Manage collections" },
     add: "Add product",
@@ -481,7 +482,7 @@ const en: Dictionary = {
     slugHint: "Created from the name when left empty",
     viewInStore: "View in store",
     remove: "Remove",
-    tabs: { details: "Details", description: "Description", variants: "Variants & stock", delivery: "Checkout & delivery", offers: "Offers" },
+    tabs: { details: "Details", description: "Description", variants: "Variants & stock", delivery: "Checkout & delivery", offers: "Offers", wholesale: "Wholesale" },
     kind: "Product type",
     kinds: { physical: "Physical", digital: "Digital" },
     kindHint: "A physical product is shipped. A digital product (download, codes, link) needs online payment and will come with the payments app.",
@@ -1318,6 +1319,7 @@ const en: Dictionary = {
       collections: { title: "Collections", about: "Group products under a /collections/<handle> link in your store (e.g. clothes, shoes, sale). Pick each product's collections on its edit page; a collection can sit inside another (two levels at most)." },
       deliveryAssign: { title: "Delivery auto assign", about: "Set rules that pick the delivery company of each new order by wilaya, order value and delivery type. Rules are checked in order and the first match applies. A delivery company set on the product itself comes first." },
       customFields: { title: "Custom fields", about: "When on, you can add questions to each product from its edit page (Checkout & delivery tab); they show in the order form and are saved with the order. Turning it off hides them without deleting them.", enable: "Enable custom fields", enableHint: "Shows the questions editor on product pages and asks them on the storefront." },
+      wholesale: { title: "Wholesale", about: "When on, each product can have quantity price tiers and a minimum order: the tier an order reaches sets the price of every piece. Set them on the product's Wholesale tab. Turning it off hides them from your store without deleting them.", enable: "Enable wholesale pricing", enableHint: "Shows the Wholesale tab in the product editor and applies tiers and minimums in your store." },
       webhook: { title: "Webhook", about: "Every new order and every status change is sent to your URL as signed JSON (X-Scaleitto-Signature) for your own system." },
     },
     guard: {

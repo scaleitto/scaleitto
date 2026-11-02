@@ -29,6 +29,7 @@ const empty: ProductFormValues = {
   similarIds: null,
   collectionIds: null,
   customFields: null,
+  wholesale: null,
 };
 
 export default async function NewProductPage({ params, searchParams }: PageProps<"/[lang]/dashboard/products/new">) {

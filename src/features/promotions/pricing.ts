@@ -6,10 +6,12 @@ export const discounted = (price: number, percent: number) => Math.max(1, Math.r
 
 // A product while a promotion runs: every price lowered (unit, variants, quantity offers) and the old price shown
 // struck through (the merchant's own "old price" when it is higher).
-export function promoted<P extends { price: number; compareAtPrice: number | null; offers?: QuantityOffer[]; variants?: { price: number | null }[] }>(product: P, percent: number | undefined): P {
+export function promoted<P extends { price: number; compareAtPrice: number | null; offers?: QuantityOffer[]; variants?: { price: number | null }[]; wholesale?: unknown }>(product: P, percent: number | undefined): P {
   if (!percent) return product;
+  const w = product.wholesale as { tiers?: { price: number }[] } | null | undefined;
   return {
     ...product,
+    ...(w && Array.isArray(w.tiers) ? { wholesale: { ...w, tiers: w.tiers.map((t) => ({ ...t, price: typeof t.price === "number" ? discounted(t.price, percent) : t.price })) } } : {}),
     price: discounted(product.price, percent),
     compareAtPrice: Math.max(product.compareAtPrice ?? 0, product.price),
     offers: product.offers?.map((o) => ({ ...o, price: discounted(o.price, percent) })),

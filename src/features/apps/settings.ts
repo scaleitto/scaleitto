@@ -21,6 +21,8 @@ export type AppSettings = {
   scanner: boolean;
   // Each product can ask its own questions at checkout
   customFields: boolean;
+  // Each product can have quantity price tiers and a minimum order
+  wholesale: boolean;
   badges: TrustBadge[];
   contact: ContactSettings;
   thanks: ThanksSettings;
@@ -46,6 +48,7 @@ export function resolveApps(raw: unknown): AppSettings {
     abandoned: bool(r.abandoned, true),
     scanner: bool(r.scanner, true),
     customFields: bool(r.customFields, false),
+    wholesale: bool(r.wholesale, false),
     badges: badgeKeys.map((key) => {
       const b = badgesIn.find((x) => x && x.key === key) ?? {};
       return { key, on: bool(b.on, badgeDefaults[key]), title: str(b.title, 40), text: str(b.text, 80) };

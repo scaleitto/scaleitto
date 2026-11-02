@@ -34,6 +34,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
     promotions: running.size > 0,
     customFields: a.customFields,
     parcelScanner: a.scanner,
+    wholesale: a.wholesale,
     webhook: Boolean(webhook?.active),
   };
 }

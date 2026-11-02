@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveWholesale } from "@/features/checkout/pricing";
 import { customFieldTypes, type CustomField, type CustomFieldType } from "@/features/landing/types";
 import Link from "next/link";
 import { useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
@@ -102,6 +103,7 @@ export type ProductFormValues = {
   similarIds: string[] | null;
   collectionIds: string[] | null;
   customFields: unknown[] | null;
+  wholesale: unknown;
 };
 
 export type ProductFormText = Pick<
@@ -119,6 +121,7 @@ const tabs = [
   "variants",
   "delivery",
   "offers",
+  "wholesale",
 ] as const;
 type Tab = (typeof tabs)[number];
 const tabFields: Record<Tab, string[]> = {
@@ -135,6 +138,7 @@ const tabFields: Record<Tab, string[]> = {
   variants: ["stock", "lowStock", "options", "variants"],
   delivery: ["carrierAccountId"],
   offers: ["offers", "similarIds"],
+  wholesale: ["wholesale"],
 };
 
 const noopSubscribe = () => () => {};
@@ -158,6 +162,7 @@ export function ProductForm({
   collections,
   collectionsHref,
   customFieldsOn,
+  wholesaleOn,
   notice,
 }: {
   t: ProductFormText;
@@ -181,6 +186,8 @@ export function ProductForm({
   collectionsHref: string;
   // Apps → Custom fields is on: the product can ask its own questions at checkout
   customFieldsOn: boolean;
+  // Apps → Wholesale is on: the product gets a Wholesale tab (tiers + minimum)
+  wholesaleOn: boolean;
   notice?: string;
 }) {
   const p = t.products;
@@ -227,6 +234,10 @@ export function ProductForm({
   const [chosen, setChosen] = useState<string[] | null>(values.similarIds);
   const [inCollections, setInCollections] = useState<string[]>(values.collectionIds ?? []);
   const [questions, setQuestions] = useState<Question[]>(() => toQuestions(values.customFields));
+  const [bulk, setBulk] = useState(() => {
+    const w = resolveWholesale(values.wholesale);
+    return { minQty: String(w?.minQty ?? 1), tiers: (w?.tiers ?? []).map((t) => ({ from: String(t.from), price: String(t.price) })) };
+  });
   const similar = chosen ?? others.map((o) => o.id);
 
   // After a failed save, open the first tab that holds an error
@@ -461,7 +472,7 @@ export function ProductForm({
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <nav className="flex gap-1 overflow-x-auto border-b border-line" role="tablist" data-testid="product-tabs">
-            {tabs.map((k) => (
+            {tabs.filter((k) => k !== "wholesale" || wholesaleOn).map((k) => (
               <button
                 key={k}
                 type="button"
@@ -1093,9 +1104,46 @@ export function ProductForm({
               </div>
             </Card>
             {customFieldsOn && <CustomFieldsCard value={questions} onChange={setQuestions} t={t} />}
+            <input type="hidden" name="wholesale" value={JSON.stringify(wholesaleOn ? { minQty: Number(bulk.minQty) || 1, tiers: bulk.tiers.map((x) => ({ from: Number(x.from), price: Number(x.price) })) } : (values.wholesale ?? null))} />
             <input type="hidden" name="customFields" value={JSON.stringify(customFieldsOn ? questions.map((q) => ({ ...q, options: q.options.split(/[,،\n]/).map((o) => o.trim()).filter(Boolean) })) : (values.customFields ?? []))} />
             </>,
           )}
+
+          {wholesaleOn &&
+            panel(
+              "wholesale",
+              <Card className="space-y-5" data-testid="wholesale">
+                <div>
+                  <h2 className="flex items-center gap-2 text-lg font-semibold">
+                    <Layers size={19} className="text-accent" /> {p.wholesale.title}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted">{p.wholesale.hint}</p>
+                </div>
+                <Field label={p.wholesale.minQty} htmlFor="ws-min" hint={p.wholesale.minQtyHint}>
+                  <Input id="ws-min" inputMode="numeric" dir="ltr" className="max-w-40" value={bulk.minQty} onChange={(ev) => setBulk((b) => ({ ...b, minQty: ev.target.value }))} />
+                </Field>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">{p.wholesale.tiers}</p>
+                  {bulk.tiers.map((tier, i) => (
+                    <div key={i} className="flex items-center gap-2" data-tier={i}>
+                      <span className="text-sm text-muted">{p.wholesale.from}</span>
+                      <Input inputMode="numeric" dir="ltr" className="w-24" value={tier.from} onChange={(ev) => setBulk((b) => ({ ...b, tiers: b.tiers.map((x, j) => (j === i ? { ...x, from: ev.target.value } : x)) }))} aria-label={p.wholesale.from} data-testid={`tier-from-${i}`} />
+                      <span className="text-sm text-muted">{p.wholesale.pieces}</span>
+                      <Input inputMode="numeric" dir="ltr" className="w-32" value={tier.price} onChange={(ev) => setBulk((b) => ({ ...b, tiers: b.tiers.map((x, j) => (j === i ? { ...x, price: ev.target.value } : x)) }))} aria-label={p.wholesale.price} data-testid={`tier-price-${i}`} />
+                      <span className="text-sm text-muted">{p.wholesale.each}</span>
+                      <button type="button" onClick={() => setBulk((b) => ({ ...b, tiers: b.tiers.filter((_, j) => j !== i) }))} className="grid size-10 place-items-center rounded-xl text-muted hover:text-danger" aria-label={t.common.delete}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                  {bulk.tiers.length < 10 && (
+                    <Button type="button" variant="secondary" onClick={() => setBulk((b) => ({ ...b, tiers: [...b.tiers, { from: "", price: "" }] }))} data-testid="tier-add">
+                      <Plus size={15} /> {p.wholesale.addTier}
+                    </Button>
+                  )}
+                </div>
+              </Card>,
+            )}
 
           {panel(
             "offers",

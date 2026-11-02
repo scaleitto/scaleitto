@@ -1,4 +1,6 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { resolveWholesale } from "@/features/checkout/pricing";
+import { resolveApps } from "@/features/apps/settings";
 import { richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
 import { productForm } from "@/features/order-form/resolve";
@@ -64,7 +66,7 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         color={page.color}
         sections={sections}
         settings={productForm(shop, product)}
-        product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
+        product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers, wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}
         action={submitOrder.bind(null, shop.slug, product.id, { id: page.id, version })}

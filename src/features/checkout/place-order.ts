@@ -9,7 +9,7 @@ import type { StoreShop } from "@/features/storefront/queries";
 import { getShippingRates } from "@/features/storefront/queries";
 import { checkOrderAllowed, protectionFor, riskSignals, scoreOrder, type BlockReason } from "./protection";
 import { isObviousBot } from "./risk";
-import { lineShipping, linePrice, shippingPrice } from "./pricing";
+import { lineShipping, linePrice, maxQuantityFor, resolveWholesale, shippingPrice } from "./pricing";
 import { pickAgent } from "@/features/team/assign";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
@@ -17,17 +17,21 @@ import type { OrderInput } from "./validators";
 import { applyOrderStatus } from "@/features/orders/transition";
 import type { OrderTracking } from "@/server/db/schema";
 
-export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping";
+export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping" | "invalid" | "minQuantity";
 export type PlaceOrderResult = { ok: true; orderId: string; number: number } | { ok: false; error: CheckoutError };
 
 const FIRST_ORDER_NUMBER = 1001;
 
 class OutOfStock extends Error {}
 
+async function shopApps(shopId: string) {
+  const [shop] = await db.select({ apps: schema.shops.apps }).from(schema.shops).where(eq(schema.shops.id, shopId));
+  return resolveApps(shop?.apps);
+}
+
 // The delivery company the shop's rules give a new order (a company since disconnected is skipped)
 async function ruleCarrier(shopId: string, order: { wilaya: number; total: number; deliveryType: "home" | "office" }) {
-  const [shop] = await db.select({ apps: schema.shops.apps }).from(schema.shops).where(eq(schema.shops.id, shopId));
-  const id = matchDeliveryRule(resolveApps(shop?.apps).deliveryRules, order);
+  const id = matchDeliveryRule((await shopApps(shopId)).deliveryRules, order);
   if (!id) return null;
   const [account] = await db.select({ id: schema.carrierAccounts.id }).from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shopId), eq(schema.carrierAccounts.id, id)));
   return account?.id ?? null;
@@ -46,6 +50,10 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
   const rows = await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), eq(schema.productVariants.productId, product.id)));
   // Prices as the store shows them now (a running promotion lowers them)
   const { variants, ...priced } = await withPromotion(shop.id, { ...product, variants: rows });
+  // Apps → Wholesale: the minimum order and the larger quantities apply while it is on
+  const wholesale = (await shopApps(shop.id)).wholesale ? resolveWholesale(priced.wholesale) : null;
+  if (input.quantity > maxQuantityFor(wholesale)) return { ok: false, error: "invalid" };
+  if (wholesale && input.quantity < wholesale.minQty) return { ok: false, error: "minQuantity" };
   const variant = variants.find((v) => v.id === input.variantId) ?? null;
   if (variants.length > 0 && !variant) return { ok: false, error: "variant" };
 
@@ -63,7 +71,7 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
   // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
   const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;
 
-  const line = linePrice(variant?.price ?? priced.price, input.quantity, priced.offers);
+  const line = linePrice(variant?.price ?? priced.price, input.quantity, priced.offers, wholesale);
   const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType), line.offer);
   if (shipping === null) return { ok: false, error: "shipping" };
   const orderId = newId();
@@ -193,7 +201,8 @@ export async function saveAbandoned(shopId: string, productId: string, input: { 
   const [row] = input.variantId ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.id, input.variantId))) : [];
   const { variants, ...priced } = await withPromotion(shopId, { ...product, variants: row ? [row] : [] });
   const variant = variants[0];
-  const line = linePrice(variant?.price ?? priced.price, input.quantity, priced.offers);
+  const wholesale = (await shopApps(shopId)).wholesale ? resolveWholesale(priced.wholesale) : null;
+  const line = linePrice(variant?.price ?? priced.price, Math.min(input.quantity, maxQuantityFor(wholesale)), priced.offers, wholesale);
   const values = { customerName: input.name, wilayaCode: input.wilaya ?? 0, subtotal: line.total, total: line.total };
   const [draft] = await abandonedDrafts(db, shopId, input.phone, productId);
   if (draft) {

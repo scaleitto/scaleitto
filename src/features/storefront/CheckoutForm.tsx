@@ -8,7 +8,7 @@ import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
 import { intlPhone, isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { useActionForm } from "@/ui/form";
-import { MAX_QUANTITY, defaultQuantity, lineShipping, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
+import { defaultQuantity, maxQuantityFor, type Wholesale, lineShipping, linePrice, shippingPrice, type RateMap } from "@/features/checkout/pricing";
 import { useCheckoutStarted } from "@/features/pixels/PixelScope";
 import { defaultForm, type CustomField, type FormBlock, type FormSettings, type TextField } from "@/features/landing/types";
 import { CommuneSelect } from "@/features/checkout/CommuneSelect";
@@ -43,7 +43,7 @@ export function CheckoutForm({
 }: {
   t: StoreText;
   currency: string;
-  product: { price: number; trackStock: boolean; stock: number; options: ProductOption[]; offers: QuantityOffer[] };
+  product: { price: number; trackStock: boolean; stock: number; options: ProductOption[]; offers: QuantityOffer[]; wholesale?: Wholesale | null };
   variants: Variant[];
   rates: RateMap;
   wilayas: { code: number; name: string }[];
@@ -70,7 +70,8 @@ export function CheckoutForm({
     variants.length ? (variants.find((v) => !product.trackStock || v.stock > 0) ?? variants[0]).values : {},
   );
   // The merchant's preselected offer opens chosen (when offers are shown)
-  const [quantity, setQuantity] = useState(() => (settings.showOffers ? defaultQuantity(product.offers) : 1));
+  const minQuantity = product.wholesale?.minQty ?? 1;
+  const [quantity, setQuantity] = useState(() => Math.max(minQuantity, settings.showOffers ? defaultQuantity(product.offers) : 1));
   const [wilaya, setWilaya] = useState<number | null>(null);
   const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
   const [deliveryType, setDeliveryType] = useState<"home" | "office">(allowedTypes.includes(settings.preferDelivery as never) ? settings.preferDelivery : allowedTypes[0]);
@@ -133,7 +134,7 @@ export function CheckoutForm({
   const variant = variants.find((v) => product.options.every((o) => v.values[o.name] === selected[o.name])) ?? null;
   const available = !product.trackStock ? Infinity : variants.length ? (variant?.stock ?? 0) : product.stock;
   const soldOut = available <= 0 || (variants.length > 0 && !variant);
-  const line = linePrice(variant?.price ?? product.price, quantity, product.offers);
+  const line = linePrice(variant?.price ?? product.price, quantity, product.offers, product.wholesale ?? null);
   const shipping = wilaya ? lineShipping(shippingPrice(rates, wilaya, deliveryType), line.offer) : undefined;
   const total = line.total + (shipping ?? 0);
   const hasRates = Object.keys(rates).length > 0;
@@ -144,7 +145,7 @@ export function CheckoutForm({
     variants.some((v) => v.values[option] === value && v.stock > 0 && product.options.every((o) => o.name === option || v.values[o.name] === selected[o.name]));
 
   const quantityChoices = settings.showOffers && product.offers.length ? [1, ...product.offers.map((o) => o.quantity).sort((a, b) => a - b)] : [];
-  const maxQuantity = Math.min(MAX_QUANTITY, available);
+  const maxQuantity = Math.min(maxQuantityFor(product.wholesale ?? null), available);
 
   // Abandoned cart: remember the visitor as soon as a valid phone is typed.
   const rememberLead = () => {
@@ -388,21 +389,46 @@ export function CheckoutForm({
               </div>
             </fieldset>
           );
-        if (!settings.showQuantity) return null;
+        if (!settings.showQuantity && !product.wholesale) return null;
         return (
           <div className={wide}>
             <span className={label}>{t.form.quantity}</span>
             <div className="inline-flex items-center rounded-[var(--s-radius-btn)] border border-s-field-edge">
-              <button type="button" aria-label="-" className="p-3 disabled:opacity-30" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
+              <button type="button" aria-label="-" className="p-3 disabled:opacity-30" disabled={quantity <= minQuantity} onClick={() => setQuantity((q) => Math.max(minQuantity, q - 1))}>
                 <Minus size={16} />
               </button>
-              <span className="min-w-10 text-center font-bold" data-testid="quantity">
-                {quantity}
-              </span>
+              {product.wholesale ? (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={minQuantity}
+                  max={maxQuantity}
+                  value={quantity}
+                  onChange={(ev) => setQuantity(Math.max(1, Math.min(maxQuantity, Math.trunc(Number(ev.target.value) || 1))))}
+                  onBlur={() => setQuantity((q) => Math.max(minQuantity, q))}
+                  className="w-16 bg-transparent text-center font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                  aria-label={t.form.quantity}
+                  data-testid="quantity"
+                />
+              ) : (
+                <span className="min-w-10 text-center font-bold" data-testid="quantity">
+                  {quantity}
+                </span>
+              )}
               <button type="button" aria-label="+" className="p-3 disabled:opacity-30" disabled={quantity >= maxQuantity} onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}>
                 <Plus size={16} />
               </button>
             </div>
+            {product.wholesale && (
+              <ul className="mt-2 space-y-1 text-sm" data-testid="wholesale-tiers">
+                {minQuantity > 1 && <li className="font-semibold text-s-muted">{fmt(t.form.minQuantity, { n: minQuantity })}</li>}
+                {product.wholesale.tiers.map((tier) => (
+                  <li key={tier.from} className={line.offer === null && line.unitPrice === tier.price && quantity >= tier.from ? "font-bold text-brand-ink" : "text-s-muted"}>
+                    {fmt(t.form.tier, { n: tier.from, price: formatPrice(tier.price, currency) })}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         );
       case "name":

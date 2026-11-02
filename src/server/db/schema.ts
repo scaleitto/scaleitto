@@ -228,6 +228,8 @@ export const products = mysqlTable(
     collectionIds: json("collection_ids").$type<string[]>(),
     // Apps → Custom fields: this product's own questions at checkout (landing/types.ts CustomField)
     customFields: json("custom_fields").$type<unknown[]>(),
+    // Apps → Wholesale: { minQty, tiers: [{ from, price }] } (checkout/pricing.ts resolveWholesale)
+    wholesale: json("wholesale"),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },

@@ -12,7 +12,7 @@ import { wilayas } from "@/lib/wilayas";
 import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
-import { MAX_QUANTITY } from "./pricing";
+import { WHOLESALE_MAX_QUANTITY } from "./pricing";
 import { customFieldValid, liveVersions, readPublished, versionSections, type VersionKey } from "@/features/landing/types";
 import { productForm } from "@/features/order-form/resolve";
 import { placeOrder, saveAbandoned } from "./place-order";
@@ -123,7 +123,7 @@ export async function saveLead(slug: string, productId: string, input: { name?: 
         phone,
         wilaya: wilayas.some((w) => w.code === input.wilaya) ? input.wilaya! : null,
         variantId: typeof input.variantId === "string" && input.variantId.length <= 36 ? input.variantId || null : null,
-        quantity: Math.min(MAX_QUANTITY, Math.max(1, Math.trunc(Number(input.quantity) || 1))),
+        quantity: Math.min(WHOLESALE_MAX_QUANTITY, Math.max(1, Math.trunc(Number(input.quantity) || 1))),
       },
       ip,
     );

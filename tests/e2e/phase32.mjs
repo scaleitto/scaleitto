@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 4, "4 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 3, "3 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
@@ -340,6 +340,36 @@ export default async function phase32(browser) {
     await buyer.waitForURL(/\/thanks\?o=/);
     const [[o]] = await db.query("SELECT extra FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
     expect(JSON.stringify(o.extra).includes("المقاس") && JSON.stringify(o.extra).includes("كبير"), "answer on the order");
+  });
+
+  await step("wholesale: a minimum order and a price tier from the product's Wholesale tab apply in the store and the order", async () => {
+    await owner.goto(`${apps}/wholesale`);
+    await owner.locator("[data-testid=app-enabled]").check();
+    await save();
+    const [[lamp]] = await db.query("SELECT id FROM products WHERE shop_id = ? AND slug = 'lamp'", [shopId]);
+    await owner.goto(`${dash}/products/${lamp.id}`);
+    await owner.waitForSelector("[data-testid=product-form][data-ready]");
+    await owner.locator("[data-form-tab=wholesale]").click();
+    await owner.fill("#ws-min", "2");
+    await owner.click("[data-testid=tier-add]");
+    await owner.fill("[data-testid=tier-from-0]", "5");
+    await owner.fill("[data-testid=tier-price-0]", "1500");
+    await owner.click("[data-testid=save-product]");
+    await until(async () => JSON.stringify((await db.query("SELECT wholesale FROM products WHERE id = ?", [lamp.id]))[0][0].wholesale ?? "").includes("1500"), "tiers saved");
+    await buyer.goto(`${store}/p/lamp`);
+    await buyer.waitForSelector("[data-testid=wholesale-tiers]");
+    expect((await buyer.locator("[data-testid=quantity]").inputValue()) === "2", "starts at the minimum");
+    await buyer.fill("[data-testid=quantity]", "6");
+    await buyer.locator("select[name^='custom_p-']").selectOption("صغير");
+    await buyer.fill("#name", "سليم بن عمر");
+    await buyer.fill("#phone", "0666 77 88 99");
+    await buyer.selectOption("#wilaya", "16");
+    await buyer.selectOption("#commune", "حيدرة");
+    await buyer.waitForTimeout(4200);
+    await buyer.click("button[type=submit]");
+    await buyer.waitForURL(/\/thanks\?o=/);
+    const [[o]] = await db.query("SELECT subtotal FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
+    expect(o.subtotal === 9000, `6 × 1500 (got ${o.subtotal})`);
   });
 
   await step("parcel scanner switched off: Scan leaves the menu and Orders, its page sends back to Orders", async () => {

@@ -418,6 +418,7 @@ const fr: Dictionary = {
     roles: { owner: "Propriétaire", manager: "Gérant", agent: "Agent du centre d'appel" },
   },
   products: {
+    wholesale: { title: "Vente en gros", hint: "Un minimum de commande et des prix par quantité : le palier atteint fixe le prix de chaque pièce.", minQty: "Quantité minimum", minQtyHint: "1 = pas de minimum.", tiers: "Paliers de prix", from: "Dès", pieces: "pièces :", price: "Prix unitaire", each: "DA la pièce", addTier: "Ajouter un palier" },
     customFields: { title: "Champs personnalisés", hint: "Questions en plus auxquelles répond l'acheteur de ce produit (taille, message cadeau…). Elles apparaissent dans la commande.", label: "Question", labelPlaceholder: "Ex. : taille souhaitée", type: "Type", types: { text: "Texte court", textarea: "Texte long", number: "Nombre", email: "E-mail", date: "Date", select: "Liste", radio: "Choix unique", checkbox: "Case à cocher" }, options: "Choix", optionsPlaceholder: "Choix séparés par des virgules : S, M, L", required: "Obligatoire", add: "Ajouter une question" },
     collections: { title: "Collections", hint: "Placez ce produit dans une ou plusieurs collections.", none: "Vous n'avez encore créé aucune collection.", manage: "Gérer les collections" },
     add: "Ajouter un produit",
@@ -481,7 +482,7 @@ const fr: Dictionary = {
     slugHint: "Créé automatiquement à partir du nom s'il est vide",
     viewInStore: "Voir dans la boutique",
     remove: "Supprimer",
-    tabs: { details: "Détails", description: "Description", variants: "Variantes et stock", delivery: "Commande et livraison", offers: "Offres" },
+    tabs: { details: "Détails", description: "Description", variants: "Variantes et stock", delivery: "Commande et livraison", offers: "Offres", wholesale: "Gros" },
     kind: "Type de produit",
     kinds: { physical: "Physique", digital: "Numérique" },
     kindHint: "Un produit physique est expédié. Un produit numérique (téléchargement, codes, lien) exige le paiement en ligne et arrivera avec l'app de paiement.",
@@ -1318,6 +1319,7 @@ const fr: Dictionary = {
       collections: { title: "Collections", about: "Regroupez vos produits sous un lien /collections/<nom> (ex. : vêtements, chaussures, soldes). Les collections d'un produit se choisissent sur sa page ; une collection peut être dans une autre (deux niveaux au plus)." },
       deliveryAssign: { title: "Attribution aux livreurs", about: "Définissez des règles qui choisissent la société de livraison de chaque commande selon la wilaya, le montant et le type de livraison. Les règles sont lues dans l'ordre et la première qui correspond s'applique. La société définie sur le produit passe avant." },
       customFields: { title: "Champs personnalisés", about: "Activé, vous pouvez ajouter des questions à chaque produit depuis sa page (onglet Commande et livraison) ; elles s'affichent dans le formulaire et sont gardées avec la commande. Désactivé, elles sont masquées sans être supprimées.", enable: "Activer les champs personnalisés", enableHint: "Affiche l'éditeur de questions sur les produits et les pose dans la boutique." },
+      wholesale: { title: "Vente en gros", about: "Activée, chaque produit peut avoir des paliers de prix par quantité et un minimum de commande : le palier atteint fixe le prix de chaque pièce. Réglez-les dans l'onglet « Gros » du produit. Désactivée, ils sont masqués sans être supprimés.", enable: "Activer les prix de gros", enableHint: "Affiche l'onglet Gros dans l'éditeur et applique paliers et minimum dans la boutique." },
       webhook: { title: "Webhook", about: "Chaque nouvelle commande et chaque changement de statut est envoyé à votre URL en JSON signé (X-Scaleitto-Signature)." },
     },
     guard: {

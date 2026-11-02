@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { resolveWholesale } from "@/features/checkout/pricing";
 import { descriptionHtml, richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
 import { notFound } from "next/navigation";
@@ -120,6 +121,7 @@ export default async function ProductPage({
                 stock: product.stock,
                 options: product.options,
                 offers: product.offers,
+                wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null,
               }}
               variants={product.variants.map((v) => ({
                 id: v.id,

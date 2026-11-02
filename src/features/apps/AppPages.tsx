@@ -41,7 +41,7 @@ function SaveBar({ pending, label, t }: { pending: boolean; label?: string; t: T
 }
 
 // Abandoned orders, parcel scanner: one switch
-export function SwitchApp({ lang, app, enabled, label, hint, children, t }: { lang: string; app: "abandoned" | "scanner" | "customFields"; enabled: boolean; label: string; hint: string; children?: ReactNode; t: Text }) {
+export function SwitchApp({ lang, app, enabled, label, hint, children, t }: { lang: string; app: "abandoned" | "scanner" | "customFields" | "wholesale"; enabled: boolean; label: string; hint: string; children?: ReactNode; t: Text }) {
   const { state, pending, onSubmit } = useActionForm(saveAppSwitch.bind(null, lang, app));
   return (
     <form onSubmit={onSubmit} className="space-y-5" data-testid="app-form">
