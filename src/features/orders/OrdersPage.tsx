@@ -120,12 +120,13 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
         <NewOrderButton lang={lang} products={products} rates={rates} wilayas={wilayaList} accounts={carrierAccounts} members={members} t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }} />
       </Card>
 
-      {rows.length > 0 && (
+      {/* The tab's tools stay while the list empties: the send / update report must survive its last order leaving */}
+      {(rows.length > 0 || (!portal && (f.status === "confirmed" || f.status === "in_transit"))) && (
         <div className="mb-4 space-y-3">
           <BulkStatus lang={lang} t={t} />
           {!portal && f.status === "confirmed" && <ShipPanel lang={lang} accounts={carrierAccounts} deliveryHref={canAssign ? sectionHref(lang, "delivery") : null} t={tools} />}
           {!portal && f.status === "in_transit" && <TrackPanel lang={lang} t={tools} />}
-          {!portal && (f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}
+          {!portal && rows.length > 0 && (f.status === "confirmed" || f.status === "in_transit") && <ManifestButton lang={lang} label={t.delivery.manifest.print} />}
         </div>
       )}
 
