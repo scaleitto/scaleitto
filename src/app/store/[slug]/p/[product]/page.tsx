@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { VisitPing } from "@/features/analytics/VisitPing";
 import { notFound } from "next/navigation";
 import { BadgeCheck, Truck } from "lucide-react";
 import {
@@ -70,6 +71,7 @@ export default async function ProductPage({
           <Gallery images={product.images} alt={product.name} />
         </div>
         <div className="space-y-5">
+          <VisitPing shopId={shop.id} productId={product.id} />
           <PixelScope
             pixels={pixels}
             item={{

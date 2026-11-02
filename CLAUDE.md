@@ -102,11 +102,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `startPosterTask` per image. "Improve with AI" (`startAiVersion`) returns a new version's components to the builder (added paused).
   Image tools: `startPosterImage` (draw again with corrected texts), `startImageEdit` (AI edit prompt, current image as reference).
   E2E uses `tests/e2e/mock-openai.mjs` (OPENAI_BASE_URL=http://127.0.0.1:4020/v1, OPENAI_API_KEY=sk-test).
-- Analytics (`src/features/analytics/`): `range.ts` (presets today…90d/month or custom ≤ 366 days, in Algeria days, plus
-  the previous period of the same length), `queries.ts` (loads the period's orders/items/leads once), `compute.ts`
-  (pure, unit-tested: confirmation = confirmed ÷ (confirmed + cancelled), delivery = delivered ÷ (delivered + returned),
-  delivered sales, daily/hourly series, products, wilayas, sources),
-  `views.tsx` (server components; CSS-only chart tooltips; charts stay left-to-right). Rate changes are shown in points.
+- Analytics like Zimam (`src/features/analytics/`, phase8.mjs): `/dashboard/analytics?tab=orders|products|impressions|team&period=`
+  (`range.ts` presets today…90d/month, default 7d, Algeria days, previous period of the same length). `queries.ts` loads the
+  orders, items, `page_views` and agents once; `compute.ts` (pure, unit-tested) returns each tab: orders (KPIs total/sales/delivery
+  rate/avg daily vs the days before, daily bars against the previous period, status ring, funnel, key insights, wilayas, sales and
+  delivered/returned lines), products (visitors, orders, order rate, bands excellent ≥ 5% / good ≥ 1% / low, per-product table),
+  impressions (impressions, visitors, sources, daily trend), team (per agent). Charts are plain SVG in `charts.tsx`; tabs in
+  `views.tsx`. Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
+  product, source host; a visitor counted once per day and page key through the `sc_v` cookie; robots skipped; migration 0038).
 - Pixels (`src/features/pixels/`): `pixels` rows (meta / tiktok / ga4 / gtm; tag IDs checked by `ids.ts` because they go
   into inline scripts; optional encrypted server secret + test code; `purchaseOn` placed/confirmed/delivered; `productIds`
   null = whole store). Browser: `PixelScope` on every storefront page (pages pass `pagePixels(shop, productIds)`) loads only

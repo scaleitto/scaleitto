@@ -267,6 +267,13 @@
       "when": 1793604790121,
       "tag": "0037_order_dialog_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1793609366905,
+      "tag": "0038_page_views",
+      "breakpoints": true
     }
   ]
 }

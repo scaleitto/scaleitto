@@ -1,4 +1,5 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { VisitPing } from "@/features/analytics/VisitPing";
 import { storeForm } from "@/features/order-form/resolve";
 import type { Metadata } from "next";
 import { randomInt } from "node:crypto";
@@ -71,6 +72,7 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         theme={storeTheme(resolveDesign(shop.design))}
       >
         <LandingView pageId={page.id} version={version} />
+        <VisitPing shopId={shop.id} productId={product.id} />
         {order && popup?.type === "thankYou" && (
           <ThankYouPopup title={popup.title || t.landing.thanks.title} message={popup.message || order.thankYou || t.landing.thanks.message} number={fmt(t.landing.thanks.number, { n: order.number })} close={t.landing.thanks.close} />
         )}

@@ -1,59 +1,62 @@
+import Link from "next/link";
 import { connection } from "next/server";
-import { ChartNoAxesColumn } from "lucide-react";
+import { ChartNoAxesColumn, Eye, Headphones, Package, ShoppingCart } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
-import { EmptyState, PageHeader } from "@/ui";
-import { resolveRange } from "@/features/analytics/range";
+import { presets, resolveRange } from "@/features/analytics/range";
 import { shopAnalytics } from "@/features/analytics/queries";
-import { orderInsights } from "@/features/analytics/insights";
-import { DailyChart, Funnel, HourlyChart, KpiGrid, PeriodBar, ProductsTable, SourcesTable, StatusList, WilayasTable } from "@/features/analytics/views";
-import { CarriersTable, InsightKpis, Timing } from "@/features/analytics/InsightsViews";
+import { ImpressionsTab, OrdersTab, ProductsTab, TeamTab } from "@/features/analytics/views";
+import { PeriodSelect } from "@/features/analytics/PeriodSelect";
 
-// All the numbers in one place: sales, then what happens to the orders (rates, steps, couriers, follow-up), then
-// products, sources and hours.
+const tabs = [
+  ["orders", ShoppingCart],
+  ["products", Package],
+  ["impressions", Eye],
+  ["team", Headphones],
+] as const;
+type Tab = (typeof tabs)[number][0];
+
+// Zimam's analytics: the title, the period, four tabs (orders, products, impressions, call center)
 export default async function AnalyticsPage({ params, searchParams }: PageProps<"/[lang]/dashboard/analytics">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
+  const a = t.analytics;
   const { shop } = await requireSection(lang, "analytics");
   await connection();
-  const range = resolveRange(await searchParams);
-  const [data, insights] = await Promise.all([shopAnalytics(shop.id, range), orderInsights(shop.id, range)]);
+  const sp = await searchParams;
+  const range = resolveRange({ period: sp.period });
+  const tab: Tab = tabs.some(([k]) => k === sp.tab) ? (sp.tab as Tab) : "orders";
+  const data = await shopAnalytics(shop.id, range);
+  const base = sectionHref(lang, "analytics");
   return (
-    <>
-      <PageHeader title={t.sections.analytics.title} description={t.sections.analytics.description} />
-      <PeriodBar base={sectionHref(lang, "analytics")} range={range} t={t} />
-      {data.totals.orders === 0 ? (
-        <EmptyState icon={<ChartNoAxesColumn size={40} />} title={t.analytics.empty}>
-          <p>{t.analytics.emptyHint}</p>
-        </EmptyState>
-      ) : (
-        <>
-          <KpiGrid data={data} t={t} />
-          <DailyChart data={data} t={t} />
-          <h2 className="mt-8 mb-3 text-lg font-bold" id="orders">
-            {t.analytics.ordersPart}
-          </h2>
-          <InsightKpis data={insights} t={t} />
-          <div className="mb-6 grid gap-6 lg:grid-cols-2">
-            <Funnel data={data} t={t} />
-            <StatusList data={data} t={t} />
-          </div>
-          <div className="mb-6">
-            <Timing data={insights} t={t} />
-          </div>
-          <div className="mb-6 grid gap-6 xl:grid-cols-2">
-            <WilayasTable data={data} lang={lang} t={t} />
-            <CarriersTable data={insights} t={t} />
-          </div>
-          <h2 className="mt-8 mb-3 text-lg font-bold">{t.analytics.salesPart}</h2>
-          <div className="mb-6 grid gap-6 xl:grid-cols-2">
-            <ProductsTable data={data} t={t} />
-            <SourcesTable data={data} pageTitles={data.pageTitles} t={t} />
-          </div>
-          <HourlyChart data={data} t={t} />
-        </>
-      )}
-    </>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <ChartNoAxesColumn size={24} className="text-accent" /> {t.sections.analytics.title}
+          </h1>
+          <p className="mt-1 text-sm text-muted">{a.subtitle}</p>
+        </div>
+        <PeriodSelect base={base} tab={tab} value={range.preset} options={presets.map((p) => ({ value: p, label: a.periods[p] }))} />
+      </div>
+      <nav className="inline-flex flex-wrap rounded-xl border border-line bg-panel p-1" data-testid="analytics-tabs">
+        {tabs.map(([key, Icon]) => (
+          <Link
+            key={key}
+            href={`${base}?tab=${key}&period=${range.preset}`}
+            aria-current={tab === key ? "page" : undefined}
+            data-tab={key}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${tab === key ? "bg-accent text-white" : "text-fg-2 hover:bg-panel-2"}`}
+          >
+            <Icon size={16} /> {a.tabs[key]}
+          </Link>
+        ))}
+      </nav>
+      {tab === "orders" && <OrdersTab data={data} lang={lang} t={t} />}
+      {tab === "products" && <ProductsTab data={data} lang={lang} t={t} />}
+      {tab === "impressions" && <ImpressionsTab data={data} lang={lang} t={t} />}
+      {tab === "team" && <TeamTab data={data} teamHref={sectionHref(lang, "callCenters")} t={t} />}
+    </div>
   );
 }

@@ -13,7 +13,7 @@ export type Range = { preset: Preset; fromDay: string; toDay: string; days: stri
 
 export function resolveRange(input: { period?: unknown; from?: unknown; to?: unknown }, now = new Date()): Range {
   const today = algeriaParts(now).day;
-  let preset: Preset = presets.includes(input.period as (typeof presets)[number]) ? (input.period as Preset) : "30d";
+  let preset: Preset = presets.includes(input.period as (typeof presets)[number]) ? (input.period as Preset) : "7d";
   let fromDay: string;
   let toDay = today;
   if (input.period === "custom" && isDay(input.from) && isDay(input.to)) {

@@ -1,31 +1,36 @@
 import "server-only";
-import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, lte, ne } from "drizzle-orm";
 import { db, schema } from "@/server/db";
+import { assignableMembers } from "@/features/team/queries";
 import { computeAnalytics } from "./compute";
 import type { Range } from "./range";
 
-// Everything the analytics page needs for the period (and the one before it, for comparison).
+// Everything the analytics tabs need for the period (and the one before it, for comparison).
 export async function shopAnalytics(shopId: string, range: Range) {
   const o = schema.orders;
-  // Abandoned checkouts are not orders: counted apart as the period's abandoned carts
-  const orders = await db
-    .select({ id: o.id, createdAt: o.createdAt, status: o.status, subtotal: o.subtotal, total: o.total, wilayaCode: o.wilayaCode, landingPageId: o.landingPageId })
-    .from(o)
-    .where(and(eq(o.shopId, shopId), ne(o.status, "abandoned"), gte(o.createdAt, range.prevStart), lt(o.createdAt, range.end)));
   const i = schema.orderItems;
-  const [items, leads, pages] = await Promise.all([
+  const v = schema.pageViews;
+  const prevFromDay = new Date(range.prevStart.getTime() + 3_600_000).toISOString().slice(0, 10);
+  // Abandoned checkouts are not orders
+  const [orders, items, views, catalog, members] = await Promise.all([
+    db
+      .select({ id: o.id, createdAt: o.createdAt, status: o.status, total: o.total, wilayaCode: o.wilayaCode, assignedTo: o.assignedTo })
+      .from(o)
+      .where(and(eq(o.shopId, shopId), ne(o.status, "abandoned"), gte(o.createdAt, range.prevStart), lt(o.createdAt, range.end))),
     db
       .select({ orderId: i.orderId, productId: i.productId, name: i.name, quantity: i.quantity, total: i.total })
       .from(i)
       .innerJoin(o, eq(o.id, i.orderId))
-      .leftJoin(schema.products, eq(schema.products.id, i.productId))
-      .where(and(eq(i.shopId, shopId), eq(o.shopId, shopId), gte(o.createdAt, range.start), lt(o.createdAt, range.end))),
-    // Checkouts that started as abandoned: still abandoned, or recovered by the team since ("converted")
+      .where(and(eq(i.shopId, shopId), eq(o.shopId, shopId), ne(o.status, "abandoned"), gte(o.createdAt, range.start), lt(o.createdAt, range.end))),
     db
-      .select({ createdAt: o.createdAt, status: sql<string>`case when ${o.status} = 'abandoned' then 'abandoned' else 'converted' end` })
-      .from(o)
-      .where(and(eq(o.shopId, shopId), gte(o.createdAt, range.start), lt(o.createdAt, range.end), sql`exists (select 1 from order_events ce where ce.order_id = ${o.id} and ce.type = 'created' and ce.to_status = 'abandoned')`)),
-    db.select({ id: schema.landingPages.id, title: schema.landingPages.title }).from(schema.landingPages).where(eq(schema.landingPages.shopId, shopId)),
+      .select({ day: v.day, productId: v.productId, source: v.source, impressions: v.impressions, visitors: v.visitors })
+      .from(v)
+      .where(and(eq(v.shopId, shopId), gte(v.day, prevFromDay), lte(v.day, range.toDay))),
+    db.select({ id: schema.products.id, name: schema.products.name, images: schema.products.images }).from(schema.products).where(eq(schema.products.shopId, shopId)).orderBy(asc(schema.products.name)),
+    assignableMembers(shopId),
   ]);
-  return { ...computeAnalytics(range, orders, items, leads), pageTitles: Object.fromEntries(pages.map((p) => [p.id, p.title])) as Record<string, string> };
+  const catalogRows = catalog.map((p) => ({ id: p.id, name: p.name, image: p.images[0] ?? null }));
+  // The call center tab: the store's agents (not the owner)
+  const agents = members.filter((m) => m.role === "agent").map((m) => ({ userId: m.userId, name: m.name }));
+  return computeAnalytics(range, orders, items, views, catalogRows, agents);
 }

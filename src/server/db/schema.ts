@@ -387,6 +387,21 @@ export const landingStats = mysqlTable(
   (t) => [primaryKey({ columns: [t.pageId, t.version] })],
 );
 
+// Store visits per Algeria day (Zimam's analytics: impressions, visitors, order rate, traffic sources): one row per
+// shop, day, product ("" = a page without a product) and source (the referring host, or "direct")
+export const pageViews = mysqlTable(
+  "page_views",
+  {
+    shopId: id("shop_id").notNull(),
+    day: varchar("day", { length: 10 }).notNull(),
+    productId: varchar("product_id", { length: 36 }).notNull().default(""),
+    source: varchar("source", { length: 100 }).notNull().default(""),
+    impressions: int("impressions").notNull().default(0),
+    visitors: int("visitors").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.shopId, t.day, t.productId, t.source] })],
+);
+
 // Saved versions of a landing page (the builder's History): one per save, the last 20 kept
 export const landingVersions = mysqlTable(
   "landing_versions",

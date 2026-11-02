@@ -1,323 +1,386 @@
-// Analytics page blocks. Plain server components: the charts' hover tooltips are CSS only.
-import Link from "next/link";
+// Zimam's analytics tabs (server components): orders, products, impressions, call center.
 import type { ReactNode } from "react";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { CircleCheck, ClipboardCheck, Clock, Eye, Filter, Headphones, Lightbulb, MapPin, Package, Percent, Plus, ShoppingCart, TrendingUp, Truck, Users, Wallet, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatPrice } from "@/lib/format";
 import { wilayaName } from "@/lib/wilayas";
-import { Badge, Card, Input, buttonClass } from "@/ui";
-import { statusTone } from "@/features/orders/statuses";
-import { change, pct, type Analytics } from "./compute";
-import { presets, type Range } from "./range";
+import { Card, buttonClass } from "@/ui";
+import type { Analytics } from "./compute";
+import { change, distributionStatuses } from "./compute";
+import { BarChart, Donut, LineChart, Spark } from "./charts";
 
-export const rate = (v: number | null) => (v == null ? "—" : `${v}%`);
+type A = Dictionary["analytics"];
+export const rate = (v: number | null) => (v == null ? "-" : `${v}%`);
+const dayLabel = (day: string, lang: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-DZ" : lang, { month: "short", day: "numeric", timeZone: "UTC" });
 
-export function PeriodBar({ base, range, t }: { base: string; range: Range; t: Dictionary }) {
-  const a = t.analytics;
+// The status colors of the distribution ring (theme tokens)
+const statusColors: Record<(typeof distributionStatuses)[number], string> = {
+  pending: "var(--color-violet)",
+  call_back: "var(--color-info)",
+  confirmed: "var(--color-accent)",
+  in_transit: "#3b82f6",
+  delivered: "#10b981",
+  returned: "var(--color-danger)",
+  cancelled: "var(--color-muted)",
+  flagged: "#991b1b",
+};
+
+function Box({ title, hint, children, className = "", testId }: { title: string; hint?: string; children: ReactNode; className?: string; testId?: string }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end gap-3" data-testid="period-bar">
-      <nav className="flex flex-wrap gap-1 rounded-lg bg-panel p-1 text-sm" aria-label="period">
-        {presets.map((p) => (
-          <Link
-            key={p}
-            href={p === "30d" ? base : `${base}?period=${p}`}
-            aria-current={range.preset === p ? "page" : undefined}
-            className={`rounded-md px-3 py-1.5 font-medium whitespace-nowrap ${range.preset === p ? "bg-panel-2 text-fg" : "text-muted hover:text-fg"}`}
-          >
-            {a.periods[p]}
-          </Link>
-        ))}
-      </nav>
-      {/* A plain GET form: the period lives in the URL, so it can be shared and reloaded */}
-      <form action={base} className={`flex flex-wrap items-end gap-2 rounded-lg p-1 text-sm ${range.preset === "custom" ? "bg-panel-2" : ""}`}>
-        <input type="hidden" name="period" value="custom" />
-        <label className="flex items-center gap-1.5 text-muted">
-          {a.from}
-          <Input type="date" name="from" defaultValue={range.fromDay} required dir="ltr" className="w-auto py-1.5" />
-        </label>
-        <label className="flex items-center gap-1.5 text-muted">
-          {a.to}
-          <Input type="date" name="to" defaultValue={range.toDay} required dir="ltr" className="w-auto py-1.5" />
-        </label>
-        <button type="submit" className={buttonClass("secondary", "py-1.5")}>
-          {a.apply}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// Change against the previous period: in % for amounts, in percentage points for rates.
-function Delta({ now, before, points = false, t }: { now: number | null; before: number | null; points?: boolean; t: Dictionary }) {
-  const d = points ? (now == null || before == null ? null : Math.round((now - before) * 10) / 10) : change(now, before);
-  if (d == null || (points && d === 0)) return null;
-  const up = d >= 0;
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${up ? "text-accent" : "text-danger"}`} title={t.analytics.vsPrevious} data-delta>
-      {up ? <TrendingUp size={14} aria-hidden /> : <TrendingDown size={14} aria-hidden />}
-      <bdi dir="ltr">{`${up ? "+" : ""}${d}${points ? "" : "%"}`}</bdi>
-      {points && t.analytics.points}
-    </span>
-  );
-}
-
-export function Kpi({ id, label, value, hint, delta }: { id: string; label: string; value: ReactNode; hint?: string; delta?: ReactNode }) {
-  return (
-    <Card className="space-y-1.5 p-4" data-kpi={id}>
-      <p className="text-xs font-medium text-muted">{label}</p>
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <p className="text-2xl font-bold tabular-nums" data-value>
-          {value}
-        </p>
-        {delta}
+    <Card className={`space-y-4 ${className}`} data-testid={testId}>
+      <div>
+        <h2 className="font-semibold">{title}</h2>
+        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
       </div>
-      {hint && <p className="text-xs leading-relaxed text-muted">{hint}</p>}
+      {children}
     </Card>
   );
 }
 
-export function KpiGrid({ data, t }: { data: Analytics; t: Dictionary }) {
-  const k = t.analytics.kpis;
-  const s = data.totals;
-  const p = data.previous;
-  const cur = t.common.currency;
+function Kpi({ id, icon: Icon, label, value, spark, sub, delta }: { id: string; icon: LucideIcon; label: string; value: ReactNode; spark?: number[]; sub?: string; delta?: number | null }) {
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Kpi id="orders" label={k.orders} value={s.orders} delta={<Delta now={s.orders} before={p.orders} t={t} />} />
-      <Kpi id="confirmation" label={k.confirmation} value={rate(s.confirmation)} hint={fmt(k.confirmationHint, { n: s.pending })} delta={<Delta now={s.confirmation} before={p.confirmation} points t={t} />} />
-      <Kpi id="delivery" label={k.delivery} value={rate(s.delivery)} hint={k.deliveryHint} delta={<Delta now={s.delivery} before={p.delivery} points t={t} />} />
-      <Kpi id="revenue" label={k.revenue} value={formatPrice(s.revenue, cur)} hint={k.revenueHint} delta={<Delta now={s.revenue} before={p.revenue} t={t} />} />
-      <Kpi id="averageOrder" label={k.averageOrder} value={formatPrice(s.averageOrder, cur)} />
-      <Kpi id="inDelivery" label={k.inDelivery} value={formatPrice(s.inDelivery, cur)} hint={k.inDeliveryHint} />
-      <Kpi id="recovered" label={k.recovered} value={rate(s.recoveryRate)} hint={fmt(k.recoveredHint, { n: s.recovered, total: s.leads })} />
-    </div>
-  );
-}
-
-// One-series bar chart. Bars grow from the baseline; each has a hover/focus tooltip.
-// Kept left-to-right in every language, like the time axis people are used to.
-function BarChart({ bars, label, testId }: { bars: { key: string; axis: string; value: number; tip: string[] }[]; label: string; testId: string }) {
-  const max = Math.max(1, ...bars.map((b) => b.value));
-  const ticks = [max, Math.round(max / 2), 0].filter((v, i, all) => all.indexOf(v) === i);
-  const every = Math.ceil(bars.length / 8);
-  return (
-    <div dir="ltr" className="flex gap-2" role="img" aria-label={label} data-testid={testId}>
-      <div className="flex h-44 flex-col justify-between pb-5 text-end text-[11px] text-muted tabular-nums">
-        {ticks.map((v) => (
-          <span key={v} className="-translate-y-1/2 leading-none first:translate-y-0 last:translate-y-0">
-            {v}
+    <Card className="flex flex-col gap-3" data-kpi={id}>
+      <span className="flex items-center gap-2.5 text-sm font-medium text-muted">
+        <span className="grid size-9 place-items-center rounded-lg bg-accent-soft text-accent">
+          <Icon size={17} />
+        </span>
+        {label}
+      </span>
+      <span className="flex items-end justify-between gap-3">
+        <span className="text-3xl font-bold tabular-nums" data-value>
+          {value}
+        </span>
+        {spark && <Spark values={spark} />}
+      </span>
+      {sub && (
+        <span className="flex items-center justify-between text-xs text-muted">
+          {sub}
+          <span className={delta == null ? "" : delta >= 0 ? "font-semibold text-accent" : "font-semibold text-danger"} dir="ltr">
+            {delta == null ? "–" : `${delta > 0 ? "+" : ""}${delta}%`}
           </span>
-        ))}
-      </div>
-      <div className="relative min-w-0 flex-1">
-        <div className="pointer-events-none absolute inset-x-0 top-0 bottom-5 flex flex-col justify-between">
-          {ticks.map((v) => (
-            <div key={v} className="border-t border-line/60" />
-          ))}
-        </div>
-        <div className="relative flex h-44 items-end gap-[2px] pb-5">
-          {bars.map((b, i) => (
-            <div key={b.key} tabIndex={0} className="group relative flex h-full min-w-0 flex-1 items-end outline-none" data-bar={b.key} data-value={b.value}>
-              <div className="w-full rounded-t-[4px] bg-accent/85 transition group-hover:bg-accent group-focus:bg-accent" style={{ height: `${(b.value / max) * 100}%`, minHeight: b.value ? 2 : 0 }} />
-              {i % every === 0 && <span className="absolute top-full mt-1 -translate-x-1/2 text-[11px] whitespace-nowrap text-muted" style={{ left: "50%" }}>{b.axis}</span>}
-              <div className={`pointer-events-none absolute top-0 z-10 hidden rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs whitespace-nowrap shadow-xl group-hover:block group-focus:block ${i < bars.length / 2 ? "left-full ms-1" : "right-full me-1"}`}>
-                {b.tip.map((line, j) => (
-                  <p key={j} className={j === 0 ? "font-semibold text-fg" : "text-muted"}>
-                    {line}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+        </span>
+      )}
+    </Card>
   );
 }
 
-const shortDay = (day: string) => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+const vs = (a: A, days: number) => (days === 1 ? a.vsYesterday : fmt(a.vsBefore, { n: days }));
 
-export function DailyChart({ data, t }: { data: Analytics; t: Dictionary }) {
+// ── Orders ───────────────────────────────────────────
+export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
   const a = t.analytics;
-  const cur = t.common.currency;
+  const o = data.orders;
+  const labels = o.daily.map((d) => dayLabel(d.day, lang));
+  const sub = vs(a, o.daily.length);
+  const stepIcons = { orders: Package, confirmed: ClipboardCheck, shipped: Truck, delivered: CircleCheck };
+  const insightIcons = { pending: Clock, dropoff: Filter, waiting: Clock, noConfirm: MapPin };
+  const stepName = (k: string) => a.funnelSteps[k as keyof A["funnelSteps"]] ?? k;
   return (
-    <Card className="mb-6 space-y-4">
-      <div>
-        <h2 className="font-semibold">{a.daily}</h2>
-        <p className="text-xs text-muted">{a.dailyHint}</p>
+    <div className="space-y-6" data-tab-panel="orders">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <Kpi id="orders" icon={ShoppingCart} label={a.kpis.orders} value={o.kpis.orders.value} spark={o.daily.map((d) => d.orders)} sub={sub} delta={change(o.kpis.orders.value, o.kpis.orders.previous)} />
+        <Kpi id="sales" icon={Wallet} label={a.kpis.sales} value={formatPrice(o.kpis.sales.value, t.common.currency)} spark={o.daily.map((d) => d.sales)} sub={sub} delta={change(o.kpis.sales.value, o.kpis.sales.previous)} />
+        <Kpi id="delivery" icon={Truck} label={a.kpis.delivery} value={rate(o.kpis.delivery.value)} sub={sub} delta={change(o.kpis.delivery.value, o.kpis.delivery.previous)} />
+        <Kpi id="avgDaily" icon={TrendingUp} label={a.kpis.avgDaily} value={o.kpis.avgDaily.value} sub={sub} delta={change(o.kpis.avgDaily.value, o.kpis.avgDaily.previous)} />
       </div>
-      <BarChart
-        label={a.daily}
-        testId="daily-chart"
-        bars={data.daily.map((d) => ({
-          key: d.day,
-          axis: shortDay(d.day),
-          value: d.orders,
-          tip: [d.day, `${a.tooltip.orders}: ${d.orders}`, `${a.tooltip.confirmed}: ${d.confirmed}`, `${a.tooltip.delivered}: ${d.delivered}`, `${a.tooltip.revenue}: ${formatPrice(d.revenue, cur)}`],
-        }))}
-      />
-      <details className="text-sm">
-        <summary className="cursor-pointer text-xs text-muted hover:text-fg">{a.table}</summary>
-        <div className="mt-3 max-h-72 overflow-auto">
-          <table className="w-full text-xs">
-            <thead className="text-muted">
-              <tr>
-                <th className="p-1.5 text-start font-medium" />
-                <th className="p-1.5 text-start font-medium">{a.funnelSteps.orders}</th>
-                <th className="p-1.5 text-start font-medium">{a.funnelSteps.confirmed}</th>
-                <th className="p-1.5 text-start font-medium">{a.funnelSteps.delivered}</th>
-                <th className="p-1.5 text-start font-medium">{a.columns.revenue}</th>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Box title={a.ordersOverTime} testId="orders-over-time">
+          <BarChart labels={labels} current={o.daily.map((d) => d.orders)} previous={o.daily.map((d) => d.previous)} names={[a.current, a.previous]} />
+        </Box>
+        <Box title={a.distribution} testId="status-distribution">
+          <div className="flex flex-wrap items-center gap-6">
+            <Donut parts={o.statuses.map((s) => ({ value: s.n, color: statusColors[s.status] }))} center={o.total} sub={a.ordersWord} />
+            <ul className="min-w-44 flex-1 space-y-1.5 text-sm">
+              {o.statuses.map((s) => (
+                <li key={s.status} className="flex items-center gap-2" data-status={s.status}>
+                  <span className="size-2.5 rounded-sm" style={{ background: statusColors[s.status] }} />
+                  <span className="flex-1">{t.orders.statuses[s.status]}</span>
+                  <span className="w-8 text-end tabular-nums">{s.n}</span>
+                  <span className="w-12 text-end text-muted tabular-nums">{o.total ? Math.round((s.n / o.total) * 100) : 0}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Box>
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Box title={a.funnel} hint={a.funnelHint} testId="funnel">
+          <div className="h-3 overflow-hidden rounded-full bg-panel-2" dir="ltr">
+            <div className="h-full rounded-full bg-gradient-to-r from-accent to-warning" style={{ width: `${o.total ? Math.max(4, (o.funnel.at(-1)!.n / o.total) * 100) : 0}%` }} />
+          </div>
+          <ol className="grid grid-cols-4 gap-2 text-center">
+            {o.funnel.map((s) => {
+              const Icon = stepIcons[s.key];
+              return (
+                <li key={s.key} className="flex flex-col items-center gap-1.5" data-step={s.key}>
+                  <span className="grid size-11 place-items-center rounded-full bg-accent text-white">
+                    <Icon size={19} />
+                  </span>
+                  <span className="text-xs text-muted">{a.funnelSteps[s.key]}</span>
+                  <span className="text-xl font-bold tabular-nums">{s.n}</span>
+                  <span className="text-xs text-muted tabular-nums">{rate(s.rate)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </Box>
+        <Card className="space-y-4 border-accent/20 bg-accent-soft/50" data-testid="insights">
+          <h2 className="font-semibold">{a.insights}</h2>
+          {o.insights.length === 0 ? (
+            <p className="text-sm text-muted">{a.noInsights}</p>
+          ) : (
+            <ul className="space-y-4">
+              {o.insights.map((i) => {
+                const Icon = insightIcons[i.key];
+                const v = { ...i.values } as Record<string, string | number>;
+                if (i.key === "dropoff") {
+                  v.from = stepName(String(v.from));
+                  v.to = stepName(String(v.to));
+                }
+                if (i.key === "noConfirm") v.names = String(v.codes).split(",").map((c) => wilayaName(Number(c), lang)).join("، ");
+                const text = a.insight[i.key];
+                return (
+                  <li key={i.key} className="flex gap-3" data-insight={i.key}>
+                    <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-panel text-warning">
+                      <Icon size={15} />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold">{fmt(text.title, v)}</span>
+                      <span className="block text-xs text-muted">{fmt(text.text, v)}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </div>
+      <Box title={a.wilayas} testId="wilayas">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted uppercase">
+              <tr className="border-b border-line">
+                {(["wilaya", "orders", "confirmed", "delivered", "returnRate"] as const).map((k) => (
+                  <th key={k} className={`p-2.5 font-semibold ${k === "wilaya" ? "text-start" : "text-end"}`}>
+                    {a.columns[k]}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="tabular-nums">
-              {data.daily.map((d) => (
-                <tr key={d.day} className="border-t border-line">
-                  <td className="p-1.5" dir="ltr">
-                    {d.day}
-                  </td>
-                  <td className="p-1.5">{d.orders}</td>
-                  <td className="p-1.5">{d.confirmed}</td>
-                  <td className="p-1.5">{d.delivered}</td>
-                  <td className="p-1.5">{formatPrice(d.revenue, cur)}</td>
+            <tbody>
+              {o.wilayas.map((w) => (
+                <tr key={w.code} className="border-b border-line last:border-0" data-wilaya={w.code}>
+                  <td className="p-2.5">{wilayaName(w.code, lang)}</td>
+                  <td className="p-2.5 text-end tabular-nums">{w.orders}</td>
+                  <td className="p-2.5 text-end tabular-nums">{w.confirmed}</td>
+                  <td className="p-2.5 text-end tabular-nums">{w.delivered}</td>
+                  <td className="p-2.5 text-end tabular-nums">{rate(w.returnRate)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </details>
-    </Card>
-  );
-}
-
-export function HourlyChart({ data, t }: { data: Analytics; t: Dictionary }) {
-  const a = t.analytics;
-  const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
-  return (
-    <Card className="space-y-4">
-      <div>
-        <h2 className="font-semibold">{a.hourly}</h2>
-        <p className="text-xs text-muted">{a.hourlyHint}</p>
+      </Box>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Box title={a.salesOverTime} testId="sales-over-time">
+          <LineChart labels={labels} series={[{ name: a.kpis.sales, values: o.daily.map((d) => d.sales), color: "var(--color-accent)" }]} />
+        </Box>
+        <Box title={a.deliveryPerformance} testId="delivery-performance">
+          <LineChart
+            labels={labels}
+            series={[
+              { name: a.delivered, values: o.daily.map((d) => d.delivered), color: "var(--color-accent)" },
+              { name: a.returned, values: o.daily.map((d) => d.returned), color: "var(--color-danger)" },
+            ]}
+          />
+        </Box>
       </div>
-      <BarChart label={a.hourly} testId="hourly-chart" bars={data.hourly.map((h) => ({ key: String(h.hour), axis: hh(h.hour), value: h.orders, tip: [`${hh(h.hour)} – ${hh((h.hour + 1) % 24)}`, `${a.tooltip.orders}: ${h.orders}`] }))} />
-    </Card>
+    </div>
   );
 }
 
-// Orders → confirmed → shipped → delivered, each as a share of all orders.
-export function Funnel({ data, t }: { data: Analytics; t: Dictionary }) {
+// ── Products ─────────────────────────────────────────
+export function ProductsTab({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
   const a = t.analytics;
-  const f = data.funnel;
-  const steps = (["orders", "confirmed", "shipped", "delivered"] as const).map((k) => ({ k, n: f[k] }));
+  const p = data.products;
+  const labels = p.daily.map((d) => dayLabel(d.day, lang));
+  const bandColors = { excellent: "var(--color-accent)", good: "var(--color-warning)", low: "var(--color-danger)" };
+  const rated = p.bands.excellent + p.bands.good + p.bands.low;
   return (
-    <Card className="space-y-3" data-testid="funnel">
-      <h2 className="font-semibold">{a.funnel}</h2>
-      {steps.map(({ k, n }) => (
-        <div key={k} data-step={k}>
-          <div className="mb-1 flex justify-between text-sm">
-            <span>{a.funnelSteps[k]}</span>
-            <span className="font-semibold tabular-nums">
-              {n} <span className="text-xs font-normal text-muted">{k === "orders" ? "" : rate(pct(n, f.orders))}</span>
-            </span>
-          </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-panel-2">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${f.orders ? (n / f.orders) * 100 : 0}%` }} />
-          </div>
-        </div>
-      ))}
-    </Card>
-  );
-}
-
-export function StatusList({ data, t }: { data: Analytics; t: Dictionary }) {
-  const total = data.totals.orders;
-  return (
-    <Card className="space-y-3" data-testid="statuses">
-      <h2 className="font-semibold">{t.analytics.statuses}</h2>
-      <ul className="space-y-2 text-sm">
-        {data.statuses.map((s) => (
-          <li key={s.status} className="flex items-center justify-between gap-3" data-status={s.status}>
-            <Badge tone={statusTone[s.status]}>{t.orders.statuses[s.status]}</Badge>
-            <span className="font-semibold tabular-nums">
-              {s.n} <span className="text-xs font-normal text-muted">{rate(pct(s.n, total))}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
-export function Table({ title, head, rows, testId }: { title: string; head: string[]; rows: { key: string; cells: ReactNode[] }[]; testId: string }) {
-  return (
-    <Card className="overflow-x-auto p-0" data-testid={testId}>
-      <h2 className="p-4 pb-2 font-semibold">{title}</h2>
-      <table className="w-full text-sm">
-        <thead className="text-xs text-muted">
-          <tr className="border-b border-line">
-            {head.map((h, i) => (
-              <th key={i} className="p-3 text-start font-medium whitespace-nowrap">
-                {h}
-              </th>
+    <div className="space-y-6" data-tab-panel="products">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <Kpi id="products" icon={Package} label={a.kpis.products} value={p.kpis.products} />
+        <Kpi id="visitors" icon={Eye} label={a.kpis.visitors} value={p.kpis.visitors} spark={p.daily.map((d) => d.visitors)} />
+        <Kpi id="productOrders" icon={ShoppingCart} label={a.kpis.productOrders} value={p.kpis.orders} spark={p.daily.map((d) => d.orders)} />
+        <Kpi id="orderRate" icon={Percent} label={a.kpis.orderRate} value={rate(p.kpis.orderRate)} spark={p.daily.map((d) => d.rate)} />
+        <Kpi id="avgDaily" icon={TrendingUp} label={a.kpis.avgDaily} value={p.kpis.avgDaily} />
+      </div>
+      <Box title={a.orderRateOverview} testId="order-rate">
+        <LineChart labels={labels} series={[{ name: a.kpis.orderRate, values: p.daily.map((d) => d.rate), color: "var(--color-accent)" }]} format={(n) => `${Math.round(n)}%`} wide />
+      </Box>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Box title={a.productsDistribution} testId="bands">
+          <Donut parts={(["excellent", "good", "low"] as const).map((b) => ({ value: p.bands[b], color: bandColors[b] }))} center={rated} sub={a.productWord} />
+          <ul className="grid grid-cols-2 gap-2 text-sm">
+            {(["excellent", "good", "low"] as const).map((b) => (
+              <li key={b} className="flex items-center gap-2" data-band={b}>
+                <span className="size-2.5 rounded-sm" style={{ background: bandColors[b] }} />
+                <span className="flex-1">{a.bands[b]}</span>
+                <span className="tabular-nums">{p.bands[b]}</span>
+                <span className="text-muted tabular-nums">{rated ? Math.round((p.bands[b] / rated) * 100) : 0}%</span>
+              </li>
             ))}
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          {rows.map((r) => (
-            <tr key={r.key} className="border-b border-line last:border-0" data-row={r.key}>
-              {r.cells.map((c, i) => (
-                <td key={i} className={`p-3 ${i === 0 ? "max-w-56 truncate font-medium" : "whitespace-nowrap"}`}>
-                  {c}
-                </td>
+          </ul>
+        </Box>
+        <Box title={a.productsPerformance} testId="products-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted uppercase">
+                <tr className="border-b border-line">
+                  {(["product", "visitors", "orders", "orderRate", "deliveryRate", "trend"] as const).map((k) => (
+                    <th key={k} className={`p-2.5 font-semibold ${k === "product" ? "text-start" : "text-end"}`}>
+                      {a.columns[k]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {p.rows.map((r) => (
+                  <tr key={r.id} className="border-b border-line last:border-0" data-product={r.name}>
+                    <td className="p-2.5">
+                      <span className="flex items-center gap-2.5">
+                        {r.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.image} alt="" className="size-9 rounded-md object-cover" />
+                        ) : (
+                          <span className="grid size-9 place-items-center rounded-md bg-panel-2 text-muted">
+                            <Package size={16} />
+                          </span>
+                        )}
+                        <span className="font-medium">{r.name}</span>
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-end tabular-nums">{r.visitors}</td>
+                    <td className="p-2.5 text-end tabular-nums">{r.orders}</td>
+                    <td className="p-2.5 text-end tabular-nums" data-col="orderRate">
+                      {rate(r.orderRate)}
+                    </td>
+                    <td className="p-2.5 text-end tabular-nums">{rate(r.deliveryRate)}</td>
+                    <td className="p-2.5">
+                      <span className="flex justify-end">
+                        <Spark values={r.spark} color="#3b82f6" />
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Tip text={a.productsTip} />
+        </Box>
+      </div>
+    </div>
+  );
+}
+
+function Tip({ text }: { text: string }) {
+  return (
+    <p className="flex items-center gap-2 rounded-xl bg-violet-soft px-4 py-3 text-sm text-fg">
+      <Lightbulb size={16} className="shrink-0 text-violet" /> {text}
+    </p>
+  );
+}
+
+// ── Impressions ──────────────────────────────────────
+export function ImpressionsTab({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
+  const a = t.analytics;
+  const im = data.impressions;
+  const labels = im.daily.map((d) => dayLabel(d.day, lang));
+  const sub = vs(a, im.daily.length);
+  return (
+    <div className="space-y-6" data-tab-panel="impressions">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Kpi id="impressions" icon={Eye} label={a.kpis.impressions} value={im.kpis.impressions.value} spark={im.daily.map((d) => d.impressions)} sub={sub} delta={change(im.kpis.impressions.value, im.kpis.impressions.previous)} />
+        <Kpi id="totalVisitors" icon={Users} label={a.kpis.totalVisitors} value={im.kpis.visitors.value} spark={im.daily.map((d) => d.visitors)} sub={sub} delta={change(im.kpis.visitors.value, im.kpis.visitors.previous)} />
+        <Kpi id="avgOrderRate" icon={Percent} label={a.kpis.avgOrderRate} value={rate(im.kpis.orderRate.value)} sub={sub} delta={change(im.kpis.orderRate.value, im.kpis.orderRate.previous)} />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Box title={a.sources} testId="sources">
+          {im.sources.length === 0 ? (
+            <p className="text-sm text-muted">{a.noVisits}</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {im.sources.map((s) => (
+                <li key={s.source} className="flex items-center gap-2" data-source={s.source}>
+                  <span className="size-2.5 rounded-sm bg-info" />
+                  <span className="flex-1 truncate" dir="ltr">
+                    {s.source === "direct" ? a.direct : s.source}
+                  </span>
+                  <span className="tabular-nums">{s.visitors}</span>
+                  <span className="w-14 text-end text-muted tabular-nums">{s.share}%</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Box>
+        <Box title={a.dailyTrend} testId="daily-trend">
+          <LineChart
+            labels={labels}
+            series={[
+              { name: a.kpis.impressions, values: im.daily.map((d) => d.impressions), color: "var(--color-accent)" },
+              { name: a.kpis.totalVisitors, values: im.daily.map((d) => d.visitors), color: "#3b82f6" },
+            ]}
+          />
+        </Box>
+      </div>
+      <Tip text={a.sourcesTip} />
+    </div>
+  );
+}
+
+// ── Call center ──────────────────────────────────────
+export function TeamTab({ data, teamHref, t }: { data: Analytics; teamHref: string; t: Dictionary }) {
+  const a = t.analytics;
+  if (data.team.length === 0)
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line py-14 text-center" data-tab-panel="team">
+        <Headphones size={30} className="text-muted" />
+        <p className="font-semibold">{a.noAgents}</p>
+        <p className="text-sm text-muted">{a.noAgentsHint}</p>
+        <Link href={teamHref} className={buttonClass("primary")}>
+          <Plus size={16} /> {a.addAgent}
+        </Link>
+      </div>
+    );
+  return (
+    <Box title={a.teamTitle} testId="team-table">
+      <div className="overflow-x-auto" data-tab-panel="team">
+        <table className="w-full text-sm">
+          <thead className="text-xs text-muted uppercase">
+            <tr className="border-b border-line">
+              {(["agent", "assigned", "confirmed", "cancelled", "pending", "confirmation", "deliveryRate"] as const).map((k) => (
+                <th key={k} className={`p-2.5 font-semibold ${k === "agent" ? "text-start" : "text-end"}`}>
+                  {a.columns[k]}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-export const tone = (v: number | null) => (v == null ? "text-muted" : v >= 70 ? "text-accent" : v >= 50 ? "text-warning" : "text-danger");
-
-export function ProductsTable({ data, t }: { data: Analytics; t: Dictionary }) {
-  const c = t.analytics.columns;
-  return (
-    <Table
-      title={t.analytics.products}
-      testId="top-products"
-      head={[c.product, c.quantity, c.orders, c.delivered, c.revenue]}
-      rows={data.products.map((p) => ({ key: p.key, cells: [p.name, p.quantity, p.orders, p.delivered, formatPrice(p.revenue, t.common.currency)] }))}
-    />
-  );
-}
-
-export function WilayasTable({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
-  const c = t.analytics.columns;
-  return (
-    <Table
-      title={t.analytics.wilayas}
-      testId="wilayas"
-      head={[c.wilaya, c.orders, c.confirmation, c.delivery, c.revenue]}
-      rows={data.wilayas.map((w) => ({
-        key: String(w.key),
-        cells: [wilayaName(w.key, lang), w.orders, <span key="c" className={tone(w.confirmation)}>{rate(w.confirmation)}</span>, <span key="d" className={tone(w.delivery)}>{rate(w.delivery)}</span>, formatPrice(w.revenue, t.common.currency)],
-      }))}
-    />
-  );
-}
-
-export function SourcesTable({ data, pageTitles, t }: { data: Analytics; pageTitles: Record<string, string>; t: Dictionary }) {
-  const a = t.analytics;
-  const c = a.columns;
-  return (
-    <Table
-      title={a.sources}
-      testId="sources"
-      head={[c.source, c.orders, c.confirmation, c.delivery, c.revenue]}
-      rows={data.sources.map((s) => ({
-        key: s.key || "store",
-        cells: [s.key ? (pageTitles[s.key] ?? a.deletedPage) : a.store, s.orders, <span key="c" className={tone(s.confirmation)}>{rate(s.confirmation)}</span>, <span key="d" className={tone(s.delivery)}>{rate(s.delivery)}</span>, formatPrice(s.revenue, t.common.currency)],
-      }))}
-    />
+          </thead>
+          <tbody>
+            {data.team.map((m) => (
+              <tr key={m.userId} className="border-b border-line last:border-0" data-agent={m.name}>
+                <td className="p-2.5 font-medium">{m.name}</td>
+                <td className="p-2.5 text-end tabular-nums">{m.assigned}</td>
+                <td className="p-2.5 text-end tabular-nums">{m.confirmed}</td>
+                <td className="p-2.5 text-end tabular-nums">{m.cancelled}</td>
+                <td className="p-2.5 text-end tabular-nums">{m.pending}</td>
+                <td className="p-2.5 text-end tabular-nums">{rate(m.confirmation)}</td>
+                <td className="p-2.5 text-end tabular-nums">{rate(m.delivery)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Box>
   );
 }

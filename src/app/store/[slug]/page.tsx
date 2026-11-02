@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { VisitPing } from "@/features/analytics/VisitPing";
 import { getShopBySlug, listStoreProducts, storeBase } from "@/features/storefront/queries";
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { Hero, OrderSteps, ProductGrid, TrustBadges } from "@/features/storefront/blocks";
@@ -18,6 +19,7 @@ export default async function StoreHome({ params }: PageProps<"/store/[slug]">) 
   return (
     <div className="space-y-10">
       <PixelScope pixels={pixels} />
+      <VisitPing shopId={shop.id} />
       {design.hero.enabled && <Hero hero={design.hero} variant={theme.layout.hero} t={t} />}
       {design.showBadges && <TrustBadges t={t} />}
       <ProductGrid title={design.productsTitle} products={products} base={base} currency={currencyLabel(locale)} t={t} layout={theme.layout} />

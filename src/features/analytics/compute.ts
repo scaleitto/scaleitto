@@ -1,119 +1,171 @@
-// Pure analytics math (unit-tested): orders, items and abandoned carts in → numbers for the page out.
+// Pure analytics math (unit-tested), Zimam's four tabs: orders, products, impressions and the call center.
+// Orders, their items, store visits and agents come in; the numbers each tab draws come out.
 import { algeriaParts } from "@/lib/time";
 import type { OrderStatus } from "@/server/db/schema";
 import type { Range } from "./range";
-import { PARCEL_STATUSES, REFUSED_STATUSES, isConfirmed, isPending, isRejected } from "@/features/orders/statuses";
+import { PARCEL_STATUSES, REFUSED_STATUSES, isConfirmed, isPending } from "@/features/orders/statuses";
 
-export type OrderRow = { id: string; createdAt: Date; status: OrderStatus; subtotal: number; total: number; wilayaCode: number; landingPageId: string | null };
+export type OrderRow = { id: string; createdAt: Date; status: OrderStatus; total: number; wilayaCode: number; assignedTo: string | null };
 export type ItemRow = { orderId: string; productId: string | null; name: string; quantity: number; total: number };
-export type LeadRow = { createdAt: Date; status: string };
+export type ViewRow = { day: string; productId: string; source: string; impressions: number; visitors: number };
+export type ProductInfo = { id: string; name: string; image: string | null };
+export type AgentInfo = { userId: string; name: string };
 
-const REFUSED_COUNTED = new Set<OrderStatus>(REFUSED_STATUSES);
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+// Change against the previous period, in % (null when there is nothing to compare)
+export const change = (now: number | null, before: number | null) => (now == null || before == null || before === 0 ? null : Math.round(((now - before) / before) * 100));
 
-// cancelled = refusals that count against the confirmation rate (cancelled, flagged); abandoned checkouts are not orders
-// and never reach this function.
-type Counts = { orders: number; confirmed: number; pending: number; cancelled: number; fake: number; duplicate: number; shipped: number; delivered: number; returned: number; revenue: number; total: number };
-function counts(orders: OrderRow[]): Counts {
-  const c: Counts = { orders: 0, confirmed: 0, pending: 0, cancelled: 0, fake: 0, duplicate: 0, shipped: 0, delivered: 0, returned: 0, revenue: 0, total: 0 };
-  for (const o of orders) {
-    c.orders++;
-    c.total += o.total;
-    if (isConfirmed(o.status)) c.confirmed++;
-    if (isPending(o.status)) c.pending++;
-    if (REFUSED_COUNTED.has(o.status)) c.cancelled++;
-    if (o.status === "flagged") c.fake++;
-    if ((PARCEL_STATUSES as readonly OrderStatus[]).includes(o.status)) c.shipped++;
-    if (o.status === "delivered") {
-      c.delivered++;
-      c.revenue += o.total;
-    }
-    if (o.status === "returned") c.returned++;
-  }
-  return c;
-}
+// The statuses of the distribution chart, in the order of an order's life (abandoned checkouts are not orders)
+export const distributionStatuses = ["pending", "call_back", "confirmed", "in_transit", "delivered", "returned", "cancelled", "flagged"] as const satisfies readonly OrderStatus[];
+const SHIPPED = new Set<OrderStatus>(PARCEL_STATUSES);
+const REFUSED = new Set<OrderStatus>(REFUSED_STATUSES);
+// A product's order rate: excellent from 5%, good from 1% (Zimam's tip: under 1% needs better visuals or pricing)
+export const rateBand = (rate: number | null) => (rate == null ? null : rate >= 5 ? "excellent" : rate >= 1 ? "good" : "low");
 
-// Confirmation: confirmed ÷ orders the call center finished with (pending calls and duplicates are left out).
-// Delivery: delivered ÷ parcels that reached an end (delivered or returned).
-const rates = (c: Counts) => ({ confirmation: pct(c.confirmed, c.confirmed + c.cancelled), delivery: pct(c.delivered, c.delivered + c.returned) });
+const deliveryRate = (list: OrderRow[]) => {
+  const delivered = list.filter((o) => o.status === "delivered").length;
+  return pct(delivered, delivered + list.filter((o) => o.status === "returned").length);
+};
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function computeAnalytics(range: Range, allOrders: OrderRow[], items: ItemRow[], leads: LeadRow[]) {
+export function computeAnalytics(range: Range, allOrders: OrderRow[], items: ItemRow[], views: ViewRow[], catalog: ProductInfo[], agents: AgentInfo[], now = new Date()) {
+  const days = range.days.length;
   const inRange = (d: Date) => d >= range.start && d < range.end;
   const orders = allOrders.filter((o) => inRange(o.createdAt));
   const previous = allOrders.filter((o) => o.createdAt >= range.prevStart && o.createdAt < range.start);
-  const c = counts(orders);
-  const p = counts(previous);
-  const ids = new Set(orders.map((o) => o.id));
-  const byId = new Map(orders.map((o) => [o.id, o]));
-  const myItems = items.filter((i) => ids.has(i.orderId));
+  const prevDays = new Set<string>();
+  for (let i = 0; i < days; i++) prevDays.add(new Date(range.prevStart.getTime() + i * 86_400_000 + 3_600_000).toISOString().slice(0, 10));
+  const viewsNow = views.filter((v) => v.day >= range.fromDay && v.day <= range.toDay);
+  const viewsBefore = views.filter((v) => prevDays.has(v.day));
+  const dayOf = (d: Date) => algeriaParts(d).day;
+  const index = new Map(range.days.map((d, i) => [d, i]));
+  const prevIndex = (d: Date) => Math.floor((d.getTime() - range.prevStart.getTime()) / 86_400_000);
 
-  const daily = new Map(range.days.map((d) => [d, { day: d, orders: 0, confirmed: 0, delivered: 0, revenue: 0 }]));
-  const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0 }));
+  // ── Orders ─────────────────────────────────────────
+  const daily = range.days.map((day) => ({ day, orders: 0, previous: 0, sales: 0, delivered: 0, returned: 0 }));
   for (const o of orders) {
-    const parts = algeriaParts(o.createdAt);
-    const d = daily.get(parts.day);
-    if (d) {
-      d.orders++;
-      if (isConfirmed(o.status)) d.confirmed++;
-      if (o.status === "delivered") {
-        d.delivered++;
-        d.revenue += o.total;
-      }
-    }
-    hourly[Math.floor(parts.minutes / 60)].orders++;
+    const d = daily[index.get(dayOf(o.createdAt)) ?? -1];
+    if (!d) continue;
+    d.orders++;
+    d.sales += o.total;
+    if (o.status === "delivered") d.delivered++;
+    if (o.status === "returned") d.returned++;
   }
-
-  const group = <K extends string | number>(key: (o: OrderRow) => K) => {
-    const map = new Map<K, OrderRow[]>();
-    for (const o of orders) map.set(key(o), [...(map.get(key(o)) ?? []), o]);
-    return [...map.entries()].map(([k, list]) => {
-      const g = counts(list);
-      return { key: k, orders: g.orders, confirmed: g.confirmed, delivered: g.delivered, returned: g.returned, revenue: g.revenue, ...rates(g) };
-    });
+  for (const o of previous) {
+    const d = daily[prevIndex(o.createdAt)];
+    if (d) d.previous++;
+  }
+  const sales = (list: OrderRow[]) => list.reduce((s, o) => s + o.total, 0);
+  const kpis = {
+    orders: { value: orders.length, previous: previous.length },
+    sales: { value: sales(orders), previous: sales(previous) },
+    delivery: { value: deliveryRate(orders), previous: deliveryRate(previous) },
+    avgDaily: { value: round1(orders.length / days), previous: round1(previous.length / days) },
   };
+  const statuses = distributionStatuses.map((status) => ({ status, n: orders.filter((o) => o.status === status).length }));
+  const confirmed = orders.filter((o) => isConfirmed(o.status)).length;
+  const shipped = orders.filter((o) => SHIPPED.has(o.status)).length;
+  const delivered = orders.filter((o) => o.status === "delivered").length;
+  const funnel = [
+    { key: "orders" as const, n: orders.length },
+    { key: "confirmed" as const, n: confirmed },
+    { key: "shipped" as const, n: shipped },
+    { key: "delivered" as const, n: delivered },
+  ].map((s, i, all) => ({ ...s, rate: i === 0 ? (s.n ? 100 : null) : pct(s.n, all[i - 1].n) }));
 
-  const products = new Map<string, { key: string; name: string; quantity: number; orders: Set<string>; delivered: number; revenue: number }>();
-  for (const i of myItems) {
-    const o = byId.get(i.orderId)!;
-    if (isRejected(o.status)) continue;
-    const key = i.productId ?? `name:${i.name}`;
-    const row = products.get(key) ?? { key, name: i.name, quantity: 0, orders: new Set<string>(), delivered: 0, revenue: 0 };
-    row.quantity += i.quantity;
-    row.orders.add(o.id);
-    if (o.status === "delivered") {
-      row.delivered += i.quantity;
-      row.revenue += i.total;
-    }
-    products.set(key, row);
+  const wilayaMap = new Map<number, OrderRow[]>();
+  for (const o of orders) wilayaMap.set(o.wilayaCode, [...(wilayaMap.get(o.wilayaCode) ?? []), o]);
+  const wilayas = [...wilayaMap.entries()]
+    .map(([code, list]) => {
+      const done = list.filter((o) => o.status === "delivered" || o.status === "returned").length;
+      return { code, orders: list.length, confirmed: list.filter((o) => isConfirmed(o.status)).length, delivered: list.filter((o) => o.status === "delivered").length, returnRate: pct(list.filter((o) => o.status === "returned").length, done) };
+    })
+    .sort((a, b) => b.orders - a.orders);
+
+  // Key insights: what is waiting, where orders are lost, which wilayas never confirm
+  const pending = orders.filter((o) => isPending(o.status)).length;
+  const insights: { key: "pending" | "dropoff" | "waiting" | "noConfirm"; values: Record<string, string | number> }[] = [];
+  if (pending) insights.push({ key: "pending", values: { rate: pct(pending, orders.length) ?? 0, n: pending, total: orders.length } });
+  const drops = funnel.slice(1).map((s, i) => ({ from: funnel[i].key, to: s.key, lost: funnel[i].n - s.n, fromN: funnel[i].n, toN: s.n })).filter((d) => d.lost > 0);
+  const worst = drops.sort((a, b) => b.lost - a.lost)[0];
+  if (worst) insights.push({ key: "dropoff", values: { from: worst.from, to: worst.to, fromN: worst.fromN, toN: worst.toN } });
+  const stale = orders.filter((o) => o.status === "pending" && now.getTime() - o.createdAt.getTime() > 2 * 3_600_000).length;
+  if (stale) insights.push({ key: "waiting", values: { n: stale } });
+  const noConfirm = wilayas.filter((w) => w.confirmed === 0);
+  if (noConfirm.length) insights.push({ key: "noConfirm", values: { n: noConfirm.length, codes: noConfirm.slice(0, 5).map((w) => w.code).join(",") } });
+
+  // ── Products ───────────────────────────────────────
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  const productOrders = new Map<string, Set<string>>();
+  for (const i of items) {
+    if (!i.productId || !byId.has(i.orderId)) continue;
+    productOrders.set(i.productId, (productOrders.get(i.productId) ?? new Set()).add(i.orderId));
   }
+  const visitorsOf = (list: ViewRow[], productId?: string) => list.filter((v) => (productId == null ? true : v.productId === productId)).reduce((s, v) => s + v.visitors, 0);
+  const products = catalog
+    .map((p) => {
+      const ids = [...(productOrders.get(p.id) ?? [])];
+      const list = ids.map((id) => byId.get(id)!);
+      const visitors = visitorsOf(viewsNow, p.id);
+      const spark = range.days.map(() => 0);
+      for (const o of list) {
+        const k = index.get(dayOf(o.createdAt));
+        if (k != null) spark[k]++;
+      }
+      return { ...p, visitors, orders: list.length, orderRate: pct(list.length, visitors), deliveryRate: deliveryRate(list), spark };
+    })
+    .sort((a, b) => b.orders - a.orders || b.visitors - a.visitors);
+  const totalVisitors = visitorsOf(viewsNow);
+  const bands = { excellent: 0, good: 0, low: 0 };
+  for (const p of products) {
+    const band = rateBand(p.orderRate);
+    if (band) bands[band]++;
+  }
+  const productDaily = range.days.map((day) => {
+    const v = viewsNow.filter((x) => x.day === day).reduce((s, x) => s + x.visitors, 0);
+    const n = orders.filter((o) => dayOf(o.createdAt) === day).length;
+    return { day, visitors: v, orders: n, rate: pct(n, v) ?? 0 };
+  });
 
-  const leadsIn = leads.filter((l) => inRange(l.createdAt));
-  const recovered = leadsIn.filter((l) => l.status === "converted").length;
-  const statuses = new Map<OrderStatus, number>();
-  for (const o of orders) statuses.set(o.status, (statuses.get(o.status) ?? 0) + 1);
+  // ── Impressions ────────────────────────────────────
+  const sum = (list: ViewRow[], key: "impressions" | "visitors") => list.reduce((s, v) => s + v[key], 0);
+  const sourceMap = new Map<string, number>();
+  for (const v of viewsNow) sourceMap.set(v.source || "direct", (sourceMap.get(v.source || "direct") ?? 0) + v.visitors);
+  const sources = [...sourceMap.entries()].map(([source, visitors]) => ({ source, visitors, share: pct(visitors, totalVisitors) ?? 0 })).sort((a, b) => b.visitors - a.visitors);
+  const impressionsDaily = range.days.map((day) => {
+    const list = viewsNow.filter((v) => v.day === day);
+    return { day, impressions: sum(list, "impressions"), visitors: sum(list, "visitors") };
+  });
+
+  // ── Call center ────────────────────────────────────
+  const team = agents
+    .map((a) => {
+      const list = orders.filter((o) => o.assignedTo === a.userId);
+      const conf = list.filter((o) => isConfirmed(o.status)).length;
+      const refused = list.filter((o) => REFUSED.has(o.status)).length;
+      return { ...a, assigned: list.length, confirmed: conf, cancelled: refused, pending: list.filter((o) => isPending(o.status)).length, confirmation: pct(conf, conf + refused), delivery: deliveryRate(list) };
+    })
+    .sort((a, b) => b.assigned - a.assigned);
 
   return {
-    totals: {
-      ...c,
-      ...rates(c),
-      averageOrder: c.orders ? Math.round(c.total / c.orders) : 0,
-      inDelivery: orders.filter((o) => o.status === "confirmed" || o.status === "in_transit").reduce((s, o) => s + o.total, 0),
-      leads: leadsIn.length,
-      recovered,
-      recoveryRate: pct(recovered, leadsIn.length),
+    orders: { kpis, daily, statuses, total: orders.length, funnel, insights, wilayas },
+    products: {
+      kpis: { products: catalog.length, visitors: totalVisitors, orders: orders.length, orderRate: pct(orders.length, totalVisitors), avgDaily: kpis.avgDaily.value },
+      daily: productDaily,
+      bands,
+      rows: products,
     },
-    previous: { orders: p.orders, revenue: p.revenue, ...rates(p) },
-    funnel: { orders: c.orders, confirmed: c.confirmed, shipped: c.shipped, delivered: c.delivered },
-    statuses: [...statuses.entries()].map(([status, n]) => ({ status, n })).sort((a, b) => b.n - a.n),
-    daily: [...daily.values()],
-    hourly,
-    products: [...products.values()].map((r) => ({ ...r, orders: r.orders.size })).sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue).slice(0, 10),
-    wilayas: group((o) => o.wilayaCode).sort((a, b) => b.orders - a.orders),
-    sources: group((o) => o.landingPageId ?? "").sort((a, b) => b.orders - a.orders),
+    impressions: {
+      kpis: {
+        impressions: { value: sum(viewsNow, "impressions"), previous: sum(viewsBefore, "impressions") },
+        visitors: { value: totalVisitors, previous: sum(viewsBefore, "visitors") },
+        orderRate: { value: pct(orders.length, totalVisitors), previous: pct(previous.length, sum(viewsBefore, "visitors")) },
+      },
+      sources,
+      daily: impressionsDaily,
+    },
+    team,
   };
 }
 
 export type Analytics = ReturnType<typeof computeAnalytics>;
-
-// Change against the previous period, in % (null when there is nothing to compare)
-export const change = (now: number | null, before: number | null) => (now == null || before == null || before === 0 ? null : Math.round(((now - before) / before) * 100));
