@@ -20,8 +20,6 @@ export const colorPalette: { hex: string; ar: string; fr: string; en: string }[]
   { hex: "#c0c0c0", ar: "فضي", fr: "Argenté", en: "Silver" },
 ];
 
-export const isHexColor = (v: string) => /^#[0-9a-f]{6}$/i.test(v);
-
 // The color of a value typed by name ("أحمر", "Rouge", "red"), or null
 export function colorByName(name: string): string | null {
   const n = name.trim().toLowerCase();

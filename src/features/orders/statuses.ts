@@ -16,8 +16,6 @@ export const REFUSED_STATUSES = ["cancelled", "flagged"] as const satisfies read
 export const CONFIRMED_STATUSES = ["confirmed", "in_transit", "delivered", "returned"] as const satisfies readonly OrderStatus[];
 // The parcel's life (set by sending, scanning and tracking)
 export const PARCEL_STATUSES = ["in_transit", "delivered", "returned"] as const satisfies readonly OrderStatus[];
-// Orders that count (plans, analytics, the overview): everything but the abandoned checkouts
-export const REAL_STATUSES = orderStatuses.filter((s) => s !== "abandoned");
 
 const among = (list: readonly OrderStatus[]) => (s: OrderStatus) => list.includes(s);
 export const isPending = among(PENDING_STATUSES);
