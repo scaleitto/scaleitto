@@ -729,3 +729,19 @@ export const planRequests = mysqlTable(
   (t) => [index("plan_requests_shop_idx").on(t.shopId, t.createdAt), index("plan_requests_status_idx").on(t.status, t.createdAt)],
 );
 
+
+// Apps → Promotions: a percentage off chosen products between two dates (features/promotions/apply.ts)
+export const promotions = mysqlTable(
+  "promotions",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    name: varchar("name", { length: 120 }).notNull(),
+    percent: int("percent").notNull(),
+    startsAt: datetime("starts_at").notNull(),
+    endsAt: datetime("ends_at").notNull(),
+    productIds: json("product_ids").$type<string[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("promotions_shop_idx").on(t.shopId, t.endsAt)],
+);

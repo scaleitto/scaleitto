@@ -1,4 +1,5 @@
 import "server-only";
+import { withPromotion, withPromotions } from "@/features/promotions/apply";
 import { storeForm } from "@/features/order-form/resolve";
 import { cache } from "react";
 import { headers } from "next/headers";
@@ -32,11 +33,12 @@ export async function storeBase(slug: string) {
 }
 
 export async function listStoreProducts(shopId: string) {
-  return db
+  const rows = await db
     .select({ id: schema.products.id, slug: schema.products.slug, name: schema.products.name, price: schema.products.price, compareAtPrice: schema.products.compareAtPrice, images: schema.products.images })
     .from(schema.products)
     .where(and(eq(schema.products.shopId, shopId), eq(schema.products.status, "active"), inStock))
     .orderBy(desc(schema.products.createdAt));
+  return withPromotions(shopId, rows);
 }
 
 // Sold-out products leave the store's lists when the merchant turned "show when sold out" off
@@ -57,7 +59,7 @@ export async function similarProducts(shopId: string, product: { id: string; sim
     .where(and(eq(p.shopId, shopId), eq(p.status, "active"), ne(p.id, product.id), inStock, chosen ? inArray(p.id, chosen) : undefined))
     .orderBy(desc(p.createdAt))
     .limit(limit);
-  return rows;
+  return withPromotions(shopId, rows);
 }
 
 export async function getStoreProduct(shopId: string, slug: string) {
@@ -71,7 +73,7 @@ export async function getStoreProduct(shopId: string, slug: string) {
     .from(schema.productVariants)
     .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
     .orderBy(asc(schema.productVariants.position));
-  return { ...product, variants };
+  return withPromotion(shopId, { ...product, variants });
 }
 
 // The delivery prices every form and order uses: the wilaya table shaped by the delivery settings (options, on/off)
@@ -110,5 +112,5 @@ export async function getStoreLanding(shopId: string, slug: string) {
     .from(schema.productVariants)
     .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
     .orderBy(asc(schema.productVariants.position));
-  return { page, product: { ...product, variants } };
+  return { page, product: await withPromotion(shopId, { ...product, variants }) };
 }

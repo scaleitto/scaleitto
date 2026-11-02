@@ -1,4 +1,5 @@
 import "server-only";
+import { withPromotion } from "@/features/promotions/apply";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { newId } from "@/server/auth/context";
@@ -31,7 +32,9 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
     .where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId), eq(schema.products.status, "active")));
   if (!product) return { ok: false, error: "unavailable" };
 
-  const variants = await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), eq(schema.productVariants.productId, product.id)));
+  const rows = await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), eq(schema.productVariants.productId, product.id)));
+  // Prices as the store shows them now (a running promotion lowers them)
+  const { variants, ...priced } = await withPromotion(shop.id, { ...product, variants: rows });
   const variant = variants.find((v) => v.id === input.variantId) ?? null;
   if (variants.length > 0 && !variant) return { ok: false, error: "variant" };
 
@@ -49,7 +52,7 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
   // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
   const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;
 
-  const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
+  const line = linePrice(variant?.price ?? priced.price, input.quantity, priced.offers);
   const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType), line.offer);
   if (shipping === null) return { ok: false, error: "shipping" };
   const orderId = newId();
@@ -175,8 +178,10 @@ async function dropAbandoned(tx: Tx, shopId: string, phone: string, productId: s
 export async function saveAbandoned(shopId: string, productId: string, input: { name: string; phone: string; wilaya: number | null; variantId: string | null; quantity: number }, ip: string | null) {
   const [product] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId), eq(schema.products.status, "active")));
   if (!product) return;
-  const [variant] = input.variantId ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.id, input.variantId))) : [];
-  const line = linePrice(variant?.price ?? product.price, input.quantity, product.offers);
+  const [row] = input.variantId ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.id, input.variantId))) : [];
+  const { variants, ...priced } = await withPromotion(shopId, { ...product, variants: row ? [row] : [] });
+  const variant = variants[0];
+  const line = linePrice(variant?.price ?? priced.price, input.quantity, priced.offers);
   const values = { customerName: input.name, wilayaCode: input.wilaya ?? 0, subtotal: line.total, total: line.total };
   const [draft] = await abandonedDrafts(db, shopId, input.phone, productId);
   if (draft) {

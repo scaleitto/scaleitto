@@ -288,6 +288,13 @@
       "when": 1793628899374,
       "tag": "0040_shop_apps",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1793631453642,
+      "tag": "0041_promotions",
+      "breakpoints": true
     }
   ]
 }

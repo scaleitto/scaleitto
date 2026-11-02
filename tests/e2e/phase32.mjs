@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 8, "8 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 7, "7 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
@@ -185,6 +185,34 @@ export default async function phase32(browser) {
     await buyer.locator("[data-testid=not-found]").waitFor();
     await owner.locator("[data-testid=app-enabled]").check();
     await save();
+  });
+
+  await step("promotions: a campaign lowers the price in the store and in the order; ended, the price is back", async () => {
+    await owner.goto(`${apps}/promotions`);
+    await owner.fill("#pr-name", "تخفيضات نوفمبر");
+    await owner.fill("#pr-percent", "25");
+    await owner.locator("[data-product='مصباح'] input").check();
+    await owner.fill("#pr-end", "2020-01-01T10:00");
+    await owner.click("[data-testid=promotion-save]");
+    await owner.waitForSelector("text=النهاية يجب أن تكون بعد البداية");
+    expect((await owner.locator("[data-product='مصباح']").textContent()).replace(/\s/g, "").includes("1500"), "new price shown beside the product");
+    await owner.fill("#pr-end", "2099-01-01T10:00");
+    await owner.click("[data-testid=promotion-save]");
+    await owner.waitForSelector("[data-campaign='تخفيضات نوفمبر'][data-state=running]");
+    await buyer.goto(`${store}/p/lamp`);
+    const page = (await buyer.locator("main").textContent()).replace(/\s/g, "");
+    expect(page.includes("1500") && page.includes("2000"), "store: new price and old price struck through");
+    await order("0663 44 55 66");
+    await buyer.waitForURL(/\/thanks\?o=/);
+    const [[o]] = await db.query("SELECT subtotal, total FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
+    expect(o.subtotal === 1500 && o.total === 2000, `order at the promotion price (got ${o.subtotal}/${o.total})`);
+    await owner.goto(apps);
+    expect((await owner.locator("[data-app-card=promotions]").getAttribute("data-state")) === "on", "grid: running");
+    await owner.goto(`${apps}/promotions`);
+    await owner.locator("[data-campaign='تخفيضات نوفمبر'] button", { hasText: "إنهاء الآن" }).click();
+    await owner.waitForSelector("[data-campaign='تخفيضات نوفمبر'][data-state=ended]");
+    await buyer.goto(`${store}/p/lamp`);
+    expect(!(await buyer.locator("main").textContent()).replace(/\s/g, "").includes("1500"), "price back after the end");
   });
 
   await step("agent assignment mode and QR codes", async () => {

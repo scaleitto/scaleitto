@@ -10,6 +10,9 @@ import { db, schema } from "@/server/db";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { formatDate } from "@/lib/format";
+import { PromotionsApp } from "@/features/promotions/PromotionsApp";
+import { listPromotions, promotionProducts } from "@/features/promotions/queries";
+import { toAlgeriaLocal } from "@/features/promotions/pricing";
 import { Badge, Card, buttonClass } from "@/ui";
 import { WebhookCard } from "@/features/apps/AppCards";
 import { ProductImport } from "@/features/apps/ProductImport";
@@ -92,6 +95,22 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
     case "orderTracking":
       body = <TrackingForm lang={lang} tracking={ctx.apps.tracking} pageHref={`${storeUrl(shop)}/track`} t={text} />;
       break;
+    case "promotions": {
+      const [list, products] = await Promise.all([listPromotions(shop.id), promotionProducts(shop.id)]);
+      const names = new Map(products.map((p) => [p.id, p.name]));
+      const now = Date.now();
+      body = (
+        <PromotionsApp
+          lang={lang}
+          products={products.map((p) => ({ id: p.id, name: p.name, price: p.price, image: p.images[0] ?? null, draft: p.status !== "active" }))}
+          campaigns={list.map((c) => ({ id: c.id, name: c.name, percent: c.percent, starts: formatDate(c.startsAt, lang), ends: formatDate(c.endsAt, lang), state: c.endsAt.getTime() <= now ? "ended" : c.startsAt.getTime() > now ? "scheduled" : "running", products: c.productIds.map((id) => names.get(id)).filter((n): n is string => Boolean(n)) }))}
+          defaults={{ start: toAlgeriaLocal(new Date(now)), end: toAlgeriaLocal(new Date(now + 7 * 86400_000)) }}
+          currency={t.common.currency}
+          t={text}
+        />
+      );
+      break;
+    }
     case "productImport":
       body = <ProductImport lang={lang} t={text} />;
       break;

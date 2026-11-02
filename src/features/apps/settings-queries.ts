@@ -4,6 +4,7 @@ import { db, schema } from "@/server/db";
 import { resolveProtection } from "@/features/checkout/protection-settings";
 import type { AppPageKey } from "./registry";
 import { resolveApps } from "./settings";
+import { runningPercents } from "@/features/promotions/apply";
 
 // What the Apps pages need about the store, read once
 export async function appsContext(shopId: string) {
@@ -20,6 +21,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
   const ctx = await appsContext(shopId);
   const [webhook] = await db.select({ active: schema.shopApps.active }).from(schema.shopApps).where(and(eq(schema.shopApps.shopId, shopId), eq(schema.shopApps.app, "webhook")));
   const a = ctx.apps;
+  const running = await runningPercents(shopId);
   return {
     abandoned: a.abandoned,
     fakeGuard: ctx.protection.enabled,
@@ -28,6 +30,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
     quickContact: (a.contact.phoneOn && Boolean(a.contact.phone)) || (a.contact.whatsappOn && Boolean(a.contact.whatsapp)),
     thankYou: Boolean(a.thanks.title || a.thanks.message || a.thanks.button || a.thanks.redirect === "product"),
     orderTracking: a.tracking.enabled,
+    promotions: running.size > 0,
     parcelScanner: a.scanner,
     webhook: Boolean(webhook?.active),
   };
