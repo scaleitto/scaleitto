@@ -8,7 +8,7 @@ test("sidebar: the overview, then the sell / grow / storefront / account groups 
   assert.deepEqual(nav.find((g) => g.key === "sell")!.items.map((e) => e.key), ["products", "orders", "scan", "delivery", "channels", "callCenters"]);
   assert.deepEqual(nav.find((g) => g.key === "grow")!.items.map((e) => e.key), ["landingPages", "analytics", "pixels", "apps"]);
   assert.deepEqual(nav.find((g) => g.key === "storefront")!.items.map((e) => e.key), ["storeDesign", "themes", "settings"]);
-  assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["team", "plans", "profile"]);
+  assert.deepEqual(nav.find((g) => g.key === "account")!.items.map((e) => e.key), ["team", "plans", "balance", "profile"]);
   assert.deepEqual(nav.find((g) => g.key === "sell")!.items.find((e) => e.key === "delivery")!.children, ["delivery", "manifest", "deliverySettings"]);
   assert.equal(entryOf("manifest"), "delivery");
   assert.equal(entryOf("themes"), "themes");

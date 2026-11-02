@@ -5,6 +5,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { Badge, Card, PageHeader } from "@/ui";
 import { adminPlanRequests } from "@/features/plans/queries";
 import { DecideRequest } from "@/features/plans/AdminRequests";
+import { pendingCreditPurchases } from "@/features/credits/queries";
 import { periodLabel } from "@/features/plans/labels";
 
 // Platform admin: plan upgrade requests
@@ -14,7 +15,7 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
   await connection();
   const t = getDictionary(lang);
   const a = t.admin;
-  const rows = await adminPlanRequests();
+  const [rows, credits] = await Promise.all([adminPlanRequests(), pendingCreditPurchases()]);
   return (
     <>
       <PageHeader title={a.title} />
@@ -67,6 +68,43 @@ export default async function PlanRequestsAdmin({ params }: PageProps<"/[lang]/a
                         {r.adminNote && <p className="mt-1 text-xs text-muted">{r.adminNote}</p>}
                       </>
                     )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+      <Card className="mt-6 overflow-x-auto p-0" data-testid="credit-requests">
+        <h2 className="p-4 pb-2 font-semibold">{a.creditRequests}</h2>
+        {credits.length === 0 ? (
+          <p className="px-4 pb-4 text-sm text-muted">{a.empty}</p>
+        ) : (
+          <table className="w-full text-sm">
+            <tbody>
+              {credits.map(({ purchase: r, shopName, shopSlug }) => (
+                <tr key={r.id} className="border-b border-line align-top last:border-0" data-credit-row={shopSlug}>
+                  <td className="p-3">
+                    <span className="block font-semibold">{shopName}</span>
+                    {r.note && <p className="mt-1 text-xs text-muted">{r.note}</p>}
+                  </td>
+                  <td className="p-3 font-semibold whitespace-nowrap">{r.credits.toLocaleString("fr-FR")} c</td>
+                  <td className="p-3 font-semibold whitespace-nowrap">{formatPrice(r.amount, t.common.currency)}</td>
+                  <td className="p-3">{r.method === "card" ? "💳" : t.plans.request.methods[r.method]}</td>
+                  <td className="p-3">
+                    {r.receiptUrl ? (
+                      <a href={r.receiptUrl} target="_blank" rel="noreferrer" className="font-semibold text-accent hover:underline">
+                        {a.viewReceipt}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="p-3 text-xs whitespace-nowrap text-muted">
+                    <bdi>{formatDate(r.createdAt, lang)}</bdi>
+                  </td>
+                  <td className="p-3">
+                    <DecideRequest lang={lang} id={r.id} kind="credits" t={a} />
                   </td>
                 </tr>
               ))}

@@ -27,6 +27,8 @@ export const sections = [
   { key: "pixels", path: "integrations/pixels", roles: managers },
   { key: "apps", path: "integrations/apps", roles: managers },
   { key: "plans", path: "plans", roles: ["owner"] },
+  // Balance: the store's credits (paid services such as WhatsApp messages)
+  { key: "balance", path: "balance", roles: ["owner"] },
   { key: "settings", path: "settings", roles: managers },
   { key: "profile", path: "profile", roles: managers },
 ] as const satisfies readonly { key: string; path: string; roles: readonly MemberRole[] }[];
@@ -44,7 +46,7 @@ export const navGroups = [
   },
   { key: "grow", items: [{ key: "landingPages" }, { key: "analytics" }, { key: "pixels" }, { key: "apps" }] },
   { key: "storefront", items: [{ key: "storeDesign" }, { key: "themes" }, { key: "settings" }] },
-  { key: "account", items: [{ key: "team" }, { key: "plans" }, { key: "profile" }] },
+  { key: "account", items: [{ key: "team" }, { key: "plans" }, { key: "balance" }, { key: "profile" }] },
 ] as const satisfies readonly { key: string; items: readonly NavEntry[] }[];
 
 export type NavGroupKey = (typeof navGroups)[number]["key"];

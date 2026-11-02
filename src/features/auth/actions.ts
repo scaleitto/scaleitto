@@ -1,5 +1,7 @@
 "use server";
 
+import { grantCredits } from "@/features/credits/ledger";
+import { TRIAL_CREDITS } from "@/features/credits/packs";
 import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/server/db";
@@ -52,6 +54,8 @@ export async function register(lang: string, _prev: ActionState, formData: FormD
       });
       await tx.insert(schema.shops).values({ id: shopId, slug: d.shopSlug, name: d.shopName, ownerId: userId, planId: starter.id, defaultLocale: d.storeLanguage, phone: d.phone });
       await tx.insert(schema.shopMembers).values({ shopId, userId, role: "owner" });
+      // Balance: every new store starts with the free trial credits
+      await grantCredits(shopId, TRIAL_CREDITS, "trial", null, tx);
     });
     if (!confirmNow) {
       // The account exists either way: a failed email can be sent again from the confirmation page

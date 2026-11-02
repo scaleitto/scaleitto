@@ -152,7 +152,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `/api/payments/chargily/<shopId>` (HMAC-SHA256 of the raw body with the secret, header `signature`) → `markPaid`. A failed start
   keeps the order cash on delivery. Formats from the official SDKs (Chargily JS, SlickPay npm/WooCommerce): verify with a real
   account. E2E: `mock-pixels.mjs` also fakes both gateways (E2E_PAYMENT_URL, never in production).
-  Coming (not built yet): WhatsApp confirmation (needs the Balance credits).
+  Balance (`features/credits`, `/dashboard/balance`, owner): `shops.credits` + `credit_ledger` (every +/− with the balance after;
+  kinds trial / subscription / purchase / admin / whatsapp / notification / refund / ai), `ledger.ts grantCredits / spendCredits`
+  (atomic, refuses when short). New stores get `TRIAL_CREDITS` (500, migration 0046 gave every store 500). Packs in `packs.ts`
+  (DZD prices); bought by card through the platform's own Chargily (PLATFORM_CHARGILY_SECRET / _MODE → `/api/payments/platform`
+  webhook, return `?purchase=` → `refreshCreditPurchase`) or locally (CCP/RIB receipt or WhatsApp → `credit_purchases` pending →
+  admin → plan requests page approves → `approveCreditPurchase`, credits once).
+  Coming (not built yet): WhatsApp confirmation (paid from the Balance).
 - Apps sync (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
   `app_events` log. `sync.ts`: `scheduleOrderSync` (→ `after()`) is called on placement, every status change
   (`applyOrderStatus`), customer edit and assignment; the sheet gets one row per order keyed by the order number (headers

@@ -1,7 +1,7 @@
 // Phase 33 (Zimam parity): Apps → Online payments — the merchant connects Chargily / SlickPay ("Save and test", keys
 // encrypted); buyers choose cash on delivery or card; a card order goes to the gateway's page and comes back paid
 // (Chargily: signed webhook; SlickPay: status asked on return); the orders list shows it.
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { BASE, BROWSER_ARGS, createShop, db, expect, step, until } from "./helpers.mjs";
 import { payments } from "./mock-pixels.mjs";
 
@@ -86,6 +86,36 @@ export default async function phase33(browser) {
     await buyer.waitForURL(/\/thanks\?o=/);
     const [[o]] = await db.query("SELECT payment_method, payment_status FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
     expect(o.payment_method === "cod" && o.payment_status === "none", "cash on delivery");
+  });
+
+  await step("Balance: credits, a pack bought by card (platform gateway) and one by WhatsApp approved by the admin", async () => {
+    await db.query("UPDATE shops SET credits = 500 WHERE id = ?", [shopId]);
+    await db.query("INSERT INTO credit_ledger (id, shop_id, amount, kind, balance_after) VALUES (UUID(), ?, 500, 'trial', 500)", [shopId]);
+    await owner.goto(`${BASE}/ar/dashboard/balance`);
+    expect((await owner.locator("[data-testid=balance-credits]").textContent()).replace(/\s/g, "") === "500", "500 credits");
+    expect((await owner.locator("[data-testid=credit-history] tr[data-ledger=trial]").count()) === 1, "trial line in the history");
+    await Promise.all([owner.waitForURL(/\/dashboard\/balance\?purchase=/), owner.click("[data-testid=buy-starter]")]);
+    expect((await owner.locator("[data-testid=purchase-result]").getAttribute("data-result")) === "paid", "card purchase paid");
+    await until(async () => (await db.query("SELECT credits FROM shops WHERE id = ?", [shopId]))[0][0].credits === 1500, "1,000 credits added once");
+    expect(payments.some((p) => p.provider === "chargily" && p.body.amount === 800 && p.body.webhook_endpoint.endsWith("/api/payments/platform")), "platform checkout of 800 DA");
+    await owner.click("[data-testid=packs-local]");
+    await owner.click("[data-testid=buy-growth]");
+    await owner.locator("[data-testid=credit-request] input[value=whatsapp]").check();
+    await owner.click("[data-testid=credit-request-send]");
+    await owner.waitForSelector("[data-testid=credit-pending]");
+    const adminId = randomUUID();
+    await db.query("INSERT INTO users (id, email, name, password_hash, locale, is_platform_admin, email_verified_at) VALUES (?, ?, 'Admin', 'scrypt$00$00', 'ar', 1, NOW())", [adminId, `admin33-${tag}@test.dz`]);
+    const token = randomBytes(32).toString("base64url");
+    await db.query("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY))", [createHash("sha256").update(token).digest("hex"), adminId]);
+    const adminCtx = await browser.newContext();
+    await adminCtx.addCookies([{ name: "sc_session", value: token, url: BASE }]);
+    const admin = await adminCtx.newPage();
+    await admin.goto(`${BASE}/ar/admin/plan-requests`);
+    const row = admin.locator(`[data-credit-row="shop-${tag}"]`);
+    await row.waitFor();
+    await row.locator("button", { hasText: "قبول" }).click();
+    await until(async () => (await db.query("SELECT credits FROM shops WHERE id = ?", [shopId]))[0][0].credits === 7000, "5,500 credits added after approval");
+    await adminCtx.close();
   });
 
   await customer.close();

@@ -21,7 +21,7 @@ export default async function phase29(browser) {
   await step("sidebar: Connected platforms in Sell, Team in Account", async () => {
     await owner.goto(dash);
     const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
-    expect(order.join() === "overview,products,orders,scan,delivery,channels,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,team,plans,profile", `entries (got ${order.join()})`);
+    expect(order.join() === "overview,products,orders,scan,delivery,channels,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,team,plans,balance,profile", `entries (got ${order.join()})`);
   });
 
   await step("connected platforms: Google Sheets here, Shopify and WooCommerce to connect, the others coming", async () => {

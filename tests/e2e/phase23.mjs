@@ -35,7 +35,7 @@ export default async function phase23(browser) {
     const groups = await owner.locator("aside [data-section]").evaluateAll((els) => els.map((e) => e.dataset.section));
     expect(groups.join() === "main,sell,grow,storefront,account", `groups (got ${groups.join()})`);
     const order = await owner.locator("aside nav li[data-nav]").evaluateAll((els) => els.map((li) => li.dataset.nav));
-    expect(order.join() === "overview,products,orders,scan,delivery,channels,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,team,plans,profile", `entries (got ${order.join()})`);
+    expect(order.join() === "overview,products,orders,scan,delivery,channels,callCenters,landingPages,analytics,pixels,apps,storeDesign,themes,settings,team,plans,balance,profile", `entries (got ${order.join()})`);
     // An entry with sub-pages opens and closes; its sub-pages slide under it
     const group = owner.locator("aside li[data-nav=delivery]");
     await group.locator(":scope > button").click();

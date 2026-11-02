@@ -82,6 +82,8 @@ export const shops = mysqlTable(
     planExpiresAt: datetime("plan_expires_at"),
     // Orders left on a pay-as-you-go plan (each order placed uses one; src/features/plans/locked.ts)
     orderCredits: int("order_credits").notNull().default(0),
+    // Balance (Zimam's credits): paid services (WhatsApp messages…) take from it; history in credit_ledger
+    credits: int("credits").notNull().default(0),
     status: mysqlEnum("status", ["active", "suspended"]).notNull().default("active"),
     defaultLocale: varchar("default_locale", { length: 5 }).notNull().default("ar"),
     currency: varchar("currency", { length: 3 }).notNull().default("DZD"),
@@ -795,4 +797,42 @@ export const shopPayments = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("shop_payments_uq").on(t.shopId, t.provider)],
+);
+
+// Balance: every credit that came in or went out, with the balance after it
+export const creditKinds = ["trial", "subscription", "purchase", "admin", "whatsapp", "notification", "refund", "ai"] as const;
+export const creditLedger = mysqlTable(
+  "credit_ledger",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    amount: int("amount").notNull(),
+    kind: mysqlEnum("kind", creditKinds).notNull(),
+    note: varchar("note", { length: 200 }),
+    balanceAfter: int("balance_after").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("credit_ledger_shop_idx").on(t.shopId, t.createdAt)],
+);
+
+// Balance → credit packs bought by card (the platform's Chargily account) or by transfer approved by the platform admin
+export const creditPurchases = mysqlTable(
+  "credit_purchases",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    pack: varchar("pack", { length: 20 }).notNull(),
+    credits: int("credits").notNull(),
+    amount: int("amount").notNull(),
+    method: mysqlEnum("method", ["card", "ccp", "rib", "whatsapp"]).notNull(),
+    receiptUrl: varchar("receipt_url", { length: 255 }),
+    note: varchar("note", { length: 500 }),
+    status: mysqlEnum("status", ["pending", "paid", "rejected"]).notNull().default("pending"),
+    providerRef: varchar("provider_ref", { length: 80 }),
+    adminNote: varchar("admin_note", { length: 500 }),
+    requestedBy: id("requested_by").notNull(),
+    decidedAt: datetime("decided_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("credit_purchases_shop_idx").on(t.shopId, t.createdAt), index("credit_purchases_status_idx").on(t.status, t.createdAt)],
 );
