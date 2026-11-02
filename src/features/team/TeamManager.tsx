@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Clock, Copy, Headset, KeyRound, Pencil, Plus, Power, X } from "lucide-react";
+import { Clock, Copy, Headphones, Headset, KeyRound, Pencil, Plus, Power, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
@@ -45,7 +45,7 @@ function AddAgentDialog({ lang, t, onDone }: { lang: string; t: TeamText; onDone
   });
   return (
     <>
-      <Button type="button" onClick={() => ref.current?.showModal()} data-testid="add-agent">
+      <Button type="button" className="h-12 px-6 text-base" onClick={() => ref.current?.showModal()} data-testid="add-agent">
         <Plus size={16} /> {ag.add}
       </Button>
       <dialog ref={ref} className="m-auto w-[min(460px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="agent-dialog">
@@ -285,9 +285,16 @@ export function TeamManager({ lang, members, viewer, portal, t }: { lang: string
         <AddAgentDialog lang={lang} t={t} onDone={() => setAdded(true)} />
       </div>
       {added && <Alert variant="success">{t.team.added}</Alert>}
-      <PortalLink url={portal.url} storeId={portal.storeId} t={t} />
+      {/* Zimam's empty state; the agents' sign-in link appears once there is someone to give it to */}
+      {people.length > 0 && <PortalLink url={portal.url} storeId={portal.storeId} t={t} />}
       {people.length === 0 ? (
-        <Card className="py-10 text-center text-sm text-muted">{ag.none}</Card>
+        <Card className="flex flex-col items-center gap-3 py-20 text-center" data-testid="no-agents">
+          <span className="grid size-16 place-items-center rounded-full bg-accent text-white">
+            <Headphones size={28} />
+          </span>
+          <h2 className="text-xl font-bold">{ag.noneTitle}</h2>
+          <p className="text-muted">{ag.none}</p>
+        </Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {people.map((m) => (

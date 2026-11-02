@@ -15,10 +15,9 @@ export default async function phase31(browser) {
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مكواة', 'iron', 3000, '[]', '[]', '[]')", [productId, shopId]);
 
-  await step("Call center: the portal link with the store ID, and 'Add agent' opens Create New Agent", async () => {
+  await step("Call center: Zimam's empty state, and 'Add agent' opens Create New Agent", async () => {
     await owner.goto(cc);
-    expect((await owner.locator("[data-testid=store-id]").innerText()) === slug, "store ID shown");
-    expect((await owner.locator("[data-testid=portal-link] a").getAttribute("href")).endsWith(`/ar/call-center/login?store=${slug}`), "portal link");
+    await owner.locator("[data-testid=no-agents]").getByText("لا يوجد موظفون بعد").waitFor();
     await owner.click("[data-testid=add-agent]");
     await owner.locator("[data-testid=agent-dialog]").getByText("إنشاء موظف جديد").waitFor();
     expect(!(await owner.locator("[data-testid=agent-dialog] #m-role").count()), "no role field (agents only)");
@@ -38,6 +37,9 @@ export default async function phase31(browser) {
     expect((await card.locator("[data-testid=member-username]").innerText()).trim() === `@${username}`, "@username");
     expect(!(await card.getByText("agents.invalid").count()), "internal email hidden");
     await card.getByText("أُنشئ:").waitFor();
+    // With an agent, the sign-in link to give them
+    expect((await owner.locator("[data-testid=store-id]").innerText()) === slug, "store ID shown");
+    expect((await owner.locator("[data-testid=portal-link] a").getAttribute("href")).endsWith(`/ar/call-center/login?store=${slug}`), "portal link");
     const [[m]] = await db.query("SELECT role, username FROM shop_members WHERE shop_id = ? AND username = ?", [shopId, username]);
     expect(m?.role === "agent", "saved as an agent");
   });
