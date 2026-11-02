@@ -17,7 +17,7 @@ import { appLog, appViews } from "@/features/apps/queries";
 import { LOCKED, OLD_SCRIPT } from "@/features/apps/sync";
 import { appKeys, readyApps, type AppPageKey } from "@/features/apps/registry";
 import { appsContext, blockedPhoneList, qrProducts } from "@/features/apps/settings-queries";
-import { AssignModeForm, BlacklistApp, HowItWorks, OrderGuardForm, QrCodeApp, QuickContactForm, SwitchApp, ThankYouForm, TrustBadgesForm } from "@/features/apps/AppPages";
+import { AssignModeForm, BlacklistApp, HowItWorks, OrderGuardForm, QrCodeApp, QuickContactForm, SwitchApp, ThankYouForm, TrackingForm, TrustBadgesForm } from "@/features/apps/AppPages";
 
 // One app's page (Zimam: "Open app"): back link, what it does, its settings
 export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/integrations/apps/[app]">) {
@@ -89,6 +89,9 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
       body = <QrCodeApp storeUrl={storeUrl(shop)} products={products} t={text} />;
       break;
     }
+    case "orderTracking":
+      body = <TrackingForm lang={lang} tracking={ctx.apps.tracking} pageHref={`${storeUrl(shop)}/track`} t={text} />;
+      break;
     case "productImport":
       body = <ProductImport lang={lang} t={text} />;
       break;

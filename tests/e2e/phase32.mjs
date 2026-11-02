@@ -38,9 +38,9 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 9, "9 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 8, "8 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
-    expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none"), "states");
+    expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
     await owner.waitForSelector("text=رجوع إلى التطبيقات");
   });
@@ -145,6 +145,46 @@ export default async function phase32(browser) {
     await buyer.goto(store);
     expect((await buyer.locator("[data-testid=floating-whatsapp]").getAttribute("href")) === "https://wa.me/213555667788", "WhatsApp button");
     expect((await buyer.locator("[data-testid=floating-phone]").getAttribute("href")) === "tel:0661001122", "call button");
+  });
+
+  await step("order tracking: private link from the thank-you page, lookup by number + phone or phone only, switched off → not found", async () => {
+    await order("0662 33 44 55");
+    await buyer.waitForURL(/\/thanks\?o=/);
+    const orderId = new URL(buyer.url()).searchParams.get("o");
+    const [[row]] = await db.query("SELECT number FROM orders WHERE id = ?", [orderId]);
+    await db.query("UPDATE orders SET status = 'confirmed' WHERE id = ?", [orderId]);
+    await Promise.all([buyer.waitForURL(/\/track\?o=/), buyer.click("[data-testid=track-link]")]);
+    const card = buyer.locator(`[data-tracked-order="${row.number}"]`);
+    await card.waitFor();
+    expect((await card.getAttribute("data-status")) === "confirmed" && (await card.locator("[data-step][data-done='1']").count()) === 2, "received + confirmed done");
+    expect((await card.textContent()).includes("مرحباً سليم") && !(await card.textContent()).includes("بن عمر"), "first name only");
+    expect((await buyer.locator("[data-testid=track-contact]").getAttribute("href")) === "https://wa.me/213555667788", "contact = quick contact WhatsApp");
+    const token = new URL(buyer.url()).searchParams.get("k");
+    await buyer.goto(`${store}/track?o=${orderId}&k=${token.slice(0, -2)}xx`);
+    await buyer.locator("[data-testid=not-found]").waitFor();
+    expect(!(await buyer.locator("[data-tracked-order]").count()), "a wrong key → not found");
+    await buyer.goto(`${store}/track`);
+    await buyer.fill("input[name=phone]", "0662334455");
+    await buyer.click("[data-testid=track-form] button[type=submit]");
+    await buyer.waitForSelector("[data-testid=track-message]");
+    expect((await buyer.locator("[data-tracked-order]").count()) === 0, "number + phone required by default");
+    await buyer.fill("input[name=number]", String(row.number));
+    await buyer.click("[data-testid=track-form] button[type=submit]");
+    await buyer.locator(`[data-tracked-order="${row.number}"]`).waitFor();
+    await owner.goto(`${apps}/orderTracking`);
+    await owner.locator("[data-testid=lookup-phone]").check();
+    await owner.selectOption("#tr-contact", "phone");
+    await owner.fill("#tr-number", "0661 99 88 77");
+    await save();
+    await buyer.goto(`${store}/track?phone=0662334455`);
+    await buyer.locator(`[data-tracked-order="${row.number}"]`).waitFor();
+    expect((await buyer.locator("[data-testid=track-contact]").getAttribute("href")) === "tel:0661998877", "the app's own number");
+    await owner.locator("[data-testid=app-enabled]").uncheck();
+    await save();
+    await buyer.goto(`${store}/track`);
+    await buyer.locator("[data-testid=not-found]").waitFor();
+    await owner.locator("[data-testid=app-enabled]").check();
+    await save();
   });
 
   await step("agent assignment mode and QR codes", async () => {

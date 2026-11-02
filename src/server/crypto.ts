@@ -30,3 +30,8 @@ export function decryptJson<T>(payload: string): T {
 export function cronKey() {
   return createHash("sha256").update(`scaleitto-cron:${process.env.APP_SECRET || process.env.DATABASE_URL || ""}`).digest("hex").slice(0, 32);
 }
+
+// The private part of an order's tracking link (/store/<slug>/track?o=<id>&k=<token>): derived from the secret, never stored
+export function orderToken(orderId: string) {
+  return createHash("sha256").update(`scaleitto-track:${process.env.APP_SECRET || process.env.DATABASE_URL || ""}:${orderId}`).digest("base64url").slice(0, 22);
+}

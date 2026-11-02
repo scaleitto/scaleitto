@@ -1303,6 +1303,7 @@ const en: Dictionary = {
       qrCode: { title: "QR code generator", about: "Make high-quality QR codes for your campaigns — on boxes, flyers and stickers — opening your store, a product or any link." },
       productImport: { title: "Product import", about: "Preview the products of a Shopify or YouCan store, then import the ones you pick with their photos and descriptions, as drafts." },
       parcelScanner: { title: "Parcel scanner", about: "Scan a parcel's label with a barcode reader or your phone camera: a confirmed order goes in transit, a returned one goes back into stock. When on, Scan shows in the menu and on the Orders page.", enable: "Enable the parcel scanner", enableHint: "Shows Scan in the menu and the Scan button on Orders.", open: "Open the scanner" },
+      orderTracking: { title: "Order tracking", about: "After ordering, the buyer gets a private link to follow their order: received, confirmed, on its way, delivered, with the tracking number. They can also look it up from the store's “Track your order” page." },
       webhook: { title: "Webhook", about: "Every new order and every status change is sent to your URL as signed JSON (X-Scaleitto-Signature) for your own system." },
     },
     guard: {
@@ -1389,6 +1390,20 @@ const en: Dictionary = {
       emptyHint: "Leave a field empty to use the default text in the store's language.",
       preview: "Phone preview",
       number: "Order number",
+    },
+    tracking: {
+      enable: "Enable the tracking page",
+      enableHint: "When off, every tracking link answers “not found”.",
+      open: "Open the tracking page in the store",
+      contactTitle: "Contact button",
+      contactHint: "Keep “Quick contact number” to reuse your quick contact buttons' number.",
+      method: "Method",
+      methods: { quick: "Quick contact number", whatsapp: "WhatsApp", phone: "Phone call", none: "No contact button" },
+      number: "Number",
+      numberHint: "Empty = the quick contact number or the store's phone.",
+      lookupTitle: "How buyers find their order",
+      lookups: { phone: "Phone number only", number_phone: "Order number and phone number" },
+      lookupHint: "With the phone number only, anyone who knows a buyer's number can see that buyer's orders in this store. Asking for the order number too is stricter, but a buyer who lost it cannot look it up.",
     },
     qr: {
       title: "QR code",

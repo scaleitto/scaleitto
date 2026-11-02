@@ -27,6 +27,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
     trustBadges: a.badges.some((b) => b.on),
     quickContact: (a.contact.phoneOn && Boolean(a.contact.phone)) || (a.contact.whatsappOn && Boolean(a.contact.whatsapp)),
     thankYou: Boolean(a.thanks.title || a.thanks.message || a.thanks.button || a.thanks.redirect === "product"),
+    orderTracking: a.tracking.enabled,
     parcelScanner: a.scanner,
     webhook: Boolean(webhook?.active),
   };

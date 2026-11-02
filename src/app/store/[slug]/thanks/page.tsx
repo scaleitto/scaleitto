@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { resolveApps } from "@/features/apps/settings";
+import { trackLink } from "@/features/storefront/tracking";
 import { notFound } from "next/navigation";
 import { getOrderSummary, getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { shopLocale } from "@/features/storefront/StoreShell";
@@ -18,7 +19,8 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   if (!order) notFound();
   const locale = shopLocale(shop);
   const t = getStoreText(locale);
-  const thanks = resolveApps(shop.apps).thanks;
+  const apps = resolveApps(shop.apps);
+  const thanks = apps.thanks;
   const base = await storeBase(shop.slug);
   // "Same product": the ordered product's page, when it is still on sale
   const productId = order.items.find((i) => i.productId)?.productId;
@@ -30,6 +32,11 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
       <Link href={href} className="inline-flex h-12 items-center justify-center rounded-[var(--s-radius-btn)] bg-brand px-6 font-bold text-brand-fg shadow-[var(--s-shadow)] hover:opacity-90" data-testid="thanks-button">
         {thanks.button || (product ? t.thanks.backProduct : t.thanks.back)}
       </Link>
+      {apps.tracking.enabled && (
+        <Link href={trackLink(base, order.id)} className="block font-semibold text-brand-ink hover:underline" data-testid="track-link">
+          {t.track.button}
+        </Link>
+      )}
     </ThankYou>
   );
 }

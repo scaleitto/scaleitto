@@ -10,8 +10,8 @@ import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { SwitchRow } from "@/ui/Switch";
 import type { ProtectionSettings } from "@/lib/enums";
-import { type BadgeKey, type ContactSettings, type ThanksSettings, type TrustBadge } from "./settings";
-import { saveAppSwitch, saveAssignMode, saveOrderGuard, saveQuickContact, saveThankYou, saveTrustBadges, setIpBlocked, setPhoneBlockedApp } from "./settings-actions";
+import { type BadgeKey, type ContactSettings, type ThanksSettings, type TrackingSettings, type TrustBadge } from "./settings";
+import { saveAppSwitch, saveAssignMode, saveOrderGuard, saveQuickContact, saveThankYou, saveTracking, saveTrustBadges, setIpBlocked, setPhoneBlockedApp } from "./settings-actions";
 
 type Text = Pick<Dictionary, "apps" | "errors" | "common">;
 
@@ -524,3 +524,55 @@ export function QrCodeApp({ storeUrl, products, t }: { storeUrl: string; product
   );
 }
 
+
+export function TrackingForm({ lang, tracking, pageHref, t }: { lang: string; tracking: TrackingSettings; pageHref: string; t: Text }) {
+  const tr = t.apps.tracking;
+  const e = t.errors as Record<string, string>;
+  const { state, pending, onSubmit } = useActionForm(saveTracking.bind(null, lang));
+  const [contact, setContact] = useState(tracking.contact);
+  return (
+    <form onSubmit={onSubmit} className="space-y-5" data-testid="app-form">
+      <FormMessage state={state} errors={e} success={t.apps.saved} />
+      <Card className="space-y-4 p-6">
+        <SwitchRow name="enabled" defaultChecked={tracking.enabled} label={tr.enable} hint={tr.enableHint} testId="app-enabled" />
+        <a href={pageHref} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-accent hover:underline" data-testid="tracking-page">
+          {tr.open}
+        </a>
+      </Card>
+      <Card className="space-y-4 p-6">
+        <div>
+          <h2 className="font-semibold">{tr.contactTitle}</h2>
+          <p className="mt-0.5 text-sm text-muted">{tr.contactHint}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={tr.method} htmlFor="tr-contact">
+            <Select id="tr-contact" name="contact" value={contact} onChange={(ev) => setContact(ev.target.value as TrackingSettings["contact"])}>
+              <option value="">{tr.methods.quick}</option>
+              <option value="whatsapp">{tr.methods.whatsapp}</option>
+              <option value="phone">{tr.methods.phone}</option>
+              <option value="none">{tr.methods.none}</option>
+            </Select>
+          </Field>
+          {(contact === "whatsapp" || contact === "phone") && (
+            <Field label={tr.number} htmlFor="tr-number" hint={tr.numberHint} error={fieldError(state, e, "number")}>
+              <Input id="tr-number" name="number" dir="ltr" defaultValue={tracking.number} placeholder="0555123456" />
+            </Field>
+          )}
+        </div>
+      </Card>
+      <Card className="space-y-4 p-6">
+        <h2 className="font-semibold">{tr.lookupTitle}</h2>
+        <div className="grid gap-3">
+          {(["phone", "number_phone"] as const).map((m) => (
+            <label key={m} className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-4 has-checked:border-accent has-checked:bg-accent-soft/40">
+              <input type="radio" name="lookup" value={m} defaultChecked={tracking.lookup === m} className="mt-1 size-4 accent-[var(--color-accent)]" data-testid={`lookup-${m}`} />
+              <span className="font-semibold">{tr.lookups[m]}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-sm text-muted">{tr.lookupHint}</p>
+      </Card>
+      <SaveBar pending={pending} t={t} />
+    </form>
+  );
+}

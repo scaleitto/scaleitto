@@ -1303,6 +1303,7 @@ const fr: Dictionary = {
       qrCode: { title: "Générateur de QR code", about: "Créez des QR codes de qualité pour vos campagnes — boîtes, flyers, autocollants — vers votre boutique, un produit ou un lien." },
       productImport: { title: "Import de produits", about: "Prévisualisez les produits d'une boutique Shopify ou YouCan, puis importez ceux que vous choisissez, avec photos et descriptions, en brouillon." },
       parcelScanner: { title: "Scanner de colis", about: "Scannez l'étiquette avec un lecteur ou la caméra du téléphone : une commande confirmée passe en livraison, un retour revient en stock. Activé, Scanner apparaît dans le menu et sur la page Commandes.", enable: "Activer le scanner de colis", enableHint: "Affiche Scanner dans le menu et le bouton sur Commandes.", open: "Ouvrir le scanner" },
+      orderTracking: { title: "Suivi de commande", about: "Après la commande, l'acheteur reçoit un lien privé pour suivre sa commande : reçue, confirmée, en route, livrée, avec le numéro de suivi. Il peut aussi la retrouver depuis la page « Suivre ma commande » de la boutique." },
       webhook: { title: "Webhook", about: "Chaque nouvelle commande et chaque changement de statut est envoyé à votre URL en JSON signé (X-Scaleitto-Signature)." },
     },
     guard: {
@@ -1389,6 +1390,20 @@ const fr: Dictionary = {
       emptyHint: "Laissez un champ vide pour le texte par défaut dans la langue de la boutique.",
       preview: "Aperçu mobile",
       number: "Numéro de commande",
+    },
+    tracking: {
+      enable: "Activer la page de suivi",
+      enableHint: "Arrêtée, chaque lien de suivi répond « introuvable ».",
+      open: "Ouvrir la page de suivi dans la boutique",
+      contactTitle: "Bouton de contact",
+      contactHint: "Gardez « Numéro de contact rapide » pour reprendre le numéro des boutons de contact rapide.",
+      method: "Méthode",
+      methods: { quick: "Numéro de contact rapide", whatsapp: "WhatsApp", phone: "Appel", none: "Pas de bouton" },
+      number: "Numéro",
+      numberHint: "Vide = le numéro de contact rapide ou celui de la boutique.",
+      lookupTitle: "Comment l'acheteur retrouve sa commande",
+      lookups: { phone: "Téléphone seulement", number_phone: "N° de commande et téléphone" },
+      lookupHint: "Avec le téléphone seul, quiconque connaît le numéro d'un acheteur voit ses commandes dans cette boutique. Demander aussi le n° de commande est plus sûr, mais un acheteur qui l'a perdu ne peut pas chercher.",
     },
     qr: {
       title: "QR code",

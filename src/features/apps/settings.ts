@@ -9,6 +9,8 @@ export type TrustBadge = { key: BadgeKey; on: boolean; title: string; text: stri
 
 export type ThanksSettings = { title: string; message: string; button: string; redirect: "product" | "home" };
 export type ContactSettings = { phoneOn: boolean; phone: string; whatsappOn: boolean; whatsapp: string };
+// contact "" = reuse the quick contact number; lookup = what a buyer types to find their orders
+export type TrackingSettings = { enabled: boolean; contact: "" | "whatsapp" | "phone" | "none"; number: string; lookup: "phone" | "number_phone" };
 
 export type AppSettings = {
   // A draft order is kept when a buyer starts the form and leaves (Orders → Abandoned)
@@ -18,6 +20,7 @@ export type AppSettings = {
   badges: TrustBadge[];
   contact: ContactSettings;
   thanks: ThanksSettings;
+  tracking: TrackingSettings;
 };
 
 // Only what is true for every cash-on-delivery store is on by default: returns and guarantees are the merchant's promise
@@ -32,6 +35,7 @@ export function resolveApps(raw: unknown): AppSettings {
   const badgesIn = Array.isArray(r.badges) ? (r.badges as Record<string, unknown>[]) : [];
   const c = (r.contact && typeof r.contact === "object" ? r.contact : {}) as Record<string, unknown>;
   const th = (r.thanks && typeof r.thanks === "object" ? r.thanks : {}) as Record<string, unknown>;
+  const tr = (r.tracking && typeof r.tracking === "object" ? r.tracking : {}) as Record<string, unknown>;
   return {
     abandoned: bool(r.abandoned, true),
     scanner: bool(r.scanner, true),
@@ -41,5 +45,24 @@ export function resolveApps(raw: unknown): AppSettings {
     }),
     contact: { phoneOn: bool(c.phoneOn, false), phone: phone(c.phone), whatsappOn: bool(c.whatsappOn, false), whatsapp: phone(c.whatsapp) },
     thanks: { title: str(th.title, 80), message: str(th.message, 300), button: str(th.button, 40), redirect: th.redirect === "product" ? "product" : "home" },
+    tracking: {
+      enabled: bool(tr.enabled, true),
+      contact: tr.contact === "whatsapp" || tr.contact === "phone" || tr.contact === "none" ? tr.contact : "",
+      number: phone(tr.number),
+      lookup: tr.lookup === "phone" ? "phone" : "number_phone",
+    },
   };
+}
+
+// The tracking page's contact button: the app's own choice, or else the quick contact buttons (WhatsApp first)
+export function trackingContact(apps: AppSettings, shopPhone: string | null): { kind: "whatsapp" | "phone"; number: string } | null {
+  const { tracking: tr, contact: c } = apps;
+  if (tr.contact === "none") return null;
+  if (tr.contact) {
+    const number = tr.number || (tr.contact === "whatsapp" ? c.whatsapp : c.phone) || shopPhone || "";
+    return number ? { kind: tr.contact, number } : null;
+  }
+  if (c.whatsappOn && c.whatsapp) return { kind: "whatsapp", number: c.whatsapp };
+  if (c.phoneOn && c.phone) return { kind: "phone", number: c.phone };
+  return null;
 }

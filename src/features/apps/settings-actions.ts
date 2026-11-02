@@ -132,3 +132,14 @@ export async function setPhoneBlockedApp(lang: string, rawPhone: string, blocked
     return { ok: true };
   });
 }
+
+export async function saveTracking(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("apps/tracking", async () => {
+    const shop = await shopOf(lang);
+    const number = text(formData, "number").trim() ? normalizePhone(text(formData, "number")) : "";
+    if (number && !isValidDzPhone(number)) return { ok: false, error: "checkFields", fieldErrors: { number: "phone" } };
+    await updateApps(shop.id, (s) => resolveApps({ ...s, tracking: { enabled: on(formData, "enabled"), contact: text(formData, "contact"), number, lookup: text(formData, "lookup") } }));
+    refresh();
+    return { ok: true };
+  });
+}
