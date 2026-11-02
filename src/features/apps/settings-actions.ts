@@ -25,10 +25,10 @@ const on = (fd: FormData, name: string) => fd.get(name) === "on";
 const text = (fd: FormData, name: string) => String(fd.get(name) ?? "");
 
 // The apps that are a single switch
-export async function saveAppSwitch(lang: string, key: "abandoned" | "scanner" | "customFields" | "wholesale", _prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function saveAppSwitch(lang: string, key: "abandoned" | "scanner" | "customFields" | "wholesale" | "cart", _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("apps/switch", async () => {
     const shop = await shopOf(lang);
-    if (key !== "abandoned" && key !== "scanner" && key !== "customFields" && key !== "wholesale") return { ok: false, error: "invalid" };
+    if (key !== "abandoned" && key !== "scanner" && key !== "customFields" && key !== "wholesale" && key !== "cart") return { ok: false, error: "invalid" };
     await updateApps(shop.id, (s) => ({ ...s, [key]: on(formData, "enabled") }));
     refresh();
     return { ok: true };

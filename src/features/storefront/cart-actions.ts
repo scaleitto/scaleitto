@@ -1,0 +1,75 @@
+"use server";
+
+import { headers, cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { and, eq, inArray } from "drizzle-orm";
+import { z } from "zod";
+import { db, schema } from "@/server/db";
+import { safeAction } from "@/server/errors";
+import type { ActionState } from "@/lib/action";
+import { fieldErrorsFrom } from "@/lib/validation";
+import { resolveApps } from "@/features/apps/settings";
+import { withPromotions } from "@/features/promotions/apply";
+import { linePrice, resolveWholesale } from "@/features/checkout/pricing";
+import { orderInputSchema } from "@/features/checkout/validators";
+import { MAX_CART_LINES, placeCartOrder } from "@/features/checkout/place-order";
+import { scheduleOrderEvents } from "@/features/pixels/server";
+import { scheduleOrderSync } from "@/features/apps/sync";
+import { getShopBySlug, storeBase } from "./queries";
+
+const items = z
+  .array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable(), quantity: z.number().int().min(1).max(1000) }))
+  .max(MAX_CART_LINES);
+
+// The cart as the store sells it now: each line priced on the server (promotion, wholesale tier, offer)
+export async function priceCart(slug: string, raw: unknown) {
+  const shop = await getShopBySlug(slug);
+  const parsed = items.safeParse(raw);
+  if (!shop || !resolveApps(shop.apps).cart || !parsed.success || !parsed.data.length) return [];
+  const apps = resolveApps(shop.apps);
+  const ids = [...new Set(parsed.data.map((i) => i.productId))];
+  const found = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids), eq(schema.products.status, "active")));
+  const variants = found.length ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), inArray(schema.productVariants.productId, ids))) : [];
+  const priced = await withPromotions(
+    shop.id,
+    found.map((p) => ({ ...p, variants: variants.filter((v) => v.productId === p.id) })),
+  );
+  const base = await storeBase(shop.slug);
+  return parsed.data.map((i) => {
+    const p = priced.find((x) => x.id === i.productId);
+    const v = p?.variants.find((x) => x.id === i.variantId) ?? null;
+    if (!p || (p.variants.length > 0 && !v)) return { ...i, available: false as const, name: "", variantTitle: null, image: null, href: "", unitPrice: 0, total: 0 };
+    const line = linePrice(v?.price ?? p.price, i.quantity, p.offers, apps.wholesale ? resolveWholesale(p.wholesale) : null);
+    return { ...i, available: true as const, name: p.name, variantTitle: v?.title ?? null, image: p.images[0] ?? null, href: `${base}/p/${p.slug}`, unitPrice: line.unitPrice, total: line.total };
+  });
+}
+export type PricedLine = Awaited<ReturnType<typeof priceCart>>[number];
+
+// The cart's order: one order with every line (Apps → Shopping cart)
+export async function submitCart(slug: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const shop = await getShopBySlug(slug);
+  if (!shop || !resolveApps(shop.apps).cart) return { ok: false, error: "unavailable" };
+  const result = await safeAction("store/cart", async () => {
+    let cart: unknown;
+    try {
+      cart = JSON.parse(String(formData.get("items") ?? "[]"));
+    } catch {
+      return { ok: false, error: "invalid" };
+    }
+    const lines = items.safeParse(cart);
+    if (!lines.success || !lines.data.length) return { ok: false, error: "invalid" };
+    const parsed = orderInputSchema.safeParse({ ...Object.fromEntries(formData), quantity: "1", variantId: "" });
+    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    if (parsed.data.website) return { ok: false, error: "unexpected" };
+    const h = await headers();
+    const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
+    const c = await cookies();
+    const placed = await placeCartOrder(shop, lines.data, parsed.data, { ip, userAgent: h.get("user-agent"), tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
+    if (!placed.ok) return { ok: false, error: placed.error };
+    scheduleOrderEvents(shop.id, placed.orderId, "placed");
+    await scheduleOrderSync(shop.id, placed.orderId, "order.created");
+    return { ok: true, message: placed.orderId };
+  });
+  if (result.ok && result.message) redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}&cart=1`);
+  return result;
+}

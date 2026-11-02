@@ -138,6 +138,7 @@ export default async function ProductPage({
               saveLead={saveLead.bind(null, shop.slug, product.id)}
               settings={productForm(shop, product)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
+              cart={resolveApps(shop.apps).cart ? { shopId: shop.id, productId: product.id, href: `${base}/cart` } : null}
             />
             <TrustBadges t={t} items={trustBadgeItems(resolveApps(shop.apps).badges, t)} />
           </PixelScope>

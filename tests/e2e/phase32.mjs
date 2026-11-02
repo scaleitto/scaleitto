@@ -38,8 +38,8 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 3, "3 coming");
-    expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 2, "2 coming");
+    expect(!(await owner.locator("[data-app-card=whatsapp] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
     await owner.waitForSelector("text=رجوع إلى التطبيقات");
@@ -370,6 +370,39 @@ export default async function phase32(browser) {
     await buyer.waitForURL(/\/thanks\?o=/);
     const [[o]] = await db.query("SELECT subtotal FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
     expect(o.subtotal === 9000, `6 × 1500 (got ${o.subtotal})`);
+  });
+
+  await step("shopping cart: two products added from their pages, one order with both lines; the cart empties", async () => {
+    await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'شمعة', 'candle', 500, '[]', '[]', '[]')", [randomUUID(), shopId]);
+    await buyer.goto(`${store}/p/candle`);
+    expect(!(await buyer.locator("[data-testid=add-to-cart]").count()), "no cart while the app is off");
+    await owner.goto(`${apps}/cart`);
+    await owner.locator("[data-testid=app-enabled]").check();
+    await save();
+    await buyer.goto(`${store}/p/candle`);
+    await buyer.click("[data-testid=add-to-cart]");
+    await buyer.waitForSelector("[data-testid=cart-added]");
+    await buyer.goto(`${store}/p/lamp`);
+    await buyer.click("[data-testid=add-to-cart]");
+    await buyer.waitForFunction(() => document.querySelector("[data-testid=cart-count]")?.textContent === "3");
+    await buyer.click("[data-testid=cart-link]");
+    await buyer.waitForSelector("[data-testid=cart-page]");
+    await buyer.locator("[data-cart-line='0'] button[aria-label='+']").click();
+    await buyer.waitForFunction(() => document.querySelector("[data-testid=cart-qty-0]")?.textContent === "2");
+    await buyer.fill("#name", "سليم بن عمر");
+    await buyer.fill("#phone", "0667 88 99 00");
+    await buyer.selectOption("#wilaya", "16");
+    await buyer.selectOption("#commune", "حيدرة");
+    await buyer.waitForFunction(() => (document.querySelector("[data-testid=cart-total]")?.textContent ?? "").replace(/\s/g, "").includes("5500"));
+    await buyer.waitForTimeout(4200);
+    await buyer.click("[data-testid=cart-submit]");
+    await buyer.waitForURL(/\/thanks\?o=.*cart=1/);
+    const orderId = new URL(buyer.url()).searchParams.get("o");
+    const [[o]] = await db.query("SELECT subtotal, total FROM orders WHERE id = ?", [orderId]);
+    const [rows] = await db.query("SELECT name, quantity, total FROM order_items WHERE order_id = ? ORDER BY name", [orderId]);
+    expect(rows.length === 2 && o.subtotal === 5000 && o.total === 5500, `one order, two lines (got ${JSON.stringify(rows)} ${o.subtotal}/${o.total})`);
+    await buyer.goto(`${store}/cart`);
+    await buyer.waitForSelector("[data-testid=cart-empty]");
   });
 
   await step("parcel scanner switched off: Scan leaves the menu and Orders, its page sends back to Orders", async () => {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClearCart } from "@/features/storefront/CartLink";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { resolveApps } from "@/features/apps/settings";
@@ -29,6 +30,7 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   return (
     <ThankYou order={order} locale={locale} custom={thanks}>
       <PixelScope {...await orderPixels(shop.id, order)} />
+      {(await searchParams).cart === "1" && <ClearCart shopId={shop.id} />}
       <Link href={href} className="inline-flex h-12 items-center justify-center rounded-[var(--s-radius-btn)] bg-brand px-6 font-bold text-brand-fg shadow-[var(--s-shadow)] hover:opacity-90" data-testid="thanks-button">
         {thanks.button || (product ? t.thanks.backProduct : t.thanks.back)}
       </Link>

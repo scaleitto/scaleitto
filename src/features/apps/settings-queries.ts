@@ -23,6 +23,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
   const a = ctx.apps;
   const running = await runningPercents(shopId);
   return {
+    cart: a.cart,
     abandoned: a.abandoned,
     fakeGuard: ctx.protection.enabled,
     agentAssign: ctx.assignMode !== "manual" || a.agentRules.some((r) => r.active),

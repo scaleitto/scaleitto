@@ -1,7 +1,8 @@
 "use client";
 
+import { addToCart } from "./cart";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BadgeCheck, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
+import { BadgeCheck, Check, ShoppingCart, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
@@ -37,6 +38,7 @@ export function CheckoutForm({
   wilayas,
   action,
   saveLead,
+  cart = null,
   settings = defaultForm,
   embedded = false,
   whatsapp,
@@ -55,6 +57,8 @@ export function CheckoutForm({
   embedded?: boolean;
   // "Order on WhatsApp": the store's number and the product's name for the message
   whatsapp?: { phone: string; product: string };
+  // Apps → Shopping cart: "Add to cart" beside the order button
+  cart?: { shopId: string; productId: string; href: string } | null;
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -71,6 +75,7 @@ export function CheckoutForm({
   );
   // The merchant's preselected offer opens chosen (when offers are shown)
   const minQuantity = product.wholesale?.minQty ?? 1;
+  const [added, setAdded] = useState(false);
   const [quantity, setQuantity] = useState(() => Math.max(minQuantity, settings.showOffers ? defaultQuantity(product.offers) : 1));
   const [wilaya, setWilaya] = useState<number | null>(null);
   const allowedTypes = settings.delivery === "both" ? (["home", "office"] as const) : ([settings.delivery] as const);
@@ -687,6 +692,30 @@ export function CheckoutForm({
         <button type="button" onClick={() => setStep(1)} className="w-full text-center text-sm font-semibold text-s-muted hover:text-s-text" data-testid="form-back">
           {t.form.previous}
         </button>
+      )}
+      {cart && !soldOut && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (variants.length > 0 && !variant) return;
+              addToCart(cart.shopId, { productId: cart.productId, variantId: variant?.id ?? null, quantity });
+              setAdded(true);
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] border-2 border-brand px-6 py-3 text-base font-bold text-brand-ink transition hover:bg-brand/10"
+            data-testid="add-to-cart"
+          >
+            <ShoppingCart size={19} /> {t.cart.add}
+          </button>
+          {added && (
+            <p className="flex items-center justify-center gap-2 text-sm font-semibold" data-testid="cart-added">
+              <Check size={16} className="text-brand-ink" /> {t.cart.added} ·{" "}
+              <a href={cart.href} className="text-brand-ink underline">
+                {t.cart.view}
+              </a>
+            </p>
+          )}
+        </div>
       )}
       {settings.whatsapp && whatsapp?.phone && !soldOut && (
         <button

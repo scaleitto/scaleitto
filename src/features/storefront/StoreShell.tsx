@@ -4,6 +4,7 @@ import { policyKinds } from "@/lib/enums";
 import { getStoreText } from "@/i18n/store";
 import { MessageCircle, Phone } from "lucide-react";
 import { resolveApps } from "@/features/apps/settings";
+import { CartLink } from "./CartLink";
 import { resolveDesign, storeTheme } from "@/features/design/types";
 import { intlPhone } from "@/lib/phone";
 import type { StoreShop } from "./queries";
@@ -20,11 +21,21 @@ export function StoreShell({ shop, base, children }: { shop: StoreShop; base: st
   const t = getStoreText(locale);
   const design = resolveDesign(shop.design);
   const theme = storeTheme(design);
-  const contact = resolveApps(shop.apps).contact;
+  const apps = resolveApps(shop.apps);
+  const contact = apps.contact;
   return (
     <StoreFrame locale={locale} color={shop.primaryColor} theme={theme} className="min-h-screen">
       {design.announcement.enabled && design.announcement.text && <AnnouncementBar text={design.announcement.text} />}
-      <StoreHeader name={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} whatsapp={design.socials.whatsapp} homeHref={base || "/"} align={theme.layout.header} t={t} />
+      <StoreHeader
+        name={shop.name}
+        logoUrl={shop.logoUrl}
+        phone={shop.phone}
+        whatsapp={design.socials.whatsapp}
+        homeHref={base || "/"}
+        align={theme.layout.header}
+        t={t}
+        extra={apps.cart ? <CartLink shopId={shop.id} href={`${base}/cart`} label={t.cart.title} /> : null}
+      />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
       <StoreFooter name={shop.name} about={design.about} socials={design.socials} policies={shopPolicies(shop).map(([kind]) => ({ kind, href: `${base}/policies/${kind}` }))} phone={shop.phone} t={t} />
       {(contact.phoneOn && contact.phone) || (contact.whatsappOn && contact.whatsapp) ? (

@@ -23,6 +23,8 @@ export type AppSettings = {
   customFields: boolean;
   // Each product can have quantity price tiers and a minimum order
   wholesale: boolean;
+  // Buyers can put several products in a cart and order them at once
+  cart: boolean;
   badges: TrustBadge[];
   contact: ContactSettings;
   thanks: ThanksSettings;
@@ -49,6 +51,7 @@ export function resolveApps(raw: unknown): AppSettings {
     scanner: bool(r.scanner, true),
     customFields: bool(r.customFields, false),
     wholesale: bool(r.wholesale, false),
+    cart: bool(r.cart, false),
     badges: badgeKeys.map((key) => {
       const b = badgesIn.find((x) => x && x.key === key) ?? {};
       return { key, on: bool(b.on, badgeDefaults[key]), title: str(b.title, 40), text: str(b.text, 80) };

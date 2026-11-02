@@ -49,6 +49,7 @@ export function StoreHeader({
   homeHref,
   align = "start",
   t,
+  extra,
 }: {
   name: string;
   logoUrl: string | null;
@@ -57,6 +58,8 @@ export function StoreHeader({
   homeHref: string;
   align?: Theme["layout"]["header"];
   t?: StoreText;
+  // Shown beside the contact buttons (the cart icon)
+  extra?: ReactNode;
 }) {
   const center = align === "center";
   const contact = (
@@ -102,6 +105,7 @@ export function StoreHeader({
             </nav>
           )}
           {contact}
+          {extra}
         </div>
       </div>
     </header>
