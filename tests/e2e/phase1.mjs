@@ -16,6 +16,7 @@ export default async function phase1(browser) {
 
   await step("saving an empty form shows field errors, not a crash", async () => {
     await page.goto(`${list}/new`);
+    await page.locator("[data-testid=product-form][data-ready]").waitFor();
     await page.locator("[data-testid=save-product]").click();
     await page.waitForSelector("text=تحقق من الحقول المحددة بالأحمر");
     expect(await page.locator("text=أدخل سعراً صحيحاً بالدينار").count(), "price error shown");
@@ -50,6 +51,7 @@ export default async function phase1(browser) {
     await page.fill('[aria-label="الكمية المتوفرة S / أسود"]', "5");
     await page.fill('[aria-label="السعر M / أسود"]', "4800");
     await page.click("[data-form-tab=offers]");
+    await page.locator("[data-testid=upsell-offers]").check({ force: true });
     await page.click("text=إضافة عرض");
     await page.locator('[aria-label="السعر الإجمالي"]').fill("8500");
     await Promise.all([page.waitForURL("**/products?created=1"), page.locator("[data-testid=save-product]").click()]);
@@ -64,6 +66,7 @@ export default async function phase1(browser) {
     expect(json(p.images).length === 2 && json(p.images)[0].startsWith("/uploads/"), "images saved as upload paths");
     expect(json(p.offers)[0].quantity === 2 && json(p.offers)[0].price === 8500, "offer saved");
     expect(p.short_description === "مقاومة للماء وأنيقة", "short description saved");
+    expect(p.description === "<p>ساعة أنيقة مقاومة للماء</p>", `description saved as rich text (got ${p.description})`);
     const [variants] = await db.query("SELECT title, price, stock FROM product_variants WHERE product_id = ? ORDER BY position", [p.id]);
     expect(variants.map((v) => `${v.title}:${v.price}:${v.stock}`).join(",") === "S / أسود:null:5,M / أسود:4800:0", `variants saved (${JSON.stringify(variants)})`);
   });
@@ -85,6 +88,7 @@ export default async function phase1(browser) {
 
   await step("edit keeps values, removing an option rebuilds variants", async () => {
     await page.goto(`${list}/${productId}`);
+    await page.locator("[data-testid=product-form][data-ready]").waitFor();
     expect((await page.inputValue("#price")) === "4500", "price loaded");
     await page.click("[data-form-tab=variants]");
     expect((await page.locator("[data-variant]").count()) === 2, "2 variants loaded");
@@ -114,11 +118,13 @@ export default async function phase1(browser) {
 
   await step("plan limit blocks adding past the ceiling with a clear message", async () => {
     await page.goto(`${list}/new`);
+    await page.locator("[data-testid=product-form][data-ready]").waitFor();
     await page.fill("#name", "منتج ثان");
     await page.fill("#price", "900");
     await Promise.all([page.waitForURL(/created=1/), page.locator("[data-testid=save-product]").click()]);
     await db.query("INSERT INTO shop_contracts (id, shop_id, start_date, limits) VALUES (UUID(), ?, CURDATE() - INTERVAL 1 DAY, ?)", [shopId, JSON.stringify({ maxProducts: 2 })]);
     await page.goto(`${list}/new`);
+    await page.locator("[data-testid=product-form][data-ready]").waitFor();
     await page.fill("#name", "منتج ثالث");
     await page.fill("#price", "1000");
     await page.locator("[data-testid=save-product]").click();
@@ -160,6 +166,7 @@ export default async function phase1(browser) {
 
   await step("French product form works (LTR, translated)", async () => {
     await page.goto(`${BASE}/fr/dashboard/products/${productId}`);
+    await page.locator("[data-testid=product-form][data-ready]").waitFor();
     expect((await page.locator("html").getAttribute("dir")) === "ltr", "LTR");
     await page.click("[data-form-tab=offers]");
     await page.waitForSelector("text=Offres de quantité");

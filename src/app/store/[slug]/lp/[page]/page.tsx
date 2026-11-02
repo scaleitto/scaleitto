@@ -1,4 +1,5 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
 import { storeForm } from "@/features/order-form/resolve";
 import type { Metadata } from "next";
@@ -35,7 +36,7 @@ async function load(params: PageProps<"/store/[slug]/lp/[page]">["params"]) {
 
 export async function generateMetadata({ params }: PageProps<"/store/[slug]/lp/[page]">): Promise<Metadata> {
   const { page, product } = await load(params);
-  const description = page.metaDescription || product.description?.slice(0, 160);
+  const description = page.metaDescription || richTextToPlain(product.description ?? "").replace(/\s+/g, " ").slice(0, 160);
   return { title: product.name, description, openGraph: { title: product.name, description: description ?? undefined, images: product.images.slice(0, 1) } };
 }
 

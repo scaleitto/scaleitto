@@ -1,21 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import {
+  AlignLeft,
   ArrowRight,
+  BadgeDollarSign,
+  Barcode,
   Box,
+  Building2,
+  CreditCard,
   ExternalLink,
+  EyeOff,
+  FileText,
   Image as ImageIcon,
   ImageOff,
+  Images,
+  Layers,
+  Link2,
   Lock,
+  Package,
   Palette,
   Plus,
-  ScanEye,
-  Smartphone,
-  Sparkles,
+  SlidersHorizontal,
+  Star,
   Tag,
   Trash2,
+  TriangleAlert,
+  Truck,
   X,
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
@@ -48,7 +60,10 @@ import { ImageManager } from "@/ui/ImageManager";
 import { combinations, variantTitle } from "./variants";
 import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS } from "./constants";
 import type { ProductStatus } from "./types";
-import { DescriptionButton } from "@/features/ai/DescriptionButton";
+import { AiDescriptionBox } from "./AiDescriptionBox";
+import { ProductPreview } from "./ProductPreview";
+import type { ProductPreviewData } from "./editor-props";
+import { RichTextEditor } from "@/ui/RichTextEditor";
 import type { AiLanguage as PageLanguage } from "@/features/ai/languages";
 
 // The quick offer buttons: 2 pieces −10%, 3 pieces −15%, buy 2 get 1 free, buy 3 get 2 free
@@ -119,6 +134,7 @@ const tabFields: Record<Tab, string[]> = {
   offers: ["offers", "similarIds"],
 };
 
+const noopSubscribe = () => () => {};
 const toNumber = (v: string) =>
   v.trim() === "" ? null : Number(v.replace(/\s/g, ""));
 const wordCount = (v: string) => v.split(/\s+/).filter(Boolean).length;
@@ -135,6 +151,7 @@ export function ProductForm({
   accounts,
   deliveryHref,
   others,
+  preview,
   notice,
 }: {
   t: ProductFormText;
@@ -151,6 +168,8 @@ export function ProductForm({
   deliveryHref: string;
   // The store's other products (similar products)
   others: { id: string; name: string; image: string | null }[];
+  // What the live preview needs to draw the real product page
+  preview: ProductPreviewData;
   notice?: string;
 }) {
   const p = t.products;
@@ -158,10 +177,19 @@ export function ProductForm({
   const { state, pending, onSubmit } = useActionForm(action);
   const err = (field: string) => fieldError(state, e, field);
   const formRef = useRef<HTMLFormElement>(null);
+  // True once the form answers typing (tests wait for it before filling)
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   const [tab, setTab] = useState<Tab>("details");
   const [name, setName] = useState(values.name);
   const [short, setShort] = useState(values.shortDescription);
+  const [description, setDescription] = useState(values.description);
+  const [descImagesOn, setDescImagesOn] = useState(values.descriptionImages.length > 0);
+  const [offersOn, setOffersOn] = useState(values.offers.length > 0);
   const [visible, setVisible] = useState(values.status === "active");
   const [images, setImages] = useState(values.images);
   const [descImages, setDescImages] = useState(values.descriptionImages);
@@ -184,10 +212,9 @@ export function ProductForm({
   const [oldPrice, setOldPrice] = useState(
     values.compareAtPrice?.toString() ?? "",
   );
-  const [similarMode, setSimilarMode] = useState<"auto" | "chosen">(
-    values.similarIds ? "chosen" : "auto",
-  );
-  const [similar, setSimilar] = useState<string[]>(values.similarIds ?? []);
+  // Similar products: null = all the store's other products (Zimam's default, new products included)
+  const [chosen, setChosen] = useState<string[] | null>(values.similarIds);
+  const similar = chosen ?? others.map((o) => o.id);
 
   // After a failed save, open the first tab that holds an error
   const [seen, setSeen] = useState(state);
@@ -306,8 +333,10 @@ export function ProductForm({
     setTrackStock(false);
     setPrice("");
     setOldPrice("");
-    setSimilarMode("auto");
-    setSimilar([]);
+    setChosen(null);
+    setDescription("");
+    setDescImagesOn(false);
+    setOffersOn(false);
     setTab("details");
   };
 
@@ -320,7 +349,7 @@ export function ProductForm({
     disabled?: boolean,
   ) => (
     <label
-      className={`flex items-start justify-between gap-4 rounded-xl border border-line p-3 ${disabled ? "opacity-60" : "cursor-pointer"}`}
+      className={`relative flex items-start justify-between gap-4 rounded-xl border border-line p-3 ${disabled ? "opacity-60" : "cursor-pointer"}`}
     >
       <span>
         <span className="block text-sm font-semibold">{label}</span>
@@ -334,13 +363,25 @@ export function ProductForm({
         checked={checked}
         disabled={disabled}
         onChange={(ev) => onChange(ev.target.checked)}
-        className="peer sr-only"
+        className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         data-testid={testId}
       />
       <span
         aria-hidden
         className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-accent after:absolute after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-all after:start-0.5 peer-checked:after:start-[1.125rem]"
       />
+    </label>
+  );
+  // Zimam's setting rows: an icon tile, the title and its hint, the switch at the end
+  const toggleRow = (checked: boolean, onChange: (v: boolean) => void, icon: ReactNode, label: string, hint: string, testId: string, disabled = false) => (
+    <label className={`relative flex items-center gap-3 ${disabled ? "opacity-60" : "cursor-pointer"}`}>
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-panel-2 text-fg-2">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{label}</span>
+        <span className="mt-0.5 block text-sm text-muted">{hint}</span>
+      </span>
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(ev) => onChange(ev.target.checked)} className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed" data-testid={testId} />
+      <span aria-hidden className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-accent after:absolute after:top-0.5 after:start-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:start-[1.375rem]" />
     </label>
   );
   const panel = (key: Tab, children: ReactNode) => (
@@ -356,6 +397,7 @@ export function ProductForm({
       noValidate
       className="space-y-6"
       data-testid="product-form"
+      data-ready={hydrated || undefined}
     >
       {/* Zimam's header: a square back button next to the title */}
       <div className="flex flex-wrap items-center gap-3">
@@ -376,7 +418,7 @@ export function ProductForm({
       <input
         type="hidden"
         name="descriptionImages"
-        value={JSON.stringify(descImages)}
+        value={JSON.stringify(descImagesOn ? descImages : [])}
       />
       <input
         type="hidden"
@@ -395,12 +437,12 @@ export function ProductForm({
           })),
         )}
       />
-      <input type="hidden" name="offers" value={JSON.stringify(offers)} />
-      <input type="hidden" name="similar" value={similarMode} />
+      <input type="hidden" name="offers" value={JSON.stringify(offersOn ? offers : [])} />
+      <input type="hidden" name="similar" value={chosen ? "chosen" : "auto"} />
       <input
         type="hidden"
         name="similarIds"
-        value={JSON.stringify(similarMode === "chosen" ? similar : [])}
+        value={JSON.stringify(chosen ?? [])}
       />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -450,14 +492,18 @@ export function ProductForm({
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <Tag size={18} className="text-accent" /> {p.info}
                 </h2>
-                <Field label={p.name} htmlFor="name" error={err("name")}>
+                <Field label={`${p.name} *`} htmlFor="name" error={err("name")}>
                   <Input
                     id="name"
                     name="name"
                     value={name}
                     onChange={(ev) => setName(ev.target.value)}
-                    maxLength={200}
+                    maxLength={150}
+                    placeholder={p.namePlaceholder}
                   />
+                  <span className="mt-1 block text-end text-xs text-muted tabular-nums" dir="ltr">
+                    {name.length}/150
+                  </span>
                 </Field>
                 {toggle(
                   visible,
@@ -468,7 +514,11 @@ export function ProductForm({
                 )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
-                    label={`${p.price} (${t.common.currency})`}
+                    label={
+                      <span className="flex items-center gap-2">
+                        <BadgeDollarSign size={16} className="text-accent" /> {`${p.price} (${t.common.currency}) *`}
+                      </span>
+                    }
                     htmlFor="price"
                     error={err("price")}
                   >
@@ -478,11 +528,16 @@ export function ProductForm({
                       inputMode="numeric"
                       dir="ltr"
                       value={price}
+                      placeholder="0"
                       onChange={(ev) => setPrice(ev.target.value)}
                     />
                   </Field>
                   <Field
-                    label={p.compareAtPrice}
+                    label={
+                      <span className="flex items-center gap-2">
+                        <Tag size={16} className="text-accent" /> {p.compareAtPrice}
+                      </span>
+                    }
                     htmlFor="compareAtPrice"
                     hint={p.compareAtPriceHint}
                     error={err("compareAtPrice")}
@@ -493,21 +548,36 @@ export function ProductForm({
                       inputMode="numeric"
                       dir="ltr"
                       value={oldPrice}
+                      placeholder="0"
                       onChange={(ev) => setOldPrice(ev.target.value)}
                     />
                   </Field>
-                  <Field label={p.sku} htmlFor="sku" error={err("sku")}>
+                  <Field
+                    label={
+                      <span className="flex items-center gap-2">
+                        <Barcode size={16} className="text-accent" /> {p.sku}
+                      </span>
+                    }
+                    htmlFor="sku"
+                    error={err("sku")}
+                  >
                     <Input
                       id="sku"
                       name="sku"
                       dir="ltr"
                       defaultValue={values.sku}
                       maxLength={80}
+                      placeholder="PROD-001"
+                      className="font-mono"
                     />
                   </Field>
                 </div>
                 <Field
-                  label={p.productUrl}
+                  label={
+                    <span className="flex items-center gap-2">
+                      <Link2 size={16} className="text-accent" /> {p.productUrl}
+                    </span>
+                  }
                   htmlFor="slug"
                   hint={p.slugHint}
                   error={err("slug")}
@@ -535,127 +605,104 @@ export function ProductForm({
 
           {panel(
             "description",
-            <>
-              <Card className="space-y-2 border-accent/30 bg-accent-soft/40">
-                <h2 className="flex items-center gap-2 font-semibold">
-                  <Sparkles size={17} className="text-accent" /> {p.aiWriter}
-                </h2>
-                <p className="text-sm text-muted">{p.aiWriterHint}</p>
-                <DescriptionButton
-                  lang={ai.lang}
-                  language={ai.language}
-                  images={images}
-                  t={t}
+            <Card className="space-y-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <FileText size={19} className="text-accent" /> {p.descriptionMedia}
+              </h2>
+              <AiDescriptionBox
+                lang={ai.lang}
+                language={ai.language}
+                name={name}
+                price={toNumber(price)}
+                images={images}
+                onResult={setDescription}
+                t={t}
+              />
+              <div className="space-y-2">
+                <label htmlFor="shortDescription" className="flex items-center gap-2 text-sm font-semibold">
+                  <AlignLeft size={16} className="text-accent" /> {p.shortDescription}
+                  <span className="text-xs font-normal text-muted">{p.shortDescriptionMax}</span>
+                </label>
+                <Textarea
+                  id="shortDescription"
+                  name="shortDescription"
+                  value={short}
+                  rows={3}
+                  maxLength={120}
+                  placeholder={p.shortDescriptionPlaceholder}
+                  onChange={(ev) => setShort(ev.target.value)}
+                  dir="auto"
                 />
-              </Card>
-              <Card className="space-y-4">
-                <Field
-                  label={p.shortDescription}
-                  htmlFor="shortDescription"
-                  hint={`${p.shortDescriptionHint} · ${fmt(p.words, { n: wordCount(short) })}`}
-                  error={err("shortDescription")}
-                >
-                  <Input
-                    id="shortDescription"
-                    name="shortDescription"
-                    value={short}
-                    maxLength={120}
-                    onChange={(ev) => setShort(ev.target.value)}
-                    dir="auto"
-                  />
-                </Field>
-                <Field
-                  label={p.description}
-                  htmlFor="description"
-                  hint={p.descriptionHint}
-                  error={err("description")}
-                >
-                  <Textarea
-                    id="description"
-                    name="description"
-                    defaultValue={values.description}
-                    rows={8}
-                    dir="auto"
-                  />
-                </Field>
-              </Card>
-              <Card className="space-y-4">
-                <div>
-                  <h2 className="font-semibold">{p.descriptionImages}</h2>
-                  <p className="mt-1 text-sm text-muted">
-                    {p.descriptionImagesHint}
-                  </p>
-                </div>
-                <ImageManager
-                  t={t.media}
-                  value={descImages}
-                  onChange={setDescImages}
-                  max={MAX_IMAGES}
-                />
-              </Card>
-            </>,
+                <p className={`text-xs ${wordCount(short) > 7 || err("shortDescription") ? "text-danger" : "text-muted"}`} data-testid="short-words">
+                  {err("shortDescription") ?? fmt(p.wordsOf, { n: wordCount(short) })}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="description" className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText size={16} className="text-accent" /> {p.description}
+                </label>
+                <RichTextEditor id="description" name="description" value={description} onChange={setDescription} placeholder={p.descriptionPlaceholder} labels={p.editor} invalid={Boolean(err("description"))} />
+                {err("description") && <p className="text-xs text-danger">{err("description")}</p>}
+              </div>
+              <div className="space-y-4 rounded-xl border border-line p-4">
+                {toggleRow(descImagesOn, setDescImagesOn, <Images size={18} />, p.descriptionImages, p.descriptionImagesHint, "description-images")}
+                {descImagesOn && <ImageManager t={t.media} value={descImages} onChange={setDescImages} max={MAX_IMAGES} />}
+              </div>
+            </Card>,
           )}
 
           {panel(
             "variants",
             <>
-              <Card className="space-y-4">
-                <h2 className="font-semibold">{p.stockSection}</h2>
-                {toggle(
-                  trackStock,
-                  setTrackStock,
-                  p.trackStock,
-                  undefined,
-                  "track-stock",
-                )}
-                {trackStock && (
-                  <input type="hidden" name="trackStock" value="on" />
-                )}
+              <Card className="space-y-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Package size={19} className="text-accent" /> {p.variantsStock}
+              </h2>
+              <div className="space-y-4 rounded-xl border border-line p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {trackStock && variants.length === 0 && (
-                    <Field label={p.stock} htmlFor="stock" error={err("stock")}>
-                      <Input
-                        id="stock"
-                        name="stock"
-                        inputMode="numeric"
-                        dir="ltr"
-                        defaultValue={values.stock}
-                      />
-                    </Field>
-                  )}
-                  {trackStock && (
-                    <Field
-                      label={p.lowStock}
-                      htmlFor="lowStock"
-                      hint={p.lowStockHint}
-                      error={err("lowStock")}
-                    >
-                      <Input
-                        id="lowStock"
-                        name="lowStock"
-                        inputMode="numeric"
-                        dir="ltr"
-                        defaultValue={values.lowStock ?? ""}
-                      />
-                    </Field>
-                  )}
+                  <div className="space-y-2">
+                    <label className="relative flex cursor-pointer items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <Package size={16} className="text-accent" /> {p.stock}
+                      </span>
+                      <input type="checkbox" role="switch" checked={trackStock} onChange={(ev) => setTrackStock(ev.target.checked)} className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed" data-testid="track-stock" aria-label={p.trackStock} />
+                      <span aria-hidden className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-accent after:absolute after:top-0.5 after:start-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:start-[1.375rem]" />
+                    </label>
+                    {trackStock && <input type="hidden" name="trackStock" value="on" />}
+                    {variants.length > 0 ? (
+                      <p className="rounded-lg bg-panel-2 px-3 py-2.5 text-xs text-muted">{p.stockPerVariant}</p>
+                    ) : (
+                      <Input id="stock" name="stock" inputMode="numeric" dir="ltr" defaultValue={values.stock} disabled={!trackStock} placeholder="100" aria-label={p.stock} />
+                    )}
+                    {err("stock") && <p className="text-xs text-danger">{err("stock")}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="lowStock" className="flex items-center gap-2 text-sm font-semibold">
+                      <TriangleAlert size={16} className="text-warning" /> {p.lowStock}
+                    </label>
+                    <Input id="lowStock" name="lowStock" inputMode="numeric" dir="ltr" defaultValue={values.lowStock ?? ""} placeholder="0" disabled={!trackStock} />
+                    <p className="text-xs text-muted">{err("lowStock") ?? p.lowStockHint}</p>
+                  </div>
                 </div>
                 <ShowOutOfStock
                   initial={values.showOutOfStock}
-                  render={(v, set) =>
-                    toggle(
-                      v,
-                      set,
-                      p.showOutOfStock,
-                      p.showOutOfStockHint,
-                      "show-out-of-stock",
-                    )
-                  }
+                  render={(v, set) => (
+                    <label className="relative flex cursor-pointer items-center justify-between gap-3 border-t border-line pt-4">
+                      <span>
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                          <EyeOff size={16} className="text-accent" /> {p.showOutOfStock}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted">{p.showOutOfStockHint}</span>
+                      </span>
+                      <input type="checkbox" role="switch" checked={v} onChange={(ev) => set(ev.target.checked)} className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed" data-testid="show-out-of-stock" />
+                      <span aria-hidden className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-accent after:absolute after:top-0.5 after:start-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:start-[1.375rem]" />
+                    </label>
+                  )}
                 />
-              </Card>
+              </div>
 
-              <Card className="space-y-4" data-testid="variants">
-                {toggle(
+              <div className="space-y-4 rounded-xl border border-line p-4" data-testid="variants">
+                {toggleRow(
                   options.length > 0,
                   (on) => {
                     if (on) addOption({ name: "", values: [] });
@@ -664,6 +711,7 @@ export function ProductForm({
                       setPendingValues([]);
                     }
                   },
+                  <SlidersHorizontal size={18} />,
                   p.hasVariants,
                   p.variantsHint,
                   "has-variants",
@@ -954,16 +1002,23 @@ export function ProductForm({
                     </table>
                   </div>
                 )}
+              </div>
               </Card>
             </>,
           )}
 
           {panel(
             "delivery",
-            <Card className="space-y-4">
-              <h2 className="font-semibold">{p.deliverySection}</h2>
+            <Card className="space-y-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Truck size={19} className="text-accent" /> {p.deliverySection}
+              </h2>
               <Field
-                label={p.carrier}
+                label={
+                  <span className="flex items-center gap-2">
+                    <Building2 size={16} className="text-accent" /> {p.carrier}
+                  </span>
+                }
                 htmlFor="carrierAccountId"
                 hint={p.carrierHint}
                 error={err("carrierAccountId")}
@@ -993,25 +1048,23 @@ export function ProductForm({
                   </p>
                 )}
               </Field>
-              {toggle(
-                false,
-                () => undefined,
-                p.onlinePayment,
-                p.onlinePaymentHint,
-                "online-only",
-                true,
-              )}
+              <div className="rounded-xl border border-line p-4">
+                {toggleRow(false, () => undefined, <CreditCard size={18} />, p.onlinePayment, p.onlinePaymentHint, "online-only", true)}
+              </div>
             </Card>,
           )}
 
           {panel(
             "offers",
-            <>
-              <Card className="space-y-4" data-testid="offers">
-                <div>
-                  <h2 className="font-semibold">{p.offers}</h2>
-                  <p className="mt-1 text-sm text-muted">{p.offersHint}</p>
-                </div>
+            <Card className="space-y-6">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Star size={19} className="text-accent" /> {p.offersTitle}
+              </h2>
+              <div className="space-y-4 rounded-xl border border-line p-4" data-testid="offers">
+                {toggleRow(offersOn, setOffersOn, <Star size={18} />, p.upsell, p.upsellHint, "upsell-offers")}
+                {offersOn && (
+                <>
+                <p className="text-sm text-muted">{p.offersHint}</p>
                 {/* Ready-made offers from the price: percent off, or "buy N get M free" */}
                 {(priceNum ?? 0) > 0 && offers.length < MAX_OFFERS && (
                   <div
@@ -1225,105 +1278,94 @@ export function ProductForm({
                     <Plus size={16} /> {p.addOffer}
                   </button>
                 )}
+                </>
+                )}
                 {err("offers") && <Alert>{err("offers")}</Alert>}
-              </Card>
+              </div>
 
-              <Card className="space-y-4" data-testid="similar">
-                <div>
-                  <h2 className="font-semibold">{p.similar}</h2>
-                  <p className="mt-1 text-sm text-muted">{p.similarHint}</p>
+              <div className="space-y-4 rounded-xl border border-line p-4" data-testid="similar">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-panel-2 text-fg-2">
+                    <Layers size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{p.similar}</span>
+                    <span className="mt-0.5 block text-sm text-muted">{p.similarHint}</span>
+                  </span>
+                  {others.length > 0 && (
+                    <span className="flex gap-2">
+                      <button type="button" className={buttonClass("secondary", "px-3 py-1.5 text-xs")} onClick={() => setChosen(null)} data-testid="similar-all">
+                        {p.selectAll}
+                      </button>
+                      <button type="button" className={buttonClass("secondary", "px-3 py-1.5 text-xs")} onClick={() => setChosen([])} data-testid="similar-none">
+                        {p.clearAll}
+                      </button>
+                    </span>
+                  )}
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(["auto", "chosen"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      aria-pressed={similarMode === m}
-                      data-similar={m}
-                      onClick={() => setSimilarMode(m)}
-                      className={`rounded-xl border p-3 text-start text-sm font-semibold ${similarMode === m ? "border-accent bg-accent-soft text-accent-ink" : "border-line hover:bg-panel-2"}`}
-                    >
-                      {m === "auto" ? p.similarAuto : p.similarChosen}
-                    </button>
-                  ))}
-                </div>
-                {similarMode === "chosen" &&
-                  (others.length === 0 ? (
-                    <p className="text-sm text-muted">{p.noOther}</p>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <button
-                          type="button"
-                          className="font-semibold text-accent hover:underline"
-                          onClick={() => setSimilar(others.map((o) => o.id))}
-                        >
-                          {p.selectAll}
-                        </button>
-                        <button
-                          type="button"
-                          className="font-semibold text-muted hover:underline"
-                          onClick={() => setSimilar([])}
-                        >
-                          {p.clearAll}
-                        </button>
-                        <span className="ms-auto text-xs text-muted">
-                          {fmt(p.similarCount, {
-                            n: similar.length,
-                            total: others.length,
-                          })}
-                        </span>
-                      </div>
-                      <ul className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-line p-1">
-                        {others.map((o) => (
+                {others.length === 0 ? (
+                  <p className="text-sm text-muted">{p.noOther}</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted" data-testid="similar-count">
+                      {fmt(p.similarCount, { n: similar.length, total: others.length })}
+                    </p>
+                    <ul className="max-h-80 space-y-2 overflow-y-auto">
+                      {others.map((o) => {
+                        const on = similar.includes(o.id);
+                        return (
                           <li key={o.id}>
-                            <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-panel-2">
+                            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-colors ${on ? "border-accent/40 bg-accent-soft/60" : "border-line hover:bg-panel-2"}`}>
                               <input
                                 type="checkbox"
-                                checked={similar.includes(o.id)}
-                                onChange={(ev) =>
-                                  setSimilar((all) =>
-                                    ev.target.checked
-                                      ? [...all, o.id]
-                                      : all.filter((x) => x !== o.id),
-                                  )
-                                }
+                                checked={on}
+                                onChange={(ev) => {
+                                  const next = ev.target.checked ? [...similar, o.id] : similar.filter((x) => x !== o.id);
+                                  // Everything ticked = all products, new ones included
+                                  setChosen(next.length === others.length ? null : next);
+                                }}
                                 className="size-4 accent-[var(--color-accent)]"
                                 data-similar-id={o.id}
                               />
                               {o.image ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={o.image}
-                                  alt=""
-                                  className="size-8 rounded-md object-cover"
-                                />
+                                <img src={o.image} alt="" className="size-9 rounded-md object-cover" />
                               ) : (
-                                <span className="grid size-8 place-items-center rounded-md bg-panel-2 text-muted">
+                                <span className="grid size-9 place-items-center rounded-md bg-panel-2 text-muted">
                                   <ImageOff size={14} />
                                 </span>
                               )}
-                              <span className="truncate text-sm">{o.name}</span>
+                              <span className="truncate text-sm font-medium">{o.name}</span>
                             </label>
                           </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-              </Card>
-            </>,
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </Card>,
           )}
         </div>
 
-        <PhonePreview
-          t={p}
-          currency={t.common.currency}
-          store={store.name}
-          name={name}
-          short={short}
-          price={priceNum}
-          oldPrice={oldNum}
-          image={images[0] ?? null}
+        <ProductPreview
+          data={preview}
+          storeName={store.name}
+          labels={{ title: p.preview, mobile: p.mobileView, tip: p.previewHint, tipTitle: p.proTip, namePlaceholder: p.previewName }}
+          product={{
+            name,
+            short,
+            price: priceNum && !Number.isNaN(priceNum) ? priceNum : 0,
+            compareAtPrice: oldNum && !Number.isNaN(oldNum) ? oldNum : null,
+            images,
+            description,
+            descriptionImages: descImagesOn ? descImages : [],
+            trackStock: false,
+            stock: 0,
+            options: effectiveOptions,
+            offers: offersOn ? offers : [],
+            variants: variants.map((v) => ({ id: v.title, values: v.values, price: v.price, stock: v.stock })),
+          }}
         />
       </div>
 
@@ -1388,121 +1430,5 @@ function ShowOutOfStock({
       <input type="hidden" name="showOutOfStock" value={value ? "on" : ""} />
       {render(value, setValue)}
     </>
-  );
-}
-
-// The product page as a customer sees it on a phone, updated while typing
-function PhonePreview({
-  t,
-  currency,
-  store,
-  name,
-  short,
-  price,
-  oldPrice,
-  image,
-}: {
-  t: Dictionary["products"];
-  currency: string;
-  store: string;
-  name: string;
-  short: string;
-  price: number | null;
-  oldPrice: number | null;
-  image: string | null;
-}) {
-  const f = t.previewForm;
-  const shown = price && !Number.isNaN(price) ? price : 0;
-  return (
-    <aside
-      className="hidden space-y-3 xl:sticky xl:top-20 xl:block"
-      data-testid="product-preview"
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
-          <ScanEye size={15} /> {t.preview}
-        </h2>
-        <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-ink">{t.mobileView}</span>
-      </div>
-      <div className="mx-auto w-[300px] rounded-[2.2rem] border-[10px] border-fg/90 bg-white text-[#0f172a] shadow-xl">
-        <div className="flex items-center justify-between px-5 pt-2 text-[10px] font-semibold">
-          <span>9:41</span>
-          <span className="h-4 w-16 rounded-full bg-fg/90" />
-          <span>100%</span>
-        </div>
-        <div className="max-h-[540px] space-y-3 overflow-hidden rounded-b-[1.6rem] px-3 pt-2 pb-4">
-          <p className="border-b border-slate-200 pb-2 text-center text-sm font-bold">
-            {store}
-          </p>
-          <div className="grid aspect-square place-items-center overflow-hidden rounded-xl bg-slate-100">
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="" className="size-full object-cover" />
-            ) : (
-              <ImageOff size={28} className="text-slate-400" />
-            )}
-          </div>
-          <div className="space-y-1">
-            <p
-              className="text-sm leading-snug font-bold"
-              data-preview="name"
-              dir="auto"
-            >
-              {name || t.name}
-            </p>
-            {short && (
-              <p className="text-xs text-slate-500" dir="auto">
-                {short}
-              </p>
-            )}
-            <p className="flex items-baseline gap-2">
-              <span
-                className="text-base font-extrabold text-[#4f3bd6]"
-                data-preview="price"
-              >
-                {formatPrice(shown, currency)}
-              </span>
-              {oldPrice && oldPrice > shown ? (
-                <span className="text-xs text-slate-400 line-through">
-                  {formatPrice(oldPrice, currency)}
-                </span>
-              ) : null}
-            </p>
-          </div>
-          <div className="space-y-1.5 rounded-xl border border-slate-200 p-2.5 text-[11px]">
-            {[f.name, f.phone].map((l) => (
-              <div
-                key={l}
-                className="rounded-md border border-slate-200 px-2 py-1.5 text-slate-400"
-              >
-                {l}
-              </div>
-            ))}
-            <div className="flex justify-between text-slate-500">
-              <span>{f.quantity}</span>
-              <span>1</span>
-            </div>
-            <div className="flex justify-between text-slate-500">
-              <span>{f.delivery}</span>
-              <span>{f.free}</span>
-            </div>
-            <div className="flex justify-between font-bold">
-              <span>{f.total}</span>
-              <span>{formatPrice(shown, currency)}</span>
-            </div>
-            <div className="rounded-lg bg-[#4f3bd6] py-2 text-center font-bold text-white">
-              {f.confirm} · {formatPrice(shown, currency)}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-3 rounded-xl border border-info/20 bg-info/5 p-3 text-xs text-info">
-        <Smartphone size={18} className="shrink-0" />
-        <p>
-          <span className="mb-0.5 block font-semibold">{t.proTip}</span>
-          {t.previewHint}
-        </p>
-      </div>
-    </aside>
   );
 }

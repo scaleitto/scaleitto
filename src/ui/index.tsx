@@ -73,7 +73,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
   return <select className={cx(inputClass, "select-chevron cursor-pointer appearance-none pe-9", className)} {...props} />;
 }
 
-export function Field({ label, htmlFor, hint, error, children }: { label: string; htmlFor?: string; hint?: string; error?: string; children: ReactNode }) {
+export function Field({ label, htmlFor, hint, error, children }: { label: ReactNode; htmlFor?: string; hint?: string; error?: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-fg">

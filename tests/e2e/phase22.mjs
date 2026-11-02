@@ -31,6 +31,7 @@ export default async function phase22(browser) {
 
   await step("product colors: a color option with palette swatches, shown as swatches in the store", async () => {
     await owner.goto(`${BASE}/ar/dashboard/products/new`);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.fill("#name", "حقيبة");
     await owner.fill("#price", "3000");
     await owner.click("[data-form-tab=variants]");

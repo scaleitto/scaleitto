@@ -16,6 +16,7 @@ export default async function phase27(browser) {
 
   await step("editor: five tabs, physical only for now, the phone preview follows the typing", async () => {
     await owner.goto(`${list}/new`);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     const tabs = await owner.locator("[data-testid=product-tabs] [data-form-tab]").evaluateAll((els) => els.map((e) => e.dataset.formTab));
     expect(tabs.join() === "details,description,variants,delivery,offers", `tabs (got ${tabs.join()})`);
     await owner.fill("#name", "مصباح مكتب");
@@ -42,6 +43,7 @@ export default async function phase27(browser) {
     await owner.fill("#lowStock", "10");
     before = new URL(owner.url()).search;
     await Promise.all([owner.waitForURL((u) => /\/products\/new\?created=[0-9a-f-]{36}$/.test(u.pathname + u.search) && u.search !== before), owner.click("[data-testid=create-another]")]);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.getByText("تم إنشاء المنتج، أضف التالي.").waitFor();
     expect((await owner.inputValue("#name")) === "", "empty form");
     const lamp = await product("مصباح مكتب");
@@ -64,18 +66,22 @@ export default async function phase27(browser) {
     await owner.locator("[data-testid=show-out-of-stock]").uncheck({ force: true });
     before = new URL(owner.url()).search;
     await Promise.all([owner.waitForURL((u) => /\/products\/new\?created=[0-9a-f-]{36}$/.test(u.pathname + u.search) && u.search !== before), owner.click("[data-testid=create-another]")]);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     expect((await product("حامل هاتف")).show_out_of_stock === 0, "hidden when sold out");
     // The third one
     const lamp = await product("مصباح مكتب");
     await owner.fill("#name", "مروحة صغيرة");
     await owner.fill("#price", "1800");
     await owner.click("[data-form-tab=description]");
+    await owner.locator("[data-testid=description-images]").check({ force: true });
     await owner.locator("[data-panel=description] [data-testid=image-input]").setInputFiles([{ name: "d.png", mimeType: "image/png", buffer: pngBuffer([20, 160, 90]) }]);
     await owner.locator("[data-panel=description] [data-testid=images] li").first().waitFor();
     await owner.click("[data-form-tab=delivery]");
     await owner.selectOption("#carrierAccountId", carrier);
     await owner.click("[data-form-tab=offers]");
-    await owner.click("[data-similar=chosen]");
+    // Every other product is ticked by default (Zimam): clear, then choose one
+    expect(await owner.locator(`[data-similar-id="${lamp.id}"]`).isChecked(), "all ticked by default");
+    await owner.click("[data-testid=similar-none]");
     await owner.locator(`[data-similar-id="${lamp.id}"]`).check();
     await Promise.all([owner.waitForURL("**/products?created=1"), owner.click("[data-testid=save-product]")]);
     const fan = await product("مروحة صغيرة");

@@ -1,4 +1,5 @@
 import "server-only";
+import { richTextToPlain } from "@/lib/rich-text";
 import type { BackgroundRequest } from "@/server/ai/openai";
 import { newImage, newSectionId, sanitizeSections, type LandingSection, type PageLanguage, type PosterInfo } from "./types";
 import { frameworkGuides, posterSizes, styleFamilies, styleLooks, type Framework, type StyleFamily } from "./ai-options";
@@ -61,7 +62,7 @@ export function buildPosterPlanRequest(brief: { product: PosterProduct; language
   const o = brief.options;
   const data = {
     name: p.name,
-    description: p.description ?? "",
+    description: richTextToPlain(p.description ?? ""),
     price_da: p.price,
     compare_at_price_da: p.compareAtPrice && p.compareAtPrice > p.price ? p.compareAtPrice : null,
   };

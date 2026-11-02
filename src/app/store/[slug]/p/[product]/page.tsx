@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { descriptionHtml, richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
 import { notFound } from "next/navigation";
 import { BadgeCheck, Truck } from "lucide-react";
@@ -44,7 +45,7 @@ export async function generateMetadata({
   const { product } = await load(params);
   return {
     title: product.name,
-    description: product.description?.slice(0, 160),
+    description: richTextToPlain(product.description ?? "").replace(/\s+/g, " ").slice(0, 160) || undefined,
     openGraph: { images: product.images.slice(0, 1) },
   };
 }
@@ -151,9 +152,7 @@ export default async function ProductPage({
             <section className="space-y-3 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-5 shadow-[var(--s-shadow)]">
               <h2 className="font-bold">{t.description}</h2>
               {product.description && (
-                <div className="leading-relaxed whitespace-pre-line text-s-muted">
-                  {product.description}
-                </div>
+                <div className="rich-text leading-relaxed text-s-muted" data-testid="product-description" dangerouslySetInnerHTML={{ __html: descriptionHtml(product.description) }} />
               )}
               {(product.descriptionImages ?? []).map((src) => (
                 // The whole photo, never cropped

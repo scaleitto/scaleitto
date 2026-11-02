@@ -13,23 +13,28 @@ export default async function phase14(browser) {
 
   await step("product description written by the AI into the form, saved with the product", async () => {
     await owner.goto(`${BASE}/ar/dashboard/products/${productId}`);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.click("[data-form-tab=description]");
-    await owner.fill("#description", "مقاومة للماء، شاشة ملونة");
+    // The old plain description opens in the editor as a paragraph
+    expect((await owner.locator("#description").innerText()).includes("ساعة مقاومة للماء"), "existing description in the editor");
+    await owner.fill("[data-testid=selling-points]", "مقاومة للماء\nشاشة ملونة");
     await owner.locator("[data-testid=ai-description]").click();
-    await owner.waitForFunction(() => document.querySelector("#description")?.value.startsWith("وصف من الذكاء الاصطناعي"), null, { timeout: 30_000 });
-    expect((await owner.locator("#description").inputValue()).includes("ساعة ذكية"), "written for this product");
+    await owner.waitForFunction(() => document.querySelector("#description")?.textContent?.startsWith("وصف من الذكاء الاصطناعي"), null, { timeout: 30_000 });
+    expect((await owner.locator("#description").innerText()).includes("ساعة ذكية"), "written for this product");
+    expect((await owner.locator("#description li").count()) === 2, "the AI's lines became a list");
     await owner.locator("[data-testid=save-product]").click();
     let saved = "";
-    for (let i = 0; i < 30 && !saved.startsWith("وصف من الذكاء الاصطناعي"); i++) {
+    for (let i = 0; i < 30 && !saved.startsWith("<p>وصف من الذكاء الاصطناعي"); i++) {
       [[{ description: saved }]] = await db.query("SELECT description FROM products WHERE id = ?", [productId]);
       await owner.waitForTimeout(150);
     }
-    expect(saved.startsWith("وصف من الذكاء الاصطناعي"), "saved");
+    expect(saved.startsWith("<p>وصف من الذكاء الاصطناعي") && saved.includes("<ul><li>"), `saved as rich text (got ${saved.slice(0, 80)})`);
   });
 
   await step("the monthly AI quota applies", async () => {
     await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxAiPerMonth: 1 }), contractId]);
     await owner.goto(`${BASE}/ar/dashboard/products/${productId}`);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.click("[data-form-tab=description]");
     await owner.locator("[data-testid=ai-description]").click();
     await owner.getByText("وصلت إلى الحد الشهري لاستعمال الذكاء الاصطناعي").waitFor();

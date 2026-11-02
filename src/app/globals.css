@@ -237,3 +237,14 @@ input[type="range"] {
   filter: blur(7px);
   user-select: none;
 }
+
+/* Rich text (product descriptions): the editor and the storefront show the same formatting */
+.rich-text h2 { font-size: 1.25em; font-weight: 700; margin: 0.75em 0 0.35em; }
+.rich-text h3 { font-size: 1.1em; font-weight: 700; margin: 0.6em 0 0.3em; }
+.rich-text p { margin: 0.4em 0; }
+.rich-text ul { list-style: disc; padding-inline-start: 1.4em; margin: 0.4em 0; }
+.rich-text ol { list-style: decimal; padding-inline-start: 1.4em; margin: 0.4em 0; }
+.rich-text li { margin: 0.15em 0; }
+.rich-text blockquote { border-inline-start: 3px solid currentColor; opacity: 0.85; padding-inline-start: 0.9em; margin: 0.6em 0; font-style: italic; }
+.rich-text a { text-decoration: underline; }
+.rich-text > :first-child { margin-top: 0; }

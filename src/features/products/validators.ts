@@ -1,3 +1,4 @@
+import { descriptionHtml } from "@/lib/rich-text";
 import { z } from "zod";
 import { offerBadges, productStatuses } from "@/server/db/schema";
 import { slugify } from "@/lib/format";
@@ -65,7 +66,8 @@ export const productSchema = z
   .object({
     name: z.string().trim().min(2, "e:tooShort").max(200, "e:invalid"),
     slug: z.string().trim().max(120).optional().default(""),
-    description: z.string().trim().max(20_000, "e:invalid").optional().default(""),
+    // Rich text from the editor (or plain text from older forms / imports), kept clean (lib/rich-text)
+    description: z.string().trim().max(40_000, "e:invalid").optional().default("").transform((v) => descriptionHtml(v)),
     // At most 7 words (Zimam's short description)
     shortDescription: z
       .string()

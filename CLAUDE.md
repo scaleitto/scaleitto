@@ -221,13 +221,19 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   sub-pages redirect to tabs (next.config.ts).
 - Zimam parity phase 3 (phase27.mjs) — products: `ProductForm.tsx` = tabs (details / description / variants & stock / checkout &
   delivery / offers; panels stay in the DOM with `hidden`, `data-form-tab` / `data-panel`, a failed save opens the first tab with an
-  error), `PhonePreview`, sticky actions (clear, "create & add another" = submit `intent=another` → `/products/new?created=<id>`,
+  error), `ProductPreview`, sticky actions (clear, "create & add another" = submit `intent=another` → `/products/new?created=<id>`,
   the page keys the form on it; `useActionForm` passes the submitter). New columns: `short_description` (≤ 7 words),
   `description_images`, `low_stock` (the product's alert threshold), `show_out_of_stock` (off = sold-out
   products leave store lists: `storefront/queries.ts inStock`), `carrier_account_id` (copied to new orders in `place-order.ts`),
   `similar_ids` (null = automatic; `similarProducts` under the product page). Editor props from `products/editor-props.ts`.
   List (Zimam's: no tabs or search) columns: current/old price, published, stock, units sold, status, actions = open in store /
-  edit / delete. Form header = square back button; underline tabs; Details = one card (type, image drop zone `ImageManager dropzone`, info).
+  edit / delete. Form header = square back button; underline tabs; each tab one card with icon headings (Zimam). Description =
+  `AiDescriptionBox` (key selling points → AI text as rich text) + `ui/RichTextEditor.tsx` (toolbar: bold, italic, underline, strike,
+  H2/H3, lists, quote, align, link, undo/redo); descriptions are clean HTML via `lib/rich-text.ts` (`cleanRichText` allowlist on
+  save, `descriptionHtml` on the storefront — older plain text becomes paragraphs; `richTextToPlain` for AI/meta). Offers =
+  "Upsell offers" switch + similar-products checklist (all ticked = null = automatic; Select all / Clear all). Live preview =
+  `ProductPreview.tsx`: the real product page (store language, theme, color, `CheckoutForm` inert, description, badges, footer)
+  in a scrolling phone; data from `editor-props.ts preview`. The form sets `data-ready` once hydrated (e2e waits for it).
 - Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
   `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`

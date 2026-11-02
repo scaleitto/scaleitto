@@ -1,18 +1,39 @@
 import "server-only";
 import type { Locale } from "@/i18n";
+import { currencyLabel, getStoreText } from "@/i18n/store";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { findCarrier } from "@/features/delivery/carriers";
-import type { StoreShop } from "@/features/storefront/queries";
+import { resolveDesign, storeTheme } from "@/features/design/types";
+import { storeForm } from "@/features/order-form/resolve";
+import { getShippingRates, type StoreShop } from "@/features/storefront/queries";
+import { shopLocale } from "@/features/storefront/StoreShell";
 import { editorData } from "./queries";
 
-// The editor's surroundings: store name and address (preview, product link), delivery companies, other products
-export async function editorProps(lang: Locale, shop: Pick<StoreShop, "id" | "name" | "slug" | "customDomain" | "domainVerifiedAt">, productId: string | null) {
-  const { accounts, others } = await editorData(shop.id, productId);
+// The editor's surroundings: store name and address (product link), delivery companies, other products, and what the
+// live preview needs to draw the real product page (the store's language, theme, color, order form and delivery prices)
+export async function editorProps(lang: Locale, shop: StoreShop, productId: string | null) {
+  const [{ accounts, others }, rates] = await Promise.all([editorData(shop.id, productId), getShippingRates(shop.id)]);
+  const locale = shopLocale(shop);
+  const design = resolveDesign(shop.design);
   return {
     store: { name: shop.name, host: storeUrl(shop).replace(/^https?:\/\//, "") },
     accounts: accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier })),
     deliveryHref: sectionHref(lang, "delivery"),
     others,
+    preview: {
+      locale,
+      storeText: getStoreText(locale),
+      currency: currencyLabel(locale),
+      theme: storeTheme(design),
+      color: shop.primaryColor,
+      logoUrl: shop.logoUrl,
+      phone: shop.phone,
+      about: design.about,
+      socials: design.socials,
+      form: storeForm(shop),
+      rates,
+    },
   };
 }
+export type ProductPreviewData = Awaited<ReturnType<typeof editorProps>>["preview"];

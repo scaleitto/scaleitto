@@ -16,7 +16,9 @@ export default async function phase24(browser) {
 
   await step("offers: a ready-made offer with free delivery, a badge and preselected; the store and the order honour it", async () => {
     await owner.goto(`${dash}/products/${lamp}`);
+    await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.click("[data-form-tab=offers]");
+    await owner.locator("[data-testid=upsell-offers]").check({ force: true });
     await owner.locator('[data-testid=offer-templates] button[data-template="2-10"]').click();
     const offer = owner.locator("[data-testid=offers] [data-offer='2']");
     await offer.locator("[data-testid=offer-free-shipping]").check();
