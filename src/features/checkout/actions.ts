@@ -30,7 +30,7 @@ async function adTracking(): Promise<OrderTracking> {
   const c = await cookies();
   const get = (name: string) => c.get(name)?.value?.slice(0, 500) || undefined;
   const ga = get("_ga")?.match(/^GA\d\.\d\.(\d+\.\d+)$/)?.[1];
-  return { url: (await headers()).get("referer")?.slice(0, 500) || undefined, fbp: get("_fbp"), fbc: get("_fbc"), ttp: get("_ttp"), ttclid: get("sc_ttclid"), gaClientId: ga };
+  return { url: (await headers()).get("referer")?.slice(0, 500) || undefined, fbp: get("_fbp"), fbc: get("_fbc"), ttp: get("_ttp"), ttclid: get("sc_ttclid"), scClickId: get("sc_sccid"), scCookie: get("_scid"), gaClientId: ga };
 }
 
 // A published landing page: its form (the store's) and whether the version

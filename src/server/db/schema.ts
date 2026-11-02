@@ -578,7 +578,7 @@ export const errorLogs = mysqlTable(
 
 // ─── Pixels ───────────────────────────────────────────────
 
-export type OrderTracking = { url?: string; fbp?: string; fbc?: string; ttp?: string; ttclid?: string; gaClientId?: string };
+export type OrderTracking = { url?: string; fbp?: string; fbc?: string; ttp?: string; ttclid?: string; scClickId?: string; scCookie?: string; gaClientId?: string };
 
 // One ad platform tag of a shop. Several per platform are allowed (e.g. one Meta pixel per product).
 export const pixels = mysqlTable(

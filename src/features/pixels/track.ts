@@ -5,7 +5,8 @@ import type { ClientPixel } from "./ids";
 
 type Fbq = ((...args: unknown[]) => void) & { callMethod?: (...a: unknown[]) => void; queue?: unknown[]; push?: unknown; loaded?: boolean; version?: string };
 type Ttq = unknown[] & { load?: (id: string) => void; instance?: (id: string) => { page: () => void; track: (...a: unknown[]) => void } };
-type Win = Window & { fbq?: Fbq; _fbq?: Fbq; ttq?: Ttq; TiktokAnalyticsObject?: string; dataLayer?: unknown[]; gtag?: (...a: unknown[]) => void; __scPixels?: Set<string> };
+type Snaptr = ((...args: unknown[]) => void) & { handleRequest?: (...a: unknown[]) => void; queue: unknown[] };
+type Win = Window & { snaptr?: Snaptr; fbq?: Fbq; _fbq?: Fbq; ttq?: Ttq; TiktokAnalyticsObject?: string; dataLayer?: unknown[]; gtag?: (...a: unknown[]) => void; __scPixels?: Set<string> };
 
 export type TrackItem = { id: string; name: string; price: number; quantity: number };
 export const CURRENCY = "DZD";
@@ -63,6 +64,19 @@ function boot(win: Win, p: ClientPixel) {
       win.ttq = ttq;
     }
     win.ttq.load!(p.id);
+  } else if (p.platform === "snapchat") {
+    if (!win.snaptr) {
+      const a: Snaptr = Object.assign(
+        (...args: unknown[]) => {
+          if (a.handleRequest) a.handleRequest(...args);
+          else a.queue.push(args);
+        },
+        { queue: [] as unknown[] },
+      );
+      win.snaptr = a;
+      addScript("https://sc-static.net/scevent.min.js");
+    }
+    win.snaptr("init", p.id, {});
   } else if (p.platform === "ga4") {
     win.dataLayer ??= [];
     if (!win.gtag) {
@@ -98,17 +112,21 @@ function rememberClickIds() {
   const set = (name: string, value: string) => (document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${90 * 86400}; samesite=lax`);
   const ttclid = params.get("ttclid");
   if (ttclid) set("sc_ttclid", ttclid);
+  const sccid = params.get("ScCid") ?? params.get("sccid");
+  if (sccid) set("sc_sccid", sccid);
   const fbclid = params.get("fbclid");
   if (fbclid && !document.cookie.includes("_fbc=")) set("_fbc", `fb.1.${Date.now()}.${fbclid}`);
 }
 
 type Event = "page" | "view" | "checkout" | "purchase" | "lead";
-const names: Record<Event, { meta: string; tiktok: string; google: string }> = {
-  page: { meta: "PageView", tiktok: "", google: "page_view" },
-  view: { meta: "ViewContent", tiktok: "ViewContent", google: "view_item" },
-  checkout: { meta: "InitiateCheckout", tiktok: "InitiateCheckout", google: "begin_checkout" },
-  purchase: { meta: "Purchase", tiktok: "CompletePayment", google: "purchase" },
-  lead: { meta: "Lead", tiktok: "PlaceAnOrder", google: "generate_lead" },
+// Snap's tag sends every event to all the Snap pixels started on the page (no per-pixel call), and has no "lead":
+// a Snap pixel waiting for confirmation gets its purchase from the server only.
+const names: Record<Event, { meta: string; tiktok: string; google: string; snap: string }> = {
+  page: { meta: "PageView", tiktok: "", google: "page_view", snap: "PAGE_VIEW" },
+  view: { meta: "ViewContent", tiktok: "ViewContent", google: "view_item", snap: "VIEW_CONTENT" },
+  checkout: { meta: "InitiateCheckout", tiktok: "InitiateCheckout", google: "begin_checkout", snap: "START_CHECKOUT" },
+  purchase: { meta: "Purchase", tiktok: "CompletePayment", google: "purchase", snap: "PURCHASE" },
+  lead: { meta: "Lead", tiktok: "PlaceAnOrder", google: "generate_lead", snap: "" },
 };
 
 function send(pixels: ClientPixel[], event: Event, items: TrackItem[] = [], orderId?: string, total?: number) {
@@ -117,6 +135,9 @@ function send(pixels: ClientPixel[], event: Event, items: TrackItem[] = [], orde
   const value = total ?? items.reduce((s, i) => s + i.price * i.quantity, 0);
   const n = names[event];
   const eventId = orderId ? (event === "lead" ? `lead-${orderId}` : orderId) : undefined;
+  if (w.snaptr && n.snap && pixels.some((p) => p.platform === "snapchat")) {
+    w.snaptr("track", n.snap, event === "page" ? {} : { price: value, currency: CURRENCY, item_ids: items.map((i) => i.id), number_items: items.reduce((s, i) => s + i.quantity, 0), ...(orderId ? { transaction_id: orderId, client_dedup_id: eventId } : {}) });
+  }
   for (const p of pixels) {
     if (p.platform === "meta" && w.fbq) {
       const data = event === "page" ? undefined : { content_ids: items.map((i) => i.id), content_type: "product", contents: items.map((i) => ({ id: i.id, quantity: i.quantity })), value, currency: CURRENCY, ...(orderId ? { order_id: orderId } : {}) };

@@ -1,71 +1,50 @@
-import { CircleCheck } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { Badge, Card, PageHeader } from "@/ui";
-import { formatDate } from "@/lib/format";
-import { productChoices } from "@/features/landing/queries";
-import { listPixels, recentPixelEvents } from "@/features/pixels/queries";
-import { PixelManager } from "@/features/pixels/PixelManager";
+import { sectionHref } from "@/lib/permissions";
+import { fmt } from "@/lib/format";
+import { Card, PageHeader, buttonClass } from "@/ui";
+import { pixelSummary } from "@/features/pixels/queries";
+import { PlatformMark, gridOrder } from "@/features/pixels/PlatformMark";
 
+// Zimam's "Pixels & Analytics": one card per platform (mark, active or not, what it does, "Open app")
 export default async function PixelsPage({ params }: PageProps<"/[lang]/dashboard/integrations/pixels">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const px = t.pixels;
   const { shop } = await requireSection(lang, "pixels");
-  const [pixels, products, events] = await Promise.all([listPixels(shop.id), productChoices(shop.id), recentPixelEvents(shop.id)]);
+  const summary = await pixelSummary(shop.id);
+  const base = sectionHref(lang, "pixels");
   return (
     <>
-      <PageHeader title={t.sections.pixels.title} description={t.sections.pixels.description} />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <PixelManager lang={lang} pixels={pixels} products={products.map((p) => ({ id: p.id, name: p.name }))} t={{ pixels: px, errors: t.errors, common: t.common }} />
-        <Card className="space-y-3 self-start">
-          <h2 className="font-semibold">{px.eventsTitle}</h2>
-          <ul className="space-y-2 text-sm text-muted">
-            {px.eventsList.map((line) => (
-              <li key={line} className="flex gap-2">
-                <CircleCheck size={16} className="mt-0.5 shrink-0 text-accent" /> {line}
-              </li>
-            ))}
-          </ul>
-        </Card>
+      <PageHeader title={px.title} description={px.subtitle} />
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {gridOrder.map((p) => {
+          const s = summary[p];
+          const on = s.active > 0;
+          return (
+            <Card key={p} className="flex flex-col gap-5 p-6" data-pixel-app={p} data-state={on ? "on" : "off"}>
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-14 place-items-center rounded-xl border border-line bg-panel-2 shadow-sm">
+                  <PlatformMark platform={p} />
+                </span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase ${on ? "border-accent/25 bg-accent-soft text-accent-ink" : "border-line bg-panel-2 text-muted"}`}>
+                  <span className={`size-1.5 rounded-full ${on ? "bg-accent" : "bg-muted/60"}`} />
+                  {on ? (s.active > 1 ? fmt(px.activeCount, { n: s.active }) : px.active) : px.inactive}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold">{px.apps[p].name}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{px.apps[p].card}</p>
+              </div>
+              <Link href={`${base}/${p}`} className={buttonClass("primary", "w-full")} data-testid="pixel-open">
+                <ExternalLink size={15} /> {px.open}
+              </Link>
+            </Card>
+          );
+        })}
       </div>
-
-      <Card className="mt-6 overflow-x-auto p-0" data-testid="pixel-log">
-        <h2 className="p-4 pb-2 font-semibold">{px.logTitle}</h2>
-        {events.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted">{px.logEmpty}</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted">
-              <tr className="border-b border-line">
-                {(["time", "pixel", "event", "order", "status", "detail"] as const).map((k) => (
-                  <th key={k} className="p-3 text-start font-medium whitespace-nowrap">
-                    {px.logColumns[k]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((ev) => (
-                <tr key={ev.id} className="border-b border-line last:border-0" data-event={ev.event} data-status={ev.status}>
-                  <td className="p-3 whitespace-nowrap text-muted">
-                    <bdi>{formatDate(new Date(ev.createdAt), lang)}</bdi>
-                  </td>
-                  <td className="p-3">{ev.pixelName}</td>
-                  <td className="p-3">{px.logEvents[ev.event as keyof typeof px.logEvents] ?? ev.event}</td>
-                  <td className="p-3">{ev.orderNumber ? `#${ev.orderNumber}` : "—"}</td>
-                  <td className="p-3">
-                    <Badge tone={ev.status === "sent" ? "accent" : ev.status === "failed" ? "danger" : "neutral"}>{px.logStatuses[ev.status]}</Badge>
-                  </td>
-                  <td className="max-w-xs truncate p-3 text-xs text-muted" dir="ltr" title={ev.detail ?? ""}>
-                    {ev.detail}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
     </>
   );
 }

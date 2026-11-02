@@ -12,13 +12,14 @@ import { intlPhone } from "@/lib/phone";
 import { serverPlatforms } from "./ids";
 import { PENDING_STATUSES } from "@/features/orders/statuses";
 
-// Server-side purchase events: Meta Conversions API, TikTok Events API, GA4 Measurement Protocol.
+// Server-side purchase events: Meta Conversions API, TikTok Events API, Snap Conversions API (v3), GA4 Measurement Protocol.
 // The event id is the order id, the same as the browser's, so each platform counts the order once.
 // E2E_PIXEL_URL points every platform at a local fake server during the automated tests.
 const hosts = () => {
   const fake = process.env.E2E_PIXEL_URL;
   return {
     tiktok: fake ? `${fake}/tiktok` : "https://business-api.tiktok.com",
+    snapchat: fake ? `${fake}/snapchat` : "https://tr.snapchat.com",
     ga4: fake ? `${fake}/ga4` : "https://www.google-analytics.com",
   };
 };
@@ -116,6 +117,39 @@ async function sendTiktok(pixel: Pixel, secret: string, order: OrderData): Promi
   return r.ok && r.json?.code === 0 ? { ok: true, detail: String(r.json?.message ?? "OK") } : { ok: false, detail: String(r.json?.message ?? `HTTP ${r.status} ${r.text}`) };
 }
 
+// Snap Conversions API v3 (developers.snap.com → Conversions API): the same shape as Meta's, token in the query.
+// The test uses the /validate route, which checks the event without counting it.
+async function sendSnap(pixel: Pixel, secret: string, order: OrderData, test: boolean): Promise<Result> {
+  const t = order.tracking ?? {};
+  const event = {
+    event_name: "PURCHASE",
+    action_source: "WEB",
+    event_time: Date.now(),
+    event_id: order.id,
+    event_source_url: t.url,
+    user_data: {
+      ph: [sha(intlPhone(order.phone))],
+      external_id: [sha(order.phone)],
+      country: [sha("dz")],
+      client_ip_address: order.ip ?? undefined,
+      client_user_agent: order.userAgent ?? undefined,
+      sc_click_id: t.scClickId,
+      sc_cookie1: t.scCookie,
+    },
+    custom_data: {
+      currency: CURRENCY,
+      value: order.total,
+      order_id: order.id,
+      content_ids: order.items.map((i) => i.productId ?? i.name),
+      num_items: order.items.reduce((s, i) => s + i.quantity, 0),
+    },
+  };
+  const r = await post(`${hosts().snapchat}/v3/${pixel.tagId}/events${test ? "/validate" : ""}?access_token=${encodeURIComponent(secret)}`, { data: [event] });
+  const status = String(r.json?.status ?? "");
+  const reason = String(r.json?.reason ?? r.json?.message ?? "");
+  return r.ok && status !== "INVALID" && status !== "FAILED" ? { ok: true, detail: status || `HTTP ${r.status}` } : { ok: false, detail: reason || `HTTP ${r.status} ${r.text}` };
+}
+
 // GA4 accepts anything with 204; the debug endpoint returns validation messages (used for tests).
 async function sendGa4(pixel: Pixel, secret: string, order: OrderData, test: boolean): Promise<Result> {
   const body = {
@@ -136,6 +170,7 @@ async function sendGa4(pixel: Pixel, secret: string, order: OrderData, test: boo
 function sendTo(pixel: Pixel, secret: string, order: OrderData, test = false): Promise<Result> {
   if (pixel.platform === "meta") return sendMeta(pixel, secret, order);
   if (pixel.platform === "tiktok") return sendTiktok(pixel, secret, order);
+  if (pixel.platform === "snapchat") return sendSnap(pixel, secret, order, test);
   return sendGa4(pixel, secret, order, test);
 }
 

@@ -2,7 +2,7 @@
 export const limitKeys = ["maxProducts", "maxOrdersPerMonth", "maxStaff", "maxLandingPages", "maxAiPerMonth"] as const;
 export type LimitKey = (typeof limitKeys)[number];
 
-export const pixelPlatforms = ["meta", "tiktok", "ga4", "gtm"] as const;
+export const pixelPlatforms = ["meta", "tiktok", "snapchat", "ga4", "gtm"] as const;
 export type PixelPlatform = (typeof pixelPlatforms)[number];
 // When the "purchase" is reported: as soon as the customer orders, or only once the call center confirms / the parcel is delivered
 export const purchaseTriggers = ["placed", "confirmed", "delivered"] as const;

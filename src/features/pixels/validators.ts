@@ -1,35 +1,48 @@
 import { z } from "zod";
-import { pixelPlatforms, purchaseTriggers } from "@/server/db/schema";
-import { isValidTag, normalizeTag } from "./ids";
+import { purchaseTriggers, type PixelPlatform } from "@/server/db/schema";
+import { isValidTag, multiAccount, normalizeTag } from "./ids";
 
-// A pixel from the dashboard form. Products arrive as checkboxes named "productIds".
-export function parsePixel(formData: FormData) {
-  return z
-    .object({
-      platform: z.enum(pixelPlatforms, { error: "e:invalid" }),
-      name: z.string().trim().min(1, "e:required").max(80, "e:invalid"),
-      tagId: z.string(),
-      secret: z.string().trim().max(500, "e:invalid"),
-      clearSecret: z.preprocess((v) => v === "on", z.boolean()),
-      testCode: z.string().trim().max(40, "e:invalid").regex(/^[A-Za-z0-9_-]*$/, "e:invalid"),
-      purchaseOn: z.enum(purchaseTriggers, { error: "e:invalid" }),
-      scope: z.enum(["all", "products"], { error: "e:invalid" }),
-      productIds: z.array(z.string().uuid()).max(100),
-    })
-    .transform((d) => ({ ...d, tagId: normalizeTag(d.platform, d.tagId) }))
-    .superRefine((d, ctx) => {
-      if (!isValidTag(d.platform, d.tagId)) ctx.addIssue({ code: "custom", path: ["tagId"], message: "e:tagId" });
-      if (d.scope === "products" && !d.productIds.length) ctx.addIssue({ code: "custom", path: ["productIds"], message: "e:pixelProducts" });
-    })
-    .safeParse({
-      platform: formData.get("platform"),
-      name: formData.get("name") ?? "",
-      tagId: formData.get("tagId") ?? "",
-      secret: formData.get("secret") ?? "",
-      clearSecret: formData.get("clearSecret"),
-      testCode: formData.get("testCode") ?? "",
-      purchaseOn: formData.get("purchaseOn") ?? "placed",
-      scope: formData.get("scope") ?? "all",
-      productIds: formData.getAll("productIds"),
-    });
+// One app page (Zimam: a page per platform) saves all of that platform's pixels at once. They arrive as the JSON
+// field "accounts": one entry per ad account (Google Analytics / Tag Manager: one). A saved row keeps its id; an
+// entry with an empty secret keeps the saved one.
+const account = z.object({
+  id: z.string().uuid().nullable(),
+  name: z.string().trim().max(80),
+  tagId: z.string().max(80),
+  secret: z.string().trim().max(500),
+  clearSecret: z.boolean(),
+  testCode: z.string().trim().max(40).regex(/^[A-Za-z0-9_-]*$/),
+  purchaseOn: z.enum(purchaseTriggers),
+  productIds: z.array(z.string().uuid()).max(100).nullable(),
+  active: z.boolean(),
+});
+export type PixelAccount = z.infer<typeof account>;
+
+export const MAX_ACCOUNTS = 10;
+
+// Returns the accounts to keep (blank single-ID entries are dropped = removed) or field errors keyed
+// "<field>.<index>" (each card shows its own).
+export function parseAccounts(platform: PixelPlatform, raw: unknown): { ok: true; accounts: PixelAccount[] } | { ok: false; fieldErrors: Record<string, string> } {
+  let json: unknown;
+  try {
+    json = JSON.parse(String(raw ?? "[]"));
+  } catch {
+    return { ok: false, fieldErrors: { form: "invalid" } };
+  }
+  const parsed = z.array(account).max(multiAccount(platform) ? MAX_ACCOUNTS : 1).safeParse(json);
+  if (!parsed.success) return { ok: false, fieldErrors: { form: "invalid" } };
+  const fieldErrors: Record<string, string> = {};
+  const seen = new Set<string>();
+  const accounts: PixelAccount[] = [];
+  parsed.data.forEach((a, i) => {
+    const tagId = normalizeTag(platform, a.tagId);
+    // Google's single ID left empty: nothing to keep
+    if (!tagId && !multiAccount(platform)) return;
+    if (!isValidTag(platform, tagId)) fieldErrors[`tagId.${i}`] = tagId ? "tagId" : "required";
+    else if (seen.has(tagId)) fieldErrors[`tagId.${i}`] = "pixelDuplicate";
+    seen.add(tagId);
+    if (a.productIds && !a.productIds.length) fieldErrors[`productIds.${i}`] = "pixelProducts";
+    accounts.push({ ...a, tagId, name: a.name || tagId });
+  });
+  return Object.keys(fieldErrors).length ? { ok: false, fieldErrors } : { ok: true, accounts };
 }

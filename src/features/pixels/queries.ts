@@ -1,6 +1,7 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
+import { pixelPlatforms, type PixelPlatform } from "@/server/db/schema";
 import { isValidTag, type ClientPixel } from "./ids";
 
 // The pixels a storefront page loads: those for every page, plus those of the page's products. A landing page can
@@ -15,21 +16,34 @@ export async function pagePixels(shopId: string, productIds: string[] = [], only
     .map((p) => ({ platform: p.platform, id: p.id, purchaseOn: p.purchaseOn }));
 }
 
-export async function listPixels(shopId: string) {
-  const rows = await db.select().from(schema.pixels).where(eq(schema.pixels.shopId, shopId)).orderBy(desc(schema.pixels.createdAt));
+// One app page's pixels (oldest first: the order they were added)
+export async function listPixels(shopId: string, platform: PixelPlatform) {
+  const rows = await db.select().from(schema.pixels).where(and(eq(schema.pixels.shopId, shopId), eq(schema.pixels.platform, platform))).orderBy(asc(schema.pixels.createdAt));
   // The secret never leaves the server: only whether one is saved
   return rows.map(({ secret, ...p }) => ({ ...p, hasSecret: Boolean(secret) }));
 }
 export type PixelRow = Awaited<ReturnType<typeof listPixels>>[number];
 
-// Last server-side events, for the log on the dashboard
-export async function recentPixelEvents(shopId: string, limit = 30) {
+// The Pixels grid: how many pixels each platform has, and how many run
+export async function pixelSummary(shopId: string) {
+  const rows = await db.select({ platform: schema.pixels.platform, active: schema.pixels.active }).from(schema.pixels).where(eq(schema.pixels.shopId, shopId));
+  const out = {} as Record<PixelPlatform, { total: number; active: number }>;
+  for (const p of pixelPlatforms) out[p] = { total: 0, active: 0 };
+  for (const r of rows) {
+    out[r.platform].total++;
+    if (r.active) out[r.platform].active++;
+  }
+  return out;
+}
+
+// Last server-side events of one platform, for the log on its page
+export async function recentPixelEvents(shopId: string, platform: PixelPlatform, limit = 30) {
   return db
     .select({ id: schema.pixelEvents.id, event: schema.pixelEvents.event, status: schema.pixelEvents.status, detail: schema.pixelEvents.detail, createdAt: schema.pixelEvents.createdAt, pixelName: schema.pixels.name, platform: schema.pixels.platform, orderNumber: schema.orders.number })
     .from(schema.pixelEvents)
     .innerJoin(schema.pixels, eq(schema.pixels.id, schema.pixelEvents.pixelId))
     .leftJoin(schema.orders, eq(schema.orders.id, schema.pixelEvents.orderId))
-    .where(eq(schema.pixelEvents.shopId, shopId))
+    .where(and(eq(schema.pixelEvents.shopId, shopId), eq(schema.pixels.platform, platform)))
     .orderBy(desc(schema.pixelEvents.createdAt))
     .limit(limit);
 }

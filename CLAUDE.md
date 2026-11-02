@@ -110,12 +110,16 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   impressions (impressions, visitors, sources, daily trend), team (per agent). Charts are plain SVG in `charts.tsx`; tabs in
   `views.tsx`. Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
   product, source host; a visitor counted once per day and page key through the `sc_v` cookie; robots skipped; migration 0038).
-- Pixels (`src/features/pixels/`): `pixels` rows (meta / tiktok / ga4 / gtm; tag IDs checked by `ids.ts` because they go
-  into inline scripts; optional encrypted server secret + test code; `purchaseOn` placed/confirmed/delivered; `productIds`
-  null = whole store). Browser: `PixelScope` on every storefront page (pages pass `pagePixels(shop, productIds)`) loads only
-  that page's pixels and sends events with `track.ts` (Meta trackSingle, TikTok instance, GA4 send_to, GTM dataLayer);
+- Pixels like Zimam (`src/features/pixels/`, phase9.mjs): `/integrations/pixels` = "Pixels & Analytics" grid of 5 apps (GTM, GA4,
+  Facebook, Snapchat, TikTok; `PlatformMark.tsx`, active when one of its pixels runs) → `/integrations/pixels/<platform>` = back link,
+  info banner, `PixelApp.tsx` (Meta/TikTok/Snapchat: a list of ad accounts, "Add another ad account"; GA4/GTM: one ID; advanced:
+  purchaseOn + products) saved at once by `savePlatformPixels` (`validators.ts parseAccounts`, errors keyed `tagId.<i>`; removed
+  accounts are deleted with their log), the test button and that platform's server log. `pixels` rows (meta / tiktok / snapchat /
+  ga4 / gtm; tag IDs checked by `ids.ts` because they go into inline scripts — Snap IDs are UUIDs; optional encrypted server secret
+  + test code; `purchaseOn` placed/confirmed/delivered; `productIds` null = whole store). Browser: `PixelScope` on every storefront page (pages pass `pagePixels(shop, productIds)`) loads only
+  that page's pixels and sends events with `track.ts` (Meta trackSingle, TikTok instance, Snap `snaptr` to all its pixels on the page — no Lead, GA4 send_to, GTM dataLayer);
   `CheckoutForm` fires InitiateCheckout via `useCheckoutStarted`; thank-you pages fire Purchase (event id = order id) or
-  Lead for pixels waiting for confirmation/delivery. Server: `server.ts` (Conversions API, Events API, Measurement Protocol)
+  Lead for pixels waiting for confirmation/delivery. Server: `server.ts` (Conversions API, Events API, Snap Conversions API v3 — test = `/events/validate`, click id `ScCid` → `sc_sccid` cookie —, Measurement Protocol)
   via `scheduleOrderEvents` → `after()`: on placement (`checkout/actions.ts`, ad cookies saved in `orders.tracking`) and on
   confirmed/delivered (`applyOrderStatus`). `pixel_events` = log + unique (pixel, order, event) so nothing is sent twice.
   E2E uses `tests/e2e/mock-pixels.mjs` via E2E_PIXEL_URL (never set it in production).
@@ -303,7 +307,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 
 ## Roadmap (from the owner's feature list)
 v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (AI product descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
-Missing features seen in competitors (fraud score, Snapchat pixel, coupons, multi-store, WhatsApp self-confirmation…) are listed
+Missing features seen in competitors (fraud score, coupons, multi-store, WhatsApp self-confirmation…) are listed
 in `docs/next-round.md`: the homepage only claims what exists. Plans (modelled on ayor's, a little cheaper; seeded by
 `scripts/migrate-lib.mjs`, missing codes added on start, older codes hidden once): starter (free) / orbit = pay as you go
 (`plans.order_pack` = 100 orders for 1,800 DA, no expiry; `shops.order_credits` balance: `orderRule` in limits.ts, `takeOrderSlot`

@@ -1,0 +1,1 @@
+ALTER TABLE `pixels` MODIFY COLUMN `platform` enum('meta','tiktok','snapchat','ga4','gtm') NOT NULL;
