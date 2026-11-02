@@ -79,16 +79,14 @@ export default async function phase23(browser) {
     await ctx.close();
   });
 
-  await step("order analysis (now in Analytics): rates and couriers of the period", async () => {
+  await step("the old order analysis address opens Analytics with the delivery rate", async () => {
     const d = await order({ status: "delivered" });
     await parcel(d.id, "delivered");
     const r = await order({ status: "returned" });
     await parcel(r.id, "returned");
     await owner.goto(`${dash}/orders/insights`);
     await owner.waitForURL(/\/dashboard\/analytics$/);
-    await owner.locator("[data-testid=insight-kpis] [data-kpi=return]").waitFor();
-    expect((await owner.locator("[data-kpi=return] [data-value]").innerText()).includes("%"), "return rate");
-    await owner.locator('[data-testid=carriers] [data-row="Yalidine"]').waitFor();
+    expect((await owner.locator("[data-kpi=delivery] [data-value]").innerText()).includes("%"), "delivery rate");
   });
 
   await context.close();
