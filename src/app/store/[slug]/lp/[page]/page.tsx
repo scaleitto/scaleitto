@@ -1,7 +1,7 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
 import { richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
-import { storeForm } from "@/features/order-form/resolve";
+import { productForm } from "@/features/order-form/resolve";
 import type { Metadata } from "next";
 import { randomInt } from "node:crypto";
 import { cookies } from "next/headers";
@@ -63,7 +63,7 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         language={page.language}
         color={page.color}
         sections={sections}
-        settings={storeForm(shop)}
+        settings={productForm(shop, product)}
         product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id)}

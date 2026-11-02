@@ -64,6 +64,7 @@ function productRow(input: ProductInput) {
     carrierAccountId: input.carrierAccountId || null,
     similarIds: input.similar === "chosen" ? input.similarIds : null,
     collectionIds: input.collectionIds.length ? input.collectionIds : null,
+    customFields: input.customFields.length ? input.customFields : null,
   };
 }
 

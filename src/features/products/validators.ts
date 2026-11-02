@@ -1,4 +1,5 @@
 import { descriptionHtml } from "@/lib/rich-text";
+import { productFields } from "@/features/order-form/resolve";
 import { z } from "zod";
 import { offerBadges, productStatuses } from "@/server/db/schema";
 import { slugify } from "@/lib/format";
@@ -91,6 +92,8 @@ export const productSchema = z
     similar: z.enum(["auto", "chosen"]).optional().default("auto"),
     similarIds: json(z.array(z.string().uuid()).max(50), "e:invalid"),
     collectionIds: json(z.array(z.string().uuid()).max(30), "e:invalid"),
+    // Apps → Custom fields: the product's own questions, cleaned like the store form's
+    customFields: json(z.array(z.unknown()).max(20), "e:invalid").transform((v) => productFields(v)),
     options: json(
       z
         .array(optionSchema)

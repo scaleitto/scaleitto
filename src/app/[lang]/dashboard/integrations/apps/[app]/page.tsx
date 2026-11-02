@@ -49,6 +49,9 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
     case "abandoned":
       body = <SwitchApp lang={lang} app="abandoned" enabled={ctx.apps.abandoned} label={a.pages.abandoned.enable} hint={a.pages.abandoned.enableHint} t={text} />;
       break;
+    case "customFields":
+      body = <SwitchApp lang={lang} app="customFields" enabled={ctx.apps.customFields} label={a.pages.customFields.enable} hint={a.pages.customFields.enableHint} t={text} />;
+      break;
     case "parcelScanner":
       body = (
         <SwitchApp lang={lang} app="scanner" enabled={ctx.apps.scanner} label={a.pages.parcelScanner.enable} hint={a.pages.parcelScanner.enableHint} t={text}>

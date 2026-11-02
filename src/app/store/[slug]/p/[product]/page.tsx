@@ -20,7 +20,7 @@ import { formatPrice } from "@/lib/format";
 import { ProductGrid, TrustBadges, discountOf, trustBadgeItems } from "@/features/storefront/blocks";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
-import { storeForm } from "@/features/order-form/resolve";
+import { productForm } from "@/features/order-form/resolve";
 
 const decode = (s: string) => {
   try {
@@ -134,7 +134,7 @@ export default async function ProductPage({
               }))}
               action={submitOrder.bind(null, shop.slug, product.id, null)}
               saveLead={saveLead.bind(null, shop.slug, product.id)}
-              settings={storeForm(shop)}
+              settings={productForm(shop, product)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
             />
             <TrustBadges t={t} items={trustBadgeItems(resolveApps(shop.apps).badges, t)} />

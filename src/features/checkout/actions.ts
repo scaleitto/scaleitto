@@ -14,12 +14,18 @@ import { getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { orderInputSchema } from "./validators";
 import { MAX_QUANTITY } from "./pricing";
 import { customFieldValid, liveVersions, readPublished, versionSections, type VersionKey } from "@/features/landing/types";
-import { storeForm } from "@/features/order-form/resolve";
+import { productForm } from "@/features/order-form/resolve";
 import { placeOrder, saveAbandoned } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { OrderTracking } from "@/server/db/schema";
+
+// The product's own checkout questions (Apps → Custom fields)
+async function productQuestions(shopId: string, productId: string) {
+  const [row] = await db.select({ customFields: schema.products.customFields }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
+  return row ?? null;
+}
 
 async function requestMeta() {
   const h = await headers();
@@ -36,7 +42,7 @@ async function adTracking(): Promise<OrderTracking> {
 
 // A published landing page: its form (the store's) and whether the version
 // the visitor saw ends with a thank-you window (then the visitor comes back to the page instead of the thanks page)
-async function landingOf(shop: { id: string; orderForm: unknown }, landing: { id: string; version: string }, productId: string) {
+async function landingOf(shop: { id: string; orderForm: unknown; apps: unknown }, landing: { id: string; version: string }, productId: string) {
   const [page] = await db
     .select({ slug: schema.landingPages.slug, published: schema.landingPages.published })
     .from(schema.landingPages)
@@ -45,7 +51,7 @@ async function landingOf(shop: { id: string; orderForm: unknown }, landing: { id
   const published = readPublished(page.published);
   const version = published && liveVersions(published).includes(landing.version as VersionKey) ? (landing.version as VersionKey) : "A";
   const popup = published ? versionSections(published, version).some((s) => s.type === "thankYou" && !s.hidden) : false;
-  return { settings: storeForm(shop), slug: page.slug, version, popup };
+  return { settings: productForm(shop, await productQuestions(shop.id, productId)), slug: page.slug, version, popup };
 }
 
 // The customer's order form (store product page, landing page or embedded form).
@@ -58,7 +64,7 @@ export async function submitOrder(slug: string, productId: string, landing: { id
   const result = await safeAction("store/order", async () => {
     const parsed = orderInputSchema.safeParse(Object.fromEntries(formData));
     page = landing ? await landingOf(shop, landing, productId) : null;
-    const settings = landing ? page?.settings : storeForm(shop);
+    const settings = landing ? page?.settings : productForm(shop, await productQuestions(shop.id, productId));
     if (!settings) return { ok: false, error: "unavailable" };
 
     // What the landing page's form asks on top of the standard fields

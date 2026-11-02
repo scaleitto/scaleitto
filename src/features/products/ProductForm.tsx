@@ -1,5 +1,6 @@
 "use client";
 
+import { customFieldTypes, type CustomField, type CustomFieldType } from "@/features/landing/types";
 import Link from "next/link";
 import { useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import {
@@ -21,6 +22,7 @@ import {
   Lock,
   Package,
   Palette,
+  ListChecks,
   Plus,
   SlidersHorizontal,
   Star,
@@ -48,8 +50,7 @@ import {
   Select,
   Textarea,
   buttonClass,
-  inputClass,
-} from "@/ui";
+  inputClass, Button } from "@/ui";
 import {
   FormMessage,
   SubmitButton,
@@ -100,6 +101,7 @@ export type ProductFormValues = {
   carrierAccountId: string | null;
   similarIds: string[] | null;
   collectionIds: string[] | null;
+  customFields: unknown[] | null;
 };
 
 export type ProductFormText = Pick<
@@ -155,6 +157,7 @@ export function ProductForm({
   preview,
   collections,
   collectionsHref,
+  customFieldsOn,
   notice,
 }: {
   t: ProductFormText;
@@ -176,6 +179,8 @@ export function ProductForm({
   // The store's collections (Apps → Collections) and where to manage them
   collections: { id: string; title: string; child: boolean }[];
   collectionsHref: string;
+  // Apps → Custom fields is on: the product can ask its own questions at checkout
+  customFieldsOn: boolean;
   notice?: string;
 }) {
   const p = t.products;
@@ -221,6 +226,7 @@ export function ProductForm({
   // Similar products: null = all the store's other products (Zimam's default, new products included)
   const [chosen, setChosen] = useState<string[] | null>(values.similarIds);
   const [inCollections, setInCollections] = useState<string[]>(values.collectionIds ?? []);
+  const [questions, setQuestions] = useState<Question[]>(() => toQuestions(values.customFields));
   const similar = chosen ?? others.map((o) => o.id);
 
   // After a failed save, open the first tab that holds an error
@@ -1042,6 +1048,7 @@ export function ProductForm({
 
           {panel(
             "delivery",
+            <>
             <Card className="space-y-6">
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <Truck size={19} className="text-accent" /> {p.deliverySection}
@@ -1084,7 +1091,10 @@ export function ProductForm({
               <div className="rounded-xl border border-line p-4">
                 {toggleRow(false, () => undefined, <CreditCard size={18} />, p.onlinePayment, p.onlinePaymentHint, "online-only", true)}
               </div>
-            </Card>,
+            </Card>
+            {customFieldsOn && <CustomFieldsCard value={questions} onChange={setQuestions} t={t} />}
+            <input type="hidden" name="customFields" value={JSON.stringify(customFieldsOn ? questions.map((q) => ({ ...q, options: q.options.split(/[,،\n]/).map((o) => o.trim()).filter(Boolean) })) : (values.customFields ?? []))} />
+            </>,
           )}
 
           {panel(
@@ -1463,5 +1473,54 @@ function ShowOutOfStock({
       <input type="hidden" name="showOutOfStock" value={value ? "on" : ""} />
       {render(value, setValue)}
     </>
+  );
+}
+
+// Apps → Custom fields: the product's own questions at checkout (label, kind, choices, required)
+type Question = { id: string; label: string; type: CustomFieldType; options: string; required: boolean };
+const toQuestions = (raw: unknown[] | null): Question[] =>
+  (raw ?? []).map((x) => {
+    const c = x as Partial<CustomField>;
+    return { id: String(c.id ?? Math.random().toString(36).slice(2, 10)), label: String(c.label ?? ""), type: (c.type ?? "text") as CustomFieldType, options: (c.options ?? []).join("، "), required: c.required === true };
+  });
+
+function CustomFieldsCard({ value, onChange, t }: { value: Question[]; onChange: (q: Question[]) => void; t: ProductFormText }) {
+  const c = t.products.customFields;
+  const set = (id: string, patch: Partial<Question>) => onChange(value.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+  return (
+    <Card className="space-y-4" data-testid="custom-fields">
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <ListChecks size={19} className="text-accent" /> {c.title}
+        </h2>
+        <p className="mt-1 text-sm text-muted">{c.hint}</p>
+      </div>
+      {value.map((q, i) => (
+        <div key={q.id} className="space-y-3 rounded-xl border border-line p-4" data-question={i}>
+          <div className="grid gap-3 sm:grid-cols-[1fr_12rem_auto]">
+            <Input value={q.label} onChange={(ev) => set(q.id, { label: ev.target.value })} maxLength={60} placeholder={c.labelPlaceholder} aria-label={c.label} data-testid={`question-label-${i}`} />
+            <Select value={q.type} onChange={(ev) => set(q.id, { type: ev.target.value as CustomFieldType })} aria-label={c.type} data-testid={`question-type-${i}`}>
+              {customFieldTypes.map((k) => (
+                <option key={k} value={k}>
+                  {c.types[k]}
+                </option>
+              ))}
+            </Select>
+            <button type="button" onClick={() => onChange(value.filter((x) => x.id !== q.id))} className="grid size-11 place-items-center rounded-xl border border-line text-muted hover:text-danger" aria-label={t.common.delete}>
+              <Trash2 size={16} />
+            </button>
+          </div>
+          {(q.type === "select" || q.type === "radio") && <Input value={q.options} onChange={(ev) => set(q.id, { options: ev.target.value })} placeholder={c.optionsPlaceholder} aria-label={c.options} data-testid={`question-options-${i}`} />}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={q.required} onChange={(ev) => set(q.id, { required: ev.target.checked })} className="size-4 accent-[var(--color-accent)]" /> {c.required}
+          </label>
+        </div>
+      ))}
+      {value.length < 5 && (
+        <Button type="button" variant="secondary" onClick={() => onChange([...value, { id: Math.random().toString(36).slice(2, 10), label: "", type: "text", options: "", required: false }])} data-testid="question-add">
+          <Plus size={15} /> {c.add}
+        </Button>
+      )}
+    </Card>
   );
 }

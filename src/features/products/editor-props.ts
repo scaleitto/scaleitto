@@ -26,6 +26,7 @@ export async function editorProps(lang: Locale, shop: StoreShop, productId: stri
     deliveryHref: sectionHref(lang, "delivery"),
     collections: collections.filter((c) => !c.parentId).flatMap((top) => [top, ...collections.filter((c) => c.parentId === top.id)]).map((c) => ({ id: c.id, title: textIn(c.titles, lang), child: Boolean(c.parentId) })),
     collectionsHref: `${sectionHref(lang, "apps")}/collections`,
+    customFieldsOn: resolveApps(shop.apps).customFields,
     others,
     preview: {
       locale,

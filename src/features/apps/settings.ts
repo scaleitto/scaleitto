@@ -19,6 +19,8 @@ export type AppSettings = {
   abandoned: boolean;
   // Scan in the menu and on the Orders page
   scanner: boolean;
+  // Each product can ask its own questions at checkout
+  customFields: boolean;
   badges: TrustBadge[];
   contact: ContactSettings;
   thanks: ThanksSettings;
@@ -43,6 +45,7 @@ export function resolveApps(raw: unknown): AppSettings {
   return {
     abandoned: bool(r.abandoned, true),
     scanner: bool(r.scanner, true),
+    customFields: bool(r.customFields, false),
     badges: badgeKeys.map((key) => {
       const b = badgesIn.find((x) => x && x.key === key) ?? {};
       return { key, on: bool(b.on, badgeDefaults[key]), title: str(b.title, 40), text: str(b.text, 80) };

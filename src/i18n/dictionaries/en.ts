@@ -418,6 +418,7 @@ const en: Dictionary = {
     roles: { owner: "Owner", manager: "Manager", agent: "Call center agent" },
   },
   products: {
+    customFields: { title: "Custom fields", hint: "Extra questions the buyer answers when ordering this product (size, gift note…). They show on the order.", label: "Question", labelPlaceholder: "e.g. Size wanted", type: "Type", types: { text: "Short text", textarea: "Long text", number: "Number", email: "Email", date: "Date", select: "Dropdown", radio: "Single choice", checkbox: "Checkbox" }, options: "Choices", optionsPlaceholder: "Choices separated by commas: S, M, L", required: "Required", add: "Add a question" },
     collections: { title: "Collections", hint: "Group this product under one or more storefront collections.", none: "You haven't created any collections yet.", manage: "Manage collections" },
     add: "Add product",
     newTitle: "New product",
@@ -1316,6 +1317,7 @@ const en: Dictionary = {
       promotions: { title: "Promotion campaigns", about: "Pick a discount, products and dates: during the campaign the new price shows in the store and landing pages with the old one struck through, and orders are charged at it (quantity offers drop by the same percentage). When it ends, prices go back by themselves." },
       collections: { title: "Collections", about: "Group products under a /collections/<handle> link in your store (e.g. clothes, shoes, sale). Pick each product's collections on its edit page; a collection can sit inside another (two levels at most)." },
       deliveryAssign: { title: "Delivery auto assign", about: "Set rules that pick the delivery company of each new order by wilaya, order value and delivery type. Rules are checked in order and the first match applies. A delivery company set on the product itself comes first." },
+      customFields: { title: "Custom fields", about: "When on, you can add questions to each product from its edit page (Checkout & delivery tab); they show in the order form and are saved with the order. Turning it off hides them without deleting them.", enable: "Enable custom fields", enableHint: "Shows the questions editor on product pages and asks them on the storefront." },
       webhook: { title: "Webhook", about: "Every new order and every status change is sent to your URL as signed JSON (X-Scaleitto-Signature) for your own system." },
     },
     guard: {

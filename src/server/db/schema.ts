@@ -226,6 +226,8 @@ export const products = mysqlTable(
     similarIds: json("similar_ids").$type<string[] | null>(),
     // Apps → Collections the product belongs to (collection ids)
     collectionIds: json("collection_ids").$type<string[]>(),
+    // Apps → Custom fields: this product's own questions at checkout (landing/types.ts CustomField)
+    customFields: json("custom_fields").$type<unknown[]>(),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
   },

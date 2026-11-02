@@ -32,6 +32,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
     thankYou: Boolean(a.thanks.title || a.thanks.message || a.thanks.button || a.thanks.redirect === "product"),
     orderTracking: a.tracking.enabled,
     promotions: running.size > 0,
+    customFields: a.customFields,
     parcelScanner: a.scanner,
     webhook: Boolean(webhook?.active),
   };

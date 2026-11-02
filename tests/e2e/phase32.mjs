@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 5, "5 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 4, "4 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
@@ -305,6 +305,41 @@ export default async function phase32(browser) {
     owner.once("dialog", (d) => d.accept());
     await owner.locator("[data-rule='المصابيح لسارة'] [data-testid=rule-delete]").click();
     await owner.waitForSelector("[data-rule='المصابيح لسارة']", { state: "detached" });
+  });
+
+  await step("custom fields: switched on, a product asks its own required question; the answer is saved on the order", async () => {
+    const [[lamp]] = await db.query("SELECT id FROM products WHERE shop_id = ? AND slug = 'lamp'", [shopId]);
+    await owner.goto(`${dash}/products/${lamp.id}`);
+    await owner.waitForSelector("[data-testid=product-form][data-ready]");
+    expect(!(await owner.locator("[data-testid=custom-fields]").count()), "no editor while the app is off");
+    await owner.goto(`${apps}/customFields`);
+    await owner.locator("[data-testid=app-enabled]").check();
+    await save();
+    await owner.goto(`${dash}/products/${lamp.id}`);
+    await owner.waitForSelector("[data-testid=product-form][data-ready]");
+    await owner.locator("[data-form-tab=delivery]").click();
+    await owner.click("[data-testid=question-add]");
+    await owner.fill("[data-testid=question-label-0]", "المقاس");
+    await owner.selectOption("[data-testid=question-type-0]", "select");
+    await owner.fill("[data-testid=question-options-0]", "صغير، كبير");
+    await owner.locator("[data-question='0'] input[type=checkbox]").check();
+    await owner.click("[data-testid=save-product]");
+    await until(async () => JSON.stringify((await db.query("SELECT custom_fields FROM products WHERE id = ?", [lamp.id]))[0][0].custom_fields ?? "").includes("المقاس"), "question saved");
+    await buyer.goto(`${store}/p/lamp`);
+    const select = buyer.locator("select[name^='custom_p-']");
+    await select.waitFor();
+    await buyer.fill("#name", "سليم بن عمر");
+    await buyer.fill("#phone", "0665 66 77 88");
+    await buyer.selectOption("#wilaya", "16");
+    await buyer.selectOption("#commune", "حيدرة");
+    await buyer.waitForTimeout(4200);
+    await buyer.click("button[type=submit]");
+    await buyer.waitForSelector("text=هذه المعلومة مطلوبة");
+    await select.selectOption("كبير");
+    await buyer.click("button[type=submit]");
+    await buyer.waitForURL(/\/thanks\?o=/);
+    const [[o]] = await db.query("SELECT extra FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
+    expect(JSON.stringify(o.extra).includes("المقاس") && JSON.stringify(o.extra).includes("كبير"), "answer on the order");
   });
 
   await step("parcel scanner switched off: Scan leaves the menu and Orders, its page sends back to Orders", async () => {

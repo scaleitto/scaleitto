@@ -418,6 +418,7 @@ const fr: Dictionary = {
     roles: { owner: "Propriétaire", manager: "Gérant", agent: "Agent du centre d'appel" },
   },
   products: {
+    customFields: { title: "Champs personnalisés", hint: "Questions en plus auxquelles répond l'acheteur de ce produit (taille, message cadeau…). Elles apparaissent dans la commande.", label: "Question", labelPlaceholder: "Ex. : taille souhaitée", type: "Type", types: { text: "Texte court", textarea: "Texte long", number: "Nombre", email: "E-mail", date: "Date", select: "Liste", radio: "Choix unique", checkbox: "Case à cocher" }, options: "Choix", optionsPlaceholder: "Choix séparés par des virgules : S, M, L", required: "Obligatoire", add: "Ajouter une question" },
     collections: { title: "Collections", hint: "Placez ce produit dans une ou plusieurs collections.", none: "Vous n'avez encore créé aucune collection.", manage: "Gérer les collections" },
     add: "Ajouter un produit",
     newTitle: "Nouveau produit",
@@ -1316,6 +1317,7 @@ const fr: Dictionary = {
       promotions: { title: "Campagnes promotionnelles", about: "Choisissez une remise, des produits et des dates : pendant la campagne le nouveau prix s'affiche dans la boutique et les landing pages avec l'ancien barré, et la commande est facturée à ce prix (les offres de quantité baissent du même pourcentage). À la fin, les prix reviennent seuls." },
       collections: { title: "Collections", about: "Regroupez vos produits sous un lien /collections/<nom> (ex. : vêtements, chaussures, soldes). Les collections d'un produit se choisissent sur sa page ; une collection peut être dans une autre (deux niveaux au plus)." },
       deliveryAssign: { title: "Attribution aux livreurs", about: "Définissez des règles qui choisissent la société de livraison de chaque commande selon la wilaya, le montant et le type de livraison. Les règles sont lues dans l'ordre et la première qui correspond s'applique. La société définie sur le produit passe avant." },
+      customFields: { title: "Champs personnalisés", about: "Activé, vous pouvez ajouter des questions à chaque produit depuis sa page (onglet Commande et livraison) ; elles s'affichent dans le formulaire et sont gardées avec la commande. Désactivé, elles sont masquées sans être supprimées.", enable: "Activer les champs personnalisés", enableHint: "Affiche l'éditeur de questions sur les produits et les pose dans la boutique." },
       webhook: { title: "Webhook", about: "Chaque nouvelle commande et chaque changement de statut est envoyé à votre URL en JSON signé (X-Scaleitto-Signature)." },
     },
     guard: {
