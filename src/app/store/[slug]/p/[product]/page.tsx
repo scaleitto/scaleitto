@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { descriptionHtml, richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Truck } from "lucide-react";
+import { resolveApps } from "@/features/apps/settings";
 import {
   getShippingRates,
   getShopBySlug,
@@ -17,7 +17,7 @@ import { saveLead, submitOrder } from "@/features/checkout/actions";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
 import { formatPrice } from "@/lib/format";
-import { ProductGrid, discountOf } from "@/features/storefront/blocks";
+import { ProductGrid, TrustBadges, discountOf, trustBadgeItems } from "@/features/storefront/blocks";
 import { PixelScope } from "@/features/pixels/PixelScope";
 import { pagePixels } from "@/features/pixels/queries";
 import { storeForm } from "@/features/order-form/resolve";
@@ -110,15 +110,6 @@ export default async function ProductPage({
                   </>
                 ) : null}
               </p>
-              <ul className="flex flex-wrap gap-2 text-xs font-semibold text-s-muted">
-                <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
-                  <BadgeCheck size={14} className="text-brand-ink" /> {t.cod}
-                </li>
-                <li className="flex items-center gap-1 rounded-full bg-s-surface px-3 py-1.5 shadow-[var(--s-shadow)]">
-                  <Truck size={14} className="text-brand-ink" />{" "}
-                  {t.fastDelivery}
-                </li>
-              </ul>
             </div>
             <CheckoutForm
               t={t}
@@ -146,6 +137,7 @@ export default async function ProductPage({
               settings={storeForm(shop)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
             />
+            <TrustBadges t={t} items={trustBadgeItems(resolveApps(shop.apps).badges, t)} />
           </PixelScope>
           {(product.description ||
             (product.descriptionImages ?? []).length > 0) && (

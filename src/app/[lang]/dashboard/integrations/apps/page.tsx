@@ -1,63 +1,63 @@
+import Link from "next/link";
+import { ExternalLink, Settings } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
-import { formatDate } from "@/lib/format";
-import { Badge, Card, PageHeader } from "@/ui";
-import { WebhookCard } from "@/features/apps/AppCards";
-import { ProductImport } from "@/features/apps/ProductImport";
-import { appLog, appViews } from "@/features/apps/queries";
-import { LOCKED, OLD_SCRIPT } from "@/features/apps/sync";
+import { sectionHref } from "@/lib/permissions";
+import { Card, PageHeader, buttonClass } from "@/ui";
+import { appIcons, appKeys, readyApps } from "@/features/apps/registry";
+import { appStates } from "@/features/apps/settings-queries";
 
+// Zimam's "Apps & Integrations": one card per app (icon, active or not, what it does, "Open app"); apps not built yet
+// are shown as coming.
 export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/integrations/apps">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
-  const a = t.apps;
+  const g = t.apps.grid;
   const { shop } = await requireSection(lang, "apps");
-  const [apps, log] = await Promise.all([appViews(shop.id), appLog(shop.id)]);
-  const text = { apps: a, errors: t.errors, common: t.common };
+  const states = await appStates(shop.id);
+  const base = sectionHref(lang, "apps");
   return (
     <>
-      <PageHeader title={t.sections.apps.title} description={t.sections.apps.description} />
-      {/* Google Sheets lives in Connected platforms (Zimam) */}
-      <WebhookCard lang={lang} view={apps.webhook} t={text} />
-      <div className="mt-6">
-        <ProductImport lang={lang} t={text} />
+      <PageHeader title={g.title} description={g.subtitle} />
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {appKeys.map((key) => {
+          const Icon = appIcons[key];
+          const ready = readyApps.includes(key);
+          const state = states[key];
+          return (
+            <Card key={key} className={`flex flex-col gap-5 p-6 ${ready ? "" : "opacity-75"}`} data-app-card={key} data-state={!ready ? "soon" : state === undefined || state === null ? "none" : state ? "on" : "off"}>
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-14 place-items-center rounded-xl border border-line bg-panel-2 text-accent shadow-sm">
+                  <Icon size={26} strokeWidth={1.8} />
+                </span>
+                {!ready ? (
+                  <span className="rounded-full border border-line bg-panel-2 px-2.5 py-1 text-[11px] font-bold tracking-wide text-muted uppercase">{g.soon}</span>
+                ) : (
+                  typeof state === "boolean" && (
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase ${state ? "border-accent/25 bg-accent-soft text-accent-ink" : "border-line bg-panel-2 text-muted"}`}>
+                      <span className={`size-1.5 rounded-full ${state ? "bg-accent" : "bg-muted/60"}`} />
+                      {state ? g.active : g.inactive}
+                    </span>
+                  )
+                )}
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg leading-snug font-bold">{t.apps.cards[key].name}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{t.apps.cards[key].card}</p>
+              </div>
+              {ready ? (
+                <Link href={`${base}/${key}`} className={buttonClass("primary", "w-full")} data-testid="app-open">
+                  {key === "fakeGuard" ? <Settings size={15} /> : <ExternalLink size={15} />} {key === "fakeGuard" ? g.configure : g.open}
+                </Link>
+              ) : (
+                <span className={buttonClass("secondary", "w-full cursor-not-allowed")} aria-disabled>
+                  {g.soonButton}
+                </span>
+              )}
+            </Card>
+          );
+        })}
       </div>
-      <Card className="mt-6 overflow-x-auto p-0" data-testid="app-log">
-        <h2 className="p-4 pb-2 font-semibold">{a.log.title}</h2>
-        {log.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted">{a.log.empty}</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted">
-              <tr className="border-b border-line">
-                {(["time", "app", "kind", "order", "result", "detail"] as const).map((k) => (
-                  <th key={k} className="p-3 text-start font-medium whitespace-nowrap">
-                    {a.log.columns[k]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {log.map((ev) => (
-                <tr key={ev.id} className="border-b border-line last:border-0" data-app={ev.app} data-kind={ev.kind} data-ok={ev.ok ? "1" : "0"}>
-                  <td className="p-3 whitespace-nowrap text-muted">
-                    <bdi>{formatDate(new Date(ev.createdAt), lang)}</bdi>
-                  </td>
-                  <td className="p-3">{ev.app === "google_sheets" ? a.sheets.title : a.webhook.title}</td>
-                  <td className="p-3">{a.log.kinds[ev.kind as keyof typeof a.log.kinds] ?? ev.kind}</td>
-                  <td className="p-3">{ev.orderNumber ? `#${ev.orderNumber}` : "—"}</td>
-                  <td className="p-3">
-                    <Badge tone={ev.ok ? "accent" : "danger"}>{ev.ok ? a.log.ok : a.log.failed}</Badge>
-                  </td>
-                  <td className="max-w-sm p-3 text-xs break-words text-muted" dir="auto">
-                    {ev.detail === LOCKED ? a.log.locked : ev.detail === OLD_SCRIPT ? t.errors.sheetsOldScript : ev.detail}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
     </>
   );
 }

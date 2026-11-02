@@ -58,11 +58,13 @@ export function sectionsFor(role: MemberRole) {
 }
 
 // The sidebar of a member: the groups and entries with at least one page they may open
-export function navFor(role: MemberRole) {
+// `scanner` false (Apps → Parcel scanner off) hides Scan
+export function navFor(role: MemberRole, apps: { scanner: boolean } = { scanner: true }) {
   return navGroups
     .map((g) => ({
       key: g.key as NavGroupKey,
       items: (g.items as readonly NavEntry[])
+        .filter((e) => apps.scanner || e.key !== "scan")
         .map((e) => ({ key: e.key, children: (e.children ?? []).filter((k) => canAccess(role, k)) }))
         .filter((e) => canAccess(role, e.key) || e.children.length > 0),
     }))

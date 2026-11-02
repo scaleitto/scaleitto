@@ -1,4 +1,6 @@
 import "server-only";
+import { resolveApps } from "@/features/apps/settings";
+import { trustBadgeItems } from "@/features/storefront/blocks";
 import type { Locale } from "@/i18n";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { sectionHref } from "@/lib/permissions";
@@ -33,6 +35,7 @@ export async function editorProps(lang: Locale, shop: StoreShop, productId: stri
       socials: design.socials,
       form: storeForm(shop),
       rates,
+      badges: trustBadgeItems(resolveApps(shop.apps).badges, getStoreText(locale)),
     },
   };
 }

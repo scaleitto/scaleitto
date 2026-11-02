@@ -16,7 +16,6 @@ export type StoreDesign = {
   // "How to order" steps under the products
   showOrderSteps: boolean;
   // A round WhatsApp button in the corner of every store page (the footer's WhatsApp number)
-  floatingWhatsapp: boolean;
 };
 
 export const themeFonts: ThemeFont[] = ["cairo", "tajawal", "almarai", "changa", "el-messiri", "plex", "kufi", "readex"];
@@ -52,7 +51,6 @@ export const defaultDesign: StoreDesign = {
   socials: { facebook: "", instagram: "", tiktok: "", whatsapp: "" },
   style: noStyle,
   showOrderSteps: true,
-  floatingWhatsapp: false,
 };
 
 const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -70,7 +68,6 @@ export function resolveDesign(saved: unknown): StoreDesign {
     socials: { ...defaultDesign.socials, ...obj(s.socials) } as StoreDesign["socials"],
     style: resolveStyle(s.style),
     showOrderSteps: typeof s.showOrderSteps === "boolean" ? s.showOrderSteps : typeof s.showBadges === "boolean" ? s.showBadges : defaultDesign.showOrderSteps,
-    floatingWhatsapp: s.floatingWhatsapp === true,
   };
 }
 

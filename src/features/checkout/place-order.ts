@@ -43,8 +43,8 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
     if (blocked) return { ok: false, error: blocked };
   }
   const signals = await riskSignals(shop.id, input, meta, protection);
-  if (!member && protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
-  const risk = member ? { score: 0, reasons: [] } : scoreOrder(signals);
+  if (!member && protection.enabled && protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
+  const risk = member || !protection.enabled ? { score: 0, reasons: [] } : scoreOrder(signals);
   const suspicious = risk.score >= protection.riskThreshold;
   // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
   const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;

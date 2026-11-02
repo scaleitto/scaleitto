@@ -9,7 +9,8 @@ import type { getOrderSummary } from "./queries";
 type Order = NonNullable<Awaited<ReturnType<typeof getOrderSummary>>>;
 
 // The thank-you content after an order (store page, landing page and embedded form).
-export function ThankYou({ order, locale: storeLocale, children }: { order: Order; locale: Locale; children?: ReactNode }) {
+// `custom` = Apps → Thank-you page (empty texts keep the store language's wording; the message may use {phone}).
+export function ThankYou({ order, locale: storeLocale, custom, children }: { order: Order; locale: Locale; custom?: { title: string; message: string }; children?: ReactNode }) {
   const locale = order.landing ? interfaceLocale(pageLanguage(order.landing.language)) : storeLocale;
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
@@ -17,8 +18,12 @@ export function ThankYou({ order, locale: storeLocale, children }: { order: Orde
   return (
     <div lang={locale} dir={dir(locale)} className="mx-auto max-w-lg space-y-5 py-6 text-center">
       <CircleCheckBig size={64} className="mx-auto text-brand-ink" />
-      <h1 className="text-2xl font-extrabold">{t.thanks.title}</h1>
-      <p className="text-s-muted">{fmt(t.thanks.body, { phone: order.phone })}</p>
+      <h1 className="text-2xl font-extrabold" data-testid="thanks-title">
+        {custom?.title || t.thanks.title}
+      </h1>
+      <p className="whitespace-pre-line text-s-muted" data-testid="thanks-body">
+        {fmt(custom?.message || t.thanks.body, { phone: order.phone })}
+      </p>
       {message && (
         <p className="rounded-[var(--s-radius)] bg-brand/10 p-4 font-semibold whitespace-pre-line" data-testid="thank-you-message">
           {message}

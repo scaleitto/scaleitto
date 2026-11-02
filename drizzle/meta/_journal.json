@@ -281,6 +281,13 @@
       "when": 1793625395284,
       "tag": "0039_pixels_snapchat",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1793628899374,
+      "tag": "0040_shop_apps",
+      "breakpoints": true
     }
   ]
 }

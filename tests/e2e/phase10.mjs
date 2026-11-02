@@ -82,7 +82,7 @@ export default async function phase10(browser) {
   });
 
   await step("webhook: signed JSON for tests and order changes", async () => {
-    await owner.goto(section);
+    await owner.goto(`${section}/webhook`);
     await webhook.locator("button", { hasText: "ربط" }).click();
     const secret = await owner.locator("[data-testid=webhook-secret]").inputValue();
     await owner.fill("#webhook-url", "http://insecure.example/hook");
@@ -110,13 +110,14 @@ export default async function phase10(browser) {
     await setOrderStatus(owner, "pending");
     await waitFor(() => hooks.some((h) => h.body.order?.status === "pending"), "webhook still receives");
     expect(sheet.rows.get("1001")[sheet.headers.indexOf("الحالة")] !== "قيد الانتظار", "paused sheet not updated");
-    await owner.goto(section);
+    await owner.goto(`${section}/webhook`);
     const log = owner.locator("[data-testid=app-log]");
     expect((await log.locator("tr[data-app=google_sheets][data-kind=order][data-ok='1']").count()) >= 2, "sheet sends logged");
     expect((await log.locator("tr[data-kind=test][data-ok='0']").count()) === 1, "failed test logged");
   });
 
   await step("Shopify import: catalog shown, chosen products created as drafts with variants and photos", async () => {
+    await owner.goto(`${section}/productImport`);
     const imp = owner.locator("[data-testid=product-import]");
     await owner.fill("#import-input", FAKE);
     await imp.locator("button[type=submit]").click();
@@ -163,7 +164,7 @@ export default async function phase10(browser) {
     const p = await other.context.newPage();
     await p.goto(channelsPage);
     await p.waitForSelector("[data-testid=app-sheets][data-state=off]");
-    await p.goto(section);
+    await p.goto(`${section}/webhook`);
     expect(await p.locator("[data-testid=app-webhook][data-state=off]").count(), "webhook not connected");
     await other.context.close();
   });

@@ -1,4 +1,5 @@
 import { and, count, inArray } from "drizzle-orm";
+import { resolveApps } from "@/features/apps/settings";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireShop } from "@/server/auth/context";
 import { db, schema } from "@/server/db";
@@ -50,7 +51,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
         brand={t.brand}
         store={{ name: shop.name, host: url.replace(/^https?:\/\//, ""), href: url, settingsHref: sectionHref(lang, "settings") }}
         user={{ name: user.name, role: t.profile.roles[role] }}
-        sections={navFor(role).map((g) => ({
+        sections={navFor(role, { scanner: resolveApps(shop.apps).scanner }).map((g) => ({
           key: g.key,
           label: g.key === "main" ? undefined : t.nav.groups[g.key],
           items: g.items.map((e) => ({

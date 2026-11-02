@@ -3,13 +3,14 @@
 // and product card style (src/features/themes/themes.ts); colors come only from the s-* tokens.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BadgeCheck, ImageOff, Megaphone, MessageCircle, Phone, ShoppingBag, Truck, Zap } from "lucide-react";
+import { BadgeCheck, ImageOff, Megaphone, MessageCircle, Phone, RotateCcw, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
 import { dir, type Locale } from "@/i18n/config";
 import type { StoreText } from "@/i18n/store";
 import { formatPrice } from "@/lib/format";
 import type { StoreDesign } from "@/features/design/types";
 import { themeStyle, type Theme } from "@/features/themes/themes";
 import type { PolicyKind } from "@/lib/enums";
+import { resolveApps, type BadgeKey, type TrustBadge } from "@/features/apps/settings";
 
 const whatsappHref = (n: string) => `https://wa.me/${n.replace(/[^\d]/g, "").replace(/^0/, "213")}`;
 export const discountOf = (price: number, compareAt: number | null) => (compareAt && compareAt > price ? Math.round(((compareAt - price) / compareAt) * 100) : 0);
@@ -171,25 +172,35 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
   );
 }
 
-export function TrustBadges({ t }: { t: StoreText }) {
-  const badges = [
-    { icon: BadgeCheck, label: t.cod, hint: t.codHint },
-    { icon: Truck, label: t.fastDelivery, hint: t.deliveryHint },
-    { icon: Zap, label: t.easyOrder, hint: t.easyHint },
-  ];
+// The store's trust badges (Apps → Trust badges; an empty title / text = the store language's wording). Without
+// settings (previews), the two that are true for every cash-on-delivery store.
+export type BadgeItem = { key: BadgeKey; title: string; text: string };
+export function trustBadgeItems(badges: TrustBadge[] | null, t: StoreText): BadgeItem[] {
+  const defaults: Record<BadgeKey, [string, string]> = { payment: [t.cod, t.codHint], returns: [t.badges.returns, t.badges.returnsHint], guarantee: [t.badges.guarantee, t.badges.guaranteeHint], delivery: [t.fastDelivery, t.deliveryHint] };
+  const list = badges ?? resolveApps(null).badges;
+  return list.filter((b) => b.on).map((b) => ({ key: b.key, title: b.title || defaults[b.key][0], text: b.text || defaults[b.key][1] }));
+}
+const badgeIcons: Record<BadgeKey, typeof BadgeCheck> = { payment: BadgeCheck, returns: RotateCcw, guarantee: ShieldCheck, delivery: Truck };
+
+export function TrustBadges({ t, items }: { t: StoreText; items?: BadgeItem[] }) {
+  const badges = items ?? trustBadgeItems(null, t);
+  if (!badges.length) return null;
   return (
-    <ul className="grid grid-cols-3 gap-2 sm:gap-4" data-testid="badges">
-      {badges.map(({ icon: Icon, label, hint }) => (
-        <li key={label} className="flex flex-col items-center gap-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-3 text-center shadow-[var(--s-shadow)] sm:flex-row sm:gap-3 sm:p-4 sm:text-start">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand-ink sm:size-11">
-            <Icon size={20} />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs leading-tight font-bold sm:text-sm">{label}</span>
-            <span className="hidden text-xs text-s-muted sm:block">{hint}</span>
-          </span>
-        </li>
-      ))}
+    <ul className={`grid gap-2 sm:gap-3 ${badges.length === 1 ? "grid-cols-1" : badges.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} data-testid="badges">
+      {badges.map(({ key, title, text }) => {
+        const Icon = badgeIcons[key];
+        return (
+          <li key={key} data-badge={key} className="flex flex-col items-center gap-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-3 text-center shadow-[var(--s-shadow)] sm:flex-row sm:gap-3 sm:text-start">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
+              <Icon size={19} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs leading-tight font-bold sm:text-sm">{title}</span>
+              <span className="block text-[11px] text-s-muted sm:text-xs">{text}</span>
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

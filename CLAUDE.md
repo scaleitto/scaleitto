@@ -123,7 +123,19 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   via `scheduleOrderEvents` → `after()`: on placement (`checkout/actions.ts`, ad cookies saved in `orders.tracking`) and on
   confirmed/delivered (`applyOrderStatus`). `pixel_events` = log + unique (pixel, order, event) so nothing is sent twice.
   E2E uses `tests/e2e/mock-pixels.mjs` via E2E_PIXEL_URL (never set it in production).
-- Apps (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
+- Apps like Zimam (phase32.mjs): `/integrations/apps` = "Apps & Integrations" grid (`apps/registry.ts appKeys`: Zimam's 19 apps + our
+  webhook; `readyApps` open, the others show "coming"; pill from `settings-queries.ts appStates`) → `/integrations/apps/<app>` = back
+  link, "How it works" banner, the app's form (`AppPages.tsx`, actions in `settings-actions.ts`). Settings in `shops.apps` read
+  through `apps/settings.ts resolveApps` (migration 0040): `abandoned` (off = `saveLead` keeps no draft), `scanner` (off = Scan
+  leaves `navFor`, the Orders toolbar, and /scan redirects), `badges` (payment/returns/guarantee/delivery; storefront
+  `TrustBadges` + `trustBadgeItems` under the product form, store home, product preview; returns/guarantee off by default —
+  merchant promises), `contact` (floating phone/WhatsApp in `StoreShell`; replaced design.floatingWhatsapp), `thanks` (title,
+  message with {phone}, button, redirect home/product on the store thank-you page). Fake OrderGuard = `shops.protection`
+  (`enabled` off: only the blacklist is checked, no risk score/bot refusal), Agent auto assign = `shops.assign_mode`, Blacklist =
+  `blocked_phones` + `protection.blockedIps`, QR codes (`qrcode`, made in the browser), Product import, Webhook (+ the send log).
+  Coming (not built yet): WhatsApp confirmation, cart, delivery auto assign, order tracking, promotions, custom fields per
+  product, collections, online payments, wholesale.
+- Apps sync (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
   `app_events` log. `sync.ts`: `scheduleOrderSync` (→ `after()`) is called on placement, every status change
   (`applyOrderStatus`), customer edit and assignment; the sheet gets one row per order keyed by the order number (headers
   in the shop's language, script in `apps-script.ts`, deployed by the merchant as an Apps Script web app — Ecomanager has

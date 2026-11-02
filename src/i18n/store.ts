@@ -14,6 +14,7 @@ const ar = {
   codHint: "تدفع عند استلام طلبك",
   deliveryHint: "إلى المنزل أو مكتب التوصيل",
   easyHint: "اطلب في أقل من دقيقة",
+  badges: { returns: "إرجاع سهل", returnsHint: "حسب سياسة الإرجاع في المتجر", guarantee: "جودة مضمونة", guaranteeHint: "منتج أصلي نضمن جودته" },
   howTo: "كيف تطلب؟",
   steps: [
     { title: "اطلب الآن", hint: "املأ الاستمارة في أقل من دقيقة" },
@@ -80,6 +81,7 @@ const ar = {
     number: "رقم الطلب",
     body: "سنتصل بك قريباً على الرقم {phone} لتأكيد الطلب. جهّز المبلغ عند الاستلام.",
     back: "العودة إلى المتجر",
+    backProduct: "العودة إلى المنتج",
   },
   landing: {
     faq: "الأسئلة الشائعة",
@@ -133,6 +135,7 @@ const fr: StoreText = {
   codHint: "Payez à la réception",
   deliveryHint: "À domicile ou au bureau de livraison",
   easyHint: "Commandez en moins d'une minute",
+  badges: { returns: "Retour facile", returnsHint: "Selon la politique de retour de la boutique", guarantee: "Qualité garantie", guaranteeHint: "Produit d'origine, qualité garantie" },
   howTo: "Comment commander ?",
   steps: [
     { title: "Commandez", hint: "Remplissez le formulaire en une minute" },
@@ -199,6 +202,7 @@ const fr: StoreText = {
     number: "Numéro de commande",
     body: "Nous vous appellerons bientôt au {phone} pour confirmer. Préparez le montant à la livraison.",
     back: "Retour à la boutique",
+    backProduct: "Retour au produit",
   },
   landing: {
     faq: "Questions fréquentes",
@@ -250,6 +254,7 @@ const en: StoreText = {
   codHint: "Pay when you receive it",
   deliveryHint: "To your door or the courier's office",
   easyHint: "Order in under a minute",
+  badges: { returns: "Easy returns", returnsHint: "Under the store's return policy", guarantee: "Quality guaranteed", guaranteeHint: "Genuine product, quality guaranteed" },
   howTo: "How to order",
   steps: [
     { title: "Place your order", hint: "Fill in the form in under a minute" },
@@ -316,6 +321,7 @@ const en: StoreText = {
     number: "Order number",
     body: "We will call you soon on {phone} to confirm. Have the amount ready on delivery.",
     back: "Back to the store",
+    backProduct: "Back to the product",
   },
   landing: {
     faq: "Frequently asked questions",

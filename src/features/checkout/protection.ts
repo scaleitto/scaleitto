@@ -24,6 +24,11 @@ export async function protectionFor(shopId: string): Promise<ProtectionSettings>
 export async function checkOrderAllowed(shopId: string, input: OrderCheck, ip: string | null, productId: string, settings: ProtectionSettings): Promise<BlockReason | null> {
   const { phone } = input;
   if (ip && settings.blockedIps.includes(ip)) return "blocked";
+  if (!settings.enabled) {
+    // Protection off: only the blacklist (blocked connections above, blocked numbers here)
+    const [[blocked]] = await Promise.all([db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, phone)))]);
+    return blocked.n > 0 ? "blocked" : null;
+  }
   if (blockedWordIn(settings.blockedWords, input.name, input.address, input.note)) return "blocked";
   if (settings.blockedWilayas.includes(input.wilaya)) return "noWilaya";
   if (settings.maxQuantity > 0 && input.quantity > settings.maxQuantity) return "quantity";

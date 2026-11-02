@@ -1,5 +1,6 @@
 "use server";
 
+import { resolveApps } from "@/features/apps/settings";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, count, eq, gte } from "drizzle-orm";
@@ -99,7 +100,8 @@ export async function saveLead(slug: string, productId: string, input: { name?: 
   try {
     const shop = await getShopBySlug(slug);
     const phone = normalizePhone(String(input.phone ?? ""));
-    if (!shop || !isValidDzPhone(phone)) return;
+    // Apps → Abandoned orders switched off: no drafts
+    if (!shop || !isValidDzPhone(phone) || !resolveApps(shop.apps).abandoned) return;
     const { ip } = await requestMeta();
     const [product] = await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
     if (!product) return;

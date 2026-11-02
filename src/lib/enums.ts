@@ -42,6 +42,8 @@ export type ParcelDefaults = Pick<ParcelOptions, "kind" | "fragile" | "weight" |
 
 // A store's fake-order protection (Orders → Protection). Read through resolveProtection (features/checkout/protection-settings.ts).
 export type ProtectionSettings = {
+  // Off: every order is accepted without checks (the blacklist still applies)
+  enabled: boolean;
   // Orders accepted from one phone in 24 hours, and from one connection (IP) in an hour
   maxPerPhonePerDay: number;
   maxPerIpPerHour: number;

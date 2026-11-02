@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { resolveApps } from "@/features/apps/settings";
 import { Ban, Check, CircleAlert, ClipboardCheck, ClipboardList, Download, Flag, ScanLine, Search, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
 import { getDictionary, type Locale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
@@ -112,7 +113,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
           <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
           <input name="q" defaultValue={f.q} placeholder={p.search} className={`${inputClass} ps-9`} data-testid="order-search" />
         </form>
-        {!portal && (
+        {!portal && resolveApps(shop.apps).scanner && (
           <Link href={sectionHref(lang, "scan")} className={buttonClass("secondary")} data-testid="scan-link">
             <ScanLine size={15} /> {p.scan}
           </Link>

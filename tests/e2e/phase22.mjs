@@ -52,24 +52,21 @@ export default async function phase22(browser) {
     await page.close();
   });
 
-  await step("store design: own font, corners and columns over the theme, floating WhatsApp", async () => {
+  await step("store design: own font, corners and columns over the theme", async () => {
     await owner.goto(`${BASE}/ar/dashboard/store-design`);
     await owner.selectOption("#styleFont", "changa");
     await owner.selectOption("#styleCorners", "round");
     await owner.selectOption("#styleColumns", "3");
-    await owner.fill("#whatsapp", "0555 66 77 88");
-    await owner.locator("label", { hasText: "زر واتساب عائم" }).click();
     await owner.locator("button[type=submit]", { hasText: "حفظ" }).last().click();
     await owner.waitForSelector("text=تم الحفظ");
     const [[row]] = await db.query("SELECT design FROM shops WHERE id = ?", [shopId]);
     const design = json(row.design);
-    expect(design.style.font === "changa" && design.style.corners === "round" && design.style.columns === 3 && design.floatingWhatsapp, `design saved (got ${JSON.stringify(design.style)})`);
+    expect(design.style.font === "changa" && design.style.corners === "round" && design.style.columns === 3, `design saved (got ${JSON.stringify(design.style)})`);
     const p = await browser.newPage();
     await p.goto(store);
     const frame = p.locator("[data-testid=store-frame]").first();
     const style = await frame.getAttribute("style");
     expect(style.includes("--font-changa") && style.includes("--s-radius-btn:999px"), `theme adjusted (got ${style})`);
-    expect((await p.locator("[data-testid=floating-whatsapp]").getAttribute("href")) === "https://wa.me/213555667788", "floating WhatsApp");
     await p.close();
   });
 

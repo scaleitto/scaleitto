@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, ScanEye, Smartphone, Truck } from "lucide-react";
+import { ScanEye, Smartphone } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { descriptionHtml } from "@/lib/rich-text";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
@@ -77,14 +77,6 @@ export function ProductPreview({ data, product, storeName, labels }: { data: Pro
                       </>
                     ) : null}
                   </p>
-                  <ul className="flex flex-wrap gap-1.5 text-[11px] font-semibold text-s-muted">
-                    <li className="flex items-center gap-1 rounded-full bg-s-surface px-2.5 py-1 shadow-[var(--s-shadow)]">
-                      <BadgeCheck size={12} className="text-brand-ink" /> {t.cod}
-                    </li>
-                    <li className="flex items-center gap-1 rounded-full bg-s-surface px-2.5 py-1 shadow-[var(--s-shadow)]">
-                      <Truck size={12} className="text-brand-ink" /> {t.fastDelivery}
-                    </li>
-                  </ul>
                 </div>
                 <CheckoutForm
                   t={t}
@@ -98,6 +90,7 @@ export function ProductPreview({ data, product, storeName, labels }: { data: Pro
                   settings={{ ...data.form, appearance: "direct", stickyButton: false }}
                   embedded
                 />
+                <TrustBadges t={t} items={data.badges} />
                 {(product.description || product.descriptionImages.length > 0) && (
                   <section className="space-y-3 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-4 shadow-[var(--s-shadow)]">
                     <h2 className="font-bold">{t.description}</h2>
@@ -108,7 +101,6 @@ export function ProductPreview({ data, product, storeName, labels }: { data: Pro
                     ))}
                   </section>
                 )}
-                <TrustBadges t={t} />
               </div>
               <StoreFooter name={storeName} about={data.about} socials={data.socials} phone={data.phone} t={t} />
             </StoreFrame>

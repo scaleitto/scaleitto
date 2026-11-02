@@ -105,6 +105,8 @@ export const shops = mysqlTable(
     delivery: json("delivery"),
     // Handover manifest template, draft + published (resolveManifest)
     manifest: json("manifest"),
+    // Apps (Zimam's Apps page): on/off switches and settings, read through features/apps/settings.ts resolveApps
+    apps: json("apps"),
     // The merchant's own domain (lower case, without www). Served once its DNS is verified.
     customDomain: varchar("custom_domain", { length: 191 }),
     // Value of the TXT record _scaleitto.<domain> proving the merchant owns it

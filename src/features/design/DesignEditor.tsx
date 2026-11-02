@@ -152,7 +152,6 @@ export function DesignEditor({ t, initial, preview, storeHref, action }: { t: De
           <Field label={d.whatsapp} htmlFor="whatsapp" error={err("whatsapp")}>
             <Input id="whatsapp" name="whatsapp" dir="ltr" inputMode="tel" placeholder="0555 12 34 56" value={design.socials.whatsapp} onChange={(ev) => set("socials", { ...design.socials, whatsapp: ev.target.value })} />
           </Field>
-          <Toggle name="floatingWhatsapp" checked={design.floatingWhatsapp} onChange={(v) => set("floatingWhatsapp", v)} label={d.floatingWhatsapp} />
         </Section>
 
         <div className="sticky bottom-0 z-10 -mx-1 flex justify-end bg-bg/90 px-1 py-3 backdrop-blur">

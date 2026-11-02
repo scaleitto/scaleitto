@@ -1,6 +1,7 @@
 import type { ProtectionSettings } from "@/lib/enums";
 
 export const defaultProtection: ProtectionSettings = {
+  enabled: true,
   maxPerPhonePerDay: 3,
   maxPerIpPerHour: 10,
   blockDuplicates: true,
@@ -37,6 +38,7 @@ export function resolveProtection(raw: Partial<ProtectionSettings> | null | unde
   const r = raw ?? {};
   const d = defaultProtection;
   return {
+    enabled: bool(r.enabled, d.enabled),
     maxPerPhonePerDay: int(r.maxPerPhonePerDay, 1, 50, d.maxPerPhonePerDay),
     maxPerIpPerHour: int(r.maxPerIpPerHour, 1, 500, d.maxPerIpPerHour),
     blockDuplicates: bool(r.blockDuplicates, d.blockDuplicates),
