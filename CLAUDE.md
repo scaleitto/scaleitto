@@ -133,8 +133,19 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   message with {phone}, button, redirect home/product on the store thank-you page). Fake OrderGuard = `shops.protection`
   (`enabled` off: only the blacklist is checked, no risk score/bot refusal), Agent auto assign = `shops.assign_mode`, Blacklist =
   `blocked_phones` + `protection.blockedIps`, QR codes (`qrcode`, made in the browser), Product import, Webhook (+ the send log).
-  Coming (not built yet): WhatsApp confirmation, cart, delivery auto assign, order tracking, promotions, custom fields per
-  product, collections, online payments, wholesale.
+  Order tracking (`tracking`: private link `/store/<slug>/track?o=&k=` with `crypto.ts orderToken`, lookup by phone or number+phone,
+  `storefront/tracking.ts` + `TrackOrder.tsx`, rate-limited lookups, contact = `trackingContact`). Promotions (`promotions` table,
+  `features/promotions`: pure `pricing.ts promoted/discounted`, `apply.ts withPromotions` used by every store product loader and
+  `placeCartOrder`; offers and wholesale tiers drop by the same %; Algeria local times). Collections (`collections` table +
+  `products.collection_ids`, `features/collections`, store `/collections/<handle>` + strip on the home, product form checklist).
+  Rules (`apps/rules.ts`, pure, in `shops.apps`): `deliveryRules` (first match → `orders.carrier_account_id` when the product has
+  none) and `agentRules` (product / wilaya / source / hours → `pickAgent` gives the order to the matching agents, any mode).
+  Custom fields (`customFields` switch + `products.custom_fields`, merged into the store form by `order-form/resolve.ts productForm`,
+  ids `p-…`, checked in `submitOrder`). Wholesale (`wholesale` switch + `products.wholesale` {minQty, tiers}, `checkout/pricing.ts
+  resolveWholesale / linePrice(…, wholesale)`, up to 1000 pieces, product editor tab). Shopping cart (`cart` switch; browser cart
+  `storefront/cart.ts` per shop, `CartLink` in the header, `/store/<slug>/cart` = `CartPage` + `cart-actions.ts priceCart/submitCart`;
+  `place-order.ts placeCartOrder` = one order with several lines — `placeOrder` is its one-line case).
+  Coming (not built yet): WhatsApp confirmation and online payments (they need the owner's accounts).
 - Apps sync (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
   `app_events` log. `sync.ts`: `scheduleOrderSync` (→ `after()`) is called on placement, every status change
   (`applyOrderStatus`), customer edit and assignment; the sheet gets one row per order keyed by the order number (headers
