@@ -25,7 +25,8 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
   return {
     abandoned: a.abandoned,
     fakeGuard: ctx.protection.enabled,
-    agentAssign: ctx.assignMode !== "manual",
+    agentAssign: ctx.assignMode !== "manual" || a.agentRules.some((r) => r.active),
+    deliveryAssign: a.deliveryRules.some((r) => r.active),
     trustBadges: a.badges.some((b) => b.on),
     quickContact: (a.contact.phoneOn && Boolean(a.contact.phone)) || (a.contact.whatsappOn && Boolean(a.contact.whatsapp)),
     thankYou: Boolean(a.thanks.title || a.thanks.message || a.thanks.button || a.thanks.redirect === "product"),

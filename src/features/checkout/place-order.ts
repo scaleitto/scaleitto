@@ -1,5 +1,7 @@
 import "server-only";
 import { withPromotion } from "@/features/promotions/apply";
+import { resolveApps } from "@/features/apps/settings";
+import { matchDeliveryRule } from "@/features/apps/rules";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { newId } from "@/server/auth/context";
@@ -21,6 +23,15 @@ export type PlaceOrderResult = { ok: true; orderId: string; number: number } | {
 const FIRST_ORDER_NUMBER = 1001;
 
 class OutOfStock extends Error {}
+
+// The delivery company the shop's rules give a new order (a company since disconnected is skipped)
+async function ruleCarrier(shopId: string, order: { wilaya: number; total: number; deliveryType: "home" | "office" }) {
+  const [shop] = await db.select({ apps: schema.shops.apps }).from(schema.shops).where(eq(schema.shops.id, shopId));
+  const id = matchDeliveryRule(resolveApps(shop?.apps).deliveryRules, order);
+  if (!id) return null;
+  const [account] = await db.select({ id: schema.carrierAccounts.id }).from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shopId), eq(schema.carrierAccounts.id, id)));
+  return account?.id ?? null;
+}
 
 // Creates a cash-on-delivery order for one product. Used by every order form, and by the team when an abandoned cart
 // is recovered by phone (meta.memberId: the protection's customer checks and the risk score are skipped — a person
@@ -96,8 +107,9 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
         customerNote: input.note || null,
         landingPageId: meta.landingPageId ?? null,
         landingVersion: meta.landingPageId ? (meta.landingVersion ?? "A") : null,
-        // The product's own delivery company (Zimam: every order of this product goes to it)
-        carrierAccountId: product.carrierAccountId,
+        // The product's own delivery company (Zimam: every order of this product goes to it), else Apps → Delivery
+        // auto assign
+        carrierAccountId: product.carrierAccountId ?? (await ruleCarrier(shop.id, { wilaya: input.wilaya, total: line.total + shipping, deliveryType: input.deliveryType })),
         extra: meta.extra?.length ? meta.extra : null,
         tracking: meta.tracking ?? null,
         locked,
@@ -128,7 +140,7 @@ export async function placeOrder(shop: Pick<StoreShop, "id">, productId: string,
       // (a locked order waits until it is unlocked: nobody can work on it yet; a suspicious one waits for a review
       // when the store holds them)
       if (autoFake) await applyOrderStatus(tx, shop.id, orderId, "flagged", null, `${risk.score}/100`);
-      const agent = locked || autoFake || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id);
+      const agent = locked || autoFake || (suspicious && protection.holdSuspicious) ? null : await pickAgent(tx, shop.id, { productIds: [product.id], wilaya: input.wilaya, source: meta.landingPageId ? "landing" : "store" });
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });

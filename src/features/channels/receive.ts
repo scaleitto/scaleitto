@@ -69,7 +69,7 @@ export async function receiveOrder(shopId: string, kind: ChannelKind, order: Ext
       });
       if (lines.length) await tx.insert(schema.orderItems).values(lines.map((l) => ({ id: newId(), orderId: id, shopId, ...l })));
       await tx.insert(schema.orderEvents).values({ id: newId(), orderId: id, shopId, type: "created", toStatus: "pending", note: `${kind} ${order.label}` });
-      const agent = locked ? null : await pickAgent(tx, shopId);
+      const agent = locked ? null : await pickAgent(tx, shopId, { productIds: lines.map((l) => l.productId).filter((x): x is string => Boolean(x)), wilaya: order.wilayaCode, source: "channel" });
       if (agent) {
         await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, id));
         await tx.insert(schema.orderEvents).values({ id: newId(), orderId: id, shopId, type: "assign", note: agent.name });

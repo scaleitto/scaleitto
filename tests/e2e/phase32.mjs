@@ -38,7 +38,7 @@ export default async function phase32(browser) {
     await owner.goto(apps);
     const cards = await owner.locator("[data-app-card]").evaluateAll((els) => els.map((e) => `${e.dataset.appCard}:${e.dataset.state}`));
     expect(cards.length === 20 && cards[0] === "whatsapp:soon" && cards[2] === "abandoned:on" && cards[3] === "fakeGuard:on" && cards.at(-1) === "webhook:off", `cards (got ${cards.join()})`);
-    expect(cards.filter((c) => c.endsWith(":soon")).length === 6, "6 coming");
+    expect(cards.filter((c) => c.endsWith(":soon")).length === 5, "5 coming");
     expect(!(await owner.locator("[data-app-card=cart] a").count()), "a coming app has no link");
     expect(cards.includes("quickContact:off") && cards.includes("trustBadges:on") && cards.includes("parcelScanner:on") && cards.includes("blacklist:none") && cards.includes("orderTracking:on"), "states");
     await Promise.all([owner.waitForURL(/apps\/abandoned$/), owner.locator("[data-app-card=abandoned] [data-testid=app-open]").click()]);
@@ -273,6 +273,40 @@ export default async function phase32(browser) {
     await owner.waitForSelector("text=اختر وجهة صحيحة");
   });
 
+  await step("rules: an agent rule gives a product's orders to its agent (even in manual mode), a delivery rule picks the company", async () => {
+    const { userId: sara } = await createSession({ shopId, role: "agent", email: `sara32-${tag}@test.dz` });
+    const accountId = randomUUID();
+    await db.query("INSERT INTO carrier_accounts (id, shop_id, carrier, platform, base_url, credentials) VALUES (?, ?, 'yalidine', 'yalidine', 'https://api.yalidine.app', 'x')", [accountId, shopId]);
+    await owner.goto(`${apps}/deliveryAssign`);
+    await owner.click("[data-testid=rule-new]");
+    await owner.click("[data-testid=rule-save]");
+    await owner.waitForSelector("[data-testid=rule-form] >> text=هذا الحقل مطلوب");
+    await owner.fill("#rule-name", "العاصمة الكبيرة");
+    await owner.selectOption("#rule-company", accountId);
+    await owner.fill("#rule-min", "1000");
+    await owner.locator("[data-testid=rule-wilayas] input[value='16']").check();
+    await owner.click("[data-testid=rule-save]");
+    await owner.waitForSelector("[data-rule='العاصمة الكبيرة']");
+    await owner.goto(`${apps}/agentAssign`);
+    await owner.click("[data-testid=rule-new]");
+    await owner.fill("#rule-name", "المصابيح لسارة");
+    await owner.selectOption("#rule-agent", sara);
+    await owner.locator("[data-testid=rule-products] label", { hasText: "مصباح" }).locator("input").check();
+    await owner.click("[data-testid=rule-save]");
+    await owner.waitForSelector("[data-rule='المصابيح لسارة']");
+    await order("0664 55 66 77");
+    await buyer.waitForURL(/\/thanks\?o=/);
+    const [[o]] = await db.query("SELECT assigned_to, carrier_account_id FROM orders WHERE id = ?", [new URL(buyer.url()).searchParams.get("o")]);
+    expect(o.assigned_to === sara, "assigned by the agent rule");
+    expect(o.carrier_account_id === accountId, "delivery company from the rule");
+    await owner.goto(apps);
+    expect((await owner.locator("[data-app-card=deliveryAssign]").getAttribute("data-state")) === "on", "grid: delivery rules on");
+    await owner.goto(`${apps}/agentAssign`);
+    owner.once("dialog", (d) => d.accept());
+    await owner.locator("[data-rule='المصابيح لسارة'] [data-testid=rule-delete]").click();
+    await owner.waitForSelector("[data-rule='المصابيح لسارة']", { state: "detached" });
+  });
+
   await step("parcel scanner switched off: Scan leaves the menu and Orders, its page sends back to Orders", async () => {
     await owner.goto(`${apps}/parcelScanner`);
     await owner.locator("[data-testid=app-enabled]").uncheck();
@@ -282,7 +316,7 @@ export default async function phase32(browser) {
     await owner.goto(`${dash}/scan`);
     await owner.waitForURL(/\/dashboard\/orders/);
     await owner.goto(apps);
-    expect((await owner.locator("[data-app-card=parcelScanner]").getAttribute("data-state")) === "off" && (await owner.locator("[data-app-card=agentAssign]").getAttribute("data-state")) === "off", "grid follows");
+    expect((await owner.locator("[data-app-card=parcelScanner]").getAttribute("data-state")) === "off" && (await owner.locator("[data-app-card=agentAssign]").getAttribute("data-state")) === "off", "grid follows (manual mode, no rules)");
   });
 
   await step("agents cannot open apps; another shop sees none of this shop's settings", async () => {

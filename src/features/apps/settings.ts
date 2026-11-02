@@ -2,6 +2,8 @@
 // shops.apps and always read through resolveApps (missing or invalid values → defaults). Pure: used by the dashboard,
 // the storefront and the order code.
 
+import { resolveAgentRules, resolveDeliveryRules, type AgentRule, type DeliveryRule } from "./rules";
+
 export const badgeKeys = ["payment", "returns", "guarantee", "delivery"] as const;
 export type BadgeKey = (typeof badgeKeys)[number];
 // title / text "" = the store language's default wording
@@ -21,6 +23,8 @@ export type AppSettings = {
   contact: ContactSettings;
   thanks: ThanksSettings;
   tracking: TrackingSettings;
+  deliveryRules: DeliveryRule[];
+  agentRules: AgentRule[];
 };
 
 // Only what is true for every cash-on-delivery store is on by default: returns and guarantees are the merchant's promise
@@ -51,6 +55,8 @@ export function resolveApps(raw: unknown): AppSettings {
       number: phone(tr.number),
       lookup: tr.lookup === "phone" ? "phone" : "number_phone",
     },
+    deliveryRules: resolveDeliveryRules(r.deliveryRules),
+    agentRules: resolveAgentRules(r.agentRules),
   };
 }
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, count, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ChevronLeft, ScanLine } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { getStoreText } from "@/i18n/store";
@@ -10,6 +10,10 @@ import { db, schema } from "@/server/db";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { formatDate } from "@/lib/format";
+import { RulesApp } from "@/features/apps/RulesApp";
+import { listCarrierAccounts } from "@/features/delivery/queries";
+import { findCarrier } from "@/features/delivery/carriers";
+import { wilayas } from "@/lib/wilayas";
 import { PromotionsApp } from "@/features/promotions/PromotionsApp";
 import { CollectionsApp } from "@/features/collections/CollectionsApp";
 import { listCollections } from "@/features/collections/queries";
@@ -39,6 +43,7 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
   const page = a.pages[app as keyof typeof a.pages];
   const storeText = getStoreText(isLocale(shop.defaultLocale) ? shop.defaultLocale : "ar");
 
+  const wilayaOptions = wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${lang === "ar" ? w.ar : w.fr}` }));
   let body: React.ReactNode;
   switch (app) {
     case "abandoned":
@@ -59,8 +64,25 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
       body = <OrderGuardForm lang={lang} settings={ctx.protection} t={text} />;
       break;
     case "agentAssign": {
-      const [agents] = await db.select({ n: count() }).from(schema.shopMembers).where(and(eq(schema.shopMembers.shopId, shop.id), eq(schema.shopMembers.role, "agent"), eq(schema.shopMembers.active, true)));
-      body = <AssignModeForm lang={lang} mode={ctx.assignMode} agents={agents.n} teamHref={sectionHref(lang, "callCenters")} t={text} />;
+      const [agents, products] = await Promise.all([
+        db
+          .select({ id: schema.shopMembers.userId, name: schema.users.name, active: schema.shopMembers.active })
+          .from(schema.shopMembers)
+          .innerJoin(schema.users, eq(schema.users.id, schema.shopMembers.userId))
+          .where(and(eq(schema.shopMembers.shopId, shop.id), eq(schema.shopMembers.role, "agent"))),
+        db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.shopId, shop.id)).orderBy(desc(schema.products.createdAt)).limit(300),
+      ]);
+      body = (
+        <>
+          <AssignModeForm lang={lang} mode={ctx.assignMode} agents={agents.filter((x) => x.active).length} teamHref={sectionHref(lang, "callCenters")} t={text} />
+          <RulesApp lang={lang} kind="agent" rules={ctx.apps.agentRules} agents={agents.map((x) => ({ id: x.id, name: x.name }))} products={products} wilayas={wilayaOptions} t={text} />
+        </>
+      );
+      break;
+    }
+    case "deliveryAssign": {
+      const accounts = await listCarrierAccounts(shop.id);
+      body = <RulesApp lang={lang} kind="delivery" rules={ctx.apps.deliveryRules} accounts={accounts.map((x) => ({ id: x.id, name: findCarrier(x.carrier)?.name ?? x.carrier }))} wilayas={wilayaOptions} t={text} />;
       break;
     }
     case "blacklist": {
