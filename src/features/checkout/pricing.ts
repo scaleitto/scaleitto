@@ -17,9 +17,6 @@ export const lineShipping = (shipping: number | null, offer: QuantityOffer | nul
 // The quantity chosen when the form opens: the merchant's preselected offer, else 1
 export const defaultQuantity = (offers: QuantityOffer[]) => offers.find((o) => o.preselected)?.quantity ?? 1;
 
-// An offer as facts for the AI prompts (real numbers and extras only)
-export const offerFacts = (o: QuantityOffer) => ({ quantity: o.quantity, total_price_da: o.price, ...(o.freeShipping ? { free_delivery: true } : {}), ...(o.gift ? { gift: o.gift } : {}) });
-
 // Ready-made offers from the unit price (the product form's quick buttons): percent off, or "buy N, get M free"
 export function offerTemplate(unitPrice: number, kind: "pct" | "free", quantity: number, value: number): QuantityOffer {
   const price = kind === "pct" ? Math.round((unitPrice * quantity * (100 - value)) / 100 / 10) * 10 : unitPrice * (quantity - value);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Ban,
@@ -716,6 +716,31 @@ export function NewOrderButton(
         </div>
       </dialog>
     </>
+  );
+}
+
+// Zimam's edit dialog over the orders list (opened by ?edit=<id>); closing it goes back to the list
+export function EditOrderDialog({ closeHref, title, locked, ...props }: Omit<Parameters<typeof OrderForm>[0], "onDone"> & { closeHref: string; title: string; locked: ReactNode }) {
+  const ref = useModal();
+  const router = useRouter();
+  useEffect(() => {
+    if (!ref.current?.open) ref.current?.showModal();
+  }, [ref]);
+  return (
+    <dialog
+      ref={ref}
+      onClose={() => router.replace(closeHref, { scroll: false })}
+      className="m-auto w-[min(1000px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40"
+      data-testid="edit-order-dialog"
+    >
+      <div className="flex items-center justify-between border-b border-line p-5">
+        <h2 className="text-lg font-bold">{title}</h2>
+        <button type="button" aria-label={props.t.orderPage.cancel} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => ref.current?.close()}>
+          <X size={18} />
+        </button>
+      </div>
+      <div className="max-h-[75vh] overflow-y-auto p-5">{locked ?? <OrderForm {...props} onDone={() => ref.current?.close()} />}</div>
+    </dialog>
   );
 }
 

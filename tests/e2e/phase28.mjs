@@ -90,7 +90,7 @@ export default async function phase28(browser) {
       await owner.goto(`${dash}/orders/${o.id}`);
       await owner.locator("[data-testid=order-form] #status").selectOption("confirmed");
       await owner.click("[data-testid=save-order]");
-      await owner.waitForSelector('[data-testid=order-status][data-value="confirmed"], [data-testid=order-status][data-value="in_transit"]');
+      await owner.locator("[data-testid=edit-order-dialog]").waitFor({ state: "detached" });
     }
     await expectSoon(async () => (await db.query("SELECT status FROM orders WHERE id = ?", [withCompany.id]))[0][0].status === "in_transit");
     const [[parcel]] = await db.query("SELECT tracking_number FROM shipments WHERE order_id = ?", [withCompany.id]);

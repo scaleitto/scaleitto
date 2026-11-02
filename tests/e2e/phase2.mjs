@@ -1,7 +1,7 @@
 // Phase 2: storefront ordering (cash on delivery), fake-order protection, abandoned carts,
 // and the merchant's order management (status, stock, edits, notes, blocking, roles, isolation).
 import { randomUUID } from "node:crypto";
-import { BASE, createSession, createShop, db, expect, step, setOrderStatus } from "./helpers.mjs";
+import { BASE, createSession, createShop, db, expect, step, setOrderStatus, openOrder, orderEvents } from "./helpers.mjs";
 
 export default async function phase2(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -102,12 +102,13 @@ export default async function phase2(browser) {
     await owner.goto(`${orders}/${orderId}`);
     await owner.waitForSelector(`text=تعديل الطلب #${orderNumber}`);
     await setOrderStatus(owner, "cancelled");
-    await owner.waitForSelector("[data-testid=history] >> text=تغيير الحالة: قيد الانتظار ← ملغاة");
     expect((await stockOf(black)) === 10, "stock back to 10");
     await setOrderStatus(owner, "confirmed");
-    await owner.waitForSelector("[data-testid=history] >> text=تغيير الحالة: ملغاة ← مؤكدة");
     expect((await stockOf(black)) === 8, "stock taken again");
-    expect(await owner.locator("[data-testid=history] >> text=Owner").count(), "history shows who changed it");
+    const events = await orderEvents(orderId);
+    expect(events.includes("status:pending>cancelled") && events.includes("status:cancelled>confirmed"), `history records it (${events})`);
+    const [[who]] = await db.query("SELECT u.name FROM order_events e JOIN users u ON u.id = e.user_id WHERE e.order_id = ? AND e.type = 'status' ORDER BY e.created_at DESC LIMIT 1", [orderId]);
+    expect(who?.name === "Owner", "history records who changed it");
   });
 
   await step("editing the order: commune, total and note are saved", async () => {
@@ -115,6 +116,7 @@ export default async function phase2(browser) {
     await owner.fill("[data-testid=order-total-input]", "9000");
     await owner.fill("textarea[name=note]", "اتصل بعد الساعة 6 مساءً");
     await owner.click("[data-testid=save-order]");
+    await owner.locator("[data-testid=edit-order-dialog]").waitFor({ state: "detached" });
     let order;
     for (let i = 0; i < 40 && order?.note !== "اتصل بعد الساعة 6 مساءً"; i++) {
       if (i) await owner.waitForTimeout(150);
@@ -124,6 +126,7 @@ export default async function phase2(browser) {
   });
 
   await step("a blocked customer cannot order; unblocking allows it again", async () => {
+    await openOrder(owner, orderId);
     await owner.click("[data-testid=block-customer]");
     await owner.waitForSelector('[data-testid=block-customer]:has-text("إلغاء الحظر")');
     await customer.goto(`${store}/p/watch`);
@@ -145,8 +148,10 @@ export default async function phase2(browser) {
     await ctx.addCookies([{ name: "sc_session", value: agent.token, url: BASE }]);
     const p = await ctx.newPage();
     await p.goto(`${orders}/${orderId}`);
+    await p.locator("[data-testid=edit-order-dialog] [data-testid=order-form]").waitFor();
     await setOrderStatus(p, "call_back");
-    await p.waitForSelector("[data-testid=history] >> text=Test agent");
+    const [[who]] = await db.query("SELECT u.name FROM order_events e JOIN users u ON u.id = e.user_id WHERE e.order_id = ? AND e.type = 'status' ORDER BY e.created_at DESC LIMIT 1", [orderId]);
+    expect(who?.name === "Test agent", "history records the agent");
     await ctx.close();
   });
 
@@ -154,7 +159,9 @@ export default async function phase2(browser) {
     const other = await createShop(browser);
     const p = await other.context.newPage();
     await p.goto(`${orders}/${orderId}`);
-    await p.waitForSelector("[data-testid=not-found]");
+    await p.waitForURL((u) => u.searchParams.has("edit"));
+    await p.locator("[data-testid=status-tabs]").waitFor();
+    expect(!(await p.locator("[data-testid=edit-order-dialog]").count()), "the order does not open");
     expect(!(await p.locator("text=كريم").count()), "no customer data shown");
     await other.context.close();
   });

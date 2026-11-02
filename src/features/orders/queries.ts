@@ -1,12 +1,11 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, like, lt, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { PENDING_STATUSES, type OrderStatus } from "./statuses";
 import type { OrderFilters } from "./views";
 import { addDays } from "@/lib/time";
 import { visibleOrders, type OrderViewer } from "./access";
 import { escapeLike } from "@/lib/validation";
-import type { CallGuide } from "@/features/ai/prompts";
 
 // One status tab of the orders page with its filters. Rows carry what the table shows: the first product (name, photo),
 // pieces, the client, the agent, the delivery company and the parcel.
@@ -91,55 +90,24 @@ export async function getOrder(viewer: OrderViewer, id: string) {
   const shopId = viewer.shopId;
   const [order] = await db.select().from(schema.orders).where(and(visibleOrders(viewer), eq(schema.orders.id, id)));
   if (!order) return null;
-  const [items, [shipment], [blocked], [assignEvent], events, history, [landing]] = await Promise.all([
+  const [items, [blocked], [assignEvent]] = await Promise.all([
     db
-      .select({ item: schema.orderItems, image: sql<string | null>`json_unquote(json_extract(${schema.products.images}, '$[0]'))` })
+      .select({ item: schema.orderItems })
       .from(schema.orderItems)
-      .leftJoin(schema.products, eq(schema.products.id, schema.orderItems.productId))
       .where(and(eq(schema.orderItems.shopId, shopId), eq(schema.orderItems.orderId, id))),
-    db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shopId), eq(schema.shipments.orderId, id))),
     db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, order.phone))),
     db
-      .select({ note: schema.orderEvents.note, userId: schema.orderEvents.userId, at: schema.orderEvents.createdAt })
+      .select({ note: schema.orderEvents.note, at: schema.orderEvents.createdAt })
       .from(schema.orderEvents)
       .where(and(eq(schema.orderEvents.shopId, shopId), eq(schema.orderEvents.orderId, id), eq(schema.orderEvents.type, "assign")))
       .orderBy(desc(schema.orderEvents.createdAt))
       .limit(1),
-    db
-      .select({ event: schema.orderEvents, userName: schema.users.name })
-      .from(schema.orderEvents)
-      .leftJoin(schema.users, eq(schema.users.id, schema.orderEvents.userId))
-      .where(and(eq(schema.orderEvents.shopId, shopId), eq(schema.orderEvents.orderId, id)))
-      .orderBy(asc(schema.orderEvents.createdAt)),
-    // Every order from the same phone in this shop: a quick trust signal for the call center
-    db.select({ status: schema.orders.status, n: count() }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.phone, order.phone))).groupBy(schema.orders.status),
-    order.landingPageId
-      ? db.select({ title: schema.landingPages.title }).from(schema.landingPages).where(and(eq(schema.landingPages.shopId, shopId), eq(schema.landingPages.id, order.landingPageId)))
-      : Promise.resolve([]),
   ]);
-  // The ordered products' call guides (for the call center)
-  const productIds = [...new Set(items.map((i) => i.item.productId).filter((v): v is string => Boolean(v)))];
-  const guides = productIds.length
-    ? await db.select({ id: schema.products.id, name: schema.products.name, callGuide: schema.products.callGuide }).from(schema.products).where(and(eq(schema.products.shopId, shopId), inArray(schema.products.id, productIds)))
-    : [];
-  const byStatus = Object.fromEntries(history.map((h) => [h.status, h.n])) as Partial<Record<OrderStatus, number>>;
-  const detail = {
-    ...order,
-    items: items.map((r) => ({ ...r.item, image: r.image })),
-    shipment: shipment ?? null,
-    phoneBlocked: blocked.n > 0,
-    assignEvent: assignEvent ?? null,
-    extra: Array.isArray(order.extra) ? (order.extra as { label: string; value: string }[]) : [],
-    events,
-    phoneStats: { orders: history.reduce((sum, h) => sum + h.n, 0), delivered: byStatus.delivered ?? 0, failed: (byStatus.cancelled ?? 0) + (byStatus.returned ?? 0) + (byStatus.flagged ?? 0) },
-    landingTitle: (landing as { title: string } | undefined)?.title ?? null,
-    guides: guides.map((g) => ({ product: { id: g.id, name: g.name }, guide: (g.callGuide as CallGuide | null) ?? null })),
-  };
+  const detail = { ...order, items: items.map((r) => r.item), phoneBlocked: blocked.n > 0, assignEvent: assignEvent ?? null };
   // Locked (over the plan's limit): nothing that identifies the customer leaves the server
-  if (order.locked) return { ...detail, customerName: "", phone: "", commune: "", address: null, customerNote: null, extra: [], ip: null, userAgent: null, tracking: null, phoneBlocked: false, phoneStats: { orders: 0, delivered: 0, failed: 0 } };
+  if (order.locked) return { ...detail, customerName: "", phone: "", commune: "", address: null, customerNote: null, extra: [], ip: null, userAgent: null, tracking: null, phoneBlocked: false };
   return detail;
 }
-export type OrderDetail = NonNullable<Awaited<ReturnType<typeof getOrder>>>;
 
 // The products to pick from in the order dialogs (name, price, photo, variants)
 export async function orderProducts(shopId: string) {

@@ -15,7 +15,7 @@ export async function shopAnalytics(shopId: string, range: Range) {
   const i = schema.orderItems;
   const [items, leads, pages] = await Promise.all([
     db
-      .select({ orderId: i.orderId, productId: i.productId, name: i.name, quantity: i.quantity, total: i.total, costPrice: schema.products.costPrice })
+      .select({ orderId: i.orderId, productId: i.productId, name: i.name, quantity: i.quantity, total: i.total })
       .from(i)
       .innerJoin(o, eq(o.id, i.orderId))
       .leftJoin(schema.products, eq(schema.products.id, i.productId))

@@ -8,12 +8,12 @@ import { AiRequestError, aiConfigured, pollBackgroundImage, pollBackgroundJson, 
 import { visionImages } from "@/server/ai/vision";
 import { saveImage } from "@/server/storage";
 import type { AiLanguage as PageLanguage } from "./languages";
-import { cleanCallGuide, cleanDescription, cleanMessages } from "./prompts";
+import { cleanDescription } from "./prompts";
 
 // Small AI tasks share one path: start a background request (a row in ai_generations, counted in the
 // plan's monthly AI quota), then the browser checks every few seconds; when the text is ready it is
 // cleaned, saved where it belongs (e.g. the product's call guide) and returned.
-export type TaskKind = "call_guide" | "messages" | "description" | "image";
+export type TaskKind = "description" | "image";
 export type TaskBrief = { language: PageLanguage; productId?: string } | { poster: true; references: string[] };
 export type TaskStart = { ok: true; taskId: string } | { ok: false; error: string; message?: string };
 export type TaskState = { state: "pending" } | { state: "done"; result: unknown } | { state: "failed"; error: string; message?: string };
@@ -60,12 +60,6 @@ async function finish(shopId: string, kind: TaskKind, brief: TaskBrief, data: un
     return url ? { url } : null;
   }
   if (!("language" in brief)) return null;
-  if (kind === "call_guide") {
-    const guide = cleanCallGuide(data, brief.language);
-    if (guide && brief.productId) await db.update(schema.products).set({ callGuide: guide }).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, brief.productId)));
-    return guide;
-  }
-  if (kind === "messages") return cleanMessages(data);
   const description = cleanDescription(data);
   return description ? { description } : null;
 }

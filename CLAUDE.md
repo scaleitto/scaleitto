@@ -50,20 +50,20 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `src/features/checkout/`: `place-order.ts` (one function used by every order form: stock is taken atomically,
   per-shop order numbers from #1001, history event, abandoned cart → converted), `protection.ts` (blocked phones,
   duplicates, per-phone/IP limits, honeypot), `pricing.ts` (offers, shipping per wilaya; no rates → free).
-- Orders dashboard (`src/features/orders/`): list with status counts/search, detail (status, customer edit,
-  phone history + block, notes, history), abandoned carts. Cancelled/returned orders give stock back (`holdsStock`).
+- Orders dashboard (`src/features/orders/`): list with status counts/search; an order is edited in Zimam's dialog over the
+  list (`?edit=<id>`, `EditOrderDialog`; `/orders/<id>` redirects there). Cancelled/returned orders give stock back (`holdsStock`).
 - Delivery (`src/features/delivery/`): `carriers.ts` (catalog; couriers grouped by platform: yalidine, ecotrack —
   one API on <name>.ecotrack.dz for 80+ couriers —, zrexpress = ZR Express's new platform api.zrexpress.app (X-Tenant +
   X-Api-Key, territory UUIDs found by wilaya code / commune name without accents, stop desk = the wilaya's pickup hub), procolis =
   ZR Express's old platform, noest), `platforms/*` (one client per
   platform: test / createParcel / trackingStatus), keys encrypted with `src/server/crypto.ts` (APP_SECRET, falls back
-  to DATABASE_URL). Rates per wilaya in `shipping_rates`; sending/tracking from the order page (`ShipmentCard`);
+  to DATABASE_URL). Rates per wilaya in `shipping_rates`; sending from the Confirmed tab (`ShipPanel`), tracking from In transit (`TrackPanel`);
   delivered/returned parcels close the order through `src/features/orders/transition.ts` (`applyOrderStatus`, the
   only place that changes an order status: stock + history). E2E tests use `tests/e2e/mock-carriers.mjs` via
   E2E_CARRIER_URL (never set it in production). API formats were taken from open-source clients (CourierDZ, dz-delivery for
   ZR's new platform), not official docs: verify with a real merchant account before relying on a platform. Courier status words
   → `delivery/status.ts` (ZR states pass through `readableState`). Meta Graph API version: `META_VERSION` in
-  `src/server/meta.ts` (pixels + WhatsApp; Meta retires versions ~2 years after the next one: move it forward yearly).
+  `src/server/meta.ts` (pixels; Meta retires versions ~2 years after the next one: move it forward yearly).
 - Store Design (`src/features/design/`): `shops.design` JSON read through `resolveDesign()` (defaults for missing keys —
   add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
   `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
@@ -105,7 +105,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Analytics (`src/features/analytics/`): `range.ts` (presets today…90d/month or custom ≤ 366 days, in Algeria days, plus
   the previous period of the same length), `queries.ts` (loads the period's orders/items/leads once), `compute.ts`
   (pure, unit-tested: confirmation = confirmed ÷ (confirmed + cancelled), delivery = delivered ÷ (delivered + returned),
-  delivered sales, estimated profit from products' cost price, daily/hourly series, products, wilayas, sources),
+  delivered sales, daily/hourly series, products, wilayas, sources),
   `views.tsx` (server components; CSS-only chart tooltips; charts stay left-to-right). Rate changes are shown in points.
 - Pixels (`src/features/pixels/`): `pixels` rows (meta / tiktok / ga4 / gtm; tag IDs checked by `ids.ts` because they go
   into inline scripts; optional encrypted server secret + test code; `purchaseOn` placed/confirmed/delivered; `productIds`
@@ -147,12 +147,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   fixed; `starter` = free fallback; only the `custom_domain` feature is enforced), system (version, migrations, which
   server settings are set, AI check, error log). Data in `src/features/admin/queries.ts`, forms in `AdminForms.tsx`.
   The shell (`DashboardShell`) serves both areas; the platform admin sees an admin link in the merchant header.
-- Call-center AI (`src/features/ai/`): small AI tasks share `tasks.ts` (`startTask` → background request + an
-  `ai_generations` row with `kind`, counted in `maxAiPerMonth`; `pollTask` → clean, save, return `result`) and the browser
-  hook `useAiTask`. Prompts/schemas in `prompts.ts` (same honesty rules as landing pages): `call_guide` (saved on
-  `products.call_guide`, shown on the order page by `CallGuideCard`), `description` (fills the product form). Customer messages (`src/features/messages/`): `templates.ts`
-  (defaults in dz/ar/fr/en, `{placeholders}`, `shops.messages` holds only changed texts), `MessageCard` on the order page
-  (situation from the status, WhatsApp/SMS links from the agent's phone, logged as an order event "message").
+- Small AI tasks (`src/features/ai/`): `tasks.ts` (`startTask` → background request + an `ai_generations` row with `kind`,
+  counted in `maxAiPerMonth`; `pollTask` → clean, save, return `result`), browser hook `useAiTask`; `prompts.ts` = the product
+  `description` (fills the product form). The call guide, customer messages and the WhatsApp Business API were removed (owner:
+  like Zimam; migration 0037, which also drops products.cost_price).
 - Owner feedback round (phase16.mjs): a shop whose owner is the platform admin has no plan limits (`isPlatformShop` in
   `limits.ts`, every limit -1, custom domain allowed, Plans page shows "platform store"). Agents never get store links.
   New orders go to agents by `shops.assign_mode` (`team/assign.ts`). Google Sheets script
@@ -173,12 +171,6 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   setup steps say to publish a New version after pasting code. Admin → system has the full check (`features/admin/system-check.ts`
   + `ui/CheckCard.tsx`: database, uploads, APP_URL/APP_SECRET, cron backlog > 15 min, AI steps). Storefront form fields use `s-field-edge` / `s-field` (mixed from the theme's text color).
 - Owner feedback round 4: AI images never contain buttons (every landing image links to `#order-form`). The language switcher is a dropdown (`ui/LanguageSwitcher.tsx`).
-- WhatsApp Business API (phase19.mjs): `shop_whatsapp` (phone number ID, encrypted token, a Meta-approved template per
-  message situation with its `{{n}}` params mapped to our placeholders) — its own table, never in `shop_apps`/the order sync.
-  `messages/whatsapp.ts` (`testWhatsapp`, `sendWhatsapp`: template with `buildMessageVars` values, else plain text — Meta only
-  delivers text inside the 24-hour window), actions in `messages/actions.ts` (save/test/disconnect for owners/managers on Apps,
-  `sendWhatsappMessage` for anyone who can touch the order → order event "message"). `WhatsappCard` on Apps; `MessageCard`
-  shows "Send now" when connected and keeps the wa.me / SMS links. E2E: mock-pixels answers Bearer "wa-good".
 - Owner feedback round 5 (phase21.mjs) — Orders organised in sub-sections (`orders/views.ts`: all / confirm / ship (confirmed) /
   transit (shipped, chips per courier stage) / done / risk, plus Abandoned and Protection pages; filters wilaya, delivery type,
   dates, agent, page size) with selection tools (`OrderTools.tsx`: select all/none/invert, `ShipPanel` = bulk send one order per
@@ -195,8 +187,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   duplicates, min fill seconds, block bots, risk threshold, hold suspicious, network) + `checkout/risk.ts` (pure `scoreOrder`:
   returns/cancels of the phone, returns in other stores, fill time from `CheckoutForm`'s `fill` field (missing = no JavaScript),
   robot user agent, fake name, many phones from one IP; delivered orders lower it) → `orders.risk` / `risk_reasons`, event "risk";
-  obvious robots refused (error "bot"), suspicious orders held from agents when the store says so; `RiskCard` + "order is fine"
-  (`markOrderTrusted`). E2E browsers use `BROWSER_ARGS` (a normal Chrome user agent: "HeadlessChrome" is refused).
+  obvious robots refused (error "bot"), suspicious orders held from agents when the store says so; the table shows a risk badge. E2E browsers use `BROWSER_ARGS` (a normal Chrome user agent: "HeadlessChrome" is refused).
 - Owner feedback round 6 (phase22.mjs): accounts — register asks the phone (required) and the store language, the link
   preview shows the platform domain (`storeLinkParts`), owners confirm their email (`auth_tokens` verify/reset,
   `server/mail.ts`: SMTP_* env or E2E_MAIL_URL = mock-apps `/mail`; no mail settings → accounts count as confirmed), forgot/reset
@@ -210,8 +201,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `findTheme` for storefront pages —, plus `showOrderSteps` and `floatingWhatsapp`. Logo: `ui/Logo.tsx`, `app/icon.svg`. The
   audit of what is still missing is `docs/next-round.md`.
 - Owner feedback round 7 (phase23.mjs): pages moved under groups (`/integrations/pixels|apps`, `/store-design/themes`, old URLs
-  redirect in next.config.ts); the admin area has "back to the dashboard" (`backLink`). A typed tracking number can belong to a
-  connected courier (auto-tracked). Order analysis (`analytics/insights-math.ts`, pure). Order form settings: custom field types
+  redirect in next.config.ts); the admin area has "back to the dashboard" (`backLink`). Order analysis (`analytics/insights-math.ts`, pure). Order form settings: custom field types
   (text, textarea, number, email, date, select, radio, checkbox — `customFieldValid` on the server), `blocks`, `stepper`.
 - Offers (`QuantityOffer`, round 8): freeShipping (`lineShipping`), gift (written into the order line's `offer_label`), badge
   (`offerBadges`), preselected (`defaultQuantity`), quick templates (`offerTemplate`); offer cards in `CheckoutForm`. Fake-order
@@ -221,9 +211,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   status "abandoned"; the real order takes its number), cancelled, flagged (fake; autoBlockFakePhone). Orders page
   (`orders/OrdersPage.tsx`, no page title like Zimam): colored status cards (pending also lists call_back), toolbar (`OrderToolbar.tsx`
   filter dialog, export `/api/orders/export` | refresh, search, scan link, `NewOrderButton`), bulk status when rows are ticked, `OrdersTable.tsx` edited in place
-  (`updateOrderField`, `changeOrderStatus`; risk badge), ShipPanel in Confirmed, TrackPanel in In transit. The order page
-  `/orders/[id]` = `OrderForm.tsx` (`saveOrder`: lines, customer, delivery, fee from the rates or waived, status, agent) +
-  shipment, messages, call guide, risk, history. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx` = banner with the mode switch, one large field, results; `scanParcel`): dispatch
+  (`updateOrderField`, `changeOrderStatus`; risk badge), ShipPanel in Confirmed, TrackPanel in In transit. The order
+  dialog (`?edit=<id>`, `EditOrderDialog` in `OrderForm.tsx`; `saveOrder`: lines, customer, delivery, fee from the rates or
+  waived, status, agent; closes on save) — Zimam's form only. Scan (`/dashboard/scan`, `delivery/ScanPanel.tsx` = banner with the mode switch, one large field, results; `scanParcel`): dispatch
   confirmed → in transit, recuperate → returned + `return_received_at`. Home = `analytics/overview.ts overviewData`. Old
   sub-pages redirect to tabs (next.config.ts).
 - Zimam parity phase 3 (phase27.mjs) — products: `ProductForm.tsx` = tabs (details / description / variants & stock / checkout &
@@ -254,7 +244,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Call center like Zimam (phase31.mjs): agents have `shop_members.username` (unique per shop) and sign in at
   `/[lang]/call-center/login` (store slug or domain + username or email + password, `team/portal.ts agentLogin`); the portal
   (`app/[lang]/call-center/(portal)`, `requireAgent`) reuses `DashboardShell` (`logoutInNav`) with Dashboard (`team/agent-overview.ts`
-  + pure `agent-stats.ts`, `AgentDashboard.tsx`) and Orders (`OrdersPage portal`, `OrderDetailPage`). Agents reach no dashboard
+  + pure `agent-stats.ts`, `AgentDashboard.tsx`) and Orders (`OrdersPage portal`, the same edit dialog). Agents reach no dashboard
   page: `requireSection` sends them to the portal (only order actions accept them); dashboard order URLs redirect there.
   Owner page = `TeamManager` (agent cards, `AddAgentDialog`: email optional → internal `@agents.invalid` address, hidden).
 - Zimam cleanup: Inventory, Finance, the call-center tabs (performance, activity, distribution, customer messages editor), the
@@ -301,7 +291,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   test passing, before starting the next one.
 
 ## Roadmap (from the owner's feature list)
-v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (call-center AI: call guide, customer messages, AI descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
+v2 rebuild order (sidebar): Phase 0 done (foundation, dark shell, auth, roles, profile), Phase 1 done (Products), Phase 2 done (Orders + storefront checkout, fake-order protection, abandoned carts), Phase 3 done (Delivery), Phase 4 done (Store Design), Phase 5 done (Theme Store), Phase 6 done (Call Centers), Phase 7 done (Landing Pages + AI + embeddable form), Phase 8 done (Analytics), Phase 9 done (Pixels: Meta, TikTok, GA4, GTM + server events), Phase 10 done (Apps: Google Sheets/Ecomanager, webhook, Shopify/YouCan import), Phase 11 done (Plans), Phase 12 done (Settings: details, SEO, policies, custom domain), Phase 13 done (platform admin), Phase 14 done (AI product descriptions), Phase 15 done (AI landing pages: reworked photos, extra photos, new sections, uncropped mobile-first layout).
 Missing features seen in competitors (fraud score, Snapchat pixel, coupons, multi-store, WhatsApp self-confirmation…) are listed
 in `docs/next-round.md`: the homepage only claims what exists. Plans (modelled on ayor's, a little cheaper; seeded by
 `scripts/migrate-lib.mjs`, missing codes added on start, older codes hidden once): starter (free) / orbit = pay as you go

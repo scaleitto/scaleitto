@@ -158,46 +158,9 @@ export async function saveCarrierDefaults(lang: string, accountId: string, optio
   });
 }
 
-const manualSchema = z.object({
-  accountId: z.string().optional().default(""),
-  carrierName: z.string().trim().max(80, "e:invalid").optional().default(""),
-  trackingNumber: z.string().trim().min(3, "e:tooShort").max(80, "e:invalid"),
-});
-
-// A tracking number typed by hand: with a connected company the parcel is then followed automatically (like a parcel
-// sent from here); with another company only the name and number are kept.
-export async function addManualShipment(lang: string, orderId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("delivery/manual", async () => {
-    const ctx = await requireSection(asLocale(lang), "orders");
-    const { shop, user } = ctx;
-    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    const parsed = manualSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-    const d = parsed.data;
-    const [account] = d.accountId ? await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shop.id), eq(schema.carrierAccounts.id, d.accountId))) : [];
-    if (d.accountId && !account) return { ok: false, error: "notFound" };
-    const carrierName = account ? (findCarrier(account.carrier)?.name ?? account.carrier) : d.carrierName;
-    if (carrierName.length < 2) return { ok: false, error: "checkFields", fieldErrors: { carrierName: "tooShort" } };
-    const found = await db.$count(schema.orders, and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-    if (!found) return { ok: false, error: "notFound" };
-    if (await db.$count(schema.shipments, eq(schema.shipments.orderId, orderId))) return { ok: false, error: "alreadyShipped" };
-    const id = newId();
-    await db.transaction(async (tx) => {
-      await tx.insert(schema.shipments).values({ id, shopId: shop.id, orderId, carrierAccountId: account?.id ?? null, carrierName, trackingNumber: d.trackingNumber });
-      await applyOrderStatus(tx, shop.id, orderId, "in_transit", user.id, `${carrierName}: ${d.trackingNumber}`);
-    });
-    // First look at the company right away (its answer may already close the order); a silent failure waits for the cron
-    if (account) {
-      const [shipment] = await db.select().from(schema.shipments).where(eq(schema.shipments.id, id));
-      await trackShipment(shipment, user.id).catch(() => null);
-    }
-    refresh();
-    return { ok: true };
-  });
-}
 
 // Asks the delivery company where the parcel is; a delivered/returned parcel closes the order.
-// Used by the order page and, one order at a time, by the bulk "update stages" of the orders list.
+// Used one order at a time by the bulk "update stages" of the orders list.
 export async function refreshTracking(lang: string, orderId: string): Promise<ActionState> {
   return safeAction("delivery/track", async () => {
     const ctx = await requireSection(asLocale(lang), "orders");
@@ -214,22 +177,6 @@ export async function refreshTracking(lang: string, orderId: string): Promise<Ac
     if (!status) return { ok: false, error: "carrierMissing" };
     refresh();
     return { ok: true, message: status };
-  });
-}
-
-// Removes the parcel from the order here (a mistake, or cancelled at the company); the order goes back to confirmed.
-export async function removeShipment(lang: string, orderId: string): Promise<ActionState> {
-  return safeAction("delivery/remove", async () => {
-    const ctx = await requireSection(asLocale(lang), "orders");
-    const { shop, user } = ctx;
-    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    await db.transaction(async (tx) => {
-      await tx.delete(schema.shipments).where(and(eq(schema.shipments.shopId, shop.id), eq(schema.shipments.orderId, orderId)));
-      const [order] = await tx.select({ status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-      if (order?.status === "in_transit") await applyOrderStatus(tx, shop.id, orderId, "confirmed", user.id);
-    });
-    refresh();
-    return { ok: true };
   });
 }
 

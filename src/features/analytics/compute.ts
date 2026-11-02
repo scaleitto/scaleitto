@@ -5,7 +5,7 @@ import type { Range } from "./range";
 import { PARCEL_STATUSES, REFUSED_STATUSES, isConfirmed, isPending, isRejected } from "@/features/orders/statuses";
 
 export type OrderRow = { id: string; createdAt: Date; status: OrderStatus; subtotal: number; total: number; wilayaCode: number; landingPageId: string | null };
-export type ItemRow = { orderId: string; productId: string | null; name: string; quantity: number; total: number; costPrice: number | null };
+export type ItemRow = { orderId: string; productId: string | null; name: string; quantity: number; total: number };
 export type LeadRow = { createdAt: Date; status: string };
 
 const REFUSED_COUNTED = new Set<OrderStatus>(REFUSED_STATUSES);
@@ -46,15 +46,6 @@ export function computeAnalytics(range: Range, allOrders: OrderRow[], items: Ite
   const ids = new Set(orders.map((o) => o.id));
   const byId = new Map(orders.map((o) => [o.id, o]));
   const myItems = items.filter((i) => ids.has(i.orderId));
-
-  // Estimated profit on delivered orders: product price − cost price (only lines whose product has a cost)
-  let profit = 0;
-  let costMissing = false;
-  for (const i of myItems) {
-    if (byId.get(i.orderId)?.status !== "delivered") continue;
-    if (i.costPrice == null) costMissing = true;
-    else profit += i.total - i.costPrice * i.quantity;
-  }
 
   const daily = new Map(range.days.map((d) => [d, { day: d, orders: 0, confirmed: 0, delivered: 0, revenue: 0 }]));
   const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0 }));
@@ -107,8 +98,6 @@ export function computeAnalytics(range: Range, allOrders: OrderRow[], items: Ite
       ...rates(c),
       averageOrder: c.orders ? Math.round(c.total / c.orders) : 0,
       inDelivery: orders.filter((o) => o.status === "confirmed" || o.status === "in_transit").reduce((s, o) => s + o.total, 0),
-      profit,
-      costMissing,
       leads: leadsIn.length,
       recovered,
       recoveryRate: pct(recovered, leadsIn.length),

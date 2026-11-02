@@ -49,7 +49,6 @@ function productRow(input: ProductInput) {
     description: input.description || null,
     price: input.price,
     compareAtPrice: input.compareAtPrice,
-    costPrice: input.costPrice,
     sku: input.sku || null,
     trackStock: input.trackStock,
     stock: input.stock,

@@ -30,8 +30,6 @@ export default async function phase1(browser) {
     await page.click("[data-form-tab=details]");
     await page.fill("#price", "4 500");
     await page.fill("#compareAtPrice", "6000");
-    await page.fill("#costPrice", "2500");
-    await page.waitForSelector("text=هامش الربح");
     await page.setInputFiles("[data-panel=details] [data-testid=image-input]", [
       { name: "red.png", mimeType: "image/png", buffer: pngBuffer([220, 40, 60]) },
       { name: "blue.png", mimeType: "image/png", buffer: pngBuffer([40, 90, 220]) },
@@ -62,7 +60,7 @@ export default async function phase1(browser) {
     const [[p]] = await db.query("SELECT * FROM products WHERE shop_id = ?", [shopId]);
     productId = p.id;
     const json = (v) => (typeof v === "string" ? JSON.parse(v) : v);
-    expect(p.price === 4500 && p.compare_at_price === 6000 && p.cost_price === 2500, "prices saved as integers");
+    expect(p.price === 4500 && p.compare_at_price === 6000, "prices saved as integers");
     expect(json(p.images).length === 2 && json(p.images)[0].startsWith("/uploads/"), "images saved as upload paths");
     expect(json(p.offers)[0].quantity === 2 && json(p.offers)[0].price === 8500, "offer saved");
     expect(p.short_description === "مقاومة للماء وأنيقة", "short description saved");

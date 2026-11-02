@@ -6,24 +6,19 @@ import { WebhookCard } from "@/features/apps/AppCards";
 import { ProductImport } from "@/features/apps/ProductImport";
 import { appLog, appViews } from "@/features/apps/queries";
 import { LOCKED, OLD_SCRIPT } from "@/features/apps/sync";
-import { WhatsappCard } from "@/features/messages/WhatsappCard";
-import { whatsappConfig } from "@/features/messages/whatsapp";
 
 export default async function AppsPage({ params }: PageProps<"/[lang]/dashboard/integrations/apps">) {
   const lang = asLocale((await params).lang);
   const t = getDictionary(lang);
   const a = t.apps;
   const { shop } = await requireSection(lang, "apps");
-  const [apps, log, whatsapp] = await Promise.all([appViews(shop.id), appLog(shop.id), whatsappConfig(shop.id)]);
+  const [apps, log] = await Promise.all([appViews(shop.id), appLog(shop.id)]);
   const text = { apps: a, errors: t.errors, common: t.common };
   return (
     <>
       <PageHeader title={t.sections.apps.title} description={t.sections.apps.description} />
       {/* Google Sheets lives in Connected platforms (Zimam) */}
       <WebhookCard lang={lang} view={apps.webhook} t={text} />
-      <div className="mt-6">
-        <WhatsappCard lang={lang} view={whatsapp ? { phoneNumberId: whatsapp.phoneNumberId, templates: whatsapp.templates } : null} kindLabels={t.assistant.messages.kinds} t={text} />
-      </div>
       <div className="mt-6">
         <ProductImport lang={lang} t={text} />
       </div>

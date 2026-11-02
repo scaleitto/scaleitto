@@ -10,7 +10,6 @@ import {
   Download,
   Headphones,
   LayoutGrid,
-  MessageCircle,
   Package,
   PhoneCall,
   Radar,
@@ -689,7 +688,6 @@ function Apps({ t }: { t: Dictionary }) {
     [Sheet, "from-[#dcf7e6] to-[#b8eccb]", "bg-[#1e9e5a]"],
     [Tag, "from-[#dbeafe] to-[#bfd7fb]", "bg-[#2f7cf6]"],
     [Radar, "from-[#ece9ff] to-[#d5cefe]", "bg-[#5b45e0]"],
-    [MessageCircle, "from-[#dcfce7] to-[#bbf2cd]", "bg-[#16a34a]"],
     [Webhook, "from-[#fef3c7] to-[#fde29b]", "bg-[#d97706]"],
     [Download, "from-[#ecfccb] to-[#d6f5a3]", "bg-[#4d7c0f]"],
   ];
@@ -807,7 +805,7 @@ function TeamPhones({ t }: { t: Dictionary }) {
         </p>
       ))}
       <p className="flex items-center justify-center gap-1.5 rounded-lg bg-[#16a34a] py-2 text-[11px] font-bold text-white">
-        <MessageCircle size={13} /> {m.send}
+        <Check size={13} /> {m.send}
       </p>
     </div>,
     <div key="stats" className="space-y-2.5">

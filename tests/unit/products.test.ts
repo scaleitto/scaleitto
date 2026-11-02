@@ -20,10 +20,9 @@ test("combinations build every variant in option order", () => {
 });
 
 test("a valid product is normalized", () => {
-  const r = productSchema.parse({ ...base, compareAtPrice: "", costPrice: "3000", trackStock: "on", stock: "12" });
+  const r = productSchema.parse({ ...base, compareAtPrice: "", trackStock: "on", stock: "12" });
   assert.equal(r.price, 4500);
   assert.equal(r.compareAtPrice, null);
-  assert.equal(r.costPrice, 3000);
   assert.equal(r.trackStock, true);
   assert.equal(r.stock, 12);
   assert.equal(r.slug, "montre-classique");

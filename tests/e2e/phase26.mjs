@@ -109,7 +109,8 @@ export default async function phase26(browser) {
     await owner.locator("[data-testid=line-qty]").fill("3");
     await owner.fill("[data-testid=order-total-input]", "");
     await owner.click("[data-testid=save-order]");
-    await owner.getByText("تم الحفظ").waitFor();
+    // Saved: the dialog closes over the list
+    await owner.locator("[data-testid=edit-order-dialog]").waitFor({ state: "detached" });
     const o = await statusOf(a.id);
     expect(o.subtotal === 6000 && o.total === 6300, `3 × 2000 + 300 desk (got ${o.subtotal} / ${o.total})`);
   });

@@ -121,10 +121,12 @@ export default async function phase6(browser) {
     await p.locator("[data-testid=orders-table]").waitFor();
     expect((await p.locator("[data-order]").count()) === 1, "one order visible");
     await p.goto(`${portalOrders}/${orderB}`);
-    await p.waitForSelector("[data-testid=not-found]");
+    await p.locator("[data-testid=orders-table]").waitFor();
+    expect(!(await p.locator("[data-testid=edit-order-dialog]").count()), "another agent's order does not open");
     await p.goto(`${portalOrders}/${orderA}`);
     await setOrderStatus(p, "confirmed");
-    await p.waitForSelector("[data-testid=history] >> text=أمين");
+    const [[who]] = await db.query("SELECT u.name FROM order_events e JOIN users u ON u.id = e.user_id WHERE e.order_id = ? AND e.type = 'status' ORDER BY e.created_at DESC LIMIT 1", [orderA]);
+    expect(who?.name === "أمين", "history records the agent");
   });
 
   await step("working minutes are counted once per minute, and the agent shows online", async () => {

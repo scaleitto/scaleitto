@@ -20,25 +20,6 @@ const rules: [RegExp, ShipmentStatus][] = [
   [/pr[eê]t|ready|commande re[çc]ue|order received|attente|cr[ée]{1,2}|enregistr|pending|created|valid/i, "ready"],
 ];
 
-// Badge colors per stage in the dashboard
-export const shipmentTone: Record<ShipmentStatus, "neutral" | "accent" | "warning" | "danger" | "info"> = {
-  ready: "neutral",
-  pickup: "info",
-  to_station: "info",
-  at_station: "info",
-  to_wilaya: "info",
-  preparing: "info",
-  out_for_delivery: "info",
-  suspended: "warning",
-  delivered: "accent",
-  returning: "warning",
-  returned: "danger",
-  cancelled: "danger",
-  deleted: "danger",
-  to_delete: "warning",
-  unknown: "neutral",
-};
-
 // Stages where nothing will change any more (tracking stops asking)
 export const finalShipmentStatuses: ShipmentStatus[] = ["delivered", "returned", "cancelled", "deleted"];
 

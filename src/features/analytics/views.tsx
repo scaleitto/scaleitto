@@ -89,7 +89,6 @@ export function KpiGrid({ data, t }: { data: Analytics; t: Dictionary }) {
       <Kpi id="revenue" label={k.revenue} value={formatPrice(s.revenue, cur)} hint={k.revenueHint} delta={<Delta now={s.revenue} before={p.revenue} t={t} />} />
       <Kpi id="averageOrder" label={k.averageOrder} value={formatPrice(s.averageOrder, cur)} />
       <Kpi id="inDelivery" label={k.inDelivery} value={formatPrice(s.inDelivery, cur)} hint={k.inDeliveryHint} />
-      <Kpi id="profit" label={k.profit} value={formatPrice(s.profit, cur)} hint={s.costMissing ? k.profitMissing : k.profitHint} />
       <Kpi id="recovered" label={k.recovered} value={rate(s.recoveryRate)} hint={fmt(k.recoveredHint, { n: s.recovered, total: s.leads })} />
     </div>
   );

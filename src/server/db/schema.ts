@@ -92,8 +92,6 @@ export const shops = mysqlTable(
     design: json("design"),
     // How new orders reach the call center: manual, to the least busy agent, or to the least busy agent on shift
     assignMode: mysqlEnum("assign_mode", ["manual", "balanced", "on_shift"]).notNull().default("balanced"),
-    // Messages agents send to customers (WhatsApp / SMS), see src/features/messages/templates.ts
-    messages: json("messages"),
     // Search engines and link previews (src/features/settings/types.ts)
     seo: json("seo").$type<ShopSeo | null>(),
     // Policy pages shown in the store footer (plain text)
@@ -201,8 +199,6 @@ export const products = mysqlTable(
     description: text("description"),
     price: int("price").notNull(),
     compareAtPrice: int("compare_at_price"),
-    // What the merchant pays for one piece, for profit in analytics
-    costPrice: int("cost_price"),
     sku: varchar("sku", { length: 80 }),
     trackStock: boolean("track_stock").notNull().default(false),
     // Used only when the product has no variants (each variant has its own stock)
@@ -212,8 +208,6 @@ export const products = mysqlTable(
     options: json("options").$type<ProductOption[]>().notNull(),
     offers: json("offers").$type<QuantityOffer[]>().notNull(),
     status: mysqlEnum("status", productStatuses).notNull().default("active"),
-    // AI call guide for the call center (src/features/ai/call-guide.ts → CallGuide)
-    callGuide: json("call_guide"),
     // Where an imported product came from ("shopify:<store>:<id>", "youcan:<id>"), so it is never imported twice
     externalRef: varchar("external_ref", { length: 191 }),
     // A few words under the name on the product page (7 words at most)
@@ -416,7 +410,7 @@ export const aiGenerations = mysqlTable(
     id: id().primaryKey(),
     shopId: id("shop_id").notNull(),
     userId: id("user_id").notNull(),
-    // landing (a landing page) or a small task: call_guide, messages, description, image (src/features/ai/tasks.ts)
+    // landing (a landing page) or a small task: description, image (src/features/ai/tasks.ts)
     kind: varchar("kind", { length: 30 }).notNull().default("landing"),
     // OpenAI background response id
     responseId: varchar("response_id", { length: 120 }),
@@ -613,19 +607,6 @@ export const pixelEvents = mysqlTable(
 // ─── Apps ─────────────────────────────────────────────────
 
 // Apps that receive every order and its changes
-// WhatsApp Business API (Meta Cloud API) for customer messages sent straight from the order page.
-// One per shop; the access token is encrypted. A situation with a template uses it (Meta requires approved
-// templates for messages the store starts); others are sent as text (delivered only inside the 24-hour window).
-export type WhatsAppTemplate = { name: string; language: string; params: string[] };
-export const shopWhatsapp = mysqlTable("shop_whatsapp", {
-  shopId: id("shop_id").primaryKey(),
-  phoneNumberId: varchar("phone_number_id", { length: 40 }).notNull(),
-  token: text("token").notNull(),
-  templates: json("templates").$type<Partial<Record<string, WhatsAppTemplate>>>().notNull(),
-  active: boolean("active").notNull().default(true),
-  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
-});
-
 export const appKeys = ["google_sheets", "webhook"] as const;
 export type AppKey = (typeof appKeys)[number];
 

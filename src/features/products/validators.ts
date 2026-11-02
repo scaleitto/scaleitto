@@ -76,7 +76,6 @@ export const productSchema = z
       .refine((v) => v.split(/\s+/).filter(Boolean).length <= 7, "e:shortDescription"),
     price: money("e:price").refine((v) => v !== null, "e:price"),
     compareAtPrice: money("e:price"),
-    costPrice: money("e:price"),
     sku: z.string().trim().max(80, "e:invalid").optional().default(""),
     trackStock: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     stock: money("e:stock").transform((v) => v ?? 0),

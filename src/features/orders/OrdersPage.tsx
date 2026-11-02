@@ -7,11 +7,12 @@ import { fmt, formatDate, formatTime } from "@/lib/format";
 import { wilayaName, wilayas } from "@/lib/wilayas";
 import { Card, EmptyState, buttonClass, inputClass, type Tone } from "@/ui";
 import { viewerOf } from "./access";
-import { listOrders, orderProducts, tabCounts } from "./queries";
+import { getOrder, listOrders, orderProducts, tabCounts } from "./queries";
 import { statusTabs, statusTone, type OrderStatus } from "./statuses";
 import { filtersHref, pageSizes, parseOrderFilters } from "./views";
 import { OrdersTable } from "./OrdersTable";
-import { NewOrderButton } from "./OrderForm";
+import { EditOrderDialog, LockedNotice, NewOrderButton } from "./OrderForm";
+import { storeUrl } from "@/lib/urls";
 import { BulkStatus, FilterDialog, RefreshButton } from "./OrderToolbar";
 import { ShipPanel, TrackPanel } from "./OrderTools";
 import { ManifestButton } from "@/features/delivery/PrintButton";
@@ -59,6 +60,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
     getShippingRates(shop.id),
     protectionFor(shop.id),
   ]);
+  const editId = typeof searchParams.edit === "string" ? searchParams.edit : null;
+  const editing = editId ? await getOrder(viewer, editId) : null;
   const base = portal ? `/${lang}/call-center/orders` : sectionHref(lang, "orders");
   const href = (patch: Parameters<typeof filtersHref>[2]) => filtersHref(base, f, patch);
   const pages = Math.max(1, Math.ceil(total / size));
@@ -136,7 +139,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
         ) : (
           <OrdersTable
             lang={lang}
-            editBase={base}
+            editBase={href({})}
             canAssign={canAssign}
             members={members}
             accounts={carrierAccounts}
@@ -198,6 +201,43 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
             )}
           </div>
         </div>
+      )}
+      {editing && (
+        <EditOrderDialog
+          key={editing.id}
+          closeHref={href({})}
+          title={fmt(p.editTitle, { number: editing.number })}
+          locked={editing.locked ? <LockedNotice text={p.locked} upgrade={p.upgrade} href={sectionHref(lang, "plans")} /> : null}
+          lang={lang}
+          order={{
+            id: editing.id,
+            number: editing.number,
+            status: editing.status,
+            items: editing.items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, name: i.name })),
+            customerName: editing.customerName,
+            phone: editing.phone,
+            wilayaCode: editing.wilayaCode,
+            commune: editing.commune,
+            address: editing.address,
+            deliveryType: editing.deliveryType,
+            carrierAccountId: editing.carrierAccountId,
+            shippingWaived: editing.shippingWaived,
+            shippingPrice: editing.shippingPrice,
+            total: editing.total,
+            note: editing.note,
+            assignedTo: editing.assignedTo,
+            ip: editing.ip,
+            phoneBlocked: editing.phoneBlocked,
+            assignment: editing.assignEvent ? { name: editing.assignEvent.note, at: `${formatDate(editing.assignEvent.at, lang)} ${formatTime(editing.assignEvent.at, lang)}` } : null,
+          }}
+          products={products}
+          rates={rates}
+          wilayas={wilayaList}
+          accounts={carrierAccounts}
+          members={members}
+          trackingUrl={`${storeUrl(shop)}/thanks?o=${editing.id}`}
+          t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }}
+        />
       )}
     </>
   );

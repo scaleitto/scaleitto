@@ -14,7 +14,6 @@ const empty: ProductFormValues = {
   shortDescription: "",
   price: null,
   compareAtPrice: null,
-  costPrice: null,
   sku: "",
   trackStock: false,
   stock: 0,

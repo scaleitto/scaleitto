@@ -253,35 +253,3 @@ async function assignMany(lang: string, orderIds: string[], userId: string | nul
   return { ok: true, assigned: rows.length };
 }
 
-export async function assignOrder(lang: string, orderId: string, userId: string | null): Promise<ActionState> {
-  return safeAction("orders/assign", () => assignMany(lang, [orderId], userId));
-}
-
-// The orders list's bulk bar: the selected orders to one member, or to nobody
-export async function assignOrders(lang: string, orderIds: string[], userId: string | null) {
-  return safeAction("orders/assign-many", () => assignMany(lang, orderIds, userId));
-}
-
-// "This order is fine": the risk flag is removed and, when suspicious orders were held, it goes to an agent now
-export async function markOrderTrusted(lang: string, orderId: string): Promise<ActionState> {
-  return safeAction("orders/trusted", async () => {
-    const ctx = await guard(lang);
-    const { shop, user } = ctx;
-    if (!(await canTouchOrder(viewerOf(ctx), orderId))) return { ok: false, error: "notFound" };
-    await db.transaction(async (tx) => {
-      await tx.update(schema.orders).set({ risk: 0, riskReasons: null }).where(and(eq(schema.orders.shopId, shop.id), eq(schema.orders.id, orderId)));
-      await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, userId: user.id, type: "risk", note: "0" });
-      const [order] = await tx.select({ assignedTo: schema.orders.assignedTo, status: schema.orders.status }).from(schema.orders).where(eq(schema.orders.id, orderId));
-      if (order && !order.assignedTo && order.status === "pending") {
-        const agent = await pickAgent(tx, shop.id);
-        if (agent) {
-          await tx.update(schema.orders).set({ assignedTo: agent.userId, assignedAt: new Date() }).where(eq(schema.orders.id, orderId));
-          await tx.insert(schema.orderEvents).values({ id: newId(), orderId, shopId: shop.id, type: "assign", note: agent.name });
-        }
-      }
-    });
-    refresh();
-    return { ok: true };
-  });
-}
-

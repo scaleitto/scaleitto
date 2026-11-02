@@ -126,9 +126,29 @@ export async function landingRow(id) {
   return { ...row, sections: json(row.sections), variants: json(row.variants) ?? [], published: json(row.published), pixels: json(row.pixels) };
 }
 
-// The order page (edit dialog): choose the status, save, and wait until the page shows it
+// The order edit dialog over the orders list (Zimam's): open it from an order id
+export async function openOrder(page, id, base = `${BASE}/ar/dashboard/orders`) {
+  await page.goto(`${base}?edit=${id}`);
+  await page.locator("[data-testid=edit-order-dialog] [data-testid=order-form]").waitFor();
+}
+
+// Choose the status in the open dialog and save: the dialog closes, the order has the status, and the dialog is opened
+// again (so a test can go on editing)
 export async function setOrderStatus(page, status) {
+  // An old order link redirects to the list with ?edit=<id>
+  await page.waitForURL((u) => u.searchParams.has("edit"));
+  const url = page.url();
+  const id = new URL(url).searchParams.get("edit");
   await page.locator("[data-testid=order-form] #status").selectOption(status);
   await page.click("[data-testid=save-order]");
-  await page.waitForSelector(`[data-testid=order-status][data-value="${status}"]`);
+  await page.locator("[data-testid=edit-order-dialog]").waitFor({ state: "detached" });
+  await until(async () => (await db.query("SELECT status FROM orders WHERE id = ?", [id]))[0][0]?.status === status, `order ${id} is ${status}`);
+  await page.goto(url);
+  await page.locator("[data-testid=edit-order-dialog] [data-testid=order-form]").waitFor();
+}
+
+// The events of an order's history, oldest first ("type:from>to" or "type")
+export async function orderEvents(id) {
+  const [rows] = await db.query("SELECT type, from_status AS f, to_status AS t FROM order_events WHERE order_id = ? ORDER BY created_at, id", [id]);
+  return rows.map((r) => (r.f || r.t ? `${r.type}:${r.f}>${r.t}` : r.type));
 }

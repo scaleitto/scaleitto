@@ -37,10 +37,10 @@ test("rates, money, profit, days, hours, products, wilayas and sources", () => {
     order("old", "2026-05-20T12:00:00Z", "delivered", 9000), // previous period
   ];
   const items = [
-    { orderId: "a", productId: "p1", name: "Montre", quantity: 2, total: 4600, costPrice: 1000 },
-    { orderId: "b", productId: "p1", name: "Montre", quantity: 1, total: 3600, costPrice: 1000 },
-    { orderId: "c", productId: "p2", name: "Sac", quantity: 1, total: 2600, costPrice: null },
-    { orderId: "d", productId: "p2", name: "Sac", quantity: 1, total: 1600, costPrice: null },
+    { orderId: "a", productId: "p1", name: "Montre", quantity: 2, total: 4600 },
+    { orderId: "b", productId: "p1", name: "Montre", quantity: 1, total: 3600 },
+    { orderId: "c", productId: "p2", name: "Sac", quantity: 1, total: 2600 },
+    { orderId: "d", productId: "p2", name: "Sac", quantity: 1, total: 1600 },
   ];
   const leads = [
     { createdAt: at("2026-05-30T09:00:00Z"), status: "converted" },
@@ -55,8 +55,6 @@ test("rates, money, profit, days, hours, products, wilayas and sources", () => {
   assert.equal(r.totals.revenue, 5000);
   assert.equal(r.totals.inDelivery, 2000);
   assert.equal(r.totals.averageOrder, 3000);
-  assert.equal(r.totals.profit, 4600 - 2000);
-  assert.equal(r.totals.costMissing, false); // only delivered lines count
   assert.deepEqual([r.totals.leads, r.totals.recovered, r.totals.recoveryRate], [2, 1, 50]);
   assert.deepEqual([r.previous.orders, r.previous.revenue], [1, 9000]);
   assert.deepEqual(r.funnel, { orders: 5, confirmed: 3, shipped: 3, delivered: 1 });

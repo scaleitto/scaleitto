@@ -123,7 +123,7 @@ export function OrdersTable({
                         {r.date} · {r.time}
                       </p>
                     </div>
-                    <Link href={`${editBase}/${r.id}`} aria-label={p.edit} title={p.edit} className="grid size-7 place-items-center rounded-md text-muted hover:bg-accent-soft hover:text-accent" data-testid="edit-order">
+                    <Link href={`${editBase}${editBase.includes("?") ? "&" : "?"}edit=${r.id}`} scroll={false} aria-label={p.edit} title={p.edit} className="grid size-7 place-items-center rounded-md text-muted hover:bg-accent-soft hover:text-accent" data-testid="edit-order">
                       <Pencil size={14} />
                     </Link>
                   </div>

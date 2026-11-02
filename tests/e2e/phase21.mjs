@@ -129,22 +129,7 @@ export default async function phase21(browser) {
     expect(back.stage === "returned" && back.status === "returned", "returned by the cron");
   });
 
-  await step("send from the order page with options: exchange with the item to collect, second phone", async () => {
-    const one = await order({ phone: "0661000012" });
-    await owner.goto(`${dash}/orders/${one.id}`);
-    await owner.locator("[data-testid=parcel-options-toggle]").click();
-    await owner.selectOption("#po-kind", "exchange");
-    await owner.fill("#po-collect", "ساعة قديمة");
-    await owner.getByText("خيارات أخرى").click();
-    await owner.fill("#po-phone2", "0550 11 22 33");
-    await owner.click('[data-testid=shipment] button:has-text("إرسال الطلب")');
-    await owner.waitForSelector("[data-testid=tracking-number]");
-    const sent = received.findLast((r) => r.platform === "ecotrack");
-    expect(sent.type === 2 && sent.produit_a_recupere === "ساعة قديمة" && sent.telephone_2 === "0550112233", `exchange sent (got ${JSON.stringify(sent)})`);
-    await owner.locator("[data-testid=label-link]").waitFor();
-  });
-
-  await step("robots are refused; a risky order is marked in the table and can be trusted", async () => {
+  await step("robots are refused; a risky order is marked in the table", async () => {
     // A robot browser
     const bot = await browser.newContext({ userAgent: "python-requests/2.31" });
     const b = await bot.newPage();
@@ -175,14 +160,6 @@ export default async function phase21(browser) {
     await owner.goto(`${dash}/orders?status=pending`);
     await owner.locator("tr[data-order] [data-testid=risk-badge]").waitFor();
     expect((await owner.locator("tr[data-order] [data-testid=risk-badge]").count()) === 1, "only the risky order is marked");
-    await owner.goto(`${dash}/orders/${id}`);
-    const card = owner.locator("[data-testid=risk-card]");
-    await card.locator('[data-reason="returned"]').waitFor();
-    await card.locator("[data-testid=mark-trusted]").click();
-    // Without risk the card leaves the page
-    await card.waitFor({ state: "detached" });
-    const [[after]] = await db.query("SELECT risk FROM orders WHERE id = ?", [id]);
-    expect(after.risk === 0, "trusted");
   });
 
   await context.close();

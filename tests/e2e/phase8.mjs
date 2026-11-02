@@ -17,7 +17,7 @@ export default async function phase8(browser) {
 
   // A product with a cost price, a landing page, and orders spread over the last weeks
   const productId = randomUUID();
-  await db.query("INSERT INTO products (id, shop_id, name, slug, price, cost_price, images, options, offers) VALUES (?, ?, 'حذاء رياضي', 'shoe', 4000, 1500, '[]', '[]', '[]')", [productId, shopId]);
+  await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'حذاء رياضي', 'shoe', 4000, '[]', '[]', '[]')", [productId, shopId]);
   const pageId = randomUUID();
   await db.query("INSERT INTO landing_pages (id, shop_id, product_id, slug, title, sections) VALUES (?, ?, ?, 'shoe-lp', 'صفحة الحذاء', '[]')", [pageId, shopId, productId]);
   let number = 1000;
@@ -56,7 +56,6 @@ export default async function phase8(browser) {
     expect((await kpi("confirmation")) === "80%", `confirmation 4 ÷ (4 + 1 cancelled) = 80% (got ${await kpi("confirmation")})`);
     expect((await kpi("delivery")) === "66.7%", `delivery 2 ÷ 3 = 66.7% (got ${await kpi("delivery")})`);
     expect((await kpi("revenue")).includes("13000"), `delivered sales 8500 + 4500 (got ${await kpi("revenue")})`);
-    expect((await kpi("profit")).includes("7500"), `profit (8000 − 3000) + (4000 − 1500) (got ${await kpi("profit")})`);
     expect((await kpi("recovered")) === "50%", "1 of 2 abandoned carts recovered");
     expect((await owner.locator("[data-kpi=orders]").innerText()).includes("+500%"), "orders vs previous period (6 vs 1)");
     expect((await owner.locator("[data-kpi=delivery] [data-delta]").innerText()).includes("-33.3"), "delivery rate change in points (66.7 vs 100)");

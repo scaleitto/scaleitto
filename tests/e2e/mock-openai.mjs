@@ -12,7 +12,7 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-// Small tasks (call guide, customer messages, product description) answer by their schema name
+// Small tasks (product description) answer by their schema name
 const answers = {
   check: () => ({ ok: true }),
   // "Generate with AI": the plan (one short text and scene per image), as many images as asked
@@ -26,21 +26,6 @@ const answers = {
       images: Array.from({ length: n }, (_, i) => ({ headline: `عنوان الصورة ${i + 1}`, subtitle: i === 0 ? "نص فرعي قصير" : null, bullets: ["نقطة أولى", "نقطة ثانية"], scene: "A bedroom at night, product on a table" })),
     };
   },
-  call_guide: () => ({
-    pitch: "السلام عليكم، معاك المتجر. نعيطلك على الطلبية تاعك.",
-    keyPoints: ["الدفع عند الاستلام", "توصيل لـ 58 ولاية"],
-    questions: ["واش هو المقاس اللي يناسبك؟"],
-    objections: [{ q: "السعر غالي", a: "الجودة تستاهل، وتخلص غير كي تستلم." }, { q: "واش نخلص قبل؟", a: "لا، الدفع عند الاستلام." }],
-    closing: "نأكدو: المنتج، الكمية، المجموع والولاية. يعطيك الصحة!",
-  }),
-  customer_messages: () => ({
-    confirm: "مرحبا {name}! طلبيتك {order} ({product}) بـ {total}. ابعث «نعم» للتأكيد. {unknown}",
-    noAnswer: "مرحبا {name}، عيطنالك على الطلبية {order}. ابعث «نعم» للتأكيد.",
-    unreachable: "مرحبا {name}، الهاتف خارج التغطية. أكد طلبيتك {order} بـ «نعم».",
-    postponed: "مرحبا {name}، نعاودو نعيطولك على {order}.",
-    shipped: "طلبيتك {order} خرجت، رقم التتبع {tracking}.",
-    delivery: "الموصّل يعيطلك اليوم على {order}.",
-  }),
   product_description: (body) => ({ description: `وصف من الذكاء الاصطناعي لـ ${body.input?.[0]?.content?.[0]?.text?.match(/Product name: (.*)/)?.[1] ?? "?"}\n• ميزة أولى\n• ميزة ثانية` }),
 };
 

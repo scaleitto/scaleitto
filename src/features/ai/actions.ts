@@ -9,34 +9,10 @@ import { asLocale } from "@/i18n";
 import { isSafeImage, pageLanguage } from "@/features/landing/types";
 import { posterPrompt } from "@/features/landing/posters";
 import { aiLanguages } from "./languages";
-import { callGuideRequest, descriptionRequest } from "./prompts";
+import { descriptionRequest } from "./prompts";
 import { pollTask, startPosterTask, startTask, type TaskStart, type TaskState } from "./tasks";
 
 const language = z.enum(aiLanguages);
-
-// Delivery prices as one line for the prompts (the real ones of this shop)
-async function deliverySummary(shopId: string) {
-  const rates = await db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shopId));
-  const range = (values: (number | null)[]) => {
-    const v = values.filter((x): x is number => x != null);
-    return v.length ? (Math.min(...v) === Math.max(...v) ? `${v[0]} DA` : `${Math.min(...v)}–${Math.max(...v)} DA depending on the wilaya`) : null;
-  };
-  if (!rates.length) return "free delivery (no delivery prices set)";
-  const home = range(rates.map((r) => r.homePrice));
-  const office = range(rates.map((r) => r.officePrice));
-  return [home && `home delivery ${home}`, office && `delivery office ${office}`].filter(Boolean).join("; ");
-}
-
-// A call guide for one product (every member: agents use it during calls)
-export async function startCallGuide(lang: string, productId: string, lng: string): Promise<TaskStart> {
-  const { shop, user } = await requireShop(asLocale(lang));
-  const parsed = language.safeParse(lng);
-  if (!parsed.success) return { ok: false, error: "invalid" };
-  const [p] = await db.select().from(schema.products).where(and(eq(schema.products.shopId, shop.id), eq(schema.products.id, productId)));
-  if (!p) return { ok: false, error: "notFound" };
-  const request = callGuideRequest(p, parsed.data, { shopName: shop.name, delivery: await deliverySummary(shop.id), notes: "" });
-  return startTask(shop.id, user.id, "call_guide", request, { language: parsed.data, productId: p.id });
-}
 
 const descriptionInput = z.object({ name: z.string().trim().min(1).max(200), price: z.number().int().min(0).nullable(), notes: z.string().max(5000), images: z.array(z.string()).max(10), language });
 

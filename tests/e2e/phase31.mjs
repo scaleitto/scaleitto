@@ -83,8 +83,8 @@ export default async function phase31(browser) {
     expect((await p.locator("[data-order]").count()) === 2, "two orders");
     expect(!(await p.locator("[data-field=agent]").count()) && !(await p.locator("[data-testid=scan-link]").count()), "no agent column, no scan");
     await p.locator('[data-order="7001"] [data-testid=edit-order]').click();
-    await p.waitForURL((u) => u.pathname === `/ar/call-center/orders/${mine}`);
-    await p.locator("[data-testid=back-to-orders]").waitFor();
+    await p.waitForURL((u) => u.pathname === "/ar/call-center/orders" && u.searchParams.get("edit") === mine);
+    await p.locator("[data-testid=edit-order-dialog] [data-testid=order-form]").waitFor();
     // Confirm from the list's inline status
     await p.goto(`${portal}/orders`);
     await p.locator('[data-order="7001"] select[data-field=status]').selectOption("confirmed");

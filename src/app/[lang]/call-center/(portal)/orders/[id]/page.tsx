@@ -1,10 +1,11 @@
+import { redirect } from "next/navigation";
 import { asLocale } from "@/i18n";
 import { agentHome, requireAgent } from "@/server/auth/context";
-import { OrderDetailPage } from "@/features/orders/OrderDetailPage";
 
+// An order opens in the edit dialog over the list (Zimam's)
 export default async function PortalOrder({ params }: PageProps<"/[lang]/call-center/orders/[id]">) {
   const { lang: rawLang, id } = await params;
   const lang = asLocale(rawLang);
   await requireAgent(lang);
-  return <OrderDetailPage lang={lang} id={id} list={`${agentHome(lang)}/orders`} />;
+  redirect(`${agentHome(lang)}/orders?edit=${encodeURIComponent(id)}`);
 }

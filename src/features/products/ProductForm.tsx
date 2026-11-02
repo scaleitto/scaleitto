@@ -66,7 +66,6 @@ export type ProductFormValues = {
   shortDescription: string;
   price: number | null;
   compareAtPrice: number | null;
-  costPrice: number | null;
   sku: string;
   trackStock: boolean;
   stock: number;
@@ -109,7 +108,6 @@ const tabFields: Record<Tab, string[]> = {
     "name",
     "price",
     "compareAtPrice",
-    "costPrice",
     "sku",
     "slug",
     "status",
@@ -186,7 +184,6 @@ export function ProductForm({
   const [oldPrice, setOldPrice] = useState(
     values.compareAtPrice?.toString() ?? "",
   );
-  const [cost, setCost] = useState(values.costPrice?.toString() ?? "");
   const [similarMode, setSimilarMode] = useState<"auto" | "chosen">(
     values.similarIds ? "chosen" : "auto",
   );
@@ -293,14 +290,6 @@ export function ProductForm({
 
   const priceNum = toNumber(price);
   const oldNum = toNumber(oldPrice);
-  const costNum = toNumber(cost);
-  const margin =
-    priceNum &&
-    costNum !== null &&
-    !Number.isNaN(priceNum) &&
-    !Number.isNaN(costNum)
-      ? priceNum - costNum
-      : null;
 
   // "Clear": an empty form again (new products only)
   const clear = () => {
@@ -317,7 +306,6 @@ export function ProductForm({
     setTrackStock(false);
     setPrice("");
     setOldPrice("");
-    setCost("");
     setSimilarMode("auto");
     setSimilar([]);
     setTab("details");
@@ -508,21 +496,6 @@ export function ProductForm({
                       onChange={(ev) => setOldPrice(ev.target.value)}
                     />
                   </Field>
-                  <Field
-                    label={p.costPrice}
-                    htmlFor="costPrice"
-                    hint={p.costPriceHint}
-                    error={err("costPrice")}
-                  >
-                    <Input
-                      id="costPrice"
-                      name="costPrice"
-                      inputMode="numeric"
-                      dir="ltr"
-                      value={cost}
-                      onChange={(ev) => setCost(ev.target.value)}
-                    />
-                  </Field>
                   <Field label={p.sku} htmlFor="sku" error={err("sku")}>
                     <Input
                       id="sku"
@@ -533,16 +506,6 @@ export function ProductForm({
                     />
                   </Field>
                 </div>
-                {margin !== null && priceNum ? (
-                  <p
-                    className={`text-sm ${margin >= 0 ? "text-accent" : "text-danger"}`}
-                  >
-                    {fmt(p.margin, {
-                      amount: formatPrice(margin, t.common.currency),
-                      percent: Math.round((margin / priceNum) * 100),
-                    })}
-                  </p>
-                ) : null}
                 <Field
                   label={p.productUrl}
                   htmlFor="slug"

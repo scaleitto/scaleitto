@@ -60,8 +60,9 @@ export default async function phase11(browser) {
     expect(!(await owner.locator("tr[data-order='1003']").count()), "search by phone does not reveal it");
     await owner.goto(`${BASE}/ar/dashboard/orders/${lockedOrder}`);
     await owner.waitForSelector("[data-testid=order-locked]");
-    const html = await owner.content();
-    expect(!html.includes("0551000003") && !html.includes("زبون سري"), "no customer details in the page");
+    // (the whole document can still hold the previous page, kept hidden by the router)
+    const shown = await owner.locator("[data-testid=edit-order-dialog]").innerHTML();
+    expect(!shown.includes("0551000003") && !shown.includes("زبون سري"), "no customer details in the dialog");
     expect(!(await owner.locator("[data-testid=order-form]").count()), "no actions on a locked order");
   });
 

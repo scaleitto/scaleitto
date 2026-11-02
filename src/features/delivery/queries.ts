@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 
 export async function listRates(shopId: string) {
@@ -17,8 +17,3 @@ export async function listCarrierAccounts(shopId: string) {
 }
 
 export type CarrierAccountRow = Awaited<ReturnType<typeof listCarrierAccounts>>[number];
-
-export async function getShipment(shopId: string, orderId: string) {
-  const [row] = await db.select().from(schema.shipments).where(and(eq(schema.shipments.shopId, shopId), eq(schema.shipments.orderId, orderId)));
-  return row ?? null;
-}
