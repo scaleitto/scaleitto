@@ -27,7 +27,7 @@ export async function editorProps(lang: Locale, shop: StoreShop, productId: stri
     accounts: accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier })),
     deliveryHref: sectionHref(lang, "delivery"),
     // Checkout & delivery: the store's delivery options, and whether it takes cards (online payment only)
-    deliveryOptions: resolveDelivery(shop.delivery).options.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name || o.type, type: o.type })),
+    deliveryOptions: resolveDelivery(shop.delivery).options.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name, type: o.type })),
     deliverySettingsHref: sectionHref(lang, "deliverySettings"),
     cardPayments: gateway.length > 0,
     paymentsHref: `${sectionHref(lang, "apps")}/payments`,

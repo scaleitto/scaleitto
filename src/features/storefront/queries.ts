@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { RateMap } from "@/features/checkout/pricing";
-import { applyDelivery, limitToOption, resolveDelivery } from "@/features/delivery/settings";
+import { applyDelivery, resolveDelivery } from "@/features/delivery/settings";
 import { planAllowsDomain } from "@/features/settings/domain";
 
 // Active shop by its link, or by its own domain (proxy.ts rewrites <domain>/… to /store/<domain>/…).
@@ -86,7 +86,7 @@ export async function getShippingRates(shopId: string, deliveryOption?: string |
   const table: RateMap = Object.fromEntries(rows.map((r) => [r.wilayaCode, { home: r.homePrice, office: r.officePrice }]));
   const settings = resolveDelivery(shop?.delivery);
   // A product sold with one delivery option only offers that one
-  return limitToOption(applyDelivery(table, settings), settings, deliveryOption);
+  return applyDelivery(table, settings, deliveryOption);
 }
 
 // The thank-you page: the order id is a random UUID, so only the customer who ordered knows it.

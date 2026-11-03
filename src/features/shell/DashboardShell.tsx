@@ -54,6 +54,7 @@ import type { Locale } from "@/i18n/config";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { ActivityPing } from "./ActivityPing";
 import { LogoMark } from "@/ui/Logo";
+import { tabOrder } from "@/lib/permissions";
 
 // Every sidebar entry's icon (merchant sections, their sub-pages and the platform admin's pages)
 const icons: Partial<Record<string, LucideIcon>> = {
@@ -232,7 +233,8 @@ export function DashboardShell({
   );
   const current = [...pages].filter((p) => pathname === p.href || pathname.startsWith(`${p.href}/`)).sort((a, b) => b.href.length - a.href.length)[0];
   const activeEntry = sections.flatMap((s) => s.items).find((i) => i.key === current?.entry);
-  const tabs = activeEntry?.children && activeEntry.children.length > 1 ? activeEntry.children : null;
+  const order = activeEntry ? tabOrder[activeEntry.key] : undefined;
+  const tabs = activeEntry?.children && activeEntry.children.length > 1 ? (order ? [...activeEntry.children].sort((a, b) => order.indexOf(a.key as never) - order.indexOf(b.key as never)) : activeEntry.children) : null;
   // One entry with sub-pages open at a time: the current page's by default
   const [openKey, setOpenKey] = useState<string | null>(current?.entry ?? null);
   const [seen, setSeen] = useState(current?.entry);

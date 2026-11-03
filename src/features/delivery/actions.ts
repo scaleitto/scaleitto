@@ -21,40 +21,6 @@ import { trackShipment } from "./tracking";
 import { sendParcel } from "./send";
 import { cleanManifest, resolveDelivery, resolveManifest } from "./settings";
 
-const MAX_PRICE = 100_000;
-
-// ─── Delivery prices per wilaya ───────────────────────────
-
-export async function saveRates(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("delivery/rates", async () => {
-    const { shop } = await requireSection(asLocale(lang), "delivery");
-    const rows: { shopId: string; wilayaCode: number; homePrice: number | null; officePrice: number | null }[] = [];
-    const fieldErrors: Record<string, string> = {};
-    const read = (name: string) => {
-      const raw = String(formData.get(name) ?? "").replace(/\s/g, "");
-      if (raw === "") return null;
-      const n = Number(raw);
-      if (!Number.isInteger(n) || n < 0 || n > MAX_PRICE) {
-        fieldErrors[name] = "price";
-        return null;
-      }
-      return n;
-    };
-    for (const w of wilayas) {
-      const home = read(`home_${w.code}`);
-      const office = read(`office_${w.code}`);
-      if (home !== null || office !== null) rows.push({ shopId: shop.id, wilayaCode: w.code, homePrice: home, officePrice: office });
-    }
-    if (Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
-    await db.transaction(async (tx) => {
-      await tx.delete(schema.shippingRates).where(eq(schema.shippingRates.shopId, shop.id));
-      if (rows.length) await tx.insert(schema.shippingRates).values(rows);
-    });
-    refresh();
-    return { ok: true };
-  });
-}
-
 // ─── Delivery company accounts ────────────────────────────
 
 const connectSchema = z.object({
@@ -225,7 +191,8 @@ export async function saveDeliverySettings(lang: string, input: unknown): Promis
     const [row] = await db.select({ delivery: schema.shops.delivery }).from(schema.shops).where(eq(schema.shops.id, shop.id));
     const current = resolveDelivery(row?.delivery);
     const next = resolveDelivery({ ...current, ...(input && typeof input === "object" ? input : {}) });
-    if (next.options.some((o) => o.pricing === "flat" && o.price <= 0)) return { ok: false, error: "price" };
+    if (next.options.some((o) => !o.name)) return { ok: false, error: "deliveryName" };
+    if (next.options.some((o) => o.pricing === "wilaya" && o.rates && !Object.keys(o.rates).length)) return { ok: false, error: "deliveryRates" };
     await db.update(schema.shops).set({ delivery: next }).where(eq(schema.shops.id, shop.id));
     refresh();
     return { ok: true };

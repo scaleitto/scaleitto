@@ -51,6 +51,9 @@ export const navGroups = [
 
 export type NavGroupKey = (typeof navGroups)[number]["key"];
 
+// Tabs above an entry's pages when their order differs from the sidebar's (Zimam's Delivery: General settings first)
+export const tabOrder: Partial<Record<string, readonly SectionKey[]>> = { delivery: ["deliverySettings", "delivery", "manifest"] };
+
 export function canAccess(role: MemberRole, key: SectionKey) {
   return (sections.find((s) => s.key === key)?.roles as readonly MemberRole[] | undefined)?.includes(role) ?? false;
 }

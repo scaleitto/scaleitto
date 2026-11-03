@@ -4,10 +4,29 @@ import type { RateMap } from "@/features/checkout/pricing";
 import type { DeliveryType } from "@/server/db/schema";
 import { wilayas } from "@/lib/wilayas";
 
-export const optionPricings = ["wilaya", "flat", "free"] as const;
+// Zimam's delivery options: each option has a name, where it delivers (home, office or both), and a pricing model —
+// free, one flat price (home / office) or prices per wilaya (paid with its own home / office price, free, or not
+// delivered). Options are switched on/off one by one; the default one is preferred at checkout.
+export const optionPricings = ["free", "flat", "wilaya"] as const;
 export type OptionPricing = (typeof optionPricings)[number];
-// One way of delivering offered at checkout: to the door (home) or to the company's desk (office)
-export type DeliveryOption = { id: string; name: string; type: DeliveryType; pricing: OptionPricing; price: number; days: string; active: boolean };
+export const optionTypes = ["home", "office", "both"] as const;
+export type OptionType = (typeof optionTypes)[number];
+export const wilayaStates = ["paid", "free", "none"] as const;
+export type WilayaState = (typeof wilayaStates)[number];
+export type WilayaRate = { state: WilayaState; home: number | null; office: number | null };
+export type DeliveryOption = {
+  id: string;
+  name: string;
+  type: OptionType;
+  pricing: OptionPricing;
+  // flat prices
+  home: number;
+  office: number;
+  // per-wilaya prices (keys = wilaya codes; a wilaya missing = not delivered). null = the older shared wilaya table
+  rates: Record<string, WilayaRate> | null;
+  active: boolean;
+  isDefault: boolean;
+};
 export type DeliverySettings = {
   // Off: no delivery fee is charged anywhere
   enabled: boolean;
@@ -16,50 +35,95 @@ export type DeliverySettings = {
   options: DeliveryOption[];
 };
 
-export const MAX_OPTIONS = 2;
+export const MAX_OPTIONS = 10;
+export const MAX_PRICE = 100_000;
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const price = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= MAX_PRICE ? v : null);
+export const covers = (o: Pick<DeliveryOption, "type">, type: DeliveryType) => o.type === "both" || o.type === type;
+
+function cleanRates(raw: unknown): Record<string, WilayaRate> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Record<string, WilayaRate> = {};
+  for (const w of wilayas) {
+    const r = (raw as Record<string, unknown>)[w.code];
+    if (!r || typeof r !== "object") continue;
+    const x = r as Record<string, unknown>;
+    const state = (wilayaStates as readonly string[]).includes(x.state as string) ? (x.state as WilayaState) : null;
+    if (!state) continue;
+    out[w.code] = state === "paid" ? { state, home: price(x.home), office: price(x.office) } : { state, home: null, office: null };
+  }
+  return out;
+}
 
 export function resolveDelivery(raw: unknown): DeliverySettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const seen = new Set<DeliveryType>();
+  const ids = new Set<string>();
   const options = (Array.isArray(r.options) ? r.options : [])
-    .map((o): DeliveryOption | null => {
+    .slice(0, MAX_OPTIONS)
+    .map((o, i): DeliveryOption | null => {
       if (!o || typeof o !== "object") return null;
       const x = o as Record<string, unknown>;
-      const type: DeliveryType = x.type === "office" ? "office" : "home";
-      // One option per way of delivering
-      if (seen.has(type)) return null;
-      seen.add(type);
+      const type: OptionType = (optionTypes as readonly string[]).includes(x.type as string) ? (x.type as OptionType) : "home";
       const pricing = (optionPricings as readonly string[]).includes(x.pricing as string) ? (x.pricing as OptionPricing) : "wilaya";
-      const price = Number.isInteger(x.price) && (x.price as number) >= 0 && (x.price as number) <= 100_000 ? (x.price as number) : 0;
-      return { id: str(x.id, 40) || type, name: str(x.name, 60), type, pricing, price, days: str(x.days, 40), active: x.active !== false };
+      // Older options had one "price" for their single type
+      const old = price(x.price) ?? 0;
+      let id = str(x.id, 40) || `opt-${i + 1}`;
+      while (ids.has(id)) id = `${id}-${i + 1}`;
+      ids.add(id);
+      return {
+        id,
+        name: str(x.name, 60),
+        type,
+        pricing,
+        home: price(x.home) ?? (type === "home" ? old : 0),
+        office: price(x.office) ?? (type === "office" ? old : 0),
+        rates: pricing === "wilaya" ? cleanRates(x.rates) : null,
+        active: x.active !== false,
+        isDefault: x.isDefault === true,
+      };
     })
     .filter((o): o is DeliveryOption => o !== null);
+  // At most one default
+  const first = options.findIndex((o) => o.isDefault);
+  options.forEach((o, i) => (o.isDefault = i === first));
   return { enabled: r.enabled !== false, autoSend: r.autoSend === true, options };
 }
 
-// The prices checkout really uses: the wilaya table, shaped by the options. No options = the table as it is (home and
-// desk where it has a price); with options, only the active ones are offered, at their own price. Delivery off = free.
-export function applyDelivery(rates: RateMap, settings: DeliverySettings): RateMap {
+// One option's price for a wilaya and a way of delivering (null = not offered there)
+export function optionPrice(o: DeliveryOption, code: number, type: DeliveryType, table: RateMap): number | null {
+  if (!covers(o, type)) return null;
+  if (o.pricing === "free") return 0;
+  if (o.pricing === "flat") return type === "home" ? o.home : o.office;
+  if (!o.rates) return Object.keys(table).length === 0 ? 0 : ((type === "home" ? table[code]?.home : table[code]?.office) ?? null);
+  const r = o.rates[code];
+  if (!r || r.state === "none") return null;
+  if (r.state === "free") return 0;
+  return type === "home" ? r.home : r.office;
+}
+
+// The prices checkout really uses. No options = the shared wilaya table as it is (older stores). With options, each way
+// of delivering takes the first active option that delivers there (the default one first). A product sold with one
+// option (Products → Checkout & delivery) only gets that option. Delivery off = free everywhere.
+export function applyDelivery(table: RateMap, settings: DeliverySettings, productOption?: string | null): RateMap {
   if (!settings.enabled) return {};
-  if (!settings.options.length) return rates;
-  const tableEmpty = Object.keys(rates).length === 0;
-  const priceOf = (code: number, type: DeliveryType): number | null => {
-    const option = settings.options.find((o) => o.type === type && o.active);
-    if (!option) return null;
-    if (option.pricing === "free") return 0;
-    if (option.pricing === "flat") return option.price;
-    return tableEmpty ? 0 : ((type === "home" ? rates[code]?.home : rates[code]?.office) ?? null);
+  if (!settings.options.length) return table;
+  const only = productOption ? settings.options.find((o) => o.id === productOption && o.active) : undefined;
+  const active = only ? [only] : [...settings.options.filter((o) => o.active)].sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
+  const priceOf = (code: number, type: DeliveryType) => {
+    for (const o of active) {
+      const p = optionPrice(o, code, type, table);
+      if (p !== null) return p;
+    }
+    return null;
   };
   return Object.fromEntries(wilayas.map((w) => [w.code, { home: priceOf(w.code, "home"), office: priceOf(w.code, "office") }]));
 }
 
-// A product sold with one delivery option (Products → Checkout & delivery): the other way of delivering is not offered.
-// An unknown or switched-off option leaves the prices as they are.
-export function limitToOption(rates: RateMap, settings: DeliverySettings, optionId: string | null | undefined): RateMap {
-  const option = optionId ? settings.options.find((o) => o.id === optionId && o.active) : undefined;
-  if (!option) return rates;
-  return Object.fromEntries(Object.entries(rates).map(([code, r]) => [code, option.type === "home" ? { home: r.home, office: null } : { home: null, office: r.office }]));
+// An older store priced from the shared table without options: the same prices as one option (shown in the editor)
+export function optionFromTable(table: RateMap): DeliveryOption {
+  const rates: Record<string, WilayaRate> = {};
+  for (const [code, r] of Object.entries(table)) if (r.home !== null || r.office !== null) rates[code] = { state: "paid", home: r.home, office: r.office };
+  return { id: "standard", name: "", type: "both", pricing: "wilaya", home: 0, office: 0, rates, active: true, isDefault: true };
 }
 
 // ─── Handover manifest ─────────────────────────────────────

@@ -178,7 +178,7 @@ export function ProductForm({
   // Connected delivery companies
   accounts: { id: string; name: string }[];
   deliveryHref: string;
-  deliveryOptions: { id: string; name: string; type: "home" | "office" }[];
+  deliveryOptions: { id: string; name: string; type: "home" | "office" | "both" }[];
   deliverySettingsHref: string;
   cardPayments: boolean;
   paymentsHref: string;
@@ -732,7 +732,7 @@ export function ProductForm({
                     <option value="">{p.deliveryOptionAll}</option>
                     {deliveryOptions.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.name === o.type ? p.deliveryTypes[o.type] : o.name}
+                        {o.name || p.deliveryTypes[o.type]}
                       </option>
                     ))}
                   </Select>

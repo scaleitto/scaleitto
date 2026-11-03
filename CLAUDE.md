@@ -309,9 +309,15 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
   `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`
-  (`delivery/settings`: `DeliverySettingsForm` + the wilaya `RatesForm`; `/delivery/rates` redirects). `delivery/settings.ts`
-  (pure): `shops.delivery` via `resolveDelivery` (enabled, autoSend, options: one per type, pricing wilaya / flat / free) and
-  `applyDelivery`, applied inside `getShippingRates` — so every form, order and the order dialog follow it (off = free);
+  (`delivery/settings`: `DeliverySettingsForm`; `/delivery/rates` redirects; page tabs ordered by `permissions.ts tabOrder` = General
+  settings first, like Zimam). `delivery/settings.ts` (pure): `shops.delivery` via `resolveDelivery` (enabled, autoSend, up to 10
+  methods: name, type home / office / both, pricing free / flat (home + office prices) / wilaya (`rates` per wilaya: paid with home +
+  office price, free, none; unset = not delivered; `rates: null` = older methods reading the shared `shipping_rates` table), active,
+  one `isDefault`) and `applyDelivery(table, settings, productOption)` (no methods = the shared table; else per type the first active
+  method that prices it, the preferred one first; a product's method alone), inside `getShippingRates` — so every form, order and
+  the order dialog follow it (off = free). Editor = Zimam's: method cards, `OptionEditor` (choice cards, wilaya table with selection
+  and bulk home / office / free / none), enable switch saved at once; an older store's table shows as a method to save
+  (`optionFromTable`) and is kept as a method when the first one is added;
   `shops.manifest` via `resolveManifest` (draft + published). Sending lives in `delivery/send.ts` (`sendParcel`, used by
   `sendToCarrier`; `scheduleAutoSend` from `applyOrderStatus` on confirmed: orders with `carrier_account_id`, a refusal becomes
   an order note "⚠ …"). Printing: `/[lang]/print/manifest?ids=` (published template or default) opened by `ManifestButton`.

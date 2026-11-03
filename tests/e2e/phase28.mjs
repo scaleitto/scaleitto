@@ -37,29 +37,35 @@ export default async function phase28(browser) {
   await step("Delivery has three pages: companies, handover manifest, settings", async () => {
     await owner.goto(`${dash}/delivery/settings`);
     const tabs = await owner.locator("[data-testid=section-tabs] a").allInnerTexts();
-    expect(tabs.join("|") === "شركات التوصيل|وصل التسليم|إعدادات التوصيل", `tabs (got ${tabs.join("|")})`);
+    expect(tabs.join("|") === "إعدادات التوصيل|شركات التوصيل|وصل التسليم", `tabs (got ${tabs.join("|")})`);
     await owner.goto(`${dash}/delivery/rates`);
     await owner.waitForURL("**/delivery/settings");
   });
 
-  await step("options: home at a fixed price, desk from the table; the store follows", async () => {
+  await step("methods: the older wilaya table is kept as a method; a preferred home method at one price; the store follows", async () => {
+    await owner.waitForSelector("[data-testid=legacy-option]");
     await owner.click("[data-testid=add-delivery-option]");
-    const home = owner.locator("[data-option=home]");
-    await home.locator("[data-field=pricing]").selectOption("flat");
-    await home.locator("[data-field=price]").fill("450");
-    await owner.click("[data-testid=add-delivery-option]");
-    await owner.click("[data-testid=save-delivery-settings]");
-    await owner.getByText("تم الحفظ").first().waitFor();
+    await owner.click("[data-testid=save-option]");
+    await owner.getByText("اكتب اسم الطريقة").waitFor();
+    await owner.fill("[data-testid=option-name]", "توصيل سريع");
+    await owner.click("[data-testid=pricing-flat]");
+    await owner.fill("[data-testid=flat-home]", "450");
+    await owner.locator("label:has([data-testid=option-default])").click();
+    await owner.click("[data-testid=save-option]");
+    await owner.waitForSelector("[data-testid=delivery-saved]");
     const [[s]] = await db.query("SELECT delivery FROM shops WHERE id = ?", [shopId]);
     const d = typeof s.delivery === "string" ? JSON.parse(s.delivery) : s.delivery;
-    expect(d.options.map((o) => `${o.type}:${o.pricing}:${o.price}`).join() === "home:flat:450,office:wilaya:0", `saved (got ${JSON.stringify(d.options)})`);
+    expect(d.options.map((o) => `${o.type}:${o.pricing}:${o.home}:${o.isDefault}`).join() === "both:wilaya:0:false,home:flat:450:true", `saved (got ${JSON.stringify(d.options)})`);
+    expect(d.options[0].rates[16].office === 300 && d.options[0].rates[31].office === null, "the table became the first method's prices");
     const oran = await storeTotal(31);
     expect(oran.total.includes("2450") && oran.office, `Oran: 2000 + 450 at home, no desk (got ${oran.total})`);
+    const algiers = await storeTotal(16, "office");
+    expect(algiers.total.includes("2300"), `Algiers desk from the wilaya method: 2000 + 300 (got ${algiers.total})`);
+    expect((await owner.locator("[data-option] [data-testid=option-summary]").allInnerTexts()).length === 2, "two method cards");
   });
 
   await step("delivery off: no fee anywhere", async () => {
     await owner.locator("label:has([data-testid=delivery-enabled])").click();
-    await owner.click("[data-testid=save-delivery-settings]");
     await expectSoon(async () => {
       const [[s]] = await db.query("SELECT delivery FROM shops WHERE id = ?", [shopId]);
       return (typeof s.delivery === "string" ? JSON.parse(s.delivery) : s.delivery).enabled === false;
@@ -67,7 +73,10 @@ export default async function phase28(browser) {
     const algiers = await storeTotal(16);
     expect(algiers.total.includes("2000") && !algiers.total.includes("2450"), `free delivery (got ${algiers.total})`);
     await owner.locator("label:has([data-testid=delivery-enabled])").click();
-    await owner.click("[data-testid=save-delivery-settings]");
+    await expectSoon(async () => {
+      const [[s]] = await db.query("SELECT delivery FROM shops WHERE id = ?", [shopId]);
+      return (typeof s.delivery === "string" ? JSON.parse(s.delivery) : s.delivery).enabled === true;
+    });
   });
 
   await step("companies: automatic send of confirmed orders that have a delivery company", async () => {

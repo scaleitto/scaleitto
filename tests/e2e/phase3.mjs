@@ -28,19 +28,28 @@ export default async function phase3(browser) {
     return id;
   }
 
-  await step("delivery prices: apply to all, adjust one wilaya, used by the store", async () => {
+  await step("delivery prices: a method per wilaya — select all, bulk prices, adjust one wilaya, used by the store", async () => {
     await page.goto(`${delivery}/settings`);
-    await page.fill('[aria-label="تطبيق على كل الولايات إلى المنزل"]', "600");
-    await page.fill('[aria-label="تطبيق على كل الولايات إلى المكتب"]', "400");
-    await page.click('button:has-text("تطبيق على كل الولايات")');
-    await page.fill('[aria-label="إلى المنزل 16 - الجزائر"]', "300");
-    await page.fill('[aria-label="إلى المكتب 31 - وهران"]', "");
-    await page.locator("button[type=submit]").click();
-    await page.waitForSelector("text=تم الحفظ");
-    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM shipping_rates WHERE shop_id = ?", [shopId]);
-    expect(Number(n) === 58, `58 wilayas saved (got ${n})`);
-    const [[oran]] = await db.query("SELECT home_price, office_price FROM shipping_rates WHERE shop_id = ? AND wilaya_code = 31", [shopId]);
-    expect(oran.home_price === 600 && oran.office_price === null, "Oran: home 600, no office");
+    await page.click("[data-testid=add-delivery-option]");
+    await page.fill("[data-testid=option-name]", "التوصيل العادي");
+    await page.click("[data-testid=type-both]");
+    await page.click("[data-testid=pricing-wilaya]");
+    await page.click("[data-testid=select-all-wilayas]");
+    await page.click("[data-testid=bulk-home]");
+    await page.fill("[data-testid=price-dialog-input]", "600");
+    await page.click("[data-testid=price-dialog-apply]");
+    await page.click("[data-testid=bulk-office]");
+    await page.fill("[data-testid=price-dialog-input]", "400");
+    await page.click("[data-testid=price-dialog-apply]");
+    await page.fill("[data-wilaya='16'] [data-price=home]", "300");
+    await page.fill("[data-wilaya='31'] [data-price=office]", "");
+    expect((await page.locator("[data-testid=rates-configured]").innerText()).includes("58"), "58 wilayas set");
+    await page.click("[data-testid=save-option]");
+    await page.waitForSelector("[data-testid=delivery-saved]");
+    const [[row]] = await db.query("SELECT delivery FROM shops WHERE id = ?", [shopId]);
+    const d = typeof row.delivery === "string" ? JSON.parse(row.delivery) : row.delivery;
+    const rates = d.options[0].rates;
+    expect(Object.keys(rates).length === 58 && rates[31].home === 600 && rates[31].office === null && rates[16].home === 300, "Oran: home 600, no office; Algiers home 300");
     const c = await browser.newPage();
     await c.goto(`${store}/p/perfume`);
     await c.selectOption("#wilaya", "16");
