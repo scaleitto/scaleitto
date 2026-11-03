@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { turnstileSiteKey } from "@/server/turnstile";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { ChevronLeft, ScanLine } from "lucide-react";
@@ -111,7 +112,7 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
       );
       break;
     case "fakeGuard":
-      body = <OrderGuardForm lang={lang} settings={ctx.protection} t={text} />;
+      body = <OrderGuardForm lang={lang} settings={ctx.protection} captchaReady={Boolean(turnstileSiteKey())} t={text} />;
       break;
     case "agentAssign": {
       const [agents, products] = await Promise.all([

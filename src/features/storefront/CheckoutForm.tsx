@@ -1,5 +1,6 @@
 "use client";
 
+import { TurnstileBox, type StoreCaptcha } from "./Turnstile";
 import { addToCart } from "./cart";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Check, ShoppingCart, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
@@ -42,6 +43,7 @@ export function CheckoutForm({
   saveLead,
   cart = null,
   payMethods = [],
+  captcha = null,
   settings = defaultForm,
   embedded = false,
   whatsapp,
@@ -64,6 +66,8 @@ export function CheckoutForm({
   cart?: { shopId: string; productId: string; href: string } | null;
   // Apps → Online payments: the buyer may pay by card
   payMethods?: OnlineMethod[];
+  // Apps → Fake OrderGuard → Checkout captcha
+  captcha?: StoreCaptcha;
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -711,6 +715,7 @@ export function CheckoutForm({
       )}
 
       {payMethods.length > 0 && (!stepper || step === 2) && <PaymentChoice t={t} methods={payMethods} cardOnly={product.cardOnly} />}
+      {captcha && (captcha.mode === "always" || state.error === "captcha") && (!stepper || step === 2) && <TurnstileBox siteKey={captcha.siteKey} lang={t.lang} />}
       {stepper && step === 1 ? (
         <button type="button" onClick={nextStep} disabled={soldOut} className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60" data-testid="form-next">
           {soldOut ? t.outOfStock : t.form.next} <ChevronLeft size={20} className="ltr:rotate-180" />

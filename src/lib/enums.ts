@@ -73,6 +73,10 @@ export type ProtectionSettings = {
   autoFakeScore: number;
   // A phone with this many fake / wrong-number orders is blocked automatically (0 = off)
   autoBlockFake: number;
+  // Checkout check (Cloudflare Turnstile, the platform's keys): never, on every order, or only for suspicious buyers;
+  // when Cloudflare cannot be reached the order is accepted or refused
+  captcha: "never" | "always" | "risky";
+  captchaFallback: "accept" | "refuse";
 };
 
 

@@ -1,4 +1,5 @@
 import type { OnlineMethod } from "@/features/payments/methods";
+import type { StoreCaptcha } from "@/features/storefront/Turnstile";
 import type { ReactNode } from "react";
 import { brandVars, type Theme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
@@ -28,6 +29,7 @@ export function PublicLanding({
   whatsapp,
   theme,
   payMethods = [],
+  captcha = null,
   children,
 }: {
   language: string;
@@ -44,6 +46,7 @@ export function PublicLanding({
   theme: Theme;
   // Apps → Online payments: the buyer may pay by card
   payMethods?: OnlineMethod[];
+  captcha?: StoreCaptcha;
   children?: ReactNode;
 }) {
   const locale = interfaceLocale(pageLanguage(language));
@@ -61,6 +64,7 @@ export function PublicLanding({
       settings={{ ...settings, stickyButton: false }}
       whatsapp={whatsapp}
       payMethods={payMethods}
+      captcha={captcha}
     />
   );
   return (

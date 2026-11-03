@@ -88,6 +88,8 @@ export async function saveOrderGuard(lang: string, _prev: ActionState, formData:
       riskThreshold: n("riskThreshold"),
       maxQuantity: n("maxQuantity"),
       blockedWords: text(formData, "blockedWords").split(/\n/),
+      captcha: text(formData, "captcha") as "never",
+      captchaFallback: text(formData, "captchaFallback") as "accept",
     });
     await db.update(schema.shops).set({ protection: next }).where(eq(schema.shops.id, shop.id));
     refresh();

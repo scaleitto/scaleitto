@@ -1,4 +1,5 @@
 import "server-only";
+import { turnstileSiteKey, verifyTurnstile } from "@/server/turnstile";
 import { withPromotion } from "@/features/promotions/apply";
 import { offered } from "@/features/products/variants";
 import { resolveApps } from "@/features/apps/settings";
@@ -18,7 +19,7 @@ import type { OrderInput } from "./validators";
 import { applyOrderStatus } from "@/features/orders/transition";
 import type { OrderTracking } from "@/server/db/schema";
 
-export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping" | "invalid" | "minQuantity" | "maxPerOrder";
+export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping" | "invalid" | "minQuantity" | "maxPerOrder" | "captcha" | "captchaDown";
 export type PlaceOrderResult = { ok: true; orderId: string; number: number } | { ok: false; error: CheckoutError };
 
 const FIRST_ORDER_NUMBER = 1001;
@@ -48,7 +49,7 @@ export function placeOrder(shop: Pick<StoreShop, "id">, productId: string, input
   return placeCartOrder(shop, [{ productId, variantId: input.variantId || null, quantity: input.quantity }], input, meta);
 }
 
-type OrderMeta = { ip: string | null; userAgent: string | null; landingPageId?: string | null; landingVersion?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null; memberId?: string };
+type OrderMeta = { ip: string | null; userAgent: string | null; captcha?: string | null; landingPageId?: string | null; landingVersion?: string | null; extra?: { label: string; value: string }[]; tracking?: OrderTracking | null; memberId?: string };
 
 // One order for one or several products (Apps → Shopping cart): every line priced as the store shows it (promotion,
 // wholesale tier, quantity offer), its stock taken atomically, one delivery fee (free when a line's offer says so).
@@ -100,6 +101,12 @@ export async function placeCartOrder(shop: Pick<StoreShop, "id">, cart: CartLine
   if (!member && protection.enabled && protection.blockBots && isObviousBot(signals)) return { ok: false, error: "bot" };
   const risk = member || !protection.enabled ? { score: 0, reasons: [] } : scoreOrder(signals);
   const suspicious = risk.score >= protection.riskThreshold;
+  // Checkout captcha (Zimam): on every order, or only for a suspicious buyer; Cloudflare unreachable → the store's choice
+  if (!member && protection.enabled && protection.captcha !== "never" && turnstileSiteKey() && (protection.captcha === "always" || suspicious)) {
+    const check = await verifyTurnstile(meta.captcha, meta.ip);
+    if (check === "failed") return { ok: false, error: "captcha" };
+    if (check === "unreachable" && protection.captchaFallback === "refuse") return { ok: false, error: "captchaDown" };
+  }
   // Very high risk: marked "fake order" right away (kept for the record, given to nobody, stock given back)
   const autoFake = protection.autoFakeScore > 0 && risk.score >= protection.autoFakeScore;
 

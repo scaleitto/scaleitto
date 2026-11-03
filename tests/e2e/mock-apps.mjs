@@ -116,6 +116,12 @@ export function startMockApps(port) {
       platformHooks.push({ platform: "woocommerce", body: JSON.parse(raw) });
       return json(res, 201, { id: 70 + platformHooks.length, ...JSON.parse(raw) });
     }
+    // Cloudflare Turnstile siteverify (E2E_TURNSTILE_URL): "good-…" passes, "down" = Cloudflare unreachable, others fail
+    if (path === "/turnstile/v0/siteverify" && req.method === "POST") {
+      const token = new URLSearchParams(raw).get("response") ?? "";
+      if (token === "down") return json(res, 503, {});
+      return json(res, 200, { success: token.startsWith("good-"), "error-codes": token.startsWith("good-") ? [] : ["invalid-input-response"] });
+    }
     if (path === "/sheet-import/exec" && req.method === "POST") {
       sheetWrites.push({ signature: url.searchParams.get("signature"), body: JSON.parse(raw) });
       res.writeHead(200, { "Content-Type": "text/plain" });

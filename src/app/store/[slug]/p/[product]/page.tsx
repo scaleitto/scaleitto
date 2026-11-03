@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { storeCaptcha } from "@/server/turnstile";
+import { resolveProtection } from "@/features/checkout/protection-settings";
 import { liveMethods } from "@/features/payments/flow";
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { descriptionHtml, richTextToPlain } from "@/lib/rich-text";
@@ -142,6 +144,7 @@ export default async function ProductPage({
               settings={productForm(shop, product)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
               payMethods={await liveMethods(shop.id)}
+      captcha={storeCaptcha(resolveProtection(shop.protection))}
               cart={resolveApps(shop.apps).cart ? { shopId: shop.id, productId: product.id, href: `${base}/cart` } : null}
             />
             <TrustBadges t={t} items={trustBadgeItems(resolveApps(shop.apps).badges, t)} />

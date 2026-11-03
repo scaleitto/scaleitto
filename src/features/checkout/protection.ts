@@ -37,7 +37,7 @@ export async function checkOrderAllowed(shopId: string, input: OrderCheck, ip: s
   const real = ne(o.status, "abandoned");
   const [[blocked], [byPhone], [byWeek], [byIp], [duplicate]] = await Promise.all([
     db.select({ n: count() }).from(schema.blockedPhones).where(and(eq(schema.blockedPhones.shopId, shopId), eq(schema.blockedPhones.phone, phone))),
-    db.select({ n: count() }).from(o).where(and(eq(o.shopId, shopId), real, eq(o.phone, phone), gte(o.createdAt, hoursAgo(24)))),
+    db.select({ n: count() }).from(o).where(and(eq(o.shopId, shopId), real, eq(o.phone, phone), gte(o.createdAt, hoursAgo(settings.duplicateHours)))),
     db.select({ n: count() }).from(o).where(and(eq(o.shopId, shopId), real, eq(o.phone, phone), gte(o.createdAt, hoursAgo(24 * 7)))),
     ip ? db.select({ n: count() }).from(o).where(and(eq(o.shopId, shopId), real, eq(o.ip, ip), gte(o.createdAt, hoursAgo(1)))) : Promise.resolve([{ n: 0 }]),
     settings.blockDuplicates

@@ -1,4 +1,6 @@
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { storeCaptcha } from "@/server/turnstile";
+import { resolveProtection } from "@/features/checkout/protection-settings";
 import { liveMethods } from "@/features/payments/flow";
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { resolveApps } from "@/features/apps/settings";
@@ -68,6 +70,7 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         sections={sections}
         settings={productForm(shop, product)}
         payMethods={await liveMethods(shop.id)}
+      captcha={storeCaptcha(resolveProtection(shop.protection))}
         product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers, wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null, maxPerOrder: product.maxPerOrder, cardOnly: product.cardOnly }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
         rates={await getShippingRates(shop.id, product.deliveryOption)}

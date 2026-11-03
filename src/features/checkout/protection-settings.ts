@@ -18,6 +18,8 @@ export const defaultProtection: ProtectionSettings = {
   blockedWilayas: [],
   autoFakeScore: 0,
   autoBlockFake: 0,
+  captcha: "never",
+  captchaFallback: "accept",
 };
 
 export const MAX_BLOCKED_ITEMS = 100;
@@ -48,7 +50,8 @@ export function resolveProtection(raw: Partial<ProtectionSettings> | null | unde
     holdSuspicious: bool(r.holdSuspicious, d.holdSuspicious),
     useNetwork: bool(r.useNetwork, d.useNetwork),
     maxPerPhonePerWeek: int(r.maxPerPhonePerWeek, 1, 100, d.maxPerPhonePerWeek),
-    duplicateHours: int(r.duplicateHours, 1, 168, d.duplicateHours),
+    // The protection period (Zimam): orders from one number are counted in it, and a repeat inside it is refused
+    duplicateHours: int(r.duplicateHours, 1, 720, d.duplicateHours),
     maxQuantity: int(r.maxQuantity, 0, 1000, d.maxQuantity),
     blockedIps: listOf(r.blockedIps).filter(isIp),
     blockedWords: listOf(r.blockedWords)
@@ -57,6 +60,8 @@ export function resolveProtection(raw: Partial<ProtectionSettings> | null | unde
     blockedWilayas: (Array.isArray(r.blockedWilayas) ? r.blockedWilayas : []).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 69),
     autoFakeScore: r.autoFakeScore === 0 ? 0 : int(r.autoFakeScore, 10, 100, d.autoFakeScore),
     autoBlockFake: int(r.autoBlockFake, 0, 10, d.autoBlockFake),
+    captcha: r.captcha === "always" || r.captcha === "risky" ? r.captcha : "never",
+    captchaFallback: r.captchaFallback === "refuse" ? "refuse" : "accept",
   };
 }
 

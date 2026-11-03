@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { storeCaptcha } from "@/server/turnstile";
+import { resolveProtection } from "@/features/checkout/protection-settings";
 import { notFound } from "next/navigation";
 import { getShippingRates, getShopBySlug, storeBase } from "@/features/storefront/queries";
 import { shopLocale } from "@/features/storefront/StoreShell";
@@ -28,6 +30,7 @@ export default async function Cart({ params }: PageProps<"/store/[slug]/cart">) 
       currency={currencyLabel(locale)}
       action={submitCart.bind(null, shop.slug)}
       payMethods={await liveMethods(shop.id)}
+      captcha={storeCaptcha(resolveProtection(shop.protection))}
       t={getStoreText(locale)}
     />
   );

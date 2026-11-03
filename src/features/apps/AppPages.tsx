@@ -58,13 +58,15 @@ export function SwitchApp({ lang, app, enabled, label, hint, children, t }: { la
 const orderLimits = [1, 2, 3, 5, 10];
 const windows = [1, 3, 6, 12, 24, 48, 72];
 
-export function OrderGuardForm({ lang, settings, t }: { lang: string; settings: ProtectionSettings; t: Text }) {
+export function OrderGuardForm({ lang, settings, captchaReady, t }: { lang: string; settings: ProtectionSettings; captchaReady: boolean; t: Text }) {
   const g = t.apps.guard;
   const { state, pending, onSubmit } = useActionForm(saveOrderGuard.bind(null, lang));
   const [enabled, setEnabled] = useState(settings.enabled);
   const hours = (n: number) => (n % 24 === 0 ? fmt(n === 24 ? g.day : g.days, { n: n / 24 }) : fmt(n === 1 ? g.hour : g.hours, { n }));
   const limits = orderLimits.includes(settings.maxPerPhonePerDay) ? orderLimits : [...orderLimits, settings.maxPerPhonePerDay].sort((a, b) => a - b);
-  const wins = windows.includes(settings.duplicateHours) ? windows : [...windows, settings.duplicateHours].sort((a, b) => a - b);
+  const [win, setWin] = useState(windows.includes(settings.duplicateHours) ? String(settings.duplicateHours) : "custom");
+  const custom = win === "custom";
+  const [captcha, setCaptcha] = useState(settings.captcha);
   return (
     <form onSubmit={onSubmit} className="space-y-5" data-testid="app-form">
       <FormMessage state={state} errors={t.errors as Record<string, string>} success={t.apps.saved} />
@@ -88,13 +90,19 @@ export function OrderGuardForm({ lang, settings, t }: { lang: string; settings: 
               </Select>
             </Field>
             <Field label={g.window} htmlFor="g-window" hint={g.windowHint}>
-              <Select id="g-window" name="duplicateHours" defaultValue={String(settings.duplicateHours)}>
-                {wins.map((n) => (
-                  <option key={n} value={n}>
-                    {hours(n)}
-                  </option>
-                ))}
-              </Select>
+              <div className="flex gap-2">
+                <Select id="g-window" name={custom ? undefined : "duplicateHours"} value={win} onChange={(e) => setWin(e.target.value)} data-testid="guard-window">
+                  {windows.map((n) => (
+                    <option key={n} value={n}>
+                      {hours(n)}
+                    </option>
+                  ))}
+                  <option value="custom">{g.custom}</option>
+                </Select>
+                {custom && (
+                  <Input name="duplicateHours" type="number" min={1} max={720} defaultValue={settings.duplicateHours} dir="ltr" className="w-28" aria-label={g.customHours} data-testid="guard-custom-hours" />
+                )}
+              </div>
             </Field>
           </div>
           <div className="space-y-4 border-t border-line pt-5">
@@ -102,6 +110,36 @@ export function OrderGuardForm({ lang, settings, t }: { lang: string; settings: 
             <SwitchRow name="blockBots" defaultChecked={settings.blockBots} label={g.bots} hint={g.botsHint} />
             <SwitchRow name="useNetwork" defaultChecked={settings.useNetwork} label={g.network} hint={g.networkHint} />
             <SwitchRow name="holdSuspicious" defaultChecked={settings.holdSuspicious} label={g.hold} hint={g.holdHint} />
+          </div>
+        </Card>
+        <Card className="space-y-4 p-6" data-testid="guard-captcha">
+          <div>
+            <h2 className="font-semibold">{g.captcha}</h2>
+            <p className="mt-0.5 text-sm text-muted">{g.captchaHint}</p>
+          </div>
+          {!captchaReady && <p className="rounded-xl bg-panel-2 p-3 text-sm text-muted">{g.captchaMissing}</p>}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{g.captchaWhen}</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(["never", "always", "risky"] as const).map((m) => (
+                <label key={m} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line p-3 text-sm has-checked:border-accent has-checked:bg-accent-soft/40">
+                  <input type="radio" name="captcha" value={m} checked={captcha === m} onChange={() => setCaptcha(m)} className="accent-[var(--color-accent)]" data-testid={`captcha-${m}`} />
+                  {g.captchaModes[m]}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{g.captchaFallback}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(["accept", "refuse"] as const).map((m) => (
+                <label key={m} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line p-3 text-sm has-checked:border-accent has-checked:bg-accent-soft/40">
+                  <input type="radio" name="captchaFallback" value={m} defaultChecked={settings.captchaFallback === m} className="accent-[var(--color-accent)]" data-testid={`captcha-fallback-${m}`} />
+                  {g.captchaFallbacks[m]}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted">{g.captchaFallbackHint}</p>
           </div>
         </Card>
         <Card className="space-y-4 p-6">
@@ -124,6 +162,8 @@ export function OrderGuardForm({ lang, settings, t }: { lang: string; settings: 
         <>
           <input type="hidden" name="maxPerPhonePerDay" value={settings.maxPerPhonePerDay} />
           <input type="hidden" name="duplicateHours" value={settings.duplicateHours} />
+          <input type="hidden" name="captcha" value={settings.captcha} />
+          <input type="hidden" name="captchaFallback" value={settings.captchaFallback} />
           <input type="hidden" name="riskThreshold" value={settings.riskThreshold} />
           <input type="hidden" name="maxQuantity" value={settings.maxQuantity} />
           <input type="hidden" name="blockedWords" value={settings.blockedWords.join("\n")} />

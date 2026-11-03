@@ -136,7 +136,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `TrustBadges` + `trustBadgeItems` under the product form, store home, product preview; returns/guarantee off by default —
   merchant promises), `contact` (floating phone/WhatsApp in `StoreShell`; replaced design.floatingWhatsapp), `thanks` (title,
   message with {phone}, button, redirect home/product on the store thank-you page). Fake OrderGuard = `shops.protection`
-  (`enabled` off: only the blacklist is checked, no risk score/bot refusal), Agent auto assign = `shops.assign_mode`, Blacklist =
+  (`enabled` off: only the blacklist is checked, no risk score/bot refusal; `duplicateHours` = Zimam's protection period, 1–720 h with
+  "Custom", counts the per-number limit and repeats; checkout captcha `captcha` never / always / risky + `captchaFallback` accept /
+  refuse = Cloudflare Turnstile with the platform's TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY: `server/turnstile.ts verifyTurnstile`
+  in `placeCartOrder` (errors captcha / captchaDown), `storeCaptcha` → `TurnstileBox` in CheckoutForm / CartPage (risky: shown after a
+  "captcha" refusal); E2E_TURNSTILE_URL = mock-apps siteverify, phase37.mjs), Agent auto assign = `shops.assign_mode`, Blacklist =
   `blocked_phones` + `protection.blockedIps`, QR codes (`qrcode`, made in the browser), Product import, Webhook (+ the send log).
   Order tracking (`tracking`: private link `/store/<slug>/track?o=&k=` with `crypto.ts orderToken`, lookup by phone or number+phone,
   `storefront/tracking.ts` + `TrackOrder.tsx`, rate-limited lookups, contact = `trackingContact`). Promotions (`promotions` table,

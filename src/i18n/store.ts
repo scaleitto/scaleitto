@@ -2,6 +2,8 @@
 import type { Locale } from "./config";
 
 const ar = {
+  // The language code (Cloudflare's checkout widget)
+  lang: "ar" as string,
   // Place names (communes) in Arabic script
   arabicNames: true as boolean,
   products: "منتجاتنا",
@@ -155,6 +157,8 @@ const ar = {
     duplicate: "طلبك لهذا المنتج مسجل مسبقاً، سنتصل بك قريباً لتأكيده",
     quantity: "الكمية المطلوبة أكبر مما يقبله المتجر في طلبية واحدة",
     noWilaya: "التوصيل غير متوفر لهذه الولاية حالياً",
+    captcha: "أكّد أنك لست برنامجاً آلياً ثم أعد إرسال الطلب.",
+    captchaDown: "تعذّر التحقق الآن. حاول مرة أخرى بعد قليل.",
     bot: "تعذّر إرسال الطلب من هذا المتصفح. حاول مرة أخرى أو اتصل بالمتجر.",
     unexpected: "حدث خطأ، حاول مرة أخرى",
   },
@@ -163,6 +167,7 @@ const ar = {
 export type StoreText = typeof ar;
 
 const fr: StoreText = {
+  lang: "fr",
   arabicNames: false,
   products: "Nos produits",
   empty: "Aucun produit pour le moment, revenez bientôt.",
@@ -315,12 +320,15 @@ const fr: StoreText = {
     duplicate: "Votre commande pour ce produit est déjà enregistrée, nous vous appellerons bientôt",
     quantity: "La quantité demandée dépasse ce que la boutique accepte par commande",
     noWilaya: "La livraison n'est pas disponible pour cette wilaya pour le moment",
+    captcha: "Confirmez que vous n'êtes pas un robot puis renvoyez la commande.",
+    captchaDown: "La vérification est indisponible pour le moment. Réessayez dans un instant.",
     bot: "La commande n'a pas pu être envoyée depuis ce navigateur. Réessayez ou contactez la boutique.",
     unexpected: "Une erreur s'est produite, réessayez",
   },
 };
 
 const en: StoreText = {
+  lang: "en",
   arabicNames: false,
   products: "Our products",
   empty: "No products right now, come back soon.",
@@ -473,6 +481,8 @@ const en: StoreText = {
     duplicate: "Your order for this product is already registered, we will call you soon",
     quantity: "The quantity is more than the store accepts in one order",
     noWilaya: "Delivery is not available for this wilaya at the moment",
+    captcha: "Confirm you are not a robot, then send the order again.",
+    captchaDown: "The check is not available right now. Try again in a moment.",
     bot: "The order could not be sent from this browser. Try again or contact the store.",
     unexpected: "Something went wrong, please try again",
   },

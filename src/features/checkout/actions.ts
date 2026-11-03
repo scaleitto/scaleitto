@@ -108,7 +108,7 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
     if (input.website) return { ok: false, error: "unexpected" };
-    const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), landingPageId: landing?.id ?? null, landingVersion: page?.version ?? null, extra, tracking: await adTracking() });
+    const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, landingPageId: landing?.id ?? null, landingVersion: page?.version ?? null, extra, tracking: await adTracking() });
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");

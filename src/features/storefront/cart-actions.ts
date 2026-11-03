@@ -71,7 +71,7 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const h = await headers();
     const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
     const c = await cookies();
-    const placed = await placeCartOrder(shop, lines.data, parsed.data, { ip, userAgent: h.get("user-agent"), tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
+    const placed = await placeCartOrder(shop, lines.data, parsed.data, { ip, userAgent: h.get("user-agent"), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");
