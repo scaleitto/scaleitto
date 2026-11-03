@@ -6,12 +6,12 @@ import {
   Ban,
   Bot,
   Copy,
-  House,
   Package,
   Plus,
-  Store,
   Trash2,
   X,
+  Building,
+  House,
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatPrice } from "@/lib/format";
@@ -22,7 +22,6 @@ import {
   Field,
   Input,
   Select,
-  Textarea,
   buttonClass,
   inputClass,
 } from "@/ui";
@@ -200,11 +199,30 @@ export function OrderForm({
         )}
       />
       <input type="hidden" name="total" value={manualTotal ?? ""} />
-      <div className="grid gap-5 lg:grid-cols-2">
+      {/* Edit: two columns; Zimam's new order: product details, then customer details */}
+      <div className={order ? "grid gap-5 lg:grid-cols-2" : "space-y-5"}>
         {/* Products */}
         <section className="space-y-4 rounded-xl border border-line p-4">
+          {/* Zimam: the order's main product with its photo on top */}
+          {lines[0] && product(lines[0].productId) && (
+            <div className="flex items-center gap-3" data-testid="order-main-product">
+              {product(lines[0].productId)?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={product(lines[0].productId)!.image!} alt="" className="size-24 rounded-xl border border-line object-cover" />
+              ) : (
+                <span className="grid size-24 place-items-center rounded-xl bg-panel-2 text-muted">
+                  <Package size={28} />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-xs text-muted">{p.productLabel}</p>
+                <p className="font-semibold">{product(lines[0].productId)?.name}</p>
+              </div>
+            </div>
+          )}
           <h3 className="font-semibold">
             {order ? p.orderProducts : p.productDetails}
+            <span className="ms-2 text-xs font-normal text-muted tabular-nums">{lines.length}</span>
           </h3>
           <ul className="space-y-2" data-testid="order-lines">
             {lines.map((l) => {
@@ -351,7 +369,7 @@ export function OrderForm({
               </dd>
             </div>
           </dl>
-          {members.length > 0 && (
+          {order && members.length > 0 && (
             <Field label={p.agent} htmlFor="agent">
               <Select
                 id="agent"
@@ -367,15 +385,11 @@ export function OrderForm({
               </Select>
             </Field>
           )}
-          <Field label={p.noteLabel} htmlFor="note">
-            <Textarea
-              id="note"
-              name="note"
-              rows={2}
-              defaultValue={order?.note ?? ""}
-              placeholder={p.notePlaceholder}
-            />
-          </Field>
+          {order && (
+            <Field label={p.noteLabel} htmlFor="note">
+              <Input id="note" name="note" maxLength={500} defaultValue={order.note ?? ""} placeholder={p.notePlaceholder} />
+            </Field>
+          )}
           {order && (
             <IpRow
               lang={lang}
@@ -441,7 +455,7 @@ export function OrderForm({
                 <option value="">{p.chooseWilaya}</option>
                 {wilayas.map((w) => (
                   <option key={w.code} value={w.code}>
-                    {String(w.code).padStart(2, "0")} - {w.name}
+                    {w.name}
                   </option>
                 ))}
               </Select>
@@ -459,71 +473,68 @@ export function OrderForm({
               />
             </Field>
           </div>
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium">
-              {order ? p.deliveryType : p.method}
-            </legend>
-            <input type="hidden" name="deliveryType" value={type} />
-            <div className="grid grid-cols-2 gap-2">
-              {(["home", "office"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={type === k}
-                  data-delivery={k}
-                  onClick={() => setType(k)}
-                  className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold transition-colors ${type === k ? "border-accent bg-accent-soft text-accent-ink" : "border-line hover:bg-panel-2"}`}
-                >
-                  {k === "home" ? <House size={16} /> : <Store size={16} />}{" "}
-                  {k === "home" ? p.homeDelivery : p.deskPickup}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          {type === "home" && (
-            <Field label={p.addressLabel} htmlFor="address">
-              <Input
-                id="address"
-                name="address"
-                defaultValue={order?.address ?? ""}
-              />
-            </Field>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={p.company} htmlFor="carrierAccountId">
-              <Select
-                id="carrierAccountId"
-                name="carrierAccountId"
-                defaultValue={order?.carrierAccountId ?? ""}
-              >
-                <option value="">{p.none}</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
+          {order ? (
+            <Field label={p.deliveryType} htmlFor="deliveryType">
+              {/* Zimam's edit dialog: a dropdown */}
+              <Select id="deliveryType" name="deliveryType" value={type} onChange={(e) => setType(e.target.value as "home" | "office")} data-testid="delivery-type">
+                <option value="home">{p.homeDelivery}</option>
+                <option value="office">{p.deskPickup}</option>
               </Select>
             </Field>
-            <Field label={p.fee} htmlFor="fee" hint={p.feeHint}>
-              <Input
-                id="fee"
-                value={fee}
-                readOnly
-                className="tabular-nums"
-                data-testid="order-fee"
-              />
+          ) : (
+            <fieldset>
+              {/* Zimam's new order: two cards */}
+              <legend className="mb-2 text-sm font-medium">{p.method}</legend>
+              <input type="hidden" name="deliveryType" value={type} />
+              <div className="grid grid-cols-2 gap-3">
+                {(["home", "office"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={type === k}
+                    data-delivery={k}
+                    onClick={() => setType(k)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-4 text-xs font-semibold transition-colors ${type === k ? "border-accent bg-accent-soft text-accent-ink" : "border-line hover:bg-panel-2"}`}
+                  >
+                    {k === "home" ? <House size={20} /> : <Building size={20} />}
+                    {k === "home" ? p.homeDelivery : p.deskPickup}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          {order ? (
+            <>
+              {type === "home" && (
+                <Field label={p.addressLabel} htmlFor="address">
+                  <Input id="address" name="address" defaultValue={order.address ?? ""} />
+                </Field>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={p.company} htmlFor="carrierAccountId">
+                  <Select id="carrierAccountId" name="carrierAccountId" defaultValue={order.carrierAccountId ?? ""}>
+                    <option value="">{p.none}</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={p.fee} htmlFor="fee" hint={p.feeHint}>
+                  <Input id="fee" value={fee} readOnly className="tabular-nums" data-testid="order-fee" />
+                </Field>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="shippingWaived" checked={waived} onChange={(e) => setWaived(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
+                {p.feeWaived}
+              </label>
+            </>
+          ) : (
+            <Field label={p.noteOptional} htmlFor="note">
+              <Input id="note" name="note" maxLength={500} placeholder={p.notePlaceholderNew} />
             </Field>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="shippingWaived"
-              checked={waived}
-              onChange={(e) => setWaived(e.target.checked)}
-              className="size-4 accent-[var(--color-accent)]"
-            />
-            {p.feeWaived}
-          </label>
+          )}
           {order && (
             <Field label={p.orderStatus} htmlFor="status">
               <Select id="status" name="status" defaultValue={order.status}>

@@ -129,7 +129,7 @@ body {
     font-variant-numeric: tabular-nums;
   }
   :where([data-shell] thead) {
-    background: var(--color-panel-2);
+    background: transparent;
   }
   :where([data-shell] thead th) {
     font-weight: 600;

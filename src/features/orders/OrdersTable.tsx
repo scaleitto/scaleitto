@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Lock, MessageCircle, Package, Pencil, CreditCard, ShieldAlert } from "lucide-react";
+import { Ban, Building2, Check, ChevronDown, CircleAlert, ClipboardCheck, ClipboardList, CreditCard, Flag, Home, Lock, MessageCircle, Package, Pencil, PhoneCall, ShieldAlert, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
@@ -43,8 +43,12 @@ export type TableRow = {
   risk: number;
 };
 
-const cell = "h-9 rounded-lg border border-transparent bg-transparent px-2 text-sm text-fg hover:border-line focus:border-accent focus:bg-panel focus:outline-none disabled:opacity-60";
-const selectCell = `${cell} select-chevron appearance-none pe-7`;
+// Zimam's cells: bordered fields edited in place
+const cell = "h-10 rounded-xl border border-line bg-panel px-3 text-sm text-fg hover:border-muted/50 focus:border-accent focus:outline-none disabled:opacity-60";
+const selectCell = `${cell} select-chevron appearance-none pe-8`;
+const statusIcons: Record<OrderStatus, LucideIcon> = { pending: ClipboardList, call_back: PhoneCall, confirmed: ClipboardCheck, in_transit: Truck, delivered: Check, returned: CircleAlert, abandoned: ShoppingCart, cancelled: Ban, flagged: Flag };
+// +213 form of an Algerian number, as Zimam shows it
+const intl = (phone: string) => (phone.startsWith("0") ? `+213${phone.slice(1)}` : phone);
 
 // The orders table (Zimam's columns). Amount, status, delivery type, agent, company and note are edited in place: each
 // change is saved as soon as the field is left or changed. Row checkboxes carry data-bulk-order for the bulk tools.
@@ -55,6 +59,7 @@ export function OrdersTable({
   accounts,
   canAssign,
   editBase,
+  currency,
   t,
 }: {
   lang: string;
@@ -63,6 +68,7 @@ export function OrdersTable({
   accounts: { id: string; name: string }[];
   canAssign: boolean;
   editBase: string;
+  currency: string;
   t: Text;
 }) {
   const p = t.orderPage;
@@ -113,42 +119,42 @@ export function OrdersTable({
                   <input type="checkbox" value={r.id} data-bulk-order data-number={r.number} aria-label={t.orders.bulk.select} className="size-4 accent-[var(--color-accent)]" onChange={() => document.dispatchEvent(new Event("change"))} />
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <div>
-                      <p className="flex items-center gap-1 font-semibold tabular-nums">
-                        #{r.number}
-                        {r.paid && (
-                          <span title={t.orders.paidCard} className="text-accent" data-testid="paid-badge">
-                            <CreditCard size={14} />
-                          </span>
-                        )}
-                        {r.whatsapp && (
-                          <span title={t.orders.whatsappFilter[r.whatsapp]} className={r.whatsapp === "confirmed" ? "text-accent" : r.whatsapp === "cancelled" ? "text-danger" : "text-muted"} data-testid="wa-badge" data-wa={r.whatsapp}>
-                            <MessageCircle size={14} />
-                          </span>
-                        )}
-                        {r.risky && (
-                          <span title={fmt(t.orders.risk.badge, { n: r.risk })} className="text-warning" data-testid="risk-badge">
-                            <ShieldAlert size={14} />
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted tabular-nums">
-                        {r.date} · {r.time}
-                      </p>
-                    </div>
-                    <Link href={`${editBase}${editBase.includes("?") ? "&" : "?"}edit=${r.id}`} scroll={false} aria-label={p.edit} title={p.edit} className="grid size-7 place-items-center rounded-md text-muted hover:bg-accent-soft hover:text-accent" data-testid="edit-order">
-                      <Pencil size={14} />
+                  <p className="flex items-center gap-1 font-semibold text-accent-ink tabular-nums">
+                    #{r.number}
+                    {r.paid && (
+                      <span title={t.orders.paidCard} className="text-accent" data-testid="paid-badge">
+                        <CreditCard size={14} />
+                      </span>
+                    )}
+                    {r.whatsapp && (
+                      <span title={t.orders.whatsappFilter[r.whatsapp]} className={r.whatsapp === "confirmed" ? "text-accent" : r.whatsapp === "cancelled" ? "text-danger" : "text-muted"} data-testid="wa-badge" data-wa={r.whatsapp}>
+                        <MessageCircle size={14} />
+                      </span>
+                    )}
+                    {r.risky && (
+                      <span title={fmt(t.orders.risk.badge, { n: r.risk })} className="text-warning" data-testid="risk-badge">
+                        <ShieldAlert size={14} />
+                      </span>
+                    )}
+                  </p>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    <Link href={`${editBase}${editBase.includes("?") ? "&" : "?"}edit=${r.id}`} scroll={false} aria-label={p.edit} title={p.edit} className="grid size-7 place-items-center rounded-lg border border-line text-muted hover:bg-accent-soft hover:text-accent" data-testid="edit-order">
+                      <Pencil size={13} />
                     </Link>
+                    <span className="text-xs leading-tight text-muted tabular-nums">
+                      {r.date}
+                      <br />
+                      {r.time}
+                    </span>
                   </div>
                 </td>
                 <td className="px-2 py-2">
                   <div className="flex max-w-[210px] items-center gap-2">
                     {r.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={r.image} alt="" className="size-9 shrink-0 rounded-lg border border-line object-cover" />
+                      <img src={r.image} alt="" className="size-12 shrink-0 rounded-lg border border-line object-cover" />
                     ) : (
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-panel-2 text-muted">
+                      <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-panel-2 text-muted">
                         <Package size={16} />
                       </span>
                     )}
@@ -158,40 +164,55 @@ export function OrdersTable({
                     </span>
                   </div>
                 </td>
-                <td className="px-2 py-2 tabular-nums">{r.pieces}</td>
+                <td className="px-2 py-2 font-semibold whitespace-nowrap tabular-nums" dir="ltr">x {r.pieces}</td>
                 <td className="px-2 py-2">
-                  <input
-                    key={r.total}
-                    defaultValue={r.total}
-                    inputMode="numeric"
-                    disabled={r.locked}
-                    aria-label={p.cols.amount}
-                    className={`${cell} w-24 tabular-nums`}
-                    data-field="total"
-                    onBlur={(e) => e.target.value !== String(r.total) && field(r.id, "total", e.target.value)}
-                  />
+                  <label className={`${cell} inline-flex w-28 items-center gap-1.5`}>
+                    <span className="text-xs text-muted">{currency}</span>
+                    <input
+                      key={r.total}
+                      defaultValue={r.total}
+                      inputMode="numeric"
+                      disabled={r.locked}
+                      aria-label={p.cols.amount}
+                      className="w-full min-w-0 bg-transparent font-semibold text-accent-ink tabular-nums outline-none"
+                      data-field="total"
+                      onBlur={(e) => e.target.value !== String(r.total) && field(r.id, "total", e.target.value)}
+                    />
+                  </label>
                 </td>
                 <td className="px-2 py-2">
-                  <select
-                    value={r.status}
-                    disabled={r.locked}
-                    aria-label={p.cols.status}
-                    data-field="status"
-                    className={`h-8 cursor-pointer appearance-none rounded-full border-0 px-3 text-xs font-semibold focus:ring-2 focus:ring-accent/30 focus:outline-none ${statusPill[r.status]}`}
-                    onChange={(e) => save(() => changeOrderStatus(lang, r.id, e.target.value))}
-                  >
-                    {orderStatuses.map((s) => (
-                      <option key={s} value={s}>
-                        {t.orders.statuses[s]}
-                      </option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const Icon = statusIcons[r.status];
+                    return (
+                      <span className={`relative inline-flex h-8 items-center rounded-full ${statusPill[r.status]}`}>
+                        <Icon size={13} className="pointer-events-none absolute start-2.5" />
+                        <select
+                          value={r.status}
+                          disabled={r.locked}
+                          aria-label={p.cols.status}
+                          data-field="status"
+                          className="h-8 cursor-pointer appearance-none rounded-full border-0 bg-transparent ps-7 pe-7 text-xs font-semibold focus:ring-2 focus:ring-accent/30 focus:outline-none"
+                          onChange={(e) => save(() => changeOrderStatus(lang, r.id, e.target.value))}
+                        >
+                          {orderStatuses.map((s) => (
+                            <option key={s} value={s}>
+                              {t.orders.statuses[s]}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={13} className="pointer-events-none absolute end-2" />
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-2 py-2">
-                  <select value={r.deliveryType} disabled={r.locked} aria-label={p.cols.type} data-field="deliveryType" className={`${selectCell} w-24`} onChange={(e) => field(r.id, "deliveryType", e.target.value)}>
+                  <span className="relative inline-flex">
+                  {r.deliveryType === "home" ? <Home size={14} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" /> : <Building2 size={14} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />}
+                  <select value={r.deliveryType} disabled={r.locked} aria-label={p.cols.type} data-field="deliveryType" className={`${selectCell} w-28 ps-8`} onChange={(e) => field(r.id, "deliveryType", e.target.value)}>
                     <option value="home">{p.home}</option>
                     <option value="office">{p.desk}</option>
                   </select>
+                  </span>
                 </td>
                 <td className="px-2 py-2">
                   {r.locked ? (
@@ -201,19 +222,19 @@ export function OrdersTable({
                   ) : (
                     <div className="min-w-0">
                       <p className="truncate font-medium">{r.customerName}</p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted" dir="ltr">
-                        <a href={`tel:${r.phone}`} className="tabular-nums hover:text-fg">
-                          {r.phone}
-                        </a>
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-accent-ink" dir="ltr">
                         <a href={`https://wa.me/213${r.phone.replace(/^0/, "")}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="text-accent hover:opacity-80" data-testid="row-whatsapp">
-                          <MessageCircle size={13} />
+                          <MessageCircle size={15} />
+                        </a>
+                        <a href={`tel:${r.phone}`} className="tabular-nums hover:underline">
+                          {intl(r.phone)}
                         </a>
                       </p>
                     </div>
                   )}
                 </td>
                 <td className="px-2 py-2">
-                  <p className="truncate font-medium">{r.wilaya}</p>
+                  <p className="truncate font-semibold">{r.wilaya}</p>
                   <p className="truncate text-xs text-muted">{r.commune}</p>
                 </td>
                 {canAssign && (

@@ -107,8 +107,8 @@ export default async function phase26(browser) {
     await dialog.locator("#wilayaCode").selectOption("16");
     await dialog.locator("#commune option[value='Kouba']").waitFor({ state: "attached" });
     await dialog.locator("#commune").selectOption("Kouba");
+    // Zimam's new order: delivery method cards, the fee comes from the delivery prices
     await dialog.locator("[data-delivery=office]").click();
-    expect((await dialog.locator("[data-testid=order-fee]").inputValue()) === "300", "desk fee from the rates");
     await dialog.locator("[data-testid=save-order]").click();
     await dialog.waitFor({ state: "hidden" });
     const [[o]] = await db.query("SELECT * FROM orders WHERE shop_id = ? AND phone = '0550123456'", [shopId]);

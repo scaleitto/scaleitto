@@ -296,6 +296,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `delivery/settings.ts limitToOption`) and `card_only` (online payment only: COD refused in `submitOrder`/`submitCart`, no
   gateway = cannot be ordered). Offers = Zimam's rows (★ default, text, quantity from 1, total price, free delivery, on/off
   `QuantityOffer.off`, reorder); switched-off offers are dropped in `withPromotions` (every store loader). Migration 0048.
+  Orders: Zimam's row (green number, date / time lines, bordered amount / type / agent / company fields, status pill with its icon,
+  +213 phone with WhatsApp, wilaya name only), no paging bar under one page, tables have no head band; filter dialog (product +
+  agent, payment `?payment=cod|card`, wilaya, date range); edit dialog = main product photo, delivery type dropdown, one-line note,
+  "Myself" for the signed-in member, customer tracking link (`trackLink`); new order = one column, delivery cards, no agent / company
+  / fee / address (the server prices delivery).
 - Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
   `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`

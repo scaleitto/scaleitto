@@ -1,3 +1,5 @@
+import { algeriaParts } from "@/lib/time";
+import { trackLink } from "@/features/storefront/tracking";
 import Link from "next/link";
 import { resolveApps } from "@/features/apps/settings";
 import { Ban, Check, CircleAlert, ClipboardCheck, ClipboardList, Download, Flag, MessageCircle, ScanLine, Search, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
@@ -52,7 +54,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
   const f = parseOrderFilters(searchParams);
   const viewer = viewerOf(ctx);
   const canAssign = role !== "agent";
-  const [{ rows, total, size }, counts, members, accounts, products, rates, protection] = await Promise.all([
+  const [{ rows, total, size }, counts, team, accounts, products, rates, protection] = await Promise.all([
     listOrders(viewer, f),
     tabCounts(viewer),
     canAssign ? assignableMembers(shop.id) : Promise.resolve([]),
@@ -61,6 +63,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
     getShippingRates(shop.id),
     protectionFor(shop.id),
   ]);
+  // Zimam: the person signed in is "Myself" in the agent lists
+  const members = team.map((m) => (m.userId === viewer.userId ? { ...m, name: p.myself } : m));
   const editId = typeof searchParams.edit === "string" ? searchParams.edit : null;
   const editing = editId ? await getOrder(viewer, editId) : null;
   const base = portal ? `/${lang}/call-center/orders` : sectionHref(lang, "orders");
@@ -166,12 +170,14 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
             canAssign={canAssign}
             members={members}
             accounts={carrierAccounts}
+            currency={t.common.currency}
             t={{ orderPage: p, orders: t.orders, errors: t.errors }}
             rows={rows.map((r) => ({
               id: r.id,
               number: r.number,
               status: r.status,
-              date: formatDate(r.createdAt, lang),
+              // Zimam: 26/10/2026, the time on the line below
+              date: algeriaParts(r.createdAt).day.split("-").reverse().join("/"),
               time: formatTime(r.createdAt, lang),
               product: r.product,
               image: r.image,
@@ -181,7 +187,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
               deliveryType: r.deliveryType,
               customerName: r.customerName,
               phone: r.phone,
-              wilaya: wilayaName(r.wilayaCode, lang),
+              // Zimam shows the wilaya's name only (the commune under it)
+              wilaya: wilayaName(r.wilayaCode, lang).replace(/^\d+ - /, ""),
               commune: r.commune,
               assignedTo: r.assignedTo,
               carrierAccountId: r.carrierAccountId,
@@ -198,7 +205,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
         )}
       </Card>
 
-      {total > 0 && (
+      {/* Like Zimam: no paging bar while everything fits on one page */}
+      {total > pageSizes[0] && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted" data-testid="pagination">
           <span className="tabular-nums">
             {(f.page - 1) * size + 1}–{Math.min(total, f.page * size)} / {total}
@@ -260,7 +268,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
           wilayas={wilayaList}
           accounts={carrierAccounts}
           members={members}
-          trackingUrl={`${storeUrl(shop)}/thanks?o=${editing.id}`}
+          // The customer's own tracking page (Apps → Order tracking), like Zimam's "Customer tracking link"
+          trackingUrl={trackLink(storeUrl(shop), editing.id)}
           t={{ orderPage: p, orders: t.orders, errors: t.errors, common: t.common }}
         />
       )}
