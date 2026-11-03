@@ -75,8 +75,8 @@ export default async function phase34(browser) {
     const comps = sent.body.template.components;
     expect(comps[0].parameters.length === 5 && comps[0].parameters[2].text.startsWith("#") && comps[1].parameters[0].payload === `confirm:${first}` && comps[2].parameters[0].payload === `cancel:${first}`, "variables and buttons");
     expect((await credits()) === 495 && m.credits === 5, "5 credits taken");
-    const [[led]] = await db.query("SELECT kind, amount FROM credit_ledger WHERE shop_id = ? ORDER BY created_at DESC LIMIT 1", [shopId]);
-    expect(led.kind === "whatsapp" && led.amount === -5, "ledger line");
+    const [[led]] = await db.query("SELECT COUNT(*) AS n, MIN(amount) AS amount FROM credit_ledger WHERE shop_id = ? AND kind = 'whatsapp'", [shopId]);
+    expect(led.n === 1 && led.amount === -5, "ledger line");
     expect((await db.query("SELECT whatsapp FROM orders WHERE id = ?", [first]))[0][0].whatsapp === "waiting", "order waiting for the answer");
   });
 
@@ -127,8 +127,8 @@ export default async function phase34(browser) {
     const wamid = (await msg(first, "confirmed")).wamid;
     const sent = whatsapp.find((x) => x.id === wamid);
     expect(sent && sent.template === "scaleitto_confirmed" && sent.body.template.components.length === 1, "notice template, no buttons");
-    const [[led]] = await db.query("SELECT kind FROM credit_ledger WHERE shop_id = ? ORDER BY created_at DESC LIMIT 1", [shopId]);
-    expect(led.kind === "notification" && (await credits()) === 490, "notification paid");
+    const [[led]] = await db.query("SELECT COUNT(*) AS n, MIN(amount) AS amount FROM credit_ledger WHERE shop_id = ? AND kind = 'notification'", [shopId]);
+    expect(led.n === 1 && led.amount === -5 && (await credits()) === 490, `notification paid (${JSON.stringify(led)}, ${await credits()})`);
   });
 
   await step("reminder: a question unread after 4 hours gets one reminder from the cron", async () => {
