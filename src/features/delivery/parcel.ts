@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { defaultParcelOptions, parcelKinds, stopDeskModes, type ParcelDefaults, type ParcelOptions } from "@/lib/enums";
 import { normalizePhone } from "@/lib/phone";
-import { wilayas } from "@/lib/wilayas";
+import { carrierWilaya } from "@/lib/wilayas";
 import type { ParcelInput } from "./platforms";
 import { splitName } from "./status";
 
@@ -33,7 +33,8 @@ export function parseParcelOptions(raw: unknown, defaults?: Partial<ParcelDefaul
   };
 }
 
-export const frenchWilaya = (code: number) => wilayas.find((w) => w.code === code)?.fr ?? String(code);
+// Couriers still work with the 58 older wilayas: a new wilaya (59–69) is sent as the one it was taken from
+export const frenchWilaya = (code: number) => carrierWilaya(code).fr;
 
 type OrderForParcel = { number: number; customerName: string; phone: string; wilayaCode: number; commune: string; address: string | null; total: number; deliveryType: string; customerNote: string | null };
 type ItemForParcel = { name: string; variantTitle: string | null; quantity: number };
@@ -50,7 +51,7 @@ export function buildParcel(order: OrderForParcel, items: ItemForParcel[], origi
     lastName,
     phone: order.phone,
     phone2: options.phone2,
-    wilayaCode: order.wilayaCode,
+    wilayaCode: carrierWilaya(order.wilayaCode).code,
     wilayaName: frenchWilaya(order.wilayaCode),
     commune: order.commune,
     address: order.address ?? "",
@@ -58,7 +59,7 @@ export function buildParcel(order: OrderForParcel, items: ItemForParcel[], origi
     codAmount: order.total,
     stopDesk: options.stopDesk === "order" ? order.deliveryType === "office" : options.stopDesk === "yes",
     note,
-    originWilayaCode: originWilaya,
+    originWilayaCode: carrierWilaya(originWilaya).code,
     originWilayaName: frenchWilaya(originWilaya),
     kind: options.kind,
     fragile: options.fragile,

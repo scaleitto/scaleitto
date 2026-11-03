@@ -2,7 +2,7 @@
 // read through resolveDelivery / resolveManifest so missing keys get their defaults. Pure: used by the server and the browser.
 import type { RateMap } from "@/features/checkout/pricing";
 import type { DeliveryType } from "@/server/db/schema";
-import { wilayas } from "@/lib/wilayas";
+import { parentWilaya, wilayas } from "@/lib/wilayas";
 
 // Zimam's delivery options: each option has a name, where it delivers (home, office or both), and a pricing model —
 // free, one flat price (home / office) or prices per wilaya (paid with its own home / office price, free, or not
@@ -52,6 +52,16 @@ function cleanRates(raw: unknown): Record<string, WilayaRate> | null {
     if (!state) continue;
     out[w.code] = state === "paid" ? { state, home: price(x.home), office: price(x.office) } : { state, home: null, office: null };
   }
+  // Wilayas created in 2026 (59–69) that a merchant has not priced yet take their former wilaya's price
+  for (const w of wilayas) if (w.parent && !out[w.code] && out[w.parent]) out[w.code] = { ...out[w.parent] };
+  return out;
+}
+
+// The same for the shared wilaya table of older stores
+export function withNewWilayas(table: RateMap): RateMap {
+  if (Object.keys(table).length === 0) return table;
+  const out = { ...table };
+  for (const w of wilayas) if (w.parent && !out[w.code] && out[w.parent]) out[w.code] = { ...out[w.parent] };
   return out;
 }
 
@@ -94,7 +104,11 @@ export function optionPrice(o: DeliveryOption, code: number, type: DeliveryType,
   if (!covers(o, type)) return null;
   if (o.pricing === "free") return 0;
   if (o.pricing === "flat") return type === "home" ? o.home : o.office;
-  if (!o.rates) return Object.keys(table).length === 0 ? 0 : ((type === "home" ? table[code]?.home : table[code]?.office) ?? null);
+  if (!o.rates) {
+    if (Object.keys(table).length === 0) return 0;
+    const t = table[code] ?? table[parentWilaya(code)];
+    return (type === "home" ? t?.home : t?.office) ?? null;
+  }
   const r = o.rates[code];
   if (!r || r.state === "none") return null;
   if (r.state === "free") return 0;
@@ -106,7 +120,7 @@ export function optionPrice(o: DeliveryOption, code: number, type: DeliveryType,
 // option (Products → Checkout & delivery) only gets that option. Delivery off = free everywhere.
 export function applyDelivery(table: RateMap, settings: DeliverySettings, productOption?: string | null): RateMap {
   if (!settings.enabled) return {};
-  if (!settings.options.length) return table;
+  if (!settings.options.length) return withNewWilayas(table);
   const only = productOption ? settings.options.find((o) => o.id === productOption && o.active) : undefined;
   const active = only ? [only] : [...settings.options.filter((o) => o.active)].sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
   const priceOf = (code: number, type: DeliveryType) => {
@@ -122,7 +136,7 @@ export function applyDelivery(table: RateMap, settings: DeliverySettings, produc
 // An older store priced from the shared table without options: the same prices as one option (shown in the editor)
 export function optionFromTable(table: RateMap): DeliveryOption {
   const rates: Record<string, WilayaRate> = {};
-  for (const [code, r] of Object.entries(table)) if (r.home !== null || r.office !== null) rates[code] = { state: "paid", home: r.home, office: r.office };
+  for (const [code, r] of Object.entries(withNewWilayas(table))) if (r.home !== null || r.office !== null) rates[code] = { state: "paid", home: r.home, office: r.office };
   return { id: "standard", name: "", type: "both", pricing: "wilaya", home: 0, office: 0, rates, active: true, isDefault: true };
 }
 

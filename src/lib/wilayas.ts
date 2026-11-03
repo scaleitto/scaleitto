@@ -1,5 +1,6 @@
-// The 58 Algerian wilayas (codes used by Algerian delivery companies).
-export const wilayas: { code: number; ar: string; fr: string }[] = [
+// The 69 Algerian wilayas (Law 26-06, April 2026, created 59–69). Codes 1–58 are the ones delivery companies use; a new
+// wilaya keeps its `parent` (the wilaya it was taken from) so parcels and missing delivery prices can fall back to it.
+export const wilayas: { code: number; ar: string; fr: string; parent?: number }[] = [
   { code: 1, ar: "أدرار", fr: "Adrar" },
   { code: 2, ar: "الشلف", fr: "Chlef" },
   { code: 3, ar: "الأغواط", fr: "Laghouat" },
@@ -58,7 +59,33 @@ export const wilayas: { code: number; ar: string; fr: string }[] = [
   { code: 56, ar: "جانت", fr: "Djanet" },
   { code: 57, ar: "المغير", fr: "El M'Ghair" },
   { code: 58, ar: "المنيعة", fr: "El Meniaa" },
+  { code: 59, ar: "آفلو", fr: "Aflou", parent: 3 },
+  { code: 60, ar: "بريكة", fr: "Barika", parent: 5 },
+  { code: 61, ar: "القنطرة", fr: "El Kantara", parent: 7 },
+  { code: 62, ar: "بئر العاتر", fr: "Bir El Ater", parent: 12 },
+  { code: 63, ar: "العريشة", fr: "El Aricha", parent: 13 },
+  { code: 64, ar: "قصر الشلالة", fr: "Ksar Chellala", parent: 14 },
+  { code: 65, ar: "عين وسارة", fr: "Aïn Ouessara", parent: 17 },
+  { code: 66, ar: "مسعد", fr: "Messaad", parent: 17 },
+  { code: 67, ar: "قصر البخاري", fr: "Ksar El Boukhari", parent: 26 },
+  { code: 68, ar: "بوسعادة", fr: "Bou Saâda", parent: 28 },
+  { code: 69, ar: "الأبيض سيدي الشيخ", fr: "El Abiodh Sidi Cheikh", parent: 32 },
 ];
+
+export const WILAYA_COUNT = wilayas.length;
+
+// The wilaya a new wilaya was taken from (itself for 1–58)
+export function parentWilaya(code: number) {
+  return wilayas.find((w) => w.code === code)?.parent ?? code;
+}
+
+// What the delivery companies receive: their APIs still list the 58 older wilayas, so a parcel for a new wilaya goes to
+// its former wilaya (the commune name, unchanged, says where exactly).
+export function carrierWilaya(code: number) {
+  const parent = parentWilaya(code);
+  const w = wilayas.find((x) => x.code === parent);
+  return { code: parent, fr: w?.fr ?? String(parent), ar: w?.ar ?? String(parent) };
+}
 
 export function wilayaName(code: number, locale: string) {
   const w = wilayas.find((x) => x.code === code);

@@ -113,7 +113,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   plain SVG in `charts.tsx` (Zimam's smooth curves = `smoothPath` monotone cubic, `FunnelShape` = the coloured funnel with rate pills);
   tabs in `views.tsx` (rates with one decimal, wilaya names without code `wilayaTitle`, products' "…" actions). Wilaya map =
   `WilayaMap.tsx` + `lib/algeria-map.ts` (69 outlines from geoalgeria, © OpenStreetMap contributors ODbL — attribution under the map,
-  `docs/third-party.md`; the 2026 wilayas 59–69 are drawn with their former wilaya's figures, `mapParent`). Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
+  `docs/third-party.md`). Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
   product, source host; a visitor counted once per day and page key through the `sc_v` cookie; robots skipped; migration 0038).
 - Pixels like Zimam (`src/features/pixels/`, phase9.mjs): `/integrations/pixels` = "Pixels & Analytics" grid of 5 apps (GTM, GA4,
   Facebook, Snapchat, TikTok; `PlatformMark.tsx`, active when one of its pixels runs) → `/integrations/pixels/<platform>` = back link,
@@ -256,7 +256,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   preview shows the platform domain (`storeLinkParts`), owners confirm their email (`auth_tokens` verify/reset,
   `server/mail.ts`: SMTP_* env or E2E_MAIL_URL = mock-apps `/mail`; no mail settings → accounts count as confirmed), forgot/reset
   password; `requireShop` sends unconfirmed owners to `/[lang]/verify`; PLATFORM_ADMIN_EMAIL is promoted at login too. Communes:
-  `lib/communes.ts` (1541, [latin, arabic]) via `/api/communes?w=` → `checkout/CommuneSelect.tsx` (value = Latin name, Arabic
+  `lib/communes.ts` (1541, [latin, arabic], grouped by the 69 wilayas) via `/api/communes?w=` → `checkout/CommuneSelect.tsx` (value = Latin name, Arabic
   label in Arabic stores; give it key={wilaya}). Product color options: `ProductOption.kind = "color"` + `colors` (value → hex),
   palette in `lib/colors.ts`, swatches in `CheckoutForm`. The order form is the store's
   `shops.order_form` (`FormSettings` read by `order-form/resolve.ts storeForm`; product pages, landing pages, `submitOrder`, thank-you;
@@ -400,6 +400,8 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - Tenant isolation: every dashboard query/mutation filters by `shop.id` from `requireShop()`/`requireSection()`;
   never trust ids from the client alone.
 - Money is integer DZD.
+- Wilayas: 69 (Law 26-06, `lib/wilayas.ts`; 59–69 carry `parent`). Couriers still get the 58 older codes (`carrierWilaya`, in
+  `delivery/parcel.ts`); a new wilaya without its own delivery price takes its parent's (`delivery/settings.ts withNewWilayas`).
 - Next 16 + Cache Components: pages under `[lang]` and `store` set `instant = false` in their root layout;
   call `connection()` before using `new Date()`/random values in server components outside a session read.
 - Root layouts are `src/app/[lang]/layout.tsx` and (when the storefront is rebuilt) `src/app/store/layout.tsx`.

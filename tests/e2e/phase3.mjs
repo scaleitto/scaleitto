@@ -43,17 +43,21 @@ export default async function phase3(browser) {
     await page.click("[data-testid=price-dialog-apply]");
     await page.fill("[data-wilaya='16'] [data-price=home]", "300");
     await page.fill("[data-wilaya='31'] [data-price=office]", "");
-    expect((await page.locator("[data-testid=rates-configured]").innerText()).includes("58"), "58 wilayas set");
+    expect((await page.locator("[data-testid=rates-configured]").innerText()).includes("69"), "69 wilayas set");
     await page.click("[data-testid=save-option]");
     await page.waitForSelector("[data-testid=delivery-saved]");
     const [[row]] = await db.query("SELECT delivery FROM shops WHERE id = ?", [shopId]);
     const d = typeof row.delivery === "string" ? JSON.parse(row.delivery) : row.delivery;
     const rates = d.options[0].rates;
-    expect(Object.keys(rates).length === 58 && rates[31].home === 600 && rates[31].office === null && rates[16].home === 300, "Oran: home 600, no office; Algiers home 300");
+    expect(Object.keys(rates).length === 69 && rates[31].home === 600 && rates[31].office === null && rates[16].home === 300, "Oran: home 600, no office; Algiers home 300");
     const c = await browser.newPage();
     await c.goto(`${store}/p/perfume`);
     await c.selectOption("#wilaya", "16");
     expect((await c.locator("[data-testid=total]").innerText()).replace(/\s/g, "").includes("3300"), "store total = 3000 + 300");
+    // The 69 wilayas of 2026: Bou Saâda (68) is offered with its own communes
+    expect((await c.locator("#wilaya option[value='68']").count()) === 1 && (await c.locator("#wilaya option[value='69']").count()) === 1, "wilayas 68 and 69 offered");
+    await c.selectOption("#wilaya", "68");
+    await c.waitForFunction(() => [...document.querySelectorAll("#commune option")].some((o) => o.value === "Bou Saada"));
     await c.close();
   });
 

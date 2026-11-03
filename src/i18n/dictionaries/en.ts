@@ -842,7 +842,7 @@ const en: Dictionary = {
     heroButtonPlaceholder: "e.g. Shop now",
     homepage: "Home page",
     productsTitle: "Products section title",
-    showBadges: "Show store perks (cash on delivery, delivery to 58 wilayas…)",
+    showBadges: "Show store perks (cash on delivery, delivery to 69 wilayas…)",
     showOrderSteps: "Show the order steps (“How to order?”)",
     styleTitle: "Adjust the theme",
     styleHint: "Change what you like from the chosen theme. “Theme default” keeps the theme's choice.",

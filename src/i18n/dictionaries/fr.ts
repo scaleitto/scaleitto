@@ -842,7 +842,7 @@ const fr: Dictionary = {
     heroButtonPlaceholder: "Ex. : Acheter maintenant",
     homepage: "Page d'accueil",
     productsTitle: "Titre de la section produits",
-    showBadges: "Afficher les atouts (paiement à la livraison, livraison 58 wilayas…)",
+    showBadges: "Afficher les atouts (paiement à la livraison, livraison 69 wilayas…)",
     showOrderSteps: "Afficher les étapes de commande (« Comment commander ? »)",
     styleTitle: "Personnaliser le thème",
     styleHint: "Changez ce que vous voulez du thème choisi. « Selon le thème » garde son choix.",

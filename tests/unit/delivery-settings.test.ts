@@ -23,7 +23,7 @@ test("delivery settings: defaults, older options read, bad values dropped, one p
 });
 
 test("delivery prices: the table without methods, each method's own prices, free when delivery is off", () => {
-  assert.equal(applyDelivery(table, resolveDelivery(null)), table);
+  assert.deepEqual(applyDelivery(table, resolveDelivery(null)), table);
   assert.deepEqual(applyDelivery(table, resolveDelivery({ enabled: false })), {});
   assert.equal(shippingPrice(applyDelivery(table, resolveDelivery({ enabled: false })), 31, "home"), 0);
   // Home at one price everywhere, office from an older method (the shared table)
