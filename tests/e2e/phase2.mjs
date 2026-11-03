@@ -114,7 +114,7 @@ export default async function phase2(browser) {
   await step("editing the order: commune, total and note are saved", async () => {
     await owner.selectOption("#commune", "Es Senia");
     await owner.fill("[data-testid=order-total-input]", "9000");
-    await owner.fill("textarea[name=note]", "اتصل بعد الساعة 6 مساءً");
+    await owner.fill("[data-testid=edit-order-dialog] input[name=note]", "اتصل بعد الساعة 6 مساءً");
     await owner.click("[data-testid=save-order]");
     await owner.locator("[data-testid=edit-order-dialog]").waitFor({ state: "detached" });
     let order;

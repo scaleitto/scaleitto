@@ -13,13 +13,13 @@ import { storeForm } from "@/features/order-form/resolve";
 import { getShippingRates, type StoreShop } from "@/features/storefront/queries";
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { resolveDelivery } from "@/features/delivery/settings";
-import { cardGateway } from "@/features/payments/flow";
+import { liveMethods } from "@/features/payments/flow";
 import { editorData } from "./queries";
 
 // The editor's surroundings: store name and address (product link), delivery companies, other products, and what the
 // live preview needs to draw the real product page (the store's language, theme, color, order form and delivery prices)
 export async function editorProps(lang: Locale, shop: StoreShop, productId: string | null) {
-  const [{ accounts, others }, rates, collections, gateway] = await Promise.all([editorData(shop.id, productId), getShippingRates(shop.id), collectionChoices(shop.id), cardGateway(shop.id)]);
+  const [{ accounts, others }, rates, collections, gateway] = await Promise.all([editorData(shop.id, productId), getShippingRates(shop.id), collectionChoices(shop.id), liveMethods(shop.id)]);
   const locale = shopLocale(shop);
   const design = resolveDesign(shop.design);
   return {
@@ -29,7 +29,7 @@ export async function editorProps(lang: Locale, shop: StoreShop, productId: stri
     // Checkout & delivery: the store's delivery options, and whether it takes cards (online payment only)
     deliveryOptions: resolveDelivery(shop.delivery).options.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name || o.type, type: o.type })),
     deliverySettingsHref: sectionHref(lang, "deliverySettings"),
-    cardPayments: Boolean(gateway),
+    cardPayments: gateway.length > 0,
     paymentsHref: `${sectionHref(lang, "apps")}/payments`,
     collections: collections.filter((c) => !c.parentId).flatMap((top) => [top, ...collections.filter((c) => c.parentId === top.id)]).map((c) => ({ id: c.id, title: textIn(c.titles, lang), child: Boolean(c.parentId) })),
     collectionsHref: `${sectionHref(lang, "apps")}/collections`,

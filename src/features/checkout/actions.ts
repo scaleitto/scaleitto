@@ -1,6 +1,6 @@
 "use server";
 
-import { cardGateway, startCardPayment } from "@/features/payments/flow";
+import { liveMethods, startOnlinePayment } from "@/features/payments/flow";
 import { resolveApps } from "@/features/apps/settings";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -102,7 +102,9 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
     extra.unshift(...(await chosenOptions(shop.id, productId, formData.get("choices"))));
     // Online payment only: no cash on delivery, and the store must take cards
-    if ((await productQuestions(shop.id, productId))?.cardOnly && (formData.get("payment") !== "card" || !(await cardGateway(shop.id)))) return { ok: false, error: "cardOnly" };
+    // Online payment only: no cash on delivery, and the chosen method must be one the store really takes
+    const payment = String(formData.get("payment") ?? "cod");
+    if ((await productQuestions(shop.id, productId))?.cardOnly && !(await liveMethods(shop.id)).includes(payment as never)) return { ok: false, error: "cardOnly" };
     const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
     if (input.website) return { ok: false, error: "unexpected" };
@@ -117,8 +119,8 @@ export async function submitOrder(slug: string, productId: string, landing: { id
   const shown = page as Awaited<ReturnType<typeof landingOf>>;
   if (result.ok && result.message) {
     // Pay by card (Apps → Online payments): to the gateway's page; it sends the buyer back to the thank-you page
-    if (formData.get("payment") === "card") {
-      const url = await startCardPayment(shop, result.message);
+    if (String(formData.get("payment") ?? "cod") !== "cod") {
+      const url = await startOnlinePayment(shop, result.message, String(formData.get("payment")));
       if (url) redirect(url);
     }
     // The page's thank-you window: back to the same page, which shows it

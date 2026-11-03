@@ -4,7 +4,7 @@ import { getShippingRates, getShopBySlug, storeBase } from "@/features/storefron
 import { shopLocale } from "@/features/storefront/StoreShell";
 import { CartPage } from "@/features/storefront/CartPage";
 import { submitCart } from "@/features/storefront/cart-actions";
-import { cardGateway } from "@/features/payments/flow";
+import { liveMethods } from "@/features/payments/flow";
 import { resolveApps } from "@/features/apps/settings";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
@@ -27,7 +27,7 @@ export default async function Cart({ params }: PageProps<"/store/[slug]/cart">) 
       arabic={locale === "ar"}
       currency={currencyLabel(locale)}
       action={submitCart.bind(null, shop.slug)}
-      cardPayment={Boolean(await cardGateway(shop.id))}
+      payMethods={await liveMethods(shop.id)}
       t={getStoreText(locale)}
     />
   );

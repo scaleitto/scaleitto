@@ -6,7 +6,7 @@ import { Card, PageHeader } from "@/ui";
 import { balanceView } from "@/features/credits/queries";
 import { CreditPacks } from "@/features/credits/CreditPacks";
 import { CREDIT_COSTS, LOW_BALANCE } from "@/features/credits/packs";
-import { platformChargily, refreshCreditPurchase } from "@/features/credits/purchases";
+import { platformMethods, refreshCreditPurchase } from "@/features/credits/purchases";
 import { paymentDetails } from "@/features/plans/billing";
 
 // Zimam's Balance: the credits, where they came from, this month's spending, credit packs and the full history
@@ -109,7 +109,8 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
           <h2 className="font-semibold">{b.packsTitle}</h2>
           <CreditPacks
             lang={lang}
-            cardReady={Boolean(platformChargily())}
+            online={platformMethods().map((m) => m.method)}
+            names={t.orderPage.online}
             payment={paymentDetails()}
             pending={v.pending.map((p) => ({ id: p.id, credits: p.credits, method: p.method, at: formatDate(p.createdAt, lang) }))}
             t={{ balance: b, plans: t.plans, errors: t.errors, common: t.common, media: t.media }}

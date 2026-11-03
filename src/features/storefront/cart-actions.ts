@@ -18,7 +18,7 @@ import { offered } from "@/features/products/variants";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { getShopBySlug, storeBase } from "./queries";
-import { cardGateway, startCardPayment } from "@/features/payments/flow";
+import { liveMethods, startOnlinePayment } from "@/features/payments/flow";
 
 const items = z
   .array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable(), quantity: z.number().int().min(1).max(1000) }))
@@ -67,7 +67,7 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     // A product sold with online payment only cannot be paid on delivery
     const ids = [...new Set(lines.data.map((l) => l.productId))];
     const cardOnly = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids), eq(schema.products.cardOnly, true)))).length > 0;
-    if (cardOnly && (formData.get("payment") !== "card" || !(await cardGateway(shop.id)))) return { ok: false, error: "cardOnly" };
+    if (cardOnly && !(await liveMethods(shop.id)).includes(String(formData.get("payment") ?? "cod") as never)) return { ok: false, error: "cardOnly" };
     const h = await headers();
     const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
     const c = await cookies();
@@ -80,8 +80,8 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     return { ok: true, message: placed.orderId };
   });
   if (result.ok && result.message) {
-    if (formData.get("payment") === "card") {
-      const url = await startCardPayment(shop, result.message);
+    if (String(formData.get("payment") ?? "cod") !== "cod") {
+      const url = await startOnlinePayment(shop, result.message, String(formData.get("payment")));
       if (url) redirect(url);
     }
     redirect(`${await storeBase(shop.slug)}/thanks?o=${result.message}&cart=1`);

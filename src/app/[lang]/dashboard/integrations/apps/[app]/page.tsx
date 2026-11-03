@@ -15,8 +15,9 @@ import { whatsappView } from "@/features/whatsapp/queries";
 import { whatsappConfigured } from "@/features/whatsapp/cloud";
 import { REMINDER_HOURS } from "@/features/whatsapp/queue";
 import { CREDIT_COSTS } from "@/features/credits/packs";
-import { PaymentsApp } from "@/features/payments/PaymentsApp";
-import type { PaymentProvider } from "@/server/db/schema";
+import { PaymentsApp, type MethodView } from "@/features/payments/PaymentsApp";
+import { liveMethods, paymentMethods } from "@/features/payments/flow";
+import { connectorOf, onlineMethods, type OnlineMethod } from "@/features/payments/methods";
 import { RulesApp } from "@/features/apps/RulesApp";
 import { listCarrierAccounts } from "@/features/delivery/queries";
 import { findCarrier } from "@/features/delivery/carriers";
@@ -77,12 +78,19 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
       body = <SwitchApp lang={lang} app="customFields" enabled={ctx.apps.customFields} label={a.pages.customFields.enable} hint={a.pages.customFields.enableHint} t={text} />;
       break;
     case "payments": {
-      const list = await db.select().from(schema.shopPayments).where(eq(schema.shopPayments.shopId, shop.id));
-      const view = (provider: PaymentProvider) => {
-        const r = list.find((x) => x.provider === provider);
-        return r ? { provider, mode: r.mode, feesOnBuyer: r.feesOnBuyer, checkedAt: r.checkedAt ? formatDate(r.checkedAt, lang) : null, hint: provider === "chargily" ? "sk_••••" : "••••" } : null;
-      };
-      body = <PaymentsApp lang={lang} accounts={{ chargily: view("chargily"), slickpay: view("slickpay") }} t={text} />;
+      // Each method separately; the secrets never leave the server (only non-secret fields are shown back)
+      const [rows, live] = await Promise.all([paymentMethods(shop.id), liveMethods(shop.id)]);
+      const views = Object.fromEntries(
+        onlineMethods.map((m) => {
+          const r = rows.find((x) => x.method === m);
+          const secret = new Set((connectorOf(m, r?.connector ?? "")?.fields ?? []).filter((f) => f.secret).map((f) => f.key));
+          return [
+            m,
+            r ? { connector: r.connector, mode: r.mode, currency: r.settings.currency, rate: r.settings.rate, checkedAt: r.checkedAt ? formatDate(r.checkedAt, lang) : null, values: Object.fromEntries(Object.entries(r.settings.keys).filter(([k]) => !secret.has(k))), live: live.includes(m) } : null,
+          ];
+        }),
+      ) as Record<OnlineMethod, MethodView>;
+      body = <PaymentsApp lang={lang} views={views} t={text} />;
       break;
     }
     case "cart":

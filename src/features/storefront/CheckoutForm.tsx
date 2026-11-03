@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Check, ShoppingCart, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
 import { dimensionOptions, displayOf, valueOn } from "@/features/products/variants";
+import type { OnlineMethod } from "@/features/payments/methods";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
@@ -40,7 +41,7 @@ export function CheckoutForm({
   action,
   saveLead,
   cart = null,
-  cardPayment = false,
+  payMethods = [],
   settings = defaultForm,
   embedded = false,
   whatsapp,
@@ -62,7 +63,7 @@ export function CheckoutForm({
   // Apps → Shopping cart: "Add to cart" beside the order button
   cart?: { shopId: string; productId: string; href: string } | null;
   // Apps → Online payments: the buyer may pay by card
-  cardPayment?: boolean;
+  payMethods?: OnlineMethod[];
 }) {
   const { state, pending, onSubmit } = useActionForm(action);
   const errors = t.errors as Record<string, string>;
@@ -146,7 +147,7 @@ export function CheckoutForm({
   const variant = variants.find((v) => dims.every((o) => v.values[o.name] === selected[o.name])) ?? null;
   const available = !product.trackStock ? Infinity : variants.length ? (variant?.stock ?? 0) : product.stock;
   // Online payment only, and the store takes no card: it cannot be ordered
-  const soldOut = available <= 0 || (variants.length > 0 && !variant) || (Boolean(product.cardOnly) && !cardPayment);
+  const soldOut = available <= 0 || (variants.length > 0 && !variant) || (Boolean(product.cardOnly) && payMethods.length === 0);
   const line = linePrice(variant?.price ?? product.price, quantity, product.offers, product.wholesale ?? null);
   const shipping = wilaya ? lineShipping(shippingPrice(rates, wilaya, deliveryType), line.offer) : undefined;
   const total = line.total + (shipping ?? 0);
@@ -709,7 +710,7 @@ export function CheckoutForm({
         </p>
       )}
 
-      {cardPayment && (!stepper || step === 2) && <PaymentChoice t={t} cardOnly={product.cardOnly} />}
+      {payMethods.length > 0 && (!stepper || step === 2) && <PaymentChoice t={t} methods={payMethods} cardOnly={product.cardOnly} />}
       {stepper && step === 1 ? (
         <button type="button" onClick={nextStep} disabled={soldOut} className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60" data-testid="form-next">
           {soldOut ? t.outOfStock : t.form.next} <ChevronLeft size={20} className="ltr:rotate-180" />
@@ -820,19 +821,20 @@ export function CheckoutForm({
   );
 }
 
-// Apps → Online payments: cash on delivery (default) or card at the gateway after ordering
+// Apps → Online payments: cash on delivery (default) and each method the store connected, listed separately.
 // cardOnly: the product is sold with online payment only (no cash on delivery)
-export function PaymentChoice({ t, cardOnly = false }: { t: StoreText; cardOnly?: boolean }) {
+export function PaymentChoice({ t, methods, cardOnly = false }: { t: StoreText; methods: OnlineMethod[]; cardOnly?: boolean }) {
+  const choices = [...(cardOnly ? [] : (["cod"] as const)), ...methods];
   return (
     <fieldset className="space-y-2" data-testid="payment-choice">
       <legend className="mb-1 text-sm font-semibold">{t.payment.title}</legend>
-      {(cardOnly ? (["card"] as const) : (["cod", "card"] as const)).map((m) => (
+      {choices.map((m, i) => (
         <label key={m} className="flex cursor-pointer items-center gap-2 rounded-[var(--s-radius-btn)] border border-s-field-edge p-3 text-sm has-checked:border-brand">
-          <input type="radio" name="payment" value={m} defaultChecked={cardOnly || m === "cod"} className="accent-[var(--brand)]" data-testid={`payment-${m}`} />
-          <span className="flex-1 font-semibold">{m === "cod" ? t.payment.cod : t.payment.card}</span>
+          <input type="radio" name="payment" value={m} defaultChecked={i === 0} className="accent-[var(--brand)]" data-testid={`payment-${m}`} />
+          <span className="flex-1 font-semibold">{t.payment.methods[m]}</span>
         </label>
       ))}
-      <p className="text-xs text-s-muted">{t.payment.cardHint}</p>
+      {methods.length > 0 && <p className="text-xs text-s-muted">{t.payment.cardHint}</p>}
     </fieldset>
   );
 }

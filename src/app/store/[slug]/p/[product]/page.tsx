@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cardGateway } from "@/features/payments/flow";
+import { liveMethods } from "@/features/payments/flow";
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { descriptionHtml, richTextToPlain } from "@/lib/rich-text";
 import { VisitPing } from "@/features/analytics/VisitPing";
@@ -141,7 +141,7 @@ export default async function ProductPage({
               saveLead={saveLead.bind(null, shop.slug, product.id)}
               settings={productForm(shop, product)}
               whatsapp={{ phone: shop.phone ?? "", product: product.name }}
-              cardPayment={Boolean(await cardGateway(shop.id))}
+              payMethods={await liveMethods(shop.id)}
               cart={resolveApps(shop.apps).cart ? { shopId: shop.id, productId: product.id, href: `${base}/cart` } : null}
             />
             <TrustBadges t={t} items={trustBadgeItems(resolveApps(shop.apps).badges, t)} />

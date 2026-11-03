@@ -32,10 +32,12 @@ jobs:
       OPENAI_API_KEY: sk-test
       # Fake Meta / TikTok / Google server started by the e2e tests (server-side pixel events)
       E2E_PIXEL_URL: http://127.0.0.1:4030
-      # Fake Chargily / SlickPay gateways (the same fake server)
+      # Fake Stripe / PayPal / SATIM (CIB, Edahabia) payment servers (the same fake server)
       E2E_PAYMENT_URL: http://127.0.0.1:4030
-      # The platform's own Chargily account (credit packs by card); the fake gateway accepts test_sk_good…
-      PLATFORM_CHARGILY_SECRET: test_sk_goodplatform123
+      # The platform's own SATIM terminal (credit packs paid online with CIB / Edahabia); accepted by the fake server
+      PLATFORM_SATIM_USER: good-user
+      PLATFORM_SATIM_PASSWORD: good-pass
+      PLATFORM_SATIM_TERMINAL: E010900000
       # The platform's WhatsApp number (WhatsApp confirmation app), sent to the fake Meta server above
       WHATSAPP_TOKEN: good-token
       WHATSAPP_PHONE_ID: "100200300"

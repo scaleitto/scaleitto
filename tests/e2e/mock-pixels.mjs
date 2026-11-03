@@ -1,13 +1,12 @@
 // A fake Meta / TikTok / Snapchat / Google Analytics server for the end-to-end tests (server-side events).
 // The app is pointed at it with E2E_PIXEL_URL. Valid secrets: "good-token" (Meta, TikTok, Snapchat), "good-secret" (GA4).
-import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 
 export const received = []; // { platform, path, body, headers }
 export const payments = [];
-export const whatsapp = []; // WhatsApp Cloud API messages: { to, template, body } // card checkouts opened: { provider, body }
-const checkouts = new Map();
-const invoices = new Map();
+export const whatsapp = []; // WhatsApp Cloud API messages: { to, template, body }
+// payments = online payments opened: { connector, body }
+const sessions = new Map();
 
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -19,7 +18,8 @@ export function startMockPixels(port) {
     const url = new URL(req.url, "http://x");
     let raw = "";
     for await (const chunk of req) raw += chunk;
-    const body = raw ? JSON.parse(raw) : null;
+    const form = String(req.headers["content-type"] ?? "").includes("x-www-form-urlencoded");
+    const body = !raw ? null : form ? Object.fromEntries(new URLSearchParams(raw)) : JSON.parse(raw);
     const path = url.pathname;
 
     // WhatsApp Cloud API (Bearer "good-token"): numbers ending in 0000 are refused like a number Meta rejects
@@ -52,55 +52,69 @@ export function startMockPixels(port) {
       if (path.includes("/debug/")) return send(res, 200, { validationMessages: good ? [] : [{ description: "Unable to find api_secret" }] });
       return send(res, 204);
     }
-    // Card gateways (E2E_PAYMENT_URL = this server): Chargily Pay V2 and SlickPay, with a "payment page" that pays
+    // Online payments (E2E_PAYMENT_URL = this server): Stripe Checkout, PayPal Orders v2 and SATIM (CIB / Edahabia),
+    // each with a fake "payment page" that pays (or fails with ?result=fail) and sends the buyer back
     const host = `http://${req.headers.host}`;
-    const bearer = String(req.headers.authorization ?? "").replace(/^Bearer /, "");
-    if (path.startsWith("/chargily/")) {
-      const api = path.replace(/^\/chargily(\/test)?\/api\/v2/, "");
-      if (path.startsWith("/chargily/pay/")) {
-        const c = checkouts.get(path.split("/")[3]);
-        if (!c) return send(res, 404, {});
-        const paid = url.searchParams.get("result") !== "fail";
-        c.status = paid ? "paid" : "failed";
-        if (paid) {
-          const raw = JSON.stringify({ id: `evt_${c.id}`, type: "checkout.paid", data: { id: c.id, status: "paid", metadata: c.metadata } });
-          await fetch(c.webhook_endpoint, { method: "POST", headers: { "Content-Type": "application/json", signature: createHmac("sha256", c.secret).update(raw).digest("hex") }, body: raw }).catch(() => {});
-        }
-        res.writeHead(302, { Location: paid ? c.success_url : c.failure_url });
-        return res.end();
-      }
-      if (!bearer.startsWith("test_sk_good")) return send(res, 401, { message: "Unauthenticated." });
-      if (api === "/balance") return send(res, 200, { entity: "balance", livemode: false, wallets: [] });
-      if (api === "/checkouts" && req.method === "POST") {
-        const id = `ch_${checkouts.size + 1}_${Date.now()}`;
-        checkouts.set(id, { ...body, id, status: "pending", secret: bearer });
-        payments.push({ provider: "chargily", body });
-        return send(res, 200, { id, status: "pending", amount: body.amount, checkout_url: `${host}/chargily/pay/${id}` });
-      }
-      const c = checkouts.get(api.split("/")[2]);
-      if (c) return send(res, 200, { id: c.id, status: c.status });
-      return send(res, 404, { message: "Not found" });
+    const bearer = String(req.headers.authorization ?? "").replace(/^(Bearer|Basic) /, "");
+    if (path.startsWith("/pay/")) {
+      const s = sessions.get(path.split("/")[2]);
+      if (!s) return send(res, 404, {});
+      const paid = url.searchParams.get("result") !== "fail";
+      s.state = paid ? "paid" : "failed";
+      res.writeHead(302, { Location: paid ? s.back : s.cancel });
+      return res.end();
     }
-    if (path.startsWith("/slickpay/")) {
-      if (path.startsWith("/slickpay/pay/")) {
-        const inv = invoices.get(path.split("/")[3]);
-        if (!inv) return send(res, 404, {});
-        inv.completed = 1;
-        res.writeHead(302, { Location: inv.url });
-        return res.end();
+    const open = (connector, back, cancel, data) => {
+      const id = `${connector}_${sessions.size + 1}_${Date.now()}`;
+      sessions.set(id, { id, back, cancel, state: "pending", ...data });
+      payments.push({ connector, id, body });
+      return { id, url: `${host}/pay/${id}` };
+    };
+    if (path.startsWith("/stripe/v1/")) {
+      if (!bearer.startsWith("sk_test_good")) return send(res, 401, { error: { message: "Invalid API Key provided" } });
+      const api = path.slice("/stripe/v1".length);
+      if (api === "/balance") return send(res, 200, { object: "balance", available: [] });
+      if (api === "/checkout/sessions" && req.method === "POST") {
+        const { id, url: payUrl } = open("stripe", body.success_url, body.cancel_url, {});
+        return send(res, 200, { id, object: "checkout.session", url: payUrl, payment_status: "unpaid", status: "open" });
       }
-      const api = path.replace(/^\/slickpay\/(test|live)\/api\/v2/, "");
-      if (!bearer.startsWith("good-public")) return send(res, 401, { message: "Unauthenticated." });
-      if (api.startsWith("/users/contacts/")) return send(res, 200, { data: { uuid: api.split("/")[3] } });
-      if (api === "/users/invoices" && req.method === "POST") {
-        const id = String(invoices.size + 100);
-        invoices.set(id, { ...body, completed: 0 });
-        payments.push({ provider: "slickpay", body });
-        return send(res, 200, { success: 1, id: Number(id), url: `${host}/slickpay/pay/${id}` });
+      const s = sessions.get(api.split("/")[3]);
+      if (s) return send(res, 200, { id: s.id, payment_status: s.state === "paid" ? "paid" : "unpaid", status: s.state === "failed" ? "expired" : s.state === "paid" ? "complete" : "open" });
+      return send(res, 404, { error: { message: "No such checkout.session" } });
+    }
+    if (/^\/paypal\/(test|live)\//.test(path)) {
+      const api = path.replace(/^\/paypal\/(test|live)/, "");
+      if (api === "/v1/oauth2/token") {
+        const [id] = Buffer.from(bearer, "base64").toString().split(":");
+        return id.startsWith("good-client") ? send(res, 200, { access_token: "pp-token", token_type: "Bearer" }) : send(res, 401, { error: "invalid_client", error_description: "Client Authentication failed" });
       }
-      const inv = invoices.get(api.split("/")[3]);
-      if (inv) return send(res, 200, { data: { completed: inv.completed } });
-      return send(res, 404, { message: "Not found" });
+      if (bearer !== "pp-token") return send(res, 401, { message: "Authentication failed" });
+      if (api === "/v2/checkout/orders" && req.method === "POST") {
+        const ctx = body.application_context;
+        const { id, url: payUrl } = open("paypal", ctx.return_url, ctx.cancel_url, {});
+        return send(res, 201, { id, status: "CREATED", links: [{ rel: "approve", href: payUrl }] });
+      }
+      const s = sessions.get(api.split("/")[4]);
+      if (!s) return send(res, 404, { message: "RESOURCE_NOT_FOUND" });
+      if (api.endsWith("/capture")) {
+        if (s.state !== "paid") return send(res, 422, { message: "ORDER_NOT_APPROVED" });
+        s.captured = true;
+        return send(res, 201, { id: s.id, status: "COMPLETED" });
+      }
+      return send(res, 200, { id: s.id, status: s.captured ? "COMPLETED" : s.state === "paid" ? "APPROVED" : "CREATED" });
+    }
+    if (/^\/satim\/(test|live)\/payment\/rest\//.test(path)) {
+      const api = path.split("/").pop();
+      if (body?.userName !== "good-user" || body?.password !== "good-pass") return send(res, 200, { errorCode: 5, errorMessage: "Access denied" });
+      if (api === "register.do") {
+        if (JSON.parse(body.jsonParams ?? "{}").force_terminal_id !== "E010900000") return send(res, 200, { errorCode: 5, errorMessage: "Terminal not found" });
+        const { id, url: payUrl } = open("satim", body.returnUrl, body.failUrl, {});
+        return send(res, 200, { errorCode: "0", orderId: id, formUrl: payUrl });
+      }
+      const s = sessions.get(body.orderId);
+      if (!s) return send(res, 200, { errorCode: 6, errorMessage: "Order not found" });
+      if (api === "getOrderStatusExtended.do") return send(res, 200, { errorCode: "0", orderStatus: s.state === "paid" ? 2 : s.state === "failed" ? 6 : 0 });
+      return send(res, 200, { errorCode: "0" });
     }
     send(res, 404, { error: { message: "unknown" } });
   });

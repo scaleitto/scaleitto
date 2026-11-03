@@ -1,3 +1,4 @@
+import { onlineMethods, type OnlineMethod } from "@/features/payments/methods";
 import { isOrderStatus, statusTabs, type OrderStatus } from "./statuses";
 
 // The orders page's filters, read from the address bar: the status tab, the search box and the filter dialog
@@ -14,7 +15,7 @@ export type OrderFilters = {
   // Apps → WhatsApp confirmation: the buyer's answer
   wa?: "waiting" | "confirmed" | "cancelled";
   // cash on delivery / card
-  payment?: "cod" | "card";
+  payment?: "cod" | OnlineMethod;
   page: number;
   size: number;
 };
@@ -38,7 +39,7 @@ export function parseOrderFilters(sp: Search): OrderFilters {
     from: day.test(one(sp.from)) ? one(sp.from) : undefined,
     to: day.test(one(sp.to)) ? one(sp.to) : undefined,
     wa: (["waiting", "confirmed", "cancelled"] as const).find((x) => x === one(sp.wa)),
-    payment: (["cod", "card"] as const).find((x) => x === one(sp.payment)),
+    payment: (["cod", ...onlineMethods] as const).find((x) => x === one(sp.payment)),
     page: Math.max(1, Number(one(sp.page)) || 1),
     size: (pageSizes as readonly number[]).includes(size) ? size : pageSizes[0],
   };

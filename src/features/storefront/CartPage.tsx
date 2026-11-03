@@ -1,5 +1,6 @@
 "use client";
 
+import type { OnlineMethod } from "@/features/payments/methods";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { LoaderCircle, Minus, Plus, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
@@ -16,7 +17,7 @@ import { PaymentChoice } from "./CheckoutForm";
 const emptyCart: CartItem[] = [];
 
 // Apps → Shopping cart: the lines (priced by the server), then one delivery form for the whole order
-export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency, action, cardPayment = false, t }: { slug: string; shopId: string; base: string; rates: RateMap; wilayas: { code: number; name: string }[]; arabic: boolean; currency: string; action: (prev: ActionState, fd: FormData) => Promise<ActionState>; cardPayment?: boolean; t: StoreText }) {
+export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency, action, payMethods = [], t }: { slug: string; shopId: string; base: string; rates: RateMap; wilayas: { code: number; name: string }[]; arabic: boolean; currency: string; action: (prev: ActionState, fd: FormData) => Promise<ActionState>; payMethods?: OnlineMethod[]; t: StoreText }) {
   const snapshot = useRef<{ key: string; items: CartItem[] }>({ key: "", items: emptyCart });
   const items = useSyncExternalStore(
     onCartChange,
@@ -196,7 +197,7 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
             </dd>
           </div>
         </dl>
-        {cardPayment && <PaymentChoice t={t} />}
+        {payMethods.length > 0 && <PaymentChoice t={t} methods={payMethods} />}
         {state.error && state.error !== "checkFields" && <p className="text-sm font-semibold text-red-600">{(t.errors as Record<string, string>)[state.error] ?? t.errors.invalid}</p>}
         <button type="submit" disabled={pending || !ok.length} className="flex h-14 w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand text-lg font-extrabold text-brand-fg disabled:opacity-60" data-testid="cart-submit">
           {pending ? <LoaderCircle className="animate-spin" size={20} /> : <ShoppingBag size={20} />} {pending ? t.form.sending : t.cart.order}

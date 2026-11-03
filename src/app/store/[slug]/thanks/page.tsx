@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ClearCart } from "@/features/storefront/CartLink";
 import { refreshPayment } from "@/features/payments/flow";
+import { isOnlineMethod } from "@/features/payments/methods";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { resolveApps } from "@/features/apps/settings";
@@ -23,9 +24,10 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   const locale = shopLocale(shop);
   const t = getStoreText(locale);
   const apps = resolveApps(shop.apps);
-  // Back from the card gateway: ask it how the payment went (at request time, never while prerendering)
-  if (order.paymentMethod === "card") await connection();
-  const payment = order.paymentMethod === "card" ? (order.paymentStatus === "pending" ? await refreshPayment(shop.id, order.id) : order.paymentStatus) : "none";
+  // Back from an online payment page: ask the method's connector how it went (at request time, never while prerendering)
+  const online = isOnlineMethod(order.paymentMethod);
+  if (online) await connection();
+  const payment = online ? (order.paymentStatus === "pending" ? await refreshPayment(shop.id, order.id) : order.paymentStatus) : "none";
   const thanks = apps.thanks;
   const base = await storeBase(shop.slug);
   // "Same product": the ordered product's page, when it is still on sale
@@ -35,8 +37,8 @@ export default async function ThanksPage({ params, searchParams }: PageProps<"/s
   return (
     <ThankYou order={order} locale={locale} custom={thanks}>
       <PixelScope {...await orderPixels(shop.id, order)} />
-      {((await searchParams).cart === "1" || order.paymentMethod === "card") && <ClearCart shopId={shop.id} />}
-      {order.paymentMethod === "card" && (
+      {((await searchParams).cart === "1" || online) && <ClearCart shopId={shop.id} />}
+      {online && (
         <p className={`rounded-[var(--s-radius)] p-3 text-sm font-semibold ${payment === "paid" ? "bg-brand/10 text-brand-ink" : payment === "failed" ? "bg-red-500/10 text-red-600" : "bg-s-surface text-s-muted"}`} data-testid="payment-result" data-payment={payment}>
           {payment === "paid" ? t.payment.paid : payment === "failed" ? t.payment.failed : t.payment.pending}
         </p>

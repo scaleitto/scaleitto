@@ -1,3 +1,4 @@
+import type { OnlineMethod } from "@/features/payments/methods";
 import type { ReactNode } from "react";
 import { brandVars, type Theme } from "@/features/themes/themes";
 import { dir } from "@/i18n/config";
@@ -26,7 +27,7 @@ export function PublicLanding({
   saveLead,
   whatsapp,
   theme,
-  cardPayment = false,
+  payMethods = [],
   children,
 }: {
   language: string;
@@ -42,7 +43,7 @@ export function PublicLanding({
   // The store's theme, so the page's own color gets readable text on and around it
   theme: Theme;
   // Apps → Online payments: the buyer may pay by card
-  cardPayment?: boolean;
+  payMethods?: OnlineMethod[];
   children?: ReactNode;
 }) {
   const locale = interfaceLocale(pageLanguage(language));
@@ -59,7 +60,7 @@ export function PublicLanding({
       saveLead={saveLead}
       settings={{ ...settings, stickyButton: false }}
       whatsapp={whatsapp}
-      cardPayment={cardPayment}
+      payMethods={payMethods}
     />
   );
   return (

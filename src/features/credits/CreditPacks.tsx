@@ -9,7 +9,8 @@ import { Alert, Button, Field, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
 import { creditPacks, type CreditPackKey } from "./packs";
-import { buyCreditsByCard, cancelCreditRequest, requestCredits } from "./actions";
+import type { OnlineMethod } from "@/features/payments/methods";
+import { buyCreditsOnline, cancelCreditRequest, requestCredits } from "./actions";
 
 type Text = Pick<Dictionary, "balance" | "plans" | "errors" | "common" | "media">;
 type Payment = { holder: string | null; methods: Partial<Record<PaymentMethod, string>> };
@@ -79,11 +80,14 @@ function LocalRequest({ lang, pack, payment, onClose, t }: { lang: string; pack:
   );
 }
 
-// Zimam's credit packs: by card (the platform's gateway) or by local payment (transfer / WhatsApp, approved by hand)
-export function CreditPacks({ lang, cardReady, payment, pending, t }: { lang: string; cardReady: boolean; payment: Payment; pending: { id: string; credits: number; method: string; at: string }[]; t: Text }) {
+// Zimam's credit packs: online (one of the platform's payment methods, each separate) or by local payment
+// (transfer / WhatsApp, approved by hand)
+export function CreditPacks({ lang, online, names, payment, pending, t }: { lang: string; online: OnlineMethod[]; names: Record<OnlineMethod, string>; payment: Payment; pending: { id: string; credits: number; method: string; at: string }[]; t: Text }) {
   const b = t.balance;
   const e = t.errors as Record<string, string>;
+  const cardReady = online.length > 0;
   const [tab, setTab] = useState<"card" | "local">(cardReady ? "card" : "local");
+  const [method, setMethod] = useState<OnlineMethod | undefined>(online[0]);
   const [open, setOpen] = useState<CreditPackKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
@@ -97,6 +101,19 @@ export function CreditPacks({ lang, cardReady, payment, pending, t }: { lang: st
         ))}
       </div>
       {tab === "card" && !cardReady && <p className="rounded-lg bg-panel-2 p-3 text-sm text-muted">{b.cardSoon}</p>}
+      {tab === "card" && cardReady && (
+        <div className="space-y-2" data-testid="pay-methods">
+          <p className="text-xs font-semibold text-muted">{b.payWith}</p>
+          <div className="flex flex-wrap gap-2">
+            {online.map((m) => (
+              <label key={m} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${method === m ? "border-accent bg-accent/10" : "border-line"}`}>
+                <input type="radio" name="pay-method" value={m} checked={method === m} onChange={() => setMethod(m)} className="accent-[var(--color-accent)]" data-testid={`pay-${m}`} />
+                {names[m]}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       {error && <Alert>{error}</Alert>}
       {creditPacks.map((p) => (
         <div key={p.key} className="space-y-3 rounded-xl bg-panel-2 p-4" data-pack={p.key}>
@@ -115,7 +132,7 @@ export function CreditPacks({ lang, cardReady, payment, pending, t }: { lang: st
                 if (tab === "local") setOpen(p.key);
                 else
                   start(async () => {
-                    const r = await buyCreditsByCard(lang, p.key).catch(() => ({ ok: false, error: "unexpected" }) as const);
+                    const r = await buyCreditsOnline(lang, p.key, method ?? "").catch(() => ({ ok: false, error: "unexpected" }) as const);
                     if (!r.ok) setError(e[r.error ?? "unexpected"] ?? e.unexpected);
                   });
               }}

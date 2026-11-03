@@ -332,8 +332,8 @@ export const orders = mysqlTable(
     // set back to 0 when someone marks the order as trusted
     risk: int("risk").notNull().default(0),
     riskReasons: json("risk_reasons").$type<string[] | null>(),
-    // Apps → Online payments: card (Chargily / SlickPay) or cash on delivery; the payment's state at the provider
-    paymentMethod: mysqlEnum("payment_method", ["cod", "card"]).notNull().default("cod"),
+    // Apps → Online payments: cod, or the online method (stripe / paypal / cib / edahabia); payment_provider = the connector
+    paymentMethod: varchar("payment_method", { length: 20 }).notNull().default("cod"),
     paymentStatus: mysqlEnum("payment_status", ["none", "pending", "paid", "failed"]).notNull().default("none"),
     paymentProvider: varchar("payment_provider", { length: 20 }),
     paymentRef: varchar("payment_ref", { length: 80 }),
@@ -806,25 +806,23 @@ export const collections = mysqlTable(
   (t) => [uniqueIndex("collections_handle_uq").on(t.shopId, t.handle)],
 );
 
-// Apps → Online payments: the merchant's own Chargily / SlickPay account (keys encrypted). Money goes straight to them.
-export const paymentProviders = ["chargily", "slickpay"] as const;
-export type PaymentProvider = (typeof paymentProviders)[number];
-export const shopPayments = mysqlTable(
-  "shop_payments",
+// Apps → Online payments: one row per method the merchant connected (Stripe, PayPal, CIB, Edahabia — see
+// features/payments/methods.ts), with the connector that processes it and its encrypted settings (keys, plus currency and
+// rate for Stripe / PayPal). checked_at = its test call succeeded: only then is the method offered to buyers.
+export const shopPaymentMethods = mysqlTable(
+  "shop_payment_methods",
   {
     id: id().primaryKey(),
     shopId: id("shop_id").notNull(),
-    provider: mysqlEnum("provider", paymentProviders).notNull(),
-    // Chargily: { secretKey }; SlickPay: { publicKey, contactId } — encrypted JSON
+    method: varchar("method", { length: 20 }).notNull(),
+    connector: varchar("connector", { length: 20 }).notNull(),
     credentials: text("credentials").notNull(),
     mode: mysqlEnum("mode", ["test", "live"]).notNull().default("test"),
-    // Chargily: who pays the gateway fees
-    feesOnBuyer: boolean("fees_on_buyer").notNull().default(false),
     active: boolean("active").notNull().default(true),
     checkedAt: datetime("checked_at"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("shop_payments_uq").on(t.shopId, t.provider)],
+  (t) => [uniqueIndex("shop_payment_methods_uq").on(t.shopId, t.method)],
 );
 
 // Balance: every credit that came in or went out, with the balance after it
@@ -843,7 +841,7 @@ export const creditLedger = mysqlTable(
   (t) => [index("credit_ledger_shop_idx").on(t.shopId, t.createdAt)],
 );
 
-// Balance → credit packs bought by card (the platform's Chargily account) or by transfer approved by the platform admin
+// Balance → credit packs bought online (the platform's own payment methods: credits/purchases.ts platformMethods) or by transfer approved by the platform admin
 export const creditPurchases = mysqlTable(
   "credit_purchases",
   {

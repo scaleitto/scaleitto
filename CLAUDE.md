@@ -145,18 +145,23 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   resolveWholesale / linePrice(…, wholesale)`, up to 1000 pieces, product editor tab). Shopping cart (`cart` switch; browser cart
   `storefront/cart.ts` per shop, `CartLink` in the header, `/store/<slug>/cart` = `CartPage` + `cart-actions.ts priceCart/submitCart`;
   `place-order.ts placeCartOrder` = one order with several lines — `placeOrder` is its one-line case).
-  Online payments (`features/payments`, phase33.mjs): `shop_payments` (chargily / slickpay, merchant keys encrypted, test/live,
-  Chargily fees on buyer, "Save and test" = `providers.ts` test call), `orders.payment_method/status/provider/ref/paid_at`. The order
-  form shows `PaymentChoice` (cod / card) when `cardGateway(shop)` exists; card → `startCardPayment` → gateway page → back to
-  `/thanks?o=&paid=` where `refreshPayment` asks the gateway (after `connection()`); Chargily also calls
-  `/api/payments/chargily/<shopId>` (HMAC-SHA256 of the raw body with the secret, header `signature`) → `markPaid`. A failed start
-  keeps the order cash on delivery. Formats from the official SDKs (Chargily JS, SlickPay npm/WooCommerce): verify with a real
-  account. E2E: `mock-pixels.mjs` also fakes both gateways (E2E_PAYMENT_URL, never in production).
+  Online payments (`features/payments`, phase33.mjs; owner: Stripe, PayPal, CIB, Edahabia — Chargily/SlickPay removed, migration
+  0049): `methods.ts` = four independent methods × connectors (the provider / official infrastructure that processes each:
+  stripe → Stripe Checkout, paypal → PayPal Orders v2 (EUR/USD at the merchant's rate), cib → SATIM, edahabia → SATIM or
+  `algerie_poste` = listed `ready: false`, no public merchant API). Clients in `connectors/*` (test / start / status; SATIM REST
+  register.do → getOrderStatusExtended.do / confirmOrder.do, centimes, currency 012). `shop_payment_methods` (one row per shop +
+  method, connector, keys encrypted, test/live, `checked_at`). `flow.ts liveMethods` = active + tested + ready connector — the only
+  methods buyers see (`PaymentChoice`, radio `payment` = cod or a method) and the only ones shown active on Apps → Online payments
+  (`PaymentsApp.tsx`, one card per method). Order → `startOnlinePayment` → payment page → `/thanks?o=&paid=` where `refreshPayment`
+  asks the connector (after `connection()`); a failed start keeps the order cash on delivery. Orders filter `?payment=cod|<method>`.
+  Formats from the public API docs (Stripe, PayPal) and the satim-node client: verify with real accounts. E2E: `mock-pixels.mjs`
+  fakes the three connectors with a `/pay/<id>` page (E2E_PAYMENT_URL, never in production).
   Balance (`features/credits`, `/dashboard/balance`, owner): `shops.credits` + `credit_ledger` (every +/− with the balance after;
   kinds trial / subscription / purchase / admin / whatsapp / notification / refund / ai), `ledger.ts grantCredits / spendCredits`
   (atomic, refuses when short). New stores get `TRIAL_CREDITS` (500, migration 0046 gave every store 500). Packs in `packs.ts`
-  (DZD prices); bought by card through the platform's own Chargily (PLATFORM_CHARGILY_SECRET / _MODE → `/api/payments/platform`
-  webhook, return `?purchase=` → `refreshCreditPurchase`) or locally (CCP/RIB receipt or WhatsApp → `credit_purchases` pending →
+  (DZD prices); bought online through the platform's own methods (`credits/purchases.ts platformMethods`: PLATFORM_STRIPE_SECRET,
+  PLATFORM_PAYPAL_CLIENT_ID/_SECRET/_RATE, PLATFORM_SATIM_USER/_PASSWORD/_TERMINAL for CIB + Edahabia, PLATFORM_PAYMENT_MODE;
+  return `?purchase=` → `refreshCreditPurchase`) or locally (CCP/RIB receipt or WhatsApp → `credit_purchases` pending →
   admin → plan requests page approves → `approveCreditPurchase`, credits once).
   WhatsApp confirmation (phase34.mjs, `features/whatsapp`, migration 0047): settings `shops.apps.whatsapp` (`resolveApps`:
   enabled, quiet hours, reminder, language, products, `notify` per `waNotices`, connectRequested). `whatsapp_messages` = outbox +

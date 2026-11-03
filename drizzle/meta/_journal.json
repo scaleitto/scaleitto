@@ -344,6 +344,13 @@
       "when": 1793697920508,
       "tag": "0048_product_options",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1793710656706,
+      "tag": "0049_payment_methods",
+      "breakpoints": true
     }
   ]
 }

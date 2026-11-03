@@ -1,5 +1,6 @@
 "use client";
 
+import { onlineMethods } from "@/features/payments/methods";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Filter, RefreshCw, X } from "lucide-react";
@@ -85,7 +86,11 @@ export function FilterDialog({
               <Select id="f-payment" name="payment" defaultValue={f.payment ?? ""}>
                 <option value="">{p.allPayments}</option>
                 <option value="cod">{p.cod}</option>
-                <option value="card">{p.card}</option>
+                {onlineMethods.map((m) => (
+                  <option key={m} value={m}>
+                    {p.online[m]}
+                  </option>
+                ))}
               </Select>
             </Field>
           </div>

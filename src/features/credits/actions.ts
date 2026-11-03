@@ -13,27 +13,28 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import { sectionHref } from "@/lib/permissions";
 import { paymentMethods } from "@/lib/enums";
 import { paymentDetails } from "@/features/plans/billing";
-import { chargily } from "@/features/payments/providers";
 import { findPack } from "./packs";
-import { approveCreditPurchase, platformChargily } from "./purchases";
+import { approveCreditPurchase, platformMethod, startCreditPayment } from "./purchases";
 
-// Card: the platform's own Chargily account (PLATFORM_CHARGILY_SECRET); the credits arrive with the paid webhook
-export async function buyCreditsByCard(lang: string, packKey: string): Promise<ActionState> {
+// Online: one of the platform's own payment methods (server settings); the credits arrive when the buyer is back and
+// the method's connector says the payment went through
+export async function buyCreditsOnline(lang: string, packKey: string, method: string): Promise<ActionState> {
   const locale = asLocale(lang);
   let target: string | null = null;
-  const result = await safeAction("credits/card", async () => {
+  const result = await safeAction("credits/online", async () => {
     const { shop, user } = await requireSection(locale, "balance");
     const pack = findPack(packKey);
-    const gateway = platformChargily();
+    const gateway = platformMethod(method);
     if (!pack) return { ok: false, error: "invalid" };
     if (!gateway) return { ok: false, error: "cardUnavailable" };
     const id = newId();
     await db.insert(schema.creditPurchases).values({ id, shopId: shop.id, pack: pack.key, credits: pack.credits, amount: pack.price, method: "card", requestedBy: user.id });
     const app = (process.env.APP_URL ?? "").replace(/\/$/, "");
-    const back = `${app}${sectionHref(locale, "balance")}?purchase=${id}`;
-    const started = await chargily.checkout(gateway.keys, gateway.mode, { amount: pack.price, successUrl: back, failureUrl: back, webhookUrl: `${app}/api/payments/platform`, locale, feesOnBuyer: false, description: `${pack.credits} credits`, orderId: id });
-    if (!started.ok) return { ok: false, error: "paymentTest", message: started.detail };
-    await db.update(schema.creditPurchases).set({ providerRef: started.id }).where(eq(schema.creditPurchases.id, id));
+    const started = await startCreditPayment(gateway, { id, amount: pack.price, credits: pack.credits }, `${app}${sectionHref(locale, "balance")}?purchase=${id}`, locale);
+    if (!started.ok) {
+      await db.delete(schema.creditPurchases).where(eq(schema.creditPurchases.id, id));
+      return { ok: false, error: "paymentTest", message: started.detail };
+    }
     target = started.url;
     return { ok: true };
   });
