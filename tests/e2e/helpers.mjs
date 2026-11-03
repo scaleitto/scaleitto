@@ -102,8 +102,8 @@ export const playwright = () => require("playwright");
 export async function createLandingManually(page, productId) {
   await page.click("[data-testid=create-landing]");
   await page.click("[data-create=manual]");
-  if (productId) await page.selectOption("#create-product", productId);
-  else await page.locator("#create-product").selectOption({ index: 1 });
+  if (productId) await page.click(`[data-pick-product="${productId}"]`);
+  else await page.locator("[data-pick-product]").first().click();
   await Promise.all([page.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), page.click("[data-testid=create-manual]")]);
   return page.url().split("/").pop();
 }

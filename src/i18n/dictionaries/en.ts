@@ -1067,6 +1067,7 @@ const en: Dictionary = {
     createManualHint: "Pick a product and go straight to a blank canvas in the custom builder.",
     createAi: "Generate with AI",
     createAiHint: "Open the dedicated AI builder for prompt, image count, generation progress, and preview.",
+    pickTitle: "Choose the page's product", pickTabs: { existing: "Existing product", new: "New product" }, pickSearch: "Search a product…", draftProduct: "draft", newProductHint: "We create the product with its name and price; complete it later in Products.", newName: "Product name", newPrice: "Price (DZD)", newImage: "Product photo (optional)", createWithProduct: "Create product and page",
     createGo: "Create",
     close: "Close",
     product: "Product",

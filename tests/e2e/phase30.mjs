@@ -71,7 +71,7 @@ export default async function phase30(browser) {
     await owner.goto(section);
     await owner.click("[data-testid=create-landing]");
     await owner.click("[data-create=manual]");
-    await owner.selectOption("#create-product", productId);
+    await owner.click(`[data-pick-product="${productId}"]`);
     await Promise.all([owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), owner.click("[data-testid=create-manual]")]);
     await owner.goto(section);
     await owner.selectOption("[data-filter=status]", "draft");
@@ -82,6 +82,21 @@ export default async function phase30(browser) {
     await owner.click("[data-view=grid]");
     await owner.reload();
     await owner.waitForSelector("[data-testid=landing-list][data-layout=grid]");
+  });
+
+  await step("design manually with a new product: name and price required, the product is created with the page", async () => {
+    await owner.goto(section);
+    await owner.click("[data-testid=create-landing]");
+    expect(await owner.locator("[data-testid=create-paths] [data-create=ai]").count(), "the two paths open inline");
+    await owner.click("[data-create=manual]");
+    await owner.click("[data-pick-tab=new]");
+    await owner.click("[data-testid=create-manual]");
+    await owner.locator("[data-testid=create-dialog]").getByText("هذا الحقل مطلوب").first().waitFor();
+    await owner.fill("#lp-new-name", "حقيبة جلدية");
+    await owner.fill("#lp-new-price", "5 900");
+    await Promise.all([owner.waitForURL(/landing-pages\/[0-9a-f-]{36}$/), owner.click("[data-testid=create-manual]")]);
+    const [[p]] = await db.query("SELECT p.id, p.price, p.status, p.slug FROM products p JOIN landing_pages l ON l.product_id = p.id WHERE p.shop_id = ? AND p.name = 'حقيبة جلدية'", [shopId]);
+    expect(p && p.price === 5900 && p.status === "active" && p.slug, `product created with the page (${JSON.stringify(p)})`);
   });
 
   await context.close();

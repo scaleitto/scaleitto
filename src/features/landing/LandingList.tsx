@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
-import { ChartColumn, Copy, ExternalLink, Eye, EyeOff, ImageOff, LayoutGrid, List, MoreHorizontal, PenLine, Plus, Search, Share2, Sparkles, Trash2, X } from "lucide-react";
+import { ChartColumn, Copy, ExternalLink, Eye, EyeOff, ImageOff, LayoutGrid, List, MoreHorizontal, PenLine, Search, Share2, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
 import type { ActionState } from "@/lib/action";
-import { Badge, Button, Card, Field, Input, Select, buttonClass } from "@/ui";
-import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { createLandingPage, deleteLandingPage, duplicateLandingPage, pageVersionStats, setLandingLive } from "./actions";
+import { Badge, Card, Input, Select, buttonClass } from "@/ui";
+import { deleteLandingPage, duplicateLandingPage, pageVersionStats, setLandingLive } from "./actions";
 import { useModal } from "@/ui/useModal";
 
 type Text = Pick<Dictionary, "landingPages" | "errors" | "common">;
@@ -182,8 +181,7 @@ function RowActions({ lang, page, editHref, t }: { lang: string; page: ListPage;
   );
 }
 
-// Landing pages (Zimam): search, filters (status, product, order), list or grid, and "Create Landing Page" with its
-// two paths (design manually / generate with AI)
+// Landing pages (Zimam): search, filters (status, product, order), list or grid (the create paths are in CreateLanding)
 export function LandingList({ lang, pages, products, base, t }: { lang: string; pages: ListPage[]; products: { id: string; name: string }[]; base: string; t: Text }) {
   const lp = t.landingPages;
   const [q, setQ] = useState("");
@@ -191,10 +189,6 @@ export function LandingList({ lang, pages, products, base, t }: { lang: string; 
   const [product, setProduct] = useState("");
   const [sort, setSort] = useState<"recent" | "views" | "orders">("recent");
   const [view, setView] = useView();
-  const dialog = useModal();
-  const [mode, setMode] = useState<"pick" | "manual">("pick");
-  const { state, pending, onSubmit } = useActionForm(createLandingPage.bind(null, lang));
-  const errors = t.errors as Record<string, string>;
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return pages
@@ -237,17 +231,6 @@ export function LandingList({ lang, pages, products, base, t }: { lang: string; 
             </button>
           ))}
         </div>
-        <Button
-          type="button"
-          className="ms-auto"
-          onClick={() => {
-            setMode("pick");
-            dialog.current?.showModal();
-          }}
-          data-testid="create-landing"
-        >
-          <Plus size={16} /> {lp.createTitle}
-        </Button>
       </div>
       <p className="text-xs text-muted" data-testid="showing">
         {fmt(lp.showing, { n: shown.length, total: pages.length })}
@@ -307,54 +290,6 @@ export function LandingList({ lang, pages, products, base, t }: { lang: string; 
         </div>
       )}
 
-      <dialog ref={dialog} className="m-auto w-[min(560px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="create-dialog">
-        <div className="flex items-center justify-between border-b border-line p-4">
-          <h2 className="font-bold">{lp.createTitle}</h2>
-          <button type="button" aria-label={lp.close} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => dialog.current?.close()}>
-            <X size={18} />
-          </button>
-        </div>
-        {mode === "pick" ? (
-          <div className="grid gap-3 p-4 sm:grid-cols-2">
-            <button type="button" onClick={() => setMode("manual")} className="space-y-2 rounded-xl border border-line p-4 text-start hover:border-accent/50 hover:bg-accent-soft" data-create="manual">
-              <PenLine size={20} className="text-accent" />
-              <p className="font-semibold">{lp.createManual}</p>
-              <p className="text-xs text-muted">{lp.createManualHint}</p>
-            </button>
-            <Link href={`${base}/new`} className="space-y-2 rounded-xl border border-line p-4 hover:border-accent/50 hover:bg-accent-soft" data-create="ai">
-              <Sparkles size={20} className="text-accent" />
-              <p className="font-semibold">{lp.createAi}</p>
-              <p className="text-xs text-muted">{lp.createAiHint}</p>
-            </Link>
-          </div>
-        ) : (
-          <form onSubmit={onSubmit} className="space-y-4 p-4" noValidate>
-            {products.length === 0 ? (
-              <p className="text-sm text-muted">{lp.noProducts}</p>
-            ) : (
-              <Field label={lp.product} htmlFor="create-product" error={fieldError(state, errors, "productId")}>
-                <Select id="create-product" name="productId" defaultValue="">
-                  <option value="">{lp.chooseProduct}</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            )}
-            <FormMessage state={state} errors={errors} />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => setMode("pick")}>
-                {t.common.back}
-              </Button>
-              <SubmitButton pending={pending} disabled={products.length === 0} data-testid="create-manual">
-                {lp.createGo}
-              </SubmitButton>
-            </div>
-          </form>
-        )}
-      </dialog>
     </div>
   );
 }

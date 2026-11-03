@@ -11,7 +11,7 @@ import { safeAction } from "@/server/errors";
 import { asLocale } from "@/i18n";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
-import { channelKinds, type ChannelKind } from "@/server/db/schema";
+import type { ChannelKind } from "@/server/db/schema";
 import { redirect } from "next/navigation";
 import { sectionHref } from "@/lib/permissions";
 import { shopifySetup, wooAuthorizeUrl } from "./platforms";

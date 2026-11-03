@@ -3,10 +3,11 @@ import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
-import { Card, PageHeader } from "@/ui";
+import { Card } from "@/ui";
 import { formatDate } from "@/lib/format";
 import { listLandingPages, productChoices } from "@/features/landing/queries";
 import { LandingList } from "@/features/landing/LandingList";
+import { CreateLanding } from "@/features/landing/CreateLanding";
 
 // Landing pages (Zimam): four counters, then the list with its filters and the create window
 export default async function LandingPagesPage({ params }: PageProps<"/[lang]/dashboard/landing-pages">) {
@@ -28,7 +29,14 @@ export default async function LandingPagesPage({ params }: PageProps<"/[lang]/da
 
   return (
     <>
-      <PageHeader title={t.sections.landingPages.title} description={t.sections.landingPages.description} />
+      <CreateLanding
+        lang={lang}
+        base={base}
+        title={t.sections.landingPages.title}
+        description={t.sections.landingPages.description}
+        products={products.map((p) => ({ id: p.id, name: p.name, price: p.price, image: (p.images as string[] | null)?.[0] ?? null, draft: p.status !== "active" }))}
+        t={{ landingPages: lp, errors: t.errors, common: t.common, media: t.media }}
+      />
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="landing-stats">
         {stats.map((s) => (
           <Card key={s.key} className="space-y-3" data-stat={s.key}>

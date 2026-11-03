@@ -1065,6 +1065,7 @@ const ar = {
     createManualHint: "اختر منتجاً وانتقل مباشرة إلى صفحة فارغة في المحرر.",
     createAi: "إنشاء بالذكاء الاصطناعي",
     createAiHint: "افتح منشئ الذكاء الاصطناعي: الوصف، عدد الصور، تقدم الإنشاء والمعاينة.",
+    pickTitle: "اختر منتج الصفحة", pickTabs: { existing: "منتج موجود", new: "منتج جديد" }, pickSearch: "ابحث عن منتج…", draftProduct: "مسودة", newProductHint: "ننشئ المنتج بالاسم والسعر، وتكمل تفاصيله لاحقاً من قسم المنتجات.", newName: "اسم المنتج", newPrice: "السعر (د.ج)", newImage: "صورة المنتج (اختياري)", createWithProduct: "إنشاء المنتج والصفحة",
     createGo: "إنشاء",
     close: "إغلاق",
     product: "المنتج",

@@ -1067,6 +1067,7 @@ const fr: Dictionary = {
     createManualHint: "Choisissez un produit et passez directement à une page vierge dans l'éditeur.",
     createAi: "Générer avec l'IA",
     createAiHint: "Ouvrez le générateur IA : consigne, nombre d'images, progression et aperçu.",
+    pickTitle: "Choisissez le produit de la page", pickTabs: { existing: "Produit existant", new: "Nouveau produit" }, pickSearch: "Rechercher un produit…", draftProduct: "brouillon", newProductHint: "Nous créons le produit avec son nom et son prix ; complétez-le ensuite dans Produits.", newName: "Nom du produit", newPrice: "Prix (DA)", newImage: "Photo du produit (facultatif)", createWithProduct: "Créer le produit et la page",
     createGo: "Créer",
     close: "Fermer",
     product: "Produit",

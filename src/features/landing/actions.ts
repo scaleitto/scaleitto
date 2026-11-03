@@ -15,6 +15,8 @@ import type { ActionState } from "@/lib/action";
 import { readPublished, sanitizeSections, sanitizeVariants, storeLanguage, type LandingSection, type PageVariant } from "./types";
 import { blankSections, freeSlug, insertLandingPage, shopProduct } from "./store";
 import { versionStats } from "./queries";
+import { uniqueSlug } from "@/features/products/slug";
+import { slugify } from "@/lib/format";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "landingPages");
 const MAX_HISTORY = 20;
@@ -26,18 +28,45 @@ async function pageOf(shopId: string, pageId: string) {
   return page ?? null;
 }
 
-// "Design manually": pick a product and go straight to a blank canvas (an image to fill and the order form)
+// "Design manually" (Zimam): an existing product, or a new one created here (name, price, optional photo — a draft the
+// merchant completes later in Products), then straight to a blank canvas (an image to fill and the order form)
+const newProductSchema = z.object({
+  name: z.string().trim().min(1, "e:required").max(200, "e:invalid"),
+  price: z.coerce.number({ error: "e:price" }).int("e:price").min(1, "e:price").max(10_000_000, "e:price"),
+  image: z.string().trim().max(255).optional().default(""),
+});
+
 export async function createLandingPage(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const locale = asLocale(lang);
   let pageId: string | null = null;
   const result = await safeAction("landing/create", async () => {
     const { shop } = await guard(locale);
-    const parsed = z.object({ productId: z.string().min(1, "e:required").max(36) }).safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-    const product = await shopProduct(shop.id, parsed.data.productId);
-    if (!product) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
-    if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
-    pageId = await insertLandingPage(shop.id, { productId: product.id, title: product.name, language: storeLanguage(shop.defaultLocale), sections: blankSections() });
+    let productId: string;
+    let title: string;
+    if (formData.get("mode") === "new") {
+      const parsed = newProductSchema.safeParse({ name: formData.get("name"), price: String(formData.get("price") ?? "").replace(/\s/g, ""), image: formData.get("image") ?? "" });
+      if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+      const { name, price, image } = parsed.data;
+      // Only a photo this shop uploaded
+      const images = image.startsWith(`/uploads/${shop.id}/`) ? [image] : [];
+      if (!(await canAdd(shop.id, "maxProducts"))) return { ok: false, error: "limitProducts" };
+      if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
+      productId = newId();
+      await db.transaction(async (tx) => {
+        const slug = await uniqueSlug(tx, shop.id, slugify(name));
+        await tx.insert(schema.products).values({ id: productId, shopId: shop.id, name, slug, price, images, options: [], offers: [], status: "active" });
+      });
+      title = name;
+    } else {
+      const parsed = z.object({ productId: z.string().min(1, "e:required").max(36) }).safeParse({ productId: formData.get("productId") ?? "" });
+      if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+      const product = await shopProduct(shop.id, parsed.data.productId);
+      if (!product) return { ok: false, error: "checkFields", fieldErrors: { productId: "required" } };
+      if (!(await canAdd(shop.id, "maxLandingPages"))) return { ok: false, error: "limitLanding" };
+      productId = product.id;
+      title = product.name;
+    }
+    pageId = await insertLandingPage(shop.id, { productId, title, language: storeLanguage(shop.defaultLocale), sections: blankSections() });
     return { ok: true };
   });
   if (pageId) redirect(`${sectionHref(locale, "landingPages")}/${pageId}`);

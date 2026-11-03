@@ -92,7 +92,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `lpv_<id>` cookie or a random running one (`LandingView` stores it and counts the visit in `landing_stats`), `orders.landing_version`;
   a page with a thankYou component sends the buyer back to `?thanks=<order>` (`ThankYouPopup` + purchase pixels). Blocks drawn by
   `blocks.tsx` (one 520px column, shared with the builder). The form component shows the store's order form
-  (`storeForm`). List = `LandingList.tsx` (counters, search, filters, list/grid, row actions: copy link, open,
+  (`storeForm`). Header = `CreateLanding.tsx` (Zimam: "Create landing page" ↔ "Close" opens the two paths inline; "Design manually" =
+  dialog with Existing product (cards + search, `data-pick-product`) | New product (name, price, optional photo → `createLandingPage`
+  mode=new creates the active product, `canAdd maxProducts`), then the blank builder). List = `LandingList.tsx` (counters, search, filters, list/grid, row actions: copy link, open,
   versions' numbers `pageVersionStats`, publish/unpublish `setLandingLive`, duplicate, delete).
 - AI pages ("Generate with AI", `landing/AiBuilder.tsx` at `/landing-pages/new`): product, language of the texts in the images
   (ar/fr/en), brief (≤ 900), writing framework and style family (`landing/ai-options.ts`), 2/4/6 images, price text, cost = 1 + images

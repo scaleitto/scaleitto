@@ -181,7 +181,7 @@ export default async function phase7(browser) {
     await owner.goto(section);
     await owner.click("[data-testid=create-landing]");
     await owner.click("[data-create=manual]");
-    await owner.selectOption("#create-product", productId);
+    await owner.click(`[data-pick-product="${productId}"]`);
     await owner.click("[data-testid=create-manual]");
     await owner.waitForSelector("text=وصلت إلى الحد الأقصى لصفحات الهبوط في باقتك");
     await db.query("UPDATE shop_contracts SET limits = ? WHERE id = ?", [JSON.stringify({ maxLandingPages: 20, maxAiPerMonth: 20 }), contractId]);
