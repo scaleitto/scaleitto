@@ -59,7 +59,7 @@ export default async function phase3(browser) {
 
   await step("wrong delivery keys are refused and never saved", async () => {
     await page.goto(delivery);
-    await page.click('[data-carrier="yalidine"] button:has-text("ربط")');
+    await page.click('[data-carrier="yalidine"] a:has-text("ربط")');
     await page.fill("#yalidine-apiId", "good-id");
     await page.fill("#yalidine-apiToken", "wrong");
     await page.locator('[data-connect="yalidine"] button[type=submit]').click();
@@ -79,7 +79,7 @@ export default async function phase3(browser) {
   });
 
   await step("an Ecotrack company needs a real ecotrack.dz address", async () => {
-    await page.click('[data-carrier="navex"] button:has-text("ربط")');
+    await page.click('[data-carrier="navex"] a:has-text("ربط")');
     await page.fill("#navex-baseUrl", "evil.example.com");
     await page.fill("#navex-token", "good-token");
     await page.locator('[data-connect="navex"] button[type=submit]').click();
@@ -154,7 +154,7 @@ export default async function phase3(browser) {
 
   await step("ZR Express (both platforms) and NOEST: connect, send, read the status", async () => {
     await page.goto(delivery);
-    await page.click('[data-carrier="zr"] button:has-text("ربط")');
+    await page.click('[data-carrier="zr"] a:has-text("ربط")');
     await page.fill("#zr-tenantId", "good-tenant");
     await page.fill("#zr-apiKey", "wrong-key");
     await page.locator('[data-connect="zr"] button[type=submit]').click();
@@ -163,12 +163,12 @@ export default async function phase3(browser) {
     await page.fill("#zr-apiKey", "good-key");
     await page.locator('[data-connect="zr"] button[type=submit]').click();
     await page.waitForSelector('[data-account="zr"]');
-    await page.click('[data-carrier="zrexpress"] button:has-text("ربط")');
+    await page.click('[data-carrier="zrexpress"] a:has-text("ربط")');
     await page.fill("#zrexpress-token", "good-token");
     await page.fill("#zrexpress-key", "good-key");
     await page.locator('[data-connect="zrexpress"] button[type=submit]').click();
     await page.waitForSelector('[data-account="zrexpress"]');
-    await page.click('[data-carrier="noest"] button:has-text("ربط")');
+    await page.click('[data-carrier="noest"] a:has-text("ربط")');
     await page.fill("#noest-apiToken", "good-token");
     await page.fill("#noest-userGuid", "good-guid");
     await page.locator('[data-connect="noest"] button[type=submit]').click();

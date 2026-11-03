@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CircleCheck, Search, Star, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, CircleCheck, Clock, Search, Star, Trash2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
@@ -81,19 +83,21 @@ export function ConnectedAccounts({ lang, accounts, wilayaNames, t }: { lang: st
 }
 
 // What every parcel sent with this company starts from (type, fragile, weight, note)
-function AccountDefaults({ lang, account, t }: { lang: string; account: CarrierAccountRow; t: DeliveryText }) {
+function AccountDefaults({ lang, account, t, alwaysOpen = false }: { lang: string; account: CarrierAccountRow; t: DeliveryText; alwaysOpen?: boolean }) {
   const o = t.delivery.options;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   const [value, setValue] = useState(() => ({ ...defaultParcelOptions, ...(account.options ?? {}) }));
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
   return (
     <div className="pt-1" data-testid="account-defaults">
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="text-xs font-semibold text-accent hover:underline">
-        {o.defaults}
-      </button>
+      {!alwaysOpen && (
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="text-xs font-semibold text-accent hover:underline">
+          {o.defaults}
+        </button>
+      )}
       {open && (
-        <div className="mt-3 space-y-3 rounded-lg border border-line bg-panel-2/50 p-3">
+        <div className={alwaysOpen ? "space-y-3" : "mt-3 space-y-3 rounded-lg border border-line bg-panel-2/50 p-3"}>
           <p className="text-xs text-muted">{o.defaultsHint}</p>
           <ParcelOptionsFields value={value} onChange={(v) => (setValue(v), setSaved(false))} idPrefix={`def-${account.carrier}`} defaultsOnly t={t} />
           <div className="flex items-center gap-3">
@@ -128,7 +132,7 @@ function ConnectForm({ lang, carrier, wilayas, t, onDone }: { lang: string; carr
   });
   const message = errorText(t, state);
   return (
-    <form onSubmit={onSubmit} noValidate className="mt-4 space-y-3 border-t border-line pt-4" data-connect={carrier.key}>
+    <form onSubmit={onSubmit} noValidate className="space-y-4" data-connect={carrier.key}>
       <input type="hidden" name="carrier" value={carrier.key} />
       <p className="text-xs text-muted">{d.credentialsHint}</p>
       {!carrier.baseUrl && (
@@ -152,18 +156,17 @@ function ConnectForm({ lang, carrier, wilayas, t, onDone }: { lang: string; carr
       </Field>
       {message && <Alert>{message}</Alert>}
       {state.error === "checkFields" && <Alert>{e.checkFields}</Alert>}
-      <SubmitButton pending={pending} pendingText={t.common.loading}>
-        {d.connect}
+      <SubmitButton pending={pending} pendingText={t.common.loading} className="h-12 w-full text-base">
+        {d.saveConnection}
       </SubmitButton>
     </form>
   );
 }
 
-// Zimam's catalog: a search box, then one card per company (mark, name, status, a wide "Integrate" button)
-export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; connected: string[]; wilayas: { code: number; name: string }[]; t: DeliveryText }) {
+// Zimam's catalog: a search box, then one card per company (mark, name, status, a wide "Integrate" button that opens the
+// company's own page)
+export function CarrierCatalog({ connected, base, t }: { connected: string[]; base: string; t: DeliveryText }) {
   const d = t.delivery;
-  const [open, setOpen] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const shown = carriers.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
@@ -176,7 +179,6 @@ export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; 
         <h2 className="font-semibold">{d.available}</h2>
         <p className="text-sm text-muted">{d.availableHint}</p>
       </div>
-      {done && <Alert variant="success">{`${d.connectedOk}: ${carrierName(done)}`}</Alert>}
       <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {shown.map((c) => {
           const isConnected = connected.includes(c.key);
@@ -189,31 +191,83 @@ export function CarrierCatalog({ lang, connected, wilayas, t }: { lang: string; 
                   <span className={`block text-xs ${isConnected ? "text-accent" : "text-muted"}`}>{!c.platform ? d.soon : isConnected ? d.integrated : d.notIntegrated}</span>
                 </span>
               </div>
-              {c.platform ? (
-                <Button variant={isConnected ? "secondary" : "primary"} className="w-full" onClick={() => setOpen(open === c.key ? null : c.key)}>
-                  <CircleCheck size={15} /> {isConnected ? d.update : d.connect}
-                </Button>
-              ) : (
-                <Button variant="secondary" className="w-full" disabled>
-                  {d.soonHint}
-                </Button>
-              )}
-              {open === c.key && c.platform && (
-                <ConnectForm
-                  lang={lang}
-                  carrier={c}
-                  wilayas={wilayas}
-                  t={t}
-                  onDone={() => {
-                    setOpen(null);
-                    setDone(c.key);
-                  }}
-                />
-              )}
+              <Link
+                href={`${base}/carriers/${c.key}`}
+                className={`flex h-10 w-full items-center justify-center gap-2 rounded-[10px] text-sm font-semibold transition-colors ${!c.platform ? "border border-line text-muted hover:bg-panel-2" : isConnected ? "border border-line bg-panel hover:bg-panel-2" : "bg-accent text-white hover:bg-accent/90"}`}
+              >
+                {c.platform ? <CircleCheck size={15} /> : <Clock size={15} />} {!c.platform ? d.soonHint : isConnected ? d.update : d.connect}
+              </Link>
             </Card>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// One company's page (Zimam): back, its mark and name, the connection details (save / delete), then how its parcels are sent
+export function CarrierSetup({ lang, carrier, account, wilayas, backHref, t }: { lang: string; carrier: CarrierInfo; account: CarrierAccountRow | null; wilayas: { code: number; name: string }[]; backHref: string; t: DeliveryText }) {
+  const d = t.delivery;
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="mx-auto max-w-3xl space-y-6" data-testid="carrier-setup" data-carrier-page={carrier.key}>
+      <div className="flex items-center gap-4">
+        <Link href={backHref} aria-label={t.common.back} className="grid size-10 place-items-center rounded-lg text-fg-2 hover:bg-panel-2">
+          <ArrowRight size={20} className="ltr:rotate-180" />
+        </Link>
+        <span className="grid size-20 place-items-center rounded-2xl border border-line bg-panel">
+          <CarrierMark name={carrier.name} />
+        </span>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{carrier.name}</h1>
+          <p className="text-sm text-muted">{d.setupHint}</p>
+        </div>
+      </div>
+      <Card className="space-y-4 p-6">
+        {!carrier.platform ? (
+          <p className="flex items-start gap-2 rounded-xl border border-dashed border-line p-4 text-sm text-muted" data-testid="carrier-soon">
+            <Clock size={16} className="mt-0.5 shrink-0" /> {d.soonPage}
+          </p>
+        ) : (
+          <>
+            {account && (
+              <p className="flex items-center gap-2 text-sm font-semibold text-accent" data-account={carrier.key}>
+                <CircleCheck size={16} /> {d.integrated}
+                {account.isDefault && <Badge tone="accent">{d.isDefault}</Badge>}
+              </p>
+            )}
+            <ConnectForm lang={lang} carrier={carrier} wilayas={wilayas} t={t} onDone={() => router.push(`${backHref}?connected=${carrier.key}`)} />
+            {account && (
+              <Button
+                type="button"
+                variant="danger"
+                className="h-12 w-full text-base"
+                disabled={pending}
+                onClick={() => {
+                  if (confirm(d.confirmDisconnect))
+                    start(async () => {
+                      const r = await disconnectCarrier(lang, account.id);
+                      if (r.ok) router.push(backHref);
+                      else setError(errorText(t, r));
+                    });
+                }}
+                data-testid="delete-connection"
+              >
+                <Trash2 size={16} /> {d.deleteConnection}
+              </Button>
+            )}
+            {error && <Alert>{error}</Alert>}
+          </>
+        )}
+      </Card>
+      {carrier.platform && (
+        <Card className="space-y-3 p-6">
+          <h2 className="font-semibold">{d.options.defaults}</h2>
+          {account ? <AccountDefaults lang={lang} account={account} t={t} alwaysOpen /> : <p className="text-sm text-muted">{d.connectFirst}</p>}
+        </Card>
+      )}
     </div>
   );
 }

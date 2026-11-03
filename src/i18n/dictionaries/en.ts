@@ -799,6 +799,7 @@ const en: Dictionary = {
     baseUrl: "Company dashboard address",
     baseUrlHint: "e.g. navex.ecotrack.dz",
     originWilaya: "Wilaya parcels leave from",
+    setupHint: "Your account's connection details with this company", saveConnection: "Save connection", deleteConnection: "Delete connection", connectFirst: "Connect the delivery company first to set up its parcels.", soonPage: "We have not yet checked this company's connection with a real account, so it cannot be connected yet. Coming soon.",
     credentialsHint: "The keys are in the courier's dashboard, API section. We check them before saving and store them encrypted.",
     connectedOk: "Connected",
     ratesHint: "The price the customer pays for each wilaya. Leave empty when that type is not available. With no price at all, delivery is free.",

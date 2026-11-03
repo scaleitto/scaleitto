@@ -81,7 +81,7 @@ export default async function phase28(browser) {
 
   await step("companies: automatic send of confirmed orders that have a delivery company", async () => {
     await owner.goto(`${dash}/delivery`);
-    await owner.click('[data-carrier="yalidine"] button:has-text("ربط")');
+    await owner.click('[data-carrier="yalidine"] a:has-text("ربط")');
     await owner.fill("#yalidine-apiId", "good-id");
     await owner.fill("#yalidine-apiToken", "good-token");
     await owner.locator('[data-connect="yalidine"] button[type=submit]').click();

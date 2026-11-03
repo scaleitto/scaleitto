@@ -307,7 +307,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   "Myself" for the signed-in member, customer tracking link (`trackLink`); new order = one column, delivery cards, no agent / company
   / fee / address (the server prices delivery).
 - Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
-  `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
+  `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards that open
+  the company's page `/delivery/carriers/<key>` = `CarrierSetup`: back, mark, connection form "Save connection" → back to the list with
+  `?connected=`, "Delete connection", the company's parcel defaults; companies without a verified API (Maystro, E-COM, Aligoo, DCH,
+  OSEN, Zimou — `platform: null`) say "coming soon"; uften/courier (MIT) has unverified Maystro / Zimou adapters to start from), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`
   (`delivery/settings`: `DeliverySettingsForm`; `/delivery/rates` redirects; page tabs ordered by `permissions.ts tabOrder` = General
   settings first, like Zimam). `delivery/settings.ts` (pure): `shops.delivery` via `resolveDelivery` (enabled, autoSend, up to 10

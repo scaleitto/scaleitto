@@ -799,6 +799,7 @@ const fr: Dictionary = {
     baseUrl: "Adresse du tableau de bord de la société",
     baseUrlHint: "Ex. : navex.ecotrack.dz",
     originWilaya: "Wilaya de départ des colis",
+    setupHint: "Les détails de connexion de votre compte chez cette société", saveConnection: "Enregistrer la connexion", deleteConnection: "Supprimer la connexion", connectFirst: "Connectez d'abord la société de livraison pour régler ses colis.", soonPage: "Nous n'avons pas encore vérifié la connexion de cette société avec un vrai compte : elle n'est pas encore disponible.",
     credentialsHint: "Les clés se trouvent dans le tableau de bord du livreur, rubrique API. Elles sont vérifiées puis enregistrées chiffrées.",
     connectedOk: "Connexion réussie",
     ratesHint: "Le prix payé par le client pour chaque wilaya. Laissez vide si ce type n'est pas disponible. Sans aucun tarif, la livraison est gratuite.",

@@ -30,7 +30,7 @@ export default async function phase21(browser) {
 
   await step("Packers connected, with its default parcel options (fragile, weight)", async () => {
     await owner.goto(`${dash}/delivery`);
-    await owner.click('[data-carrier="packers"] button:has-text("ربط")');
+    await owner.click('[data-carrier="packers"] a:has-text("ربط")');
     await owner.fill("#packers-token", "good-token");
     await owner.locator('[data-connect="packers"] button[type=submit]').click();
     const card = owner.locator('[data-account="packers"]');
