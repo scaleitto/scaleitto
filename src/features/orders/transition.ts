@@ -5,6 +5,7 @@ import { newId } from "@/server/auth/context";
 import { holdsStock, type OrderStatus } from "./statuses";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
+import { scheduleSheetStatus } from "@/features/channels/sheets-sync";
 import { scheduleAutoSend } from "@/features/delivery/send";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 
@@ -15,7 +16,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // Returns false when the order does not exist or already has that status.
 export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, status: OrderStatus, userId: string | null, note?: string) {
   const [order] = await tx
-    .select({ status: schema.orders.status })
+    .select({ status: schema.orders.status, channel: schema.orders.channel })
     .from(schema.orders)
     .where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.id, orderId)))
     .for("update");
@@ -50,5 +51,7 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
   if (notice) await scheduleWhatsApp(shopId, orderId, notice, tx);
   // Google Sheets / webhook get the new status
   await scheduleOrderSync(shopId, orderId);
+  // An order imported from a Google Sheet: its status goes back into the sheet's status column
+  if (order.channel === "google_sheets") scheduleSheetStatus(shopId, orderId);
   return true;
 }

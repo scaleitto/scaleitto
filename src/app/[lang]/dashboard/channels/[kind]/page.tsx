@@ -8,13 +8,14 @@ import { formatDate } from "@/lib/format";
 import { SheetsCard } from "@/features/apps/AppCards";
 import { appViews } from "@/features/apps/queries";
 import { PlatformCard } from "@/features/channels/ChannelCards";
+import { SheetsImport } from "@/features/channels/SheetsImport";
 import { channelPages, type ChannelPage } from "@/features/channels/ChannelGrid";
 import { listChannels } from "@/features/channels/queries";
 
 const names: Record<ChannelPage, string> = { google_sheets: "Google Sheets", shopify: "Shopify", woocommerce: "WooCommerce" };
 
 // One connected platform's setup page (Zimam: the card's "Connect" opens it)
-export default async function ChannelPageView({ params }: PageProps<"/[lang]/dashboard/channels/[kind]">) {
+export default async function ChannelPageView({ params, searchParams }: PageProps<"/[lang]/dashboard/channels/[kind]">) {
   const { lang: rawLang, kind } = await params;
   const lang = asLocale(rawLang);
   if (!(channelPages as readonly string[]).includes(kind)) notFound();
@@ -24,15 +25,31 @@ export default async function ChannelPageView({ params }: PageProps<"/[lang]/das
   const back = sectionHref(lang, "channels");
   let body;
   if (page === "google_sheets") {
-    const apps = await appViews(shop.id);
+    // Zimam: Import orders (rows of a sheet become orders) | Export orders (orders written to another sheet)
+    const tab = (await searchParams).tab === "export" ? "export" : "import";
+    const [apps, channels] = await Promise.all([appViews(shop.id), listChannels(shop.id)]);
+    const view = channels.find((c) => c.kind === "google_sheets") ?? null;
+    const s = t.channels.sheets;
     body = (
-      <div data-channel="google_sheets">
-        <SheetsCard lang={lang} view={apps.google_sheets} t={{ apps: t.apps, errors: t.errors, common: t.common }} />
+      <div className="space-y-5" data-channel="google_sheets">
+        <nav className="flex gap-1 border-b border-line" data-testid="sheets-tabs">
+          {(["import", "export"] as const).map((k) => (
+            <Link key={k} href={`${back}/google_sheets?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px border-b-2 px-3 py-2.5 text-sm font-medium ${tab === k ? "border-accent font-semibold text-accent" : "border-transparent text-fg-2 hover:text-fg"}`} data-tab={k}>
+              {s.tabs[k]}
+            </Link>
+          ))}
+        </nav>
+        <p className="text-sm text-muted">{s.separate}</p>
+        {tab === "import" ? (
+          <SheetsImport lang={lang} view={view} lastOrder={view?.lastOrderAt ? formatDate(view.lastOrderAt, lang) : null} t={{ channels: t.channels, errors: t.errors }} />
+        ) : (
+          <SheetsCard lang={lang} view={apps.google_sheets} t={{ apps: t.apps, errors: t.errors, common: t.common }} />
+        )}
       </div>
     );
   } else {
     const view = (await listChannels(shop.id)).find((c) => c.kind === page) ?? null;
-    body = <PlatformCard lang={lang} kind={page} view={view} lastOrder={view?.lastOrderAt ? formatDate(view.lastOrderAt, lang) : null} t={{ channels: t.channels, errors: t.errors }} />;
+    body = <PlatformCard lang={lang} kind={page as "shopify" | "woocommerce"} view={view} lastOrder={view?.lastOrderAt ? formatDate(view.lastOrderAt, lang) : null} t={{ channels: t.channels, errors: t.errors }} />;
   }
   return (
     <div className="max-w-3xl space-y-6">

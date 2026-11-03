@@ -31,6 +31,8 @@ export default async function phase29(browser) {
     expect((await owner.locator("[data-channel-soon]").count()) === 4, "4 coming");
     // Each card's Connect opens the platform's own page
     await Promise.all([owner.waitForURL(/channels\/google_sheets$/), owner.locator("[data-channel=google_sheets] [data-testid=channel-open]").click()]);
+    await owner.locator("[data-testid=sheets-import]").waitFor();
+    await owner.click("[data-testid=sheets-tabs] [data-tab=export]");
     await owner.locator("[data-testid=app-sheets]").waitFor();
     await owner.goto(`${dash}/integrations/apps`);
     expect(!(await owner.locator("[data-testid=app-sheets]").count()), "no longer in Apps");

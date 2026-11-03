@@ -12,6 +12,7 @@ import { asLocale } from "@/i18n";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { channelKinds, type ChannelKind } from "@/server/db/schema";
+import { requiredSheetFields, sheetFields, splitHeaders, type SheetImport } from "./sheets";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "channels");
 
@@ -28,7 +29,7 @@ const wooSchema = z.object({
 export async function connectChannel(lang: string, kind: ChannelKind, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("channels/connect", async () => {
     const { shop } = await guard(lang);
-    if (!(channelKinds as readonly string[]).includes(kind)) return { ok: false, error: "invalid" };
+    if (!(channelKinds as readonly string[]).includes(kind) || kind === "google_sheets") return { ok: false, error: "invalid" };
     const raw = Object.fromEntries(formData);
     let storeUrl: string;
     let secret: string;
@@ -63,6 +64,50 @@ export async function disconnectChannel(lang: string, kind: ChannelKind): Promis
   return safeAction("channels/disconnect", async () => {
     const { shop } = await guard(lang);
     await db.delete(schema.shopChannels).where(and(eq(schema.shopChannels.shopId, shop.id), eq(schema.shopChannels.kind, kind)));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Only Google's script addresses (and the fake server of the automated tests) receive the order statuses
+function validScriptUrl(url: string) {
+  if (/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)) return true;
+  const fake = process.env.E2E_APPS_URL;
+  return Boolean(fake && url.startsWith(`${fake}/`));
+}
+
+// Google Sheets → Import orders: the sheet's header row, which column holds each field, and the deployed script address
+// (for the statuses). The receiving address and the secret are made on the first save.
+export async function saveSheetImport(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("channels/sheets", async () => {
+    const { shop } = await guard(lang);
+    const headers = splitHeaders(String(formData.get("headers") ?? ""));
+    if (headers.length < 2) return { ok: false, error: "checkFields", fieldErrors: { headers: "sheetHeaders" } };
+    const fieldErrors: Record<string, string> = {};
+    const columns = Object.fromEntries(
+      sheetFields.map((f) => {
+        const raw = String(formData.get(`col_${f}`) ?? "");
+        const n = raw === "" ? null : Number(raw);
+        const value = n !== null && Number.isInteger(n) && n >= 0 && n < headers.length ? n : null;
+        if (value === null && requiredSheetFields.includes(f)) fieldErrors[`col_${f}`] = "required";
+        return [f, value];
+      }),
+    ) as SheetImport["columns"];
+    const scriptUrl = String(formData.get("scriptUrl") ?? "").trim() || null;
+    if (scriptUrl && !validScriptUrl(scriptUrl)) fieldErrors.scriptUrl = "scriptUrl";
+    if (Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
+    const settings: SheetImport = { headers, columns, scriptUrl };
+    const [existing] = await db.select({ id: schema.shopChannels.id }).from(schema.shopChannels).where(and(eq(schema.shopChannels.shopId, shop.id), eq(schema.shopChannels.kind, "google_sheets")));
+    if (existing) await db.update(schema.shopChannels).set({ settings, active: true }).where(eq(schema.shopChannels.id, existing.id));
+    else
+      await db.insert(schema.shopChannels).values({
+        id: newId(),
+        shopId: shop.id,
+        kind: "google_sheets",
+        token: randomBytes(18).toString("base64url"),
+        secret: encryptJson({ secret: randomBytes(24).toString("base64url") }),
+        settings,
+      });
     refresh();
     return { ok: true };
   });

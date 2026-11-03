@@ -9,6 +9,8 @@ import { pngBuffer } from "./helpers.mjs";
 
 export const sheet = { token: null, headers: null, rows: new Map(), order: [] }; // order number → row (order = row positions)
 export const hooks = [];
+// Statuses written back to an imported sheet (our import script's doPost): { signature, body }
+export const sheetWrites = [];
 const dns = new Map(); // "TXT _scaleitto.x.test" → ["…"]
 export const setDns = (name, type, values) => dns.set(`${type} ${name}`, values);
 let results = new Map();
@@ -89,6 +91,11 @@ export function startMockApps(port) {
     }
     if (path === "/sheets/echo") return json(res, 200, results.get(Number(url.searchParams.get("id"))) ?? { ok: false });
     if (path === "/dns") return json(res, 200, dns.get(`${url.searchParams.get("type")} ${url.searchParams.get("name")}`) ?? []);
+    if (path === "/sheet-import/exec" && req.method === "POST") {
+      sheetWrites.push({ signature: url.searchParams.get("signature"), body: JSON.parse(raw) });
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      return res.end("ok");
+    }
     if (path === "/hook") {
       hooks.push({ headers: req.headers, raw, body: JSON.parse(raw) });
       return json(res, 200, { received: true });

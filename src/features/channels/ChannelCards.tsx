@@ -11,7 +11,8 @@ import { connectChannel, disconnectChannel, setChannelActive } from "./actions";
 import type { ChannelView } from "./queries";
 
 type Text = Pick<Dictionary, "channels" | "errors">;
-const names: Record<ChannelKind, string> = { shopify: "Shopify", woocommerce: "WooCommerce" };
+type PlatformKind = Exclude<ChannelKind, "google_sheets">;
+const names: Record<PlatformKind, string> = { shopify: "Shopify", woocommerce: "WooCommerce" };
 
 function CopyField({ label, value, testId, t }: { label: string; value: string; testId: string; t: Text }) {
   const [copied, setCopied] = useState(false);
@@ -37,6 +38,10 @@ function CopyField({ label, value, testId, t }: { label: string; value: string; 
 }
 
 // The status line every card shows (Zimam's "not connected / may miss orders")
+export function CopyBox({ label, value, testId, t }: { label: string; value: string; testId: string; t: Text }) {
+  return <CopyField label={label} value={value} testId={testId} t={t} />;
+}
+
 export function ChannelStatus({ connected, active, t }: { connected: boolean; active: boolean; t: Text }) {
   const c = t.channels;
   return (
@@ -51,7 +56,7 @@ export function ChannelStatus({ connected, active, t }: { connected: boolean; ac
 
 // Shopify / WooCommerce: connect (Shopify: store address + Shopify's signing key; WooCommerce: store address, the key is
 // made here), then the receiving address (and WooCommerce's key) to paste in the platform, pause / disconnect
-export function PlatformCard({ lang, kind, view, lastOrder, t }: { lang: string; kind: ChannelKind; view: ChannelView | null; lastOrder: string | null; t: Text }) {
+export function PlatformCard({ lang, kind, view, lastOrder, t }: { lang: string; kind: PlatformKind; view: ChannelView | null; lastOrder: string | null; t: Text }) {
   const c = t.channels;
   const k = c[kind];
   const errors = t.errors as Record<string, string>;

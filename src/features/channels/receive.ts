@@ -10,18 +10,22 @@ import { pickAgent } from "@/features/team/assign";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { ExternalOrder } from "./parse";
+import { getShippingRates } from "@/features/storefront/queries";
+import { shippingPrice } from "@/features/checkout/pricing";
 
 // A connected platform's new order becomes an order here (status pending, like a store order): never twice (external
 // ref), lines matched to the store's products by SKU then by name (unmatched lines keep their name and price), the
 // plan's monthly count, an agent by the store's rule. The platform keeps its own stock: none is taken here.
-export async function receiveOrder(shopId: string, kind: ChannelKind, order: ExternalOrder): Promise<{ created: boolean; id: string }> {
-  const [existing] = await db.select({ id: schema.orders.id }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.externalRef, order.ref)));
-  if (existing) return { created: false, id: existing.id };
+// `storePrices` (Google Sheets rows): a line without a price takes the product's price and the delivery is priced from the
+// store's delivery settings (home), since the sheet does not carry them.
+export async function receiveOrder(shopId: string, kind: ChannelKind, order: ExternalOrder, { storePrices = false } = {}): Promise<{ created: boolean; id: string; number: number; status: string }> {
+  const [existing] = await db.select({ id: schema.orders.id, number: schema.orders.number, status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.externalRef, order.ref)));
+  if (existing) return { created: false, ...existing };
 
   const skus = order.lines.map((l) => l.sku).filter((s): s is string => Boolean(s));
   const names = order.lines.map((l) => l.name);
   const products = await db
-    .select({ id: schema.products.id, name: schema.products.name, sku: schema.products.sku })
+    .select({ id: schema.products.id, name: schema.products.name, sku: schema.products.sku, price: schema.products.price })
     .from(schema.products)
     .where(and(eq(schema.products.shopId, shopId), or(skus.length ? inArray(schema.products.sku, skus) : undefined, inArray(schema.products.name, names))));
   const variants = skus.length
@@ -30,24 +34,27 @@ export async function receiveOrder(shopId: string, kind: ChannelKind, order: Ext
   const lines = order.lines.map((l) => {
     const variant = l.sku ? variants.find((v) => v.sku === l.sku) : undefined;
     const product = variant ? products.find((p) => p.id === variant.productId) : (products.find((p) => l.sku && p.sku === l.sku) ?? products.find((p) => p.name === l.name));
+    const unitPrice = storePrices && !l.unitPrice && product ? product.price : l.unitPrice;
     return {
       productId: variant?.productId ?? product?.id ?? null,
       variantId: variant?.id ?? null,
       name: product?.name ?? l.name,
       variantTitle: variant?.title ?? l.variant,
       sku: l.sku,
-      unitPrice: l.unitPrice,
+      unitPrice,
       quantity: l.quantity,
-      total: l.unitPrice * l.quantity,
+      total: unitPrice * l.quantity,
       stockTracked: false,
     };
   });
   const subtotal = lines.reduce((s, l) => s + l.total, 0);
+  const shipping = storePrices ? (order.wilayaCode ? (shippingPrice(await getShippingRates(shopId, null), order.wilayaCode, "home") ?? 0) : 0) : order.shipping;
   const id = newId();
+  let number = 0;
   const rule = await orderRule(shopId);
   try {
     await db.transaction(async (tx) => {
-      const number = await nextOrderNumber(tx, shopId);
+      number = await nextOrderNumber(tx, shopId);
       const locked = await takeOrderSlot(tx, shopId, rule);
       await tx.insert(schema.orders).values({
         id,
@@ -61,8 +68,8 @@ export async function receiveOrder(shopId: string, kind: ChannelKind, order: Ext
         address: order.address,
         deliveryType: "home",
         subtotal,
-        shippingPrice: order.shipping,
-        total: order.total || subtotal + order.shipping,
+        shippingPrice: shipping,
+        total: order.total || subtotal + shipping,
         customerNote: order.note,
         channel: kind,
         externalRef: order.ref,
@@ -83,12 +90,12 @@ export async function receiveOrder(shopId: string, kind: ChannelKind, order: Ext
   } catch (err) {
     // The same order delivered twice at once: the other request created it
     if (err instanceof Error && /Duplicate entry .*orders_shop_external_uq/.test(err.message)) {
-      const [row] = await db.select({ id: schema.orders.id }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.externalRef, order.ref)));
-      if (row) return { created: false, id: row.id };
+      const [row] = await db.select({ id: schema.orders.id, number: schema.orders.number, status: schema.orders.status }).from(schema.orders).where(and(eq(schema.orders.shopId, shopId), eq(schema.orders.externalRef, order.ref)));
+      if (row) return { created: false, ...row };
     }
     throw err;
   }
   await scheduleOrderSync(shopId, id);
   await scheduleWhatsApp(shopId, id, "confirm");
-  return { created: true, id };
+  return { created: true, id, number, status: "pending" };
 }

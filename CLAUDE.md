@@ -330,7 +330,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   the merchant, never shown back; WooCommerce's made here and shown to paste). Platforms POST to `/api/channels/<token>`, signed
   (base64 HMAC-SHA256: X-Shopify-Hmac-Sha256 / X-WC-Webhook-Signature); `channels/parse.ts` (pure: `parseShopify`, `parseWoo`,
   `wilayaFrom`, `validSignature`) and `channels/receive.ts` (`receiveOrder`: `orders.external_ref` unique per shop + `orders.channel`,
-  lines matched by SKU then name, no stock taken, plan slot, agent, sync). Team (`team` section): `member_invites` (sha256 of the
+  lines matched by SKU then name, no stock taken, plan slot, agent, sync). Google Sheets page = tabs Import | Export (`?tab=export` =
+  the Apps export card). Import (phase36.mjs, migration 0050: `shop_channels.kind` google_sheets + `settings` json): `channels/sheets.ts`
+  (pure: `splitHeaders`, `detectColumns` ar/fr/en hints, `resolveSheetImport`, `parseSheetRow` → ref `google_sheets:<sheet>:<row>`,
+  `sheetsImportScript` = Apps Script with setup() trigger every minute, rows signed base64 HMAC in X-Scaleitto-Signature, status
+  column marks sent rows, doPost writes statuses checked by `?signature=`), `SheetsImport.tsx`, `saveSheetImport` (script URL must be
+  script.google.com/macros/s/…/exec, or E2E_APPS_URL in tests). Rows → `receiveOrder(…, { storePrices })` (empty price = product
+  price by name, home delivery from the store) → answer "#1042 · status"; `applyOrderStatus` → `sheets-sync.ts scheduleSheetStatus`
+  posts the new status back to the row. Team (`team` section): `member_invites` (sha256 of the
   token, 7 days), `team/invites.ts` (`inviteMember` emails the link and returns it, `staffUsage` = active members + pending
   invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`.
 - Call center like Zimam (phase31.mjs): agents have `shop_members.username` (unique per shop) and sign in at

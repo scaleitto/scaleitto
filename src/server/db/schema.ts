@@ -689,7 +689,7 @@ export const shopApps = mysqlTable(
 
 // Connected platforms that send their orders here (Zimam's "Connected Platforms"): the platform calls
 // /api/channels/<token> for every new order, signed with the secret (encrypted here).
-export const channelKinds = ["shopify", "woocommerce"] as const;
+export const channelKinds = ["shopify", "woocommerce", "google_sheets"] as const;
 export type ChannelKind = (typeof channelKinds)[number];
 export const shopChannels = mysqlTable(
   "shop_channels",
@@ -702,6 +702,8 @@ export const shopChannels = mysqlTable(
     secret: text("secret").notNull(),
     // The store's own address (shown on the card)
     storeUrl: varchar("store_url", { length: 255 }),
+    // Google Sheets import: the sheet's columns (channels/sheets.ts SheetImport)
+    settings: json("settings"),
     active: boolean("active").notNull().default(true),
     lastOrderAt: datetime("last_order_at"),
     ordersCount: int("orders_count").notNull().default(0),

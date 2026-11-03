@@ -22,7 +22,7 @@ export default async function phase10(browser) {
   owner.on("dialog", (d) => d.accept());
   const section = `${BASE}/ar/dashboard/integrations/apps`;
   // Google Sheets lives in Connected platforms
-  const channelsPage = `${BASE}/ar/dashboard/channels/google_sheets`;
+  const channelsPage = `${BASE}/ar/dashboard/channels/google_sheets?tab=export`;
   const productId = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'قميص', 'shirt', 2000, '[]', '[]', '[]')", [productId, shopId]);
   await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 400, 300)", [shopId]);

@@ -3,6 +3,8 @@ import { db, schema } from "@/server/db";
 import { decryptJson } from "@/server/crypto";
 import { logError } from "@/server/errors";
 import { parsers, signatureHeader, validSignature } from "@/features/channels/parse";
+import { parseSheetRow, resolveSheetImport } from "@/features/channels/sheets";
+import { asLocale, getDictionary } from "@/i18n";
 import { receiveOrder } from "@/features/channels/receive";
 
 const MAX_BODY = 512 * 1024;
@@ -25,6 +27,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     } catch {
       // WooCommerce's first ping is a form body ("webhook_id=…")
       return new Response("OK");
+    }
+    if (channel.kind === "google_sheets") {
+      // A row from the merchant's sheet (our script): answered with the order number and its status for the status column
+      const settings = resolveSheetImport(channel.settings);
+      const order = settings ? parseSheetRow(body, settings) : null;
+      if (!order) return Response.json({ ok: true, created: false, skipped: true });
+      const result = await receiveOrder(channel.shopId, channel.kind, order, { storePrices: true });
+      const [shop] = await db.select({ locale: schema.shops.defaultLocale }).from(schema.shops).where(eq(schema.shops.id, channel.shopId));
+      const label = (getDictionary(asLocale(shop?.locale ?? "ar")).orders.statuses as Record<string, string>)[result.status] ?? result.status;
+      return Response.json({ ok: true, created: result.created, number: result.number, status: `#${result.number} · ${label}` });
     }
     const order = parsers[channel.kind](body);
     if (!order) return new Response("OK");

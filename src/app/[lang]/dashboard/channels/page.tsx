@@ -18,9 +18,19 @@ export default async function ChannelsPage({ params }: PageProps<"/[lang]/dashbo
     return { key: kind, name, page: kind, connected: Boolean(v), active: v?.active ?? false, orders: v?.ordersCount ?? 0, lastOrder: v?.lastOrderAt ? formatDate(v.lastOrderAt, lang) : null };
   };
   const soon = (name: string): ChannelTile => ({ key: name.toLowerCase(), name, page: null, connected: false, active: false, orders: 0, lastOrder: null });
+  // Google Sheets: export (Apps) and / or import (rows → orders)
   const sheets = apps.google_sheets;
+  const sheetImport = channels.find((c) => c.kind === "google_sheets");
   const tiles: ChannelTile[] = [
-    { key: "google_sheets", name: "Google Sheets", page: "google_sheets", connected: Boolean(sheets), active: sheets?.active ?? false, orders: 0, lastOrder: null },
+    {
+      key: "google_sheets",
+      name: "Google Sheets",
+      page: "google_sheets",
+      connected: Boolean(sheets || sheetImport),
+      active: Boolean(sheets?.active || sheetImport?.active),
+      orders: sheetImport?.ordersCount ?? 0,
+      lastOrder: sheetImport?.lastOrderAt ? formatDate(sheetImport.lastOrderAt, lang) : null,
+    },
     soon("LightFunnels"),
     soon("Orderdz"),
     platform("shopify", "Shopify"),

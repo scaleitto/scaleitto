@@ -114,11 +114,12 @@ export function parseWoo(body: unknown): ExternalOrder | null {
   };
 }
 
-export const parsers: Record<ChannelKind, (body: unknown) => ExternalOrder | null> = { shopify: parseShopify, woocommerce: parseWoo };
+export const parsers: Record<Exclude<ChannelKind, "google_sheets">, (body: unknown) => ExternalOrder | null> = { shopify: parseShopify, woocommerce: parseWoo };
 
 // Both platforms sign the raw body with HMAC-SHA256 and send it base64-encoded (Shopify: X-Shopify-Hmac-Sha256,
 // WooCommerce: X-WC-Webhook-Signature)
-export const signatureHeader: Record<ChannelKind, string> = { shopify: "x-shopify-hmac-sha256", woocommerce: "x-wc-webhook-signature" };
+// (Google Sheets: our own script signs the same way, header X-Scaleitto-Signature)
+export const signatureHeader: Record<ChannelKind, string> = { shopify: "x-shopify-hmac-sha256", woocommerce: "x-wc-webhook-signature", google_sheets: "x-scaleitto-signature" };
 export function validSignature(raw: string, secret: string, signature: string | null) {
   if (!signature) return false;
   const expected = Buffer.from(createHmac("sha256", secret).update(raw, "utf8").digest("base64"));
