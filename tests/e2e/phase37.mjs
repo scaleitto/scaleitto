@@ -10,7 +10,9 @@ export default async function phase37(browser) {
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 2000, '[]', '[]', '[]')", [randomUUID(), shopId]);
   const buyerCtx = await browser.newContext({ userAgent: BROWSER_ARGS[0].replace("--user-agent=", "") });
   const buyer = await buyerCtx.newPage();
-  // Cloudflare's script cannot load in the tests: the answer is put in the form as the widget would
+  // Cloudflare's widget never loads in the tests (with internet access it would add its own answer): the test puts one in
+  await buyerCtx.route("https://challenges.cloudflare.com/**", (r) => r.abort());
+  // The answer is put in the form as the widget would
   const order = async (phone, token) => {
     await buyer.goto(`${store}/p/lamp`);
     await buyer.waitForSelector("button[type=submit]");
