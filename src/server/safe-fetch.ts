@@ -104,3 +104,22 @@ export async function safePostJson(
   }
   throw new SafeFetchError("Too many redirects");
 }
+
+// An API call to a merchant's platform (Shopify Admin API, WooCommerce REST API): any method, the caller's headers, no
+// redirect followed (an API that redirects is answered as is), the same public-address check and a size limit.
+export async function safeRequest(
+  input: string,
+  { method = "GET", headers = {}, body, timeoutMs = 15_000, maxBytes = 512 * 1024 }: { method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number; maxBytes?: number } = {},
+): Promise<{ status: number; text: string; json: unknown }> {
+  const url = new URL(input);
+  await assertPublic(url);
+  const res = await fetch(url, { method, redirect: "manual", signal: AbortSignal.timeout(timeoutMs), headers: { "User-Agent": "Scaleitto", Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}), ...headers }, body });
+  const text = (await res.text()).slice(0, maxBytes);
+  let json: unknown = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // not JSON
+  }
+  return { status: res.status, text, json };
+}

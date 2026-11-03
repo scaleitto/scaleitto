@@ -326,8 +326,13 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   an order note "⚠ …"). Printing: `/[lang]/print/manifest?ids=` (published template or default) opened by `ManifestButton`.
 - Zimam parity phase 5 (phase29.mjs) — Connected platforms (`channels` section, `/dashboard/channels` = Zimam's grid of 7 cards,
   `channels/ChannelGrid.tsx`; each "Connect" opens `/dashboard/channels/<google_sheets|shopify|woocommerce>` with the setup card;
-  LightFunnels/Orderdz/Storeep/YouCan shown as coming): Google Sheets (moved from Apps) + `shop_channels` (shopify / woocommerce: random `token`, encrypted secret — Shopify's signing key pasted by
-  the merchant, never shown back; WooCommerce's made here and shown to paste). Platforms POST to `/api/channels/<token>`, signed
+  LightFunnels/Orderdz/Storeep/YouCan shown as coming): Google Sheets (moved from Apps) + `shop_channels` (shopify / woocommerce: random `token`,
+  encrypted secret). Set up automatically like Zimam (`channels/platforms.ts`, through `safe-fetch.ts safeRequest`): Shopify = store
+  address + Admin API token + app secret key → `shopifySetup` checks /shop.json and creates the orders/create webhook (`SHOPIFY_VERSION`,
+  move it forward yearly; secret never shown back); WooCommerce = store address → "Connect to WooCommerce" redirects to
+  `wooAuthorizeUrl` (/wc-auth/v1/authorize, user_id = channel token) → the store POSTs the REST keys to `/api/channels/woo-auth` →
+  `wooCreateWebhook` (order.created, signed with our secret). `shop_channels.settings` = { webhookId } | { pending } | { error } — a
+  refusal shows the manual steps with the address and secret. E2E: mock-apps `/shopify-admin/…`, `/woo` (`/woo-bad` refuses). Platforms POST to `/api/channels/<token>`, signed
   (base64 HMAC-SHA256: X-Shopify-Hmac-Sha256 / X-WC-Webhook-Signature); `channels/parse.ts` (pure: `parseShopify`, `parseWoo`,
   `wilayaFrom`, `validSignature`) and `channels/receive.ts` (`receiveOrder`: `orders.external_ref` unique per shop + `orders.channel`,
   lines matched by SKU then name, no stock taken, plan slot, agent, sync). Google Sheets page = tabs Import | Export (`?tab=export` =

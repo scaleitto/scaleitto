@@ -11,6 +11,8 @@ export const sheet = { token: null, headers: null, rows: new Map(), order: [] };
 export const hooks = [];
 // Statuses written back to an imported sheet (our import script's doPost): { signature, body }
 export const sheetWrites = [];
+// Webhooks created on the fake Shopify / WooCommerce stores: { platform, body }
+export const platformHooks = [];
 const dns = new Map(); // "TXT _scaleitto.x.test" → ["…"]
 export const setDns = (name, type, values) => dns.set(`${type} ${name}`, values);
 let results = new Map();
@@ -91,6 +93,29 @@ export function startMockApps(port) {
     }
     if (path === "/sheets/echo") return json(res, 200, results.get(Number(url.searchParams.get("id"))) ?? { ok: false });
     if (path === "/dns") return json(res, 200, dns.get(`${url.searchParams.get("type")} ${url.searchParams.get("name")}`) ?? []);
+    // Shopify Admin API (token shpat_good…): shop check, list and create webhooks
+    const sh = path.match(/^\/shopify-admin\/([^/]+)\/admin\/api\/[\d-]+\/(shop|webhooks)\.json$/);
+    if (sh) {
+      if (!String(req.headers["x-shopify-access-token"] ?? "").startsWith("shpat_good")) return json(res, 401, { errors: "[API] Invalid API key or access token (unrecognized login or wrong password)" });
+      if (sh[2] === "shop") return json(res, 200, { shop: { myshopify_domain: sh[1] } });
+      if (req.method === "GET") return json(res, 200, { webhooks: platformHooks.filter((h) => h.platform === "shopify").map((h, i) => ({ id: i + 1, address: h.body.webhook.address })) });
+      platformHooks.push({ platform: "shopify", body: JSON.parse(raw) });
+      return json(res, 201, { webhook: { id: platformHooks.length, ...JSON.parse(raw).webhook } });
+    }
+    // A WooCommerce store: the approval page sends the keys to the callback and returns; /woo-bad refuses the webhook
+    const woo = path.match(/^\/(woo|woo-bad)\/(wc-auth\/v1\/authorize|wp-json\/wc\/v3\/webhooks)$/);
+    if (woo) {
+      if (woo[2].startsWith("wc-auth")) {
+        const q = url.searchParams;
+        await fetch(q.get("callback_url"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key_id: 1, user_id: q.get("user_id"), consumer_key: "ck_goodkey12345", consumer_secret: "cs_goodsecret12345", key_permissions: q.get("scope") }) });
+        res.writeHead(302, { Location: q.get("return_url") });
+        return res.end();
+      }
+      if (woo[1] === "woo-bad") return json(res, 401, { code: "woocommerce_rest_cannot_create", message: "Sorry, you cannot create resources." });
+      if (req.headers.authorization !== `Basic ${Buffer.from("ck_goodkey12345:cs_goodsecret12345").toString("base64")}`) return json(res, 401, { message: "Invalid key" });
+      platformHooks.push({ platform: "woocommerce", body: JSON.parse(raw) });
+      return json(res, 201, { id: 70 + platformHooks.length, ...JSON.parse(raw) });
+    }
     if (path === "/sheet-import/exec" && req.method === "POST") {
       sheetWrites.push({ signature: url.searchParams.get("signature"), body: JSON.parse(raw) });
       res.writeHead(200, { "Content-Type": "text/plain" });

@@ -113,6 +113,7 @@ const en: Dictionary = {
     backToLogin: "Back to sign in",
   },
   errors: {
+    platformRefused: "The platform refused the details",
     sheetHeaders: "Paste the header row (at least two columns)",
     scriptUrl: "Invalid Google script URL (script.google.com/macros/s/…/exec)",
     deliveryName: "Enter the delivery method name",
@@ -919,8 +920,9 @@ const en: Dictionary = {
       ],
       limits: "Rows are sent once a minute. An empty price takes your store product's price (same name), delivery comes from your delivery settings (home). If you change the columns, save and paste the new script.",
     },
-    shopify: { storeUrl: "Shopify store address", storeUrlHint: "The *.myshopify.com address, not your own domain.", secret: "Notifications signing key", secretHint: "In Shopify: Settings → Notifications → Webhooks, the key shown under the webhook list.", steps: ["In Shopify: Settings → Notifications → Webhooks → Create webhook.", "Event: Order creation, format: JSON.", "Paste the receiving address above and save."] },
-    woocommerce: { storeUrl: "WooCommerce store address", storeUrlHint: "Must start with https://", steps: ["In WordPress: WooCommerce → Settings → Advanced → Webhooks → Add webhook.", "Topic: Order created, status: Active.", "Paste the receiving address into Delivery URL and the signing secret into Secret, then save."] },
+    shopify: { storeUrl: "Shopify store address", storeUrlHint: "The *.myshopify.com address, not your custom domain.", token: "Admin API access token", tokenHint: "In Shopify: Settings → Apps and sales channels → Develop apps → create an app with read_orders, install it and copy its Admin API access token.", secret: "App secret key", secretHint: "The same app's API secret key, used to check that orders really came from Shopify.", manualSteps: ["In Shopify open Settings → Notifications → Webhooks → Create webhook.", "Event: Order creation, format: JSON.", "Paste the receiving address above and save."] },
+    woocommerce: { storeUrl: "WooCommerce store address", storeUrlHint: "Your store's address, starting with https://", connect: "Connect to WooCommerce", waiting: "Waiting for your approval on your store: sign in to WordPress and click “Approve” on the page we opened. If you closed it, connect again.", manualSteps: ["In WordPress open WooCommerce → Settings → Advanced → Webhooks → Add webhook.", "Topic: Order created, status: active.", "Paste the receiving address into “Delivery URL” and the signing key into “Secret”, then save."] },
+    autoDone: "Connected automatically: new orders arrive directly.", autoFailed: "The automatic setup failed, add the webhook by hand:", reconnect: "Reconnect",
     stepsTitle: "Steps",
   },
   portal: {

@@ -111,6 +111,7 @@ const ar = {
     backToLogin: "العودة لتسجيل الدخول",
   },
   errors: {
+    platformRefused: "رفضت المنصة البيانات",
     sheetHeaders: "الصق صف العناوين (عمودان على الأقل)",
     scriptUrl: "رابط سكربت Google غير صحيح (script.google.com/macros/s/…/exec)",
     deliveryName: "اكتب اسم طريقة التوصيل",
@@ -917,8 +918,9 @@ const ar = {
       ],
       limits: "الصفوف تُرسل مرة كل دقيقة. السعر الفارغ يؤخذ من سعر المنتج في متجرك (بنفس الاسم)، وسعر التوصيل من إعدادات التوصيل (المنزل). إذا غيّرت الأعمدة احفظ ثم الصق السكربت الجديد.",
     },
-    shopify: { storeUrl: "عنوان متجر Shopify", storeUrlHint: "عنوان ‎*.myshopify.com وليس النطاق الخاص.", secret: "مفتاح توقيع الإشعارات", secretHint: "في Shopify: الإعدادات ← الإشعارات ← Webhooks، المفتاح المكتوب تحت قائمة الـ Webhooks.", steps: ["في Shopify افتح الإعدادات ← الإشعارات ← Webhooks ← إنشاء webhook.", "الحدث: إنشاء طلب (Order creation)، الصيغة: JSON.", "الصق رابط الاستقبال أعلاه ثم احفظ."] },
-    woocommerce: { storeUrl: "عنوان متجر WooCommerce", storeUrlHint: "يجب أن يبدأ بـ https://", steps: ["في ووردبريس افتح WooCommerce ← الإعدادات ← متقدم ← Webhooks ← إضافة webhook.", "الموضوع: تم إنشاء الطلب (Order created)، الحالة: نشط.", "الصق رابط الاستقبال في «عنوان التسليم» ومفتاح التوقيع في «السر»، ثم احفظ."] },
+    shopify: { storeUrl: "عنوان متجر Shopify", storeUrlHint: "عنوان ‎*.myshopify.com وليس النطاق الخاص.", token: "رمز Admin API", tokenHint: "في Shopify: الإعدادات ← التطبيقات وقنوات البيع ← تطوير التطبيقات ← أنشئ تطبيقاً بصلاحية read_orders ثم ثبّته وانسخ رمز Admin API.", secret: "المفتاح السري للتطبيق", secretHint: "مفتاح API السري لنفس التطبيق، نتحقق به أن الطلبات أتت فعلاً من Shopify.", manualSteps: ["في Shopify افتح الإعدادات ← الإشعارات ← Webhooks ← إنشاء webhook.", "الحدث: إنشاء طلب (Order creation)، الصيغة: JSON.", "الصق رابط الاستقبال أعلاه ثم احفظ."] },
+    woocommerce: { storeUrl: "عنوان متجر WooCommerce", storeUrlHint: "العنوان الذي يزور به الزبائن متجرك، ويبدأ بـ https://", connect: "الربط مع WooCommerce", waiting: "بانتظار موافقتك على متجرك: سجّل الدخول في ووردبريس واضغط «موافقة» في الصفحة التي فتحناها. إن أغلقتها اضغط الربط مرة أخرى.", manualSteps: ["في ووردبريس افتح WooCommerce ← الإعدادات ← متقدم ← Webhooks ← إضافة webhook.", "الموضوع: تم إنشاء الطلب (Order created)، الحالة: نشط.", "الصق رابط الاستقبال في «عنوان التسليم» ومفتاح التوقيع في «السر»، ثم احفظ."] },
+    autoDone: "تم الربط تلقائياً: الطلبات الجديدة تصل مباشرة.", autoFailed: "تعذّر الإعداد التلقائي، أضف الـ webhook يدوياً:", reconnect: "إعادة الربط",
     stepsTitle: "الخطوات",
   },
   portal: {

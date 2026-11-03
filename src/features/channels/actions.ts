@@ -12,43 +12,69 @@ import { asLocale } from "@/i18n";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { channelKinds, type ChannelKind } from "@/server/db/schema";
+import { redirect } from "next/navigation";
+import { sectionHref } from "@/lib/permissions";
+import { shopifySetup, wooAuthorizeUrl } from "./platforms";
 import { requiredSheetFields, sheetFields, splitHeaders, type SheetImport } from "./sheets";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "channels");
 
-// Shopify: the store's *.myshopify.com address and the signing key Shopify shows under Settings → Notifications →
-// Webhooks. WooCommerce: the store's https address; the signing secret is made here and pasted into WooCommerce.
+// Shopify (Zimam): the store's *.myshopify.com address, the custom app's Admin API access token and its API secret key; the
+// token is checked and the "orders/create" webhook created on the spot. WooCommerce: the store's https address, then the
+// merchant approves our app on their store (wooAuthorizeUrl) and the callback finishes the setup (/api/channels/woo-auth).
 const shopifySchema = z.object({
   storeUrl: z.string().trim().toLowerCase().transform((v) => v.replace(/^https?:\/\//, "").replace(/\/.*$/, "")).refine((v) => /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(v), "e:shopifyDomain"),
+  token: z.string().trim().min(20, "e:tooShort").max(200, "e:invalid"),
   secret: z.string().trim().min(16, "e:tooShort").max(200, "e:invalid"),
 });
+// https only (the automated tests' fake store is the one exception)
+const storeAddress = (v: string) => /^https:\/\/[^\s/]+\.[^\s/]+/.test(v) || Boolean(process.env.E2E_APPS_URL && v.startsWith(`${process.env.E2E_APPS_URL}/`));
 const wooSchema = z.object({
-  storeUrl: z.string().trim().max(255).refine((v) => /^https:\/\/[^\s/]+\.[^\s/]+/.test(v), "e:httpsUrl").transform((v) => v.replace(/\/+$/, "")),
+  storeUrl: z.string().trim().max(255).refine(storeAddress, "e:httpsUrl").transform((v) => v.replace(/\/+$/, "")),
 });
+const appUrl = () => (process.env.APP_URL ?? "").replace(/\/$/, "");
+
+async function upsertChannel(shopId: string, kind: ChannelKind, values: { storeUrl: string; secret: Record<string, string>; settings: Record<string, unknown> }) {
+  const [existing] = await db.select({ id: schema.shopChannels.id, token: schema.shopChannels.token }).from(schema.shopChannels).where(and(eq(schema.shopChannels.shopId, shopId), eq(schema.shopChannels.kind, kind)));
+  const row = { storeUrl: values.storeUrl, secret: encryptJson(values.secret), settings: values.settings, active: true };
+  if (existing) {
+    await db.update(schema.shopChannels).set(row).where(eq(schema.shopChannels.id, existing.id));
+    return existing.token;
+  }
+  const token = randomBytes(18).toString("base64url");
+  await db.insert(schema.shopChannels).values({ id: newId(), shopId, kind, token, ...row });
+  return token;
+}
 
 export async function connectChannel(lang: string, kind: ChannelKind, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("channels/connect", async () => {
+  let target: string | null = null;
+  const result = await safeAction("channels/connect", async (): Promise<ActionState> => {
     const { shop } = await guard(lang);
-    if (!(channelKinds as readonly string[]).includes(kind) || kind === "google_sheets") return { ok: false, error: "invalid" };
+    if (kind !== "shopify" && kind !== "woocommerce") return { ok: false, error: "invalid" };
     const raw = Object.fromEntries(formData);
-    let storeUrl: string;
-    let secret: string;
     if (kind === "shopify") {
       const parsed = shopifySchema.safeParse(raw);
       if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-      ({ storeUrl, secret } = parsed.data);
-    } else {
-      const parsed = wooSchema.safeParse(raw);
-      if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-      storeUrl = parsed.data.storeUrl;
-      secret = randomBytes(24).toString("base64url");
+      const { storeUrl, token, secret } = parsed.data;
+      // The receiving address exists before Shopify is asked to call it
+      const channelToken = await upsertChannel(shop.id, kind, { storeUrl, secret: { secret, token }, settings: { pending: true } });
+      const setup = await shopifySetup(storeUrl, token, `${appUrl()}/api/channels/${channelToken}`);
+      if (!setup.ok) {
+        await db.delete(schema.shopChannels).where(and(eq(schema.shopChannels.shopId, shop.id), eq(schema.shopChannels.kind, kind)));
+        return { ok: false, error: "platformRefused", message: setup.detail };
+      }
+      await db.update(schema.shopChannels).set({ settings: { webhookId: setup.webhookId } }).where(and(eq(schema.shopChannels.shopId, shop.id), eq(schema.shopChannels.kind, kind)));
+      refresh();
+      return { ok: true };
     }
-    const [existing] = await db.select({ id: schema.shopChannels.id }).from(schema.shopChannels).where(and(eq(schema.shopChannels.shopId, shop.id), eq(schema.shopChannels.kind, kind)));
-    if (existing) await db.update(schema.shopChannels).set({ storeUrl, secret: encryptJson({ secret }), active: true }).where(eq(schema.shopChannels.id, existing.id));
-    else await db.insert(schema.shopChannels).values({ id: newId(), shopId: shop.id, kind, token: randomBytes(18).toString("base64url"), secret: encryptJson({ secret }), storeUrl });
-    refresh();
+    const parsed = wooSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const channelToken = await upsertChannel(shop.id, kind, { storeUrl: parsed.data.storeUrl, secret: { secret: randomBytes(24).toString("base64url") }, settings: { pending: true } });
+    target = wooAuthorizeUrl(parsed.data.storeUrl, channelToken, `${appUrl()}${sectionHref(asLocale(lang), "channels")}/woocommerce`, `${appUrl()}/api/channels/woo-auth`);
     return { ok: true };
   });
+  if (target) redirect(target);
+  return result;
 }
 
 export async function setChannelActive(lang: string, kind: ChannelKind, active: boolean): Promise<ActionState> {

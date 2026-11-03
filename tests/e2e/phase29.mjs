@@ -3,7 +3,7 @@
 // invite by email with a role, the invited person joins from the link, invitations can be cancelled.
 import { createHmac, randomUUID } from "node:crypto";
 import { BASE, createShop, db, expect, step } from "./helpers.mjs";
-import { lastLink } from "./mock-apps.mjs";
+import { lastLink, platformHooks } from "./mock-apps.mjs";
 
 export default async function phase29(browser) {
   const { shopId, context, tag } = await createShop(browser);
@@ -38,17 +38,24 @@ export default async function phase29(browser) {
     expect(!(await owner.locator("[data-testid=app-sheets]").count()), "no longer in Apps");
   });
 
-  await step("WooCommerce: https address required; connected, its signed orders arrive once, with the product matched by SKU", async () => {
+  await step("WooCommerce: https address required; one-click connect (approval on the store, webhook created); a refused setup shows the manual steps; signed orders arrive once", async () => {
     await owner.goto(`${dash}/channels/woocommerce`);
     const card = owner.locator("[data-channel=woocommerce]");
     await card.locator("#woocommerce-storeUrl").fill("http://shop.example.com");
     await card.locator("[data-testid=channel-connect]").click();
     await card.getByText("يجب أن يبدأ الرابط بـ https://").waitFor();
-    await card.locator("#woocommerce-storeUrl").fill("https://shop.example.com/");
-    await card.locator("[data-testid=channel-connect]").click();
-    await owner.locator("[data-channel=woocommerce][data-state=on]").waitFor();
-    const url = await card.locator("[data-testid=channel-url]").inputValue();
-    const secret = await card.locator("[data-testid=channel-secret]").inputValue();
+    // A store that refuses the webhook: the receiving address and secret to add by hand
+    await card.locator("#woocommerce-storeUrl").fill(`${process.env.E2E_APPS_URL}/woo-bad`);
+    await Promise.all([owner.waitForURL(/channels\/woocommerce$/), card.locator("[data-testid=channel-connect]").click()]);
+    await owner.locator("[data-testid=channel-manual]").getByText("Sorry, you cannot create resources.").waitFor();
+    await owner.getByRole("button", { name: "إعادة الربط" }).click();
+    await card.locator("#woocommerce-storeUrl").fill(`${process.env.E2E_APPS_URL}/woo/`);
+    await Promise.all([owner.waitForURL(/channels\/woocommerce$/), card.locator("[data-testid=channel-connect]").click()]);
+    await owner.locator("[data-channel=woocommerce][data-state=on] [data-testid=channel-auto]").waitFor();
+    const hook = platformHooks.findLast((h) => h.platform === "woocommerce").body;
+    expect(hook.topic === "order.created" && hook.delivery_url.includes("/api/channels/") && hook.secret, "webhook created on the store");
+    const url = hook.delivery_url.replace(/^https?:\/\/[^/]+/, BASE);
+    const secret = hook.secret;
     const order = { id: 555, number: "555", total: "2400", shipping_total: "400", billing: { first_name: "Sara", last_name: "B", phone: "0661 23 45 67", city: "Kouba", state: "DZ-16", address_1: "Rue 1" }, shipping: {}, line_items: [{ name: "Lamp (EN)", sku: "LAMP-1", quantity: 1, price: 2000, total: "2000" }] };
     expect((await send(url, "x-wc-webhook-signature", "wrong", order)).status === 401, "unsigned refused");
     const first = await (await send(url, "x-wc-webhook-signature", secret, order)).json();
@@ -61,18 +68,25 @@ export default async function phase29(browser) {
     expect((await owner.locator("[data-channel=woocommerce] [data-testid=channel-receiving]").innerText()).includes("1"), "the card counts it");
   });
 
-  await step("Shopify: myshopify address and signing key; a paused channel receives nothing", async () => {
+  await step("Shopify: myshopify address, Admin API token and secret; the token is checked and the webhook created; a paused channel receives nothing", async () => {
     await owner.goto(`${dash}/channels/shopify`);
     const card = owner.locator("[data-channel=shopify]");
     await card.locator("#shopify-storeUrl").fill("my-shop.com");
+    await card.locator("#shopify-token").fill("shpat_wrongtoken1234567890");
     await card.locator("#shopify-secret").fill("shopify-signing-key-123456");
     await card.locator("[data-testid=channel-connect]").click();
     await card.getByText("name.myshopify.com").first().waitFor();
     await card.locator("#shopify-storeUrl").fill(`https://shop-${tag}.myshopify.com/admin`);
     await card.locator("[data-testid=channel-connect]").click();
-    await owner.locator("[data-channel=shopify][data-state=on]").waitFor();
+    await card.getByText("Invalid API key or access token").waitFor();
+    expect(!(await db.query("SELECT id FROM shop_channels WHERE shop_id = ? AND kind = 'shopify'", [shopId]))[0].length, "nothing kept after a refusal");
+    await card.locator("#shopify-token").fill("shpat_goodtoken1234567890");
+    await card.locator("[data-testid=channel-connect]").click();
+    await owner.locator("[data-channel=shopify][data-state=on] [data-testid=channel-auto]").waitFor();
     expect(!(await card.locator("[data-testid=channel-secret]").count()), "Shopify's key is never shown back");
-    const url = await card.locator("[data-testid=channel-url]").inputValue();
+    const hook = platformHooks.findLast((h) => h.platform === "shopify").body.webhook;
+    expect(hook.topic === "orders/create" && hook.format === "json", "webhook created in Shopify");
+    const url = hook.address.replace(/^https?:\/\/[^/]+/, BASE);
     const order = { id: 9001, name: "#1001", total_price: "3300.00", shipping_lines: [{ price: "300.00" }], shipping_address: { first_name: "Karim", last_name: "D", phone: "+213770112233", city: "Es Senia", province_code: "DZ-31" }, line_items: [{ title: "Montre", quantity: 1, price: "3000.00", sku: "" }] };
     const r = await (await send(url, "x-shopify-hmac-sha256", "shopify-signing-key-123456", order)).json();
     expect(r.created === true, "created");

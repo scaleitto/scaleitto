@@ -18,6 +18,9 @@ export async function listChannels(shopId: string) {
     // Shopify's key belongs to Shopify (never shown back); WooCommerce's was made here and must be pasted there
     secret: r.kind === "woocommerce" ? decryptJson<{ secret: string }>(r.secret).secret : null,
     settings: r.kind === "google_sheets" ? resolveSheetImport(r.settings) : null,
+    // Shopify / WooCommerce: the webhook was created on the platform (else waiting for approval, or the platform's refusal)
+    ready: Boolean((r.settings as { webhookId?: string } | null)?.webhookId) || (r.kind !== "google_sheets" && !r.settings),
+    error: ((r.settings as { error?: string } | null)?.error ?? null) as string | null,
     // Google Sheets: the script holds the secret (it signs the rows it sends)
     script: r.kind === "google_sheets" ? sheetsImportScript(`${base}/api/channels/${r.token}`, decryptJson<{ secret: string }>(r.secret).secret, resolveSheetImport(r.settings)?.columns.status ?? null) : null,
   }));

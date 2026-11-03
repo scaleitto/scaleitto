@@ -113,6 +113,7 @@ const fr: Dictionary = {
     backToLogin: "Retour à la connexion",
   },
   errors: {
+    platformRefused: "La plateforme a refusé les informations",
     sheetHeaders: "Collez la ligne d'en-têtes (au moins deux colonnes)",
     scriptUrl: "URL de script Google invalide (script.google.com/macros/s/…/exec)",
     deliveryName: "Indiquez le nom du mode de livraison",
@@ -919,8 +920,9 @@ const fr: Dictionary = {
       ],
       limits: "Les lignes sont envoyées une fois par minute. Un prix vide prend le prix du produit de votre boutique (même nom), la livraison vient de vos réglages (domicile). Si vous changez les colonnes, enregistrez puis recollez le nouveau script.",
     },
-    shopify: { storeUrl: "Adresse de la boutique Shopify", storeUrlHint: "L'adresse *.myshopify.com, pas votre domaine.", secret: "Clé de signature des notifications", secretHint: "Dans Shopify : Paramètres → Notifications → Webhooks, la clé affichée sous la liste des webhooks.", steps: ["Dans Shopify : Paramètres → Notifications → Webhooks → Créer un webhook.", "Événement : création de commande, format : JSON.", "Collez l'adresse de réception ci-dessus et enregistrez."] },
-    woocommerce: { storeUrl: "Adresse de la boutique WooCommerce", storeUrlHint: "Doit commencer par https://", steps: ["Dans WordPress : WooCommerce → Réglages → Avancé → Webhooks → Ajouter.", "Sujet : commande créée, état : actif.", "Collez l'adresse de réception dans « URL de livraison » et la clé dans « Secret », puis enregistrez."] },
+    shopify: { storeUrl: "Adresse de la boutique Shopify", storeUrlHint: "L'adresse *.myshopify.com, pas votre domaine.", token: "Jeton d'accès Admin API", tokenHint: "Dans Shopify : Paramètres → Applications et canaux de vente → Développer des applications → créez une app avec read_orders, installez-la et copiez le jeton Admin API.", secret: "Clé secrète de l'app", secretHint: "La clé secrète API de la même app, pour vérifier que les commandes viennent bien de Shopify.", manualSteps: ["Dans Shopify ouvrez Paramètres → Notifications → Webhooks → Créer un webhook.", "Événement : Création de commande, format : JSON.", "Collez l'adresse de réception ci-dessus puis enregistrez."] },
+    woocommerce: { storeUrl: "Adresse de la boutique WooCommerce", storeUrlHint: "L'adresse de votre boutique, commençant par https://", connect: "Connecter WooCommerce", waiting: "En attente de votre accord sur votre boutique : connectez-vous à WordPress et cliquez sur « Approuver » dans la page ouverte. Si vous l'avez fermée, reconnectez.", manualSteps: ["Dans WordPress ouvrez WooCommerce → Réglages → Avancé → Webhooks → Ajouter.", "Sujet : Commande créée, état : actif.", "Collez l'adresse de réception dans « URL de livraison » et la clé de signature dans « Secret », puis enregistrez."] },
+    autoDone: "Connecté automatiquement : les nouvelles commandes arrivent directement.", autoFailed: "La configuration automatique a échoué, ajoutez le webhook à la main :", reconnect: "Reconnecter",
     stepsTitle: "Étapes",
   },
   portal: {
