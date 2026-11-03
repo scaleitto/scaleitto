@@ -40,6 +40,20 @@ export default async function phase26(browser) {
     expect((await owner.locator("[data-testid=latest-orders] li").count()) === 4, "latest orders");
   });
 
+  await step("home: Zimam's period and chart dropdowns, the chart's side amounts and one dot per day", async () => {
+    await owner.click("[data-testid=period]");
+    const periods = await owner.locator("[data-period]").evaluateAll((els) => els.map((e) => e.dataset.period));
+    expect(periods.join() === "today,yesterday,7d,30d,month,lastMonth", `periods (got ${periods.join()})`);
+    await Promise.all([owner.waitForURL(/period=yesterday/), owner.click("[data-period=yesterday]")]);
+    expect((await owner.locator("[data-stat=orders] [data-value]").innerText()) === "0", "nothing yesterday");
+    expect((await owner.locator("[data-testid=chart-axis] span").count()) === 5, "5 amounts on the side");
+    expect((await owner.locator("[data-point]").count()) === 7, "a dot per day (7 days)");
+    await owner.click("[data-testid=chart-range]");
+    await Promise.all([owner.waitForURL(/chart=30d/), owner.click("[data-chart='30d']")]);
+    expect((await owner.locator("[data-point]").count()) === 30, "30 dots");
+    expect(/period=yesterday/.test(owner.url()), "the period is kept");
+  });
+
   await step("status tabs with counts; Pending also holds the orders to call back", async () => {
     await owner.goto(orders);
     const tabs = await owner.locator("[data-testid=status-tabs] [data-tab]").evaluateAll((els) => els.map((e) => e.dataset.tab));

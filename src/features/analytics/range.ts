@@ -1,7 +1,7 @@
 // The period an analytics page looks at, in Algeria days, plus the period just before it (same length) for comparison.
 import { addDays, algeriaParts, daysBetween } from "@/lib/time";
 
-export const presets = ["today", "yesterday", "7d", "30d", "90d", "month"] as const;
+export const presets = ["today", "yesterday", "7d", "30d", "90d", "month", "lastMonth"] as const;
 export type Preset = (typeof presets)[number] | "custom";
 export const MAX_DAYS = 366;
 
@@ -26,6 +26,9 @@ export function resolveRange(input: { period?: unknown; from?: unknown; to?: unk
     fromDay = toDay = addDays(today, -1);
   } else if (preset === "month") {
     fromDay = `${today.slice(0, 8)}01`;
+  } else if (preset === "lastMonth") {
+    toDay = addDays(`${today.slice(0, 8)}01`, -1);
+    fromDay = `${toDay.slice(0, 8)}01`;
   } else {
     const back = { today: 0, "7d": 6, "30d": 29, "90d": 89 }[preset as "today" | "7d" | "30d" | "90d"];
     fromDay = addDays(today, -back);

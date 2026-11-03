@@ -1,15 +1,15 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
-import { addDays, algeriaParts, daysBetween } from "@/lib/time";
+import { addDays, algeriaParts } from "@/lib/time";
 import { CONFIRMED_STATUSES, PENDING_STATUSES } from "@/features/orders/statuses";
+import { dayStart, resolveRange } from "./range";
 
-export const overviewPeriods = ["today", "7d", "30d"] as const;
+// Zimam's two dropdowns: the period of the four numbers, and the sales chart's range
+export const overviewPeriods = ["today", "yesterday", "7d", "30d", "month", "lastMonth"] as const;
 export type OverviewPeriod = (typeof overviewPeriods)[number];
-export const chartRanges = [7, 30] as const;
+export const chartRanges = ["7d", "30d", "month", "lastMonth"] as const;
 export type ChartRange = (typeof chartRanges)[number];
-
-const dayStart = (day: string) => new Date(`${day}T00:00:00+01:00`);
 const pct = (now: number, before: number) => (before ? Math.round(((now - before) / before) * 100) : null);
 // Minutes a task usually takes (the "≈ 5 min" of each card): a call per waiting order, a quick look otherwise
 const MINUTES = { pending: 5, toShip: 5, flagged: 3 } as const;
@@ -19,22 +19,21 @@ const MINUTES = { pending: 5, toShip: 5, flagged: 3 } as const;
 export async function overviewData(shopId: string, period: OverviewPeriod, chart: ChartRange, now = new Date()) {
   const o = schema.orders;
   const today = algeriaParts(now).day;
-  const length = period === "today" ? 1 : period === "7d" ? 7 : 30;
-  const first = addDays(today, 1 - length);
-  const start = dayStart(first);
-  const prevStart = dayStart(addDays(first, -length));
-  const chartFirst = addDays(today, 1 - chart);
-  const chartStart = dayStart(chartFirst);
-  const chartPrevStart = dayStart(addDays(chartFirst, -chart));
+  const range = resolveRange({ period }, now);
+  const { start, end, prevStart } = range;
+  const chartRange = resolveRange({ period: chart }, now);
+  const { start: chartStart, prevStart: chartPrevStart } = chartRange;
   const real = and(eq(o.shopId, shopId), ne(o.status, "abandoned"));
-  const since = new Date(Math.min(prevStart.getTime(), chartPrevStart.getTime()));
+  const weekday = algeriaParts(now).weekday;
+  const lastWeekStart = dayStart(addDays(today, -weekday - 7));
+  const since = new Date(Math.min(prevStart.getTime(), chartPrevStart.getTime(), lastWeekStart.getTime()));
   const [orders, sold, products, latest, [pending], [toShip], [flagged], [carriers], [pixels], [pages]] = await Promise.all([
     db.select({ createdAt: o.createdAt, status: o.status, total: o.total }).from(o).where(and(real, gte(o.createdAt, since))),
     db
       .select({ productId: schema.orderItems.productId, orders: sql<number>`count(distinct ${o.id})`, revenue: sql<number>`sum(${schema.orderItems.total})` })
       .from(schema.orderItems)
       .innerJoin(o, eq(o.id, schema.orderItems.orderId))
-      .where(and(real, gte(o.createdAt, start)))
+      .where(and(real, gte(o.createdAt, start), lt(o.createdAt, end)))
       .groupBy(schema.orderItems.productId),
     db.select({ id: schema.products.id, name: schema.products.name, sku: schema.products.sku, slug: schema.products.slug, images: schema.products.images }).from(schema.products).where(eq(schema.products.shopId, shopId)).orderBy(desc(schema.products.createdAt)),
     db
@@ -52,7 +51,6 @@ export async function overviewData(shopId: string, period: OverviewPeriod, chart
   ]);
 
   const between = (from: Date, to: Date) => orders.filter((r) => r.createdAt >= from && r.createdAt < to);
-  const end = dayStart(addDays(today, 1));
   const cur = between(start, end);
   const prev = between(prevStart, start);
   const isConfirmed = (s: string) => (CONFIRMED_STATUSES as readonly string[]).includes(s);
@@ -67,7 +65,7 @@ export async function overviewData(shopId: string, period: OverviewPeriod, chart
   });
   const now_ = figures(cur);
   const before = figures(prev);
-  const chartDays = daysBetween(chartFirst, today).map((day) => ({ day, sales: orders.filter((r) => algeriaParts(r.createdAt).day === day).reduce((s, r) => s + r.total, 0) }));
+  const chartDays = chartRange.days.map((day) => ({ day, sales: orders.filter((r) => algeriaParts(r.createdAt).day === day).reduce((s, r) => s + r.total, 0) }));
   const chartTotal = chartDays.reduce((s, d) => s + d.sales, 0);
   const chartPrev = between(chartPrevStart, chartStart).reduce((s, r) => s + r.total, 0);
 
@@ -83,7 +81,9 @@ export async function overviewData(shopId: string, period: OverviewPeriod, chart
     toShip.n > 0 && { key: "toShip" as const, n: toShip.n, minutes: MINUTES.toShip },
     flagged.n > 0 && { key: "flagged" as const, n: flagged.n, minutes: MINUTES.flagged },
   ].filter((x) => x !== false);
-  const todayOrders = between(dayStart(today), end).length;
+  const todayOrders = between(dayStart(today), dayStart(addDays(today, 1))).length;
+  // The good news under the tasks: orders the store received last week (Sunday to Saturday, Algeria)
+  const lastWeek = between(lastWeekStart, dayStart(addDays(today, -weekday))).length;
 
   return {
     todayOrders,
@@ -98,6 +98,7 @@ export async function overviewData(shopId: string, period: OverviewPeriod, chart
     latest: latest.map((r) => ({ ...r, items: Number(r.items), customerName: r.locked ? "" : r.customerName })),
     tasks,
     minutes: tasks.reduce((s, x) => s + x.minutes, 0),
+    lastWeek,
     steps: { pixels: pixels.n > 0, products: products.length >= 10, delivery: carriers.n > 0, landing: pages.n > 0 },
   };
 }

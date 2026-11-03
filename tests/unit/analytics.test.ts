@@ -15,6 +15,10 @@ test("periods are Algeria days, with a previous period of the same length", () =
   assert.equal(r.prevStart.toISOString(), "2026-05-18T23:00:00.000Z");
   assert.deepEqual([resolveRange({ period: "yesterday" }, now).fromDay, resolveRange({ period: "month" }, now).fromDay], ["2026-05-31", "2026-06-01"]);
   assert.equal(resolveRange({ period: "nope" }, now).preset, "7d");
+  // Last month: the whole of May, compared with the 31 days before it
+  const lm = resolveRange({ period: "lastMonth" }, now);
+  assert.deepEqual([lm.fromDay, lm.toDay, lm.days.length], ["2026-05-01", "2026-05-31", 31]);
+  assert.equal(lm.end.toISOString(), "2026-05-31T23:00:00.000Z");
 });
 
 test("custom periods are ordered, end today at the latest and stay under a year", () => {

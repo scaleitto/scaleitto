@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { ArrowRight, Calendar, ChevronRight, ClipboardList, Crosshair, FileText, Package, PackageCheck, ShieldAlert, ShoppingBag, Truck, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, Calendar, Check, ChevronDown, ChevronUp, ChevronRight, ClipboardList, Crosshair, FileText, Package, PackageCheck, ShieldAlert, ShoppingBag, Truck, Wallet, type LucideIcon } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
@@ -8,6 +8,7 @@ import { fmt, formatPrice } from "@/lib/format";
 import { algeriaParts } from "@/lib/time";
 import { wilayas } from "@/lib/wilayas";
 import { Card, buttonClass } from "@/ui";
+import { LinkMenu } from "@/ui/LinkMenu";
 import { chartRanges, overviewData, overviewPeriods, type ChartRange, type OverviewPeriod } from "@/features/analytics/overview";
 import { HideAmounts } from "@/features/analytics/OverviewControls";
 import { statusPill } from "@/features/orders/statuses";
@@ -31,14 +32,14 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
   await connection();
   const now = new Date();
   const period: OverviewPeriod = overviewPeriods.includes(sp.period as OverviewPeriod) ? (sp.period as OverviewPeriod) : "today";
-  const chart: ChartRange = chartRanges.includes(Number(sp.chart) as ChartRange) ? (Number(sp.chart) as ChartRange) : 7;
+  const chart: ChartRange = chartRanges.includes(sp.chart as ChartRange) ? (sp.chart as ChartRange) : "7d";
   const data = await overviewData(shop.id, period, chart, now);
   const o = t.overview;
   const cur = t.common.currency;
   const hour = Math.floor(algeriaParts(now).minutes / 60);
   const greeting = hour < 12 ? o.morning : hour < 18 ? o.afternoon : o.evening;
   const orders = sectionHref(lang, "orders");
-  const href = (next: Partial<{ period: string; chart: number }>) => `?${new URLSearchParams({ period: next.period ?? period, chart: String(next.chart ?? chart) })}`;
+  const href = (next: Partial<{ period: string; chart: string }>) => `?${new URLSearchParams({ period: next.period ?? period, chart: next.chart ?? chart })}`;
   const dateFmt = new Intl.DateTimeFormat(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-DZ" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   const timeFmt = new Intl.DateTimeFormat(lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-DZ" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Algiers" });
   const summary = [data.todayOrders ? fmt(o.today, { n: data.todayOrders }) : o.noOrdersToday, data.tasks.length ? fmt(o.waiting, { n: data.tasks.length, minutes: data.minutes }) : o.nothingWaiting].join(" — ");
@@ -55,9 +56,14 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
   // The chart: a line with its area, left to right in every language
   const W = 600;
   const H = 200;
-  const max = Math.max(1, ...data.chart.days.map((d) => d.sales));
+  // A round top for the side axis (4, 3 000, 40 000…) split in four
+  const peak = Math.max(4, ...data.chart.days.map((d) => d.sales));
+  const unit = 10 ** Math.floor(Math.log10(peak / 4));
+  const step = Math.ceil(peak / 4 / unit) * unit;
+  const ticks = [0, 1, 2, 3, 4].map((k) => k * step);
+  const max = step * 4;
   const x = (i: number) => (data.chart.days.length === 1 ? W / 2 : (i / (data.chart.days.length - 1)) * W);
-  const y = (v: number) => H - (v / max) * (H - 10);
+  const y = (v: number) => H - (v / max) * H;
   const line = data.chart.days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d.sales).toFixed(1)}`).join(" ");
   const labelEvery = Math.ceil(data.chart.days.length / 8);
 
@@ -71,7 +77,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
 
   return (
     <div className="space-y-5">
-      <section className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border border-line bg-gradient-to-r from-accent-soft via-panel to-panel p-6" data-testid="welcome">
+      <section className="relative z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-gradient-to-r from-accent-soft via-panel to-panel p-6" data-testid="welcome">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{fmt(greeting, { name: user.name })}</h1>
           <p className="mt-1.5 text-sm text-muted" data-testid="summary">
@@ -80,18 +86,13 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
         </div>
         <div className="flex items-center gap-2">
           <HideAmounts show={o.showAmounts} hide={o.hideAmounts} />
-          <details className="group relative">
-            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-line bg-panel px-3.5 py-2 text-sm font-semibold shadow-sm [&::-webkit-details-marker]:hidden" data-testid="period">
-              <Calendar size={15} className="text-muted" /> {o.periods[period]}
-            </summary>
-            <div className="absolute end-0 top-11 z-20 w-40 rounded-xl border border-line bg-panel p-1 shadow-lift">
-              {overviewPeriods.map((p) => (
-                <Link key={p} href={href({ period: p })} className={`block rounded-lg px-3 py-2 text-sm hover:bg-panel-2 ${p === period ? "font-semibold text-accent-ink" : ""}`} data-period={p}>
-                  {o.periods[p]}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <LinkMenu
+            icon={<Calendar size={15} className="text-muted" />}
+            label={o.periods[period]}
+            testId="period"
+            itemAttr="data-period"
+            items={overviewPeriods.map((p) => ({ key: p, href: href({ period: p }), label: o.periods[p], current: p === period }))}
+          />
         </div>
       </section>
 
@@ -129,7 +130,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
             </div>
             {data.minutes > 0 && <span className="text-xs whitespace-nowrap text-muted">≈ {fmt(o.minutes, { n: data.minutes })}</span>}
           </div>
-          {data.tasks.length === 0 ? (
+          {data.tasks.length === 0 && !data.lastWeek ? (
             <p className="rounded-xl bg-panel-2 p-4 text-sm text-muted">{o.allClear}</p>
           ) : (
             <ul className="space-y-2">
@@ -150,6 +151,11 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
                   </li>
                 );
               })}
+              {data.lastWeek > 0 && (
+                <li className="flex items-center gap-2.5 rounded-xl border border-accent/25 bg-accent-soft p-3 text-sm font-medium text-accent-ink" data-testid="last-week">
+                  <Check size={16} className="shrink-0" /> {fmt(o.lastWeek, { n: data.lastWeek })}
+                </li>
+              )}
             </ul>
           )}
         </Card>
@@ -157,39 +163,55 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
         <Card className="space-y-3" data-testid="sales-chart">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold">{o.salesTitle}</h2>
-            <div className="flex rounded-lg border border-line p-0.5 text-xs font-semibold">
-              {chartRanges.map((n) => (
-                <Link key={n} href={href({ chart: n })} className={`rounded-md px-2.5 py-1 ${n === chart ? "bg-panel-2 text-fg" : "text-muted"}`} data-chart={n}>
-                  {fmt(o.lastDays, { n })}
-                </Link>
-              ))}
-            </div>
+            <LinkMenu label={o.periods[chart]} testId="chart-range" itemAttr="data-chart" items={chartRanges.map((c) => ({ key: c, href: href({ chart: c }), label: o.periods[c], current: c === chart }))} />
           </div>
-          <p className="flex flex-wrap items-baseline gap-2">
+          <p className="flex flex-wrap items-center gap-2.5">
             <span className="text-3xl font-bold tabular-nums" data-amount data-testid="chart-total">
               {formatPrice(data.chart.total, cur)}
             </span>
-            <span className={`text-sm font-semibold ${data.chart.change === null ? "text-muted" : data.chart.change >= 0 ? "text-accent" : "text-danger"}`}>{data.chart.change === null ? "—" : `${data.chart.change >= 0 ? "+" : ""}${data.chart.change}%`}</span>
+            {data.chart.change !== null && (
+              <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${data.chart.change >= 0 ? "bg-accent-soft text-accent-ink" : "bg-danger/10 text-danger"}`} data-testid="chart-change">
+                {data.chart.change >= 0 ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                {Math.abs(data.chart.change)}%
+              </span>
+            )}
             <span className="text-xs text-muted" data-amount>
-              {fmt(o.vsBefore, { amount: formatPrice(data.chart.previous, cur), n: chart })}
+              {fmt(o.vsBefore[chart], { amount: formatPrice(data.chart.previous, cur) })}
             </span>
           </p>
-          <div dir="ltr">
-            <svg viewBox={`-8 -8 ${W + 16} ${H + 16}`} className="h-52 w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label={o.salesTitle}>
-              <defs>
-                <linearGradient id="overview-area" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {[0.25, 0.5, 0.75].map((f) => (
-                <line key={f} x1={0} x2={W} y1={H * f} y2={H * f} stroke="var(--color-line)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-              ))}
-              <path d={`${line} L${x(data.chart.days.length - 1)},${H} L${x(0)},${H} Z`} fill="url(#overview-area)" />
-              <path d={line} fill="none" stroke="var(--color-accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-            </svg>
-            <div className="mt-1 flex justify-between text-[11px] text-muted tabular-nums">
-              {data.chart.days.map((d, i) => (i % labelEvery === 0 || i === data.chart.days.length - 1 ? <span key={d.day}>{dateFmt.format(new Date(`${d.day}T12:00:00Z`))}</span> : null))}
+          {/* Zimam's chart: amounts on the side, dashed lines, the line with a dot per day (the last one filled) */}
+          <div dir="ltr" className="flex gap-2">
+            <div className="flex h-52 flex-col justify-between py-0.5 text-end text-[11px] whitespace-nowrap text-muted tabular-nums" data-testid="chart-axis">
+              {ticks
+                .slice()
+                .reverse()
+                .map((v) => (
+                  <span key={v} data-amount>
+                    {formatPrice(v, cur)}
+                  </span>
+                ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="relative h-52">
+                <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label={o.salesTitle}>
+                  {ticks.map((v) => (
+                    <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="var(--color-line)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+                  ))}
+                  <path d={line} fill="none" stroke="var(--color-accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+                </svg>
+                {data.chart.days.map((d, i) => (
+                  <span
+                    key={d.day}
+                    title={`${dateFmt.format(new Date(`${d.day}T12:00:00Z`))}: ${formatPrice(d.sales, cur)}`}
+                    className={`absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent ${i === data.chart.days.length - 1 ? "bg-accent" : "bg-panel"} ${data.chart.days.length > 16 ? "scale-75" : ""}`}
+                    style={{ left: `${(x(i) / W) * 100}%`, top: `${(y(d.sales) / H) * 100}%` }}
+                    data-point={d.day}
+                  />
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between text-[11px] text-muted tabular-nums">
+                {data.chart.days.map((d, i) => (i % labelEvery === 0 || i === data.chart.days.length - 1 ? <span key={d.day}>{dateFmt.format(new Date(`${d.day}T12:00:00Z`))}</span> : null))}
+              </div>
             </div>
           </div>
         </Card>
@@ -207,7 +229,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
             <p className="text-sm text-muted">{o.noProducts}</p>
           ) : (
             <table className="w-full text-sm">
-              <thead>
+              <thead className="bg-transparent">
                 <tr className="text-[11px] tracking-wide text-muted uppercase">
                   <th className="py-2 text-start font-semibold">{o.cols.product}</th>
                   <th className="py-2 text-end font-semibold">{o.cols.orders}</th>
