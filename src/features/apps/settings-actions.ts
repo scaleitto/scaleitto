@@ -10,7 +10,7 @@ import { asLocale } from "@/i18n";
 import type { ActionState } from "@/lib/action";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { isIp, resolveProtection } from "@/features/checkout/protection-settings";
-import { badgeKeys, resolveApps, type AppSettings } from "./settings";
+import { badgeKeys, resolveApps, waNotices, type AppSettings } from "./settings";
 import { MAX_RULES } from "./rules";
 
 // The Apps pages' settings (switches, trust badges, quick contact, thank you, fake-order guard, assignment, blacklist)
@@ -209,6 +209,47 @@ export async function changeRule(lang: string, kind: "delivery" | "agent", id: s
       else if (change === "on" || change === "off") list[i] = { ...list[i], active: change === "on" };
       return resolveApps({ ...s, [key]: list });
     });
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Apps → WhatsApp confirmation: the switch, quiet hours, reminder, language, products and the customer notifications
+export async function saveWhatsApp(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("apps/whatsapp", async () => {
+    const shop = await shopOf(lang);
+    const scope = text(formData, "scope");
+    const picked = formData.getAll("products").map(String);
+    const products =
+      scope === "selected"
+        ? (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, picked.length ? picked : ["-"])))).map((p) => p.id)
+        : null;
+    if (scope === "selected" && !products?.length) return { ok: false, error: "checkFields", fieldErrors: { products: "required" } };
+    await updateApps(shop.id, (s) =>
+      resolveApps({
+        ...s,
+        whatsapp: {
+          ...s.whatsapp,
+          enabled: on(formData, "enabled"),
+          quietFrom: Number(text(formData, "quietFrom")),
+          quietTo: Number(text(formData, "quietTo")),
+          reminder: on(formData, "reminder"),
+          language: text(formData, "language"),
+          products,
+          notify: Object.fromEntries(waNotices.map((k) => [k, on(formData, `notify_${k}`)])),
+        },
+      }),
+    );
+    refresh();
+    return { ok: true };
+  });
+}
+
+// "Connect my WhatsApp number": the request joins the queue (Meta limits how many businesses are onboarded each week)
+export async function requestWhatsAppNumber(lang: string): Promise<ActionState> {
+  return safeAction("apps/whatsapp-connect", async () => {
+    const shop = await shopOf(lang);
+    await updateApps(shop.id, (s) => ({ ...s, whatsapp: { ...s.whatsapp, connectRequested: s.whatsapp.connectRequested || new Date().toISOString() } }));
     refresh();
     return { ok: true };
   });

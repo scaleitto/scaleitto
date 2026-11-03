@@ -14,6 +14,7 @@ import { linePrice, resolveWholesale } from "@/features/checkout/pricing";
 import { orderInputSchema } from "@/features/checkout/validators";
 import { MAX_CART_LINES, placeCartOrder } from "@/features/checkout/place-order";
 import { scheduleOrderEvents } from "@/features/pixels/server";
+import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { getShopBySlug, storeBase } from "./queries";
 import { startCardPayment } from "@/features/payments/flow";
@@ -69,6 +70,8 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");
+    // Apps → WhatsApp confirmation: the buyer is asked to confirm
+    await scheduleWhatsApp(shop.id, placed.orderId, "confirm");
     return { ok: true, message: placed.orderId };
   });
   if (result.ok && result.message) {

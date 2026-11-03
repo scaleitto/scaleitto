@@ -19,6 +19,7 @@ import { productForm } from "@/features/order-form/resolve";
 import { placeOrder, saveAbandoned } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
+import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { OrderTracking } from "@/server/db/schema";
 
@@ -91,6 +92,8 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");
+    // Apps → WhatsApp confirmation: the buyer is asked to confirm
+    await scheduleWhatsApp(shop.id, placed.orderId, "confirm");
     return { ok: true, message: placed.orderId };
   });
   const shown = page as Awaited<ReturnType<typeof landingOf>>;

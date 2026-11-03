@@ -11,6 +11,8 @@ export type OrderFilters = {
   wilaya?: number;
   from?: string;
   to?: string;
+  // Apps → WhatsApp confirmation: the buyer's answer
+  wa?: "waiting" | "confirmed" | "cancelled";
   page: number;
   size: number;
 };
@@ -33,6 +35,7 @@ export function parseOrderFilters(sp: Search): OrderFilters {
     wilaya: Number.isInteger(wilaya) && wilaya > 0 ? wilaya : undefined,
     from: day.test(one(sp.from)) ? one(sp.from) : undefined,
     to: day.test(one(sp.to)) ? one(sp.to) : undefined,
+    wa: (["waiting", "confirmed", "cancelled"] as const).find((x) => x === one(sp.wa)),
     page: Math.max(1, Number(one(sp.page)) || 1),
     size: (pageSizes as readonly number[]).includes(size) ? size : pageSizes[0],
   };

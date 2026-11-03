@@ -10,6 +10,11 @@ import { db, schema } from "@/server/db";
 import { sectionHref } from "@/lib/permissions";
 import { storeUrl } from "@/lib/urls";
 import { formatDate } from "@/lib/format";
+import { WhatsAppApp } from "@/features/whatsapp/WhatsAppApp";
+import { whatsappView } from "@/features/whatsapp/queries";
+import { whatsappConfigured } from "@/features/whatsapp/cloud";
+import { REMINDER_HOURS } from "@/features/whatsapp/queue";
+import { CREDIT_COSTS } from "@/features/credits/packs";
 import { PaymentsApp } from "@/features/payments/PaymentsApp";
 import type { PaymentProvider } from "@/server/db/schema";
 import { RulesApp } from "@/features/apps/RulesApp";
@@ -47,6 +52,24 @@ export default async function AppPage({ params }: PageProps<"/[lang]/dashboard/i
   const wilayaOptions = wilayas.map((w) => ({ code: w.code, name: `${String(w.code).padStart(2, "0")} - ${lang === "ar" ? w.ar : w.fr}` }));
   let body: React.ReactNode;
   switch (app) {
+    case "whatsapp": {
+      const view = await whatsappView(shop.id);
+      body = (
+        <WhatsAppApp
+          lang={lang}
+          settings={ctx.apps.whatsapp}
+          products={view.products}
+          balance={view.balance}
+          balanceHref={sectionHref(lang, "balance")}
+          ready={whatsappConfigured()}
+          month={view.month}
+          costs={CREDIT_COSTS}
+          reminderHours={REMINDER_HOURS}
+          t={text}
+        />
+      );
+      break;
+    }
     case "abandoned":
       body = <SwitchApp lang={lang} app="abandoned" enabled={ctx.apps.abandoned} label={a.pages.abandoned.enable} hint={a.pages.abandoned.enableHint} t={text} />;
       break;

@@ -24,6 +24,7 @@ export async function appStates(shopId: string): Promise<Partial<Record<AppPageK
   const a = ctx.apps;
   const running = await runningPercents(shopId);
   return {
+    whatsapp: a.whatsapp.enabled,
     cart: a.cart,
     abandoned: a.abandoned,
     fakeGuard: ctx.protection.enabled,

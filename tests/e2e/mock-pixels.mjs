@@ -4,7 +4,8 @@ import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 
 export const received = []; // { platform, path, body, headers }
-export const payments = []; // card checkouts opened: { provider, body }
+export const payments = [];
+export const whatsapp = []; // WhatsApp Cloud API messages: { to, template, body } // card checkouts opened: { provider, body }
 const checkouts = new Map();
 const invoices = new Map();
 
@@ -21,6 +22,14 @@ export function startMockPixels(port) {
     const body = raw ? JSON.parse(raw) : null;
     const path = url.pathname;
 
+    // WhatsApp Cloud API (Bearer "good-token"): numbers ending in 0000 are refused like a number Meta rejects
+    if (/^\/meta\/[^/]+\/[^/]+\/messages$/.test(path)) {
+      if (req.headers.authorization !== "Bearer good-token") return send(res, 401, { error: { code: 190, message: "Invalid OAuth access token." } });
+      if (String(body.to).endsWith("0000")) return send(res, 400, { error: { code: 131026, message: "Message undeliverable" } });
+      const id = `wamid.${whatsapp.length + 1}.${Date.now()}`;
+      whatsapp.push({ id, to: body.to, template: body.template.name, body });
+      return send(res, 200, { messaging_product: "whatsapp", contacts: [{ input: body.to, wa_id: body.to }], messages: [{ id }] });
+    }
     if (path.startsWith("/meta/")) {
       const good = url.searchParams.get("access_token") === "good-token";
       if (req.method === "GET") return good ? send(res, 200, { name: "Pixel test", id: path.split("/")[3] }) : send(res, 400, { error: { message: "Invalid OAuth access token." } });

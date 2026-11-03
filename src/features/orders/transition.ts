@@ -6,6 +6,7 @@ import { holdsStock, type OrderStatus } from "./statuses";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { scheduleAutoSend } from "@/features/delivery/send";
+import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -44,6 +45,9 @@ export async function applyOrderStatus(tx: Tx, shopId: string, orderId: string, 
   if (status === "confirmed" || status === "delivered") scheduleOrderEvents(shopId, orderId, status);
   // Confirmed with a delivery company: sent to it now when the store says so (Delivery → companies)
   if (status === "confirmed") scheduleAutoSend(shopId, orderId);
+  // WhatsApp customer notifications (Apps → WhatsApp confirmation)
+  const notice = status === "confirmed" ? "confirmed" : status === "in_transit" ? "shipped" : status === "delivered" ? "delivered" : null;
+  if (notice) await scheduleWhatsApp(shopId, orderId, notice, tx);
   // Google Sheets / webhook get the new status
   await scheduleOrderSync(shopId, orderId);
   return true;

@@ -4,6 +4,7 @@ import { db, schema } from "@/server/db";
 import { decryptJson } from "@/server/crypto";
 import { logError } from "@/server/errors";
 import { applyOrderStatus } from "@/features/orders/transition";
+import { scheduleWhatsApp, stageNotice } from "@/features/whatsapp/queue";
 import { carrierClient } from "./platforms";
 import type { Credentials } from "./platforms/types";
 import { finalShipmentStatuses, normalizeShipmentStatus, orderStatusFor } from "./status";
@@ -22,6 +23,12 @@ export async function trackShipment(shipment: Shipment, userId: string | null) {
     await tx.update(schema.shipments).set({ status, rawStatus: raw?.slice(0, 120) ?? null, checkedAt: new Date() }).where(eq(schema.shipments.id, shipment.id));
     const next = orderStatusFor(status);
     if (next) await applyOrderStatus(tx, shipment.shopId, shipment.orderId, next, userId, `${shipment.carrierName}: ${raw}`);
+    // A new stage the buyer is told about on WhatsApp (out for delivery, failed attempt, waiting at the desk)
+    if (status !== shipment.status) {
+      const [order] = await tx.select({ deliveryType: schema.orders.deliveryType }).from(schema.orders).where(eq(schema.orders.id, shipment.orderId));
+      const notice = order ? stageNotice(status, order.deliveryType) : null;
+      if (notice) await scheduleWhatsApp(shipment.shopId, shipment.orderId, notice, tx);
+    }
   });
   return status;
 }

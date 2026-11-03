@@ -19,6 +19,7 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, maxSize =
   else if (f.agent === "me") filters.push(eq(o.assignedTo, viewer.userId));
   else if (f.agent) filters.push(eq(o.assignedTo, f.agent));
   if (f.wilaya) filters.push(eq(o.wilayaCode, f.wilaya));
+  if (f.wa) filters.push(eq(o.whatsapp, f.wa));
   if (f.from) filters.push(gte(o.createdAt, new Date(`${f.from}T00:00:00+01:00`)));
   if (f.to) filters.push(lt(o.createdAt, new Date(`${addDays(f.to, 1)}T00:00:00+01:00`)));
   const term = f.q;
@@ -53,6 +54,7 @@ export async function listOrders(viewer: OrderViewer, f: OrderFilters, maxSize =
         locked: o.locked,
         risk: o.risk,
         paymentStatus: o.paymentStatus,
+        whatsapp: o.whatsapp,
         assignedTo: o.assignedTo,
         carrierAccountId: o.carrierAccountId,
         shipmentId: sh.id,

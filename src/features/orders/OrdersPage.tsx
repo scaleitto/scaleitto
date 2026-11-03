@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { resolveApps } from "@/features/apps/settings";
-import { Ban, Check, CircleAlert, ClipboardCheck, ClipboardList, Download, Flag, ScanLine, Search, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
+import { Ban, Check, CircleAlert, ClipboardCheck, ClipboardList, Download, Flag, MessageCircle, ScanLine, Search, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
 import { getDictionary, type Locale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
@@ -68,6 +68,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
   const pages = Math.max(1, Math.ceil(total / size));
   const carrierAccounts = accounts.map((a) => ({ id: a.id, name: findCarrier(a.carrier)?.name ?? a.carrier, isDefault: a.isDefault, options: a.options }));
   const wilayaList = wilayas.map((w) => ({ code: w.code, name: wilayaName(w.code, lang) }));
+  const apps = resolveApps(shop.apps);
   const tools = { orders: t.orders, errors: t.errors, delivery: t.delivery, common: t.common };
 
   return (
@@ -101,6 +102,26 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
         </nav>
       </Card>
 
+      {/* Apps → WhatsApp confirmation: the buyers' answers as a filter under the status tabs */}
+      {apps.whatsapp.enabled && (
+        <nav className="mb-3 flex flex-wrap items-center gap-2 text-sm" data-testid="wa-filter">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-muted">
+            <MessageCircle size={15} /> {t.orders.whatsappFilter.label}
+          </span>
+          {([undefined, "waiting", "confirmed", "cancelled"] as const).map((v) => (
+            <Link
+              key={v ?? "all"}
+              href={href({ wa: v, page: 1 })}
+              data-wa={v ?? "all"}
+              aria-current={f.wa === v ? "page" : undefined}
+              className={`rounded-full border px-3 py-1 font-medium transition-colors ${f.wa === v ? "border-accent bg-accent text-white" : "border-line bg-panel hover:bg-panel-2"}`}
+            >
+              {t.orders.whatsappFilter[v ?? "all"]}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       <Card className="mb-4 flex flex-wrap items-center gap-2 p-2">
         <FilterDialog base={base} filters={f} products={products} members={members} canFilterAgent={canAssign} wilayas={wilayaList} t={t} />
         <a href={`/api/orders/export?lang=${lang}&${href({ page: 1 }).slice(base.length + 1)}`} className={buttonClass("ghost")} data-testid="export">
@@ -113,7 +134,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
           <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
           <input name="q" defaultValue={f.q} placeholder={p.search} className={`${inputClass} ps-9`} data-testid="order-search" />
         </form>
-        {!portal && resolveApps(shop.apps).scanner && (
+        {!portal && apps.scanner && (
           <Link href={sectionHref(lang, "scan")} className={buttonClass("secondary")} data-testid="scan-link">
             <ScanLine size={15} /> {p.scan}
           </Link>
@@ -171,6 +192,7 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
               risk: r.risk,
               risky: !r.locked && r.risk >= protection.riskThreshold,
               paid: r.paymentStatus === "paid",
+              whatsapp: r.whatsapp,
             }))}
           />
         )}

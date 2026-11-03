@@ -312,6 +312,8 @@ export const orders = mysqlTable(
     paymentProvider: varchar("payment_provider", { length: 20 }),
     paymentRef: varchar("payment_ref", { length: 80 }),
     paidAt: datetime("paid_at"),
+    // Apps → WhatsApp confirmation: waiting = the question was sent; the buyer's reply (confirmed / cancelled)
+    whatsapp: mysqlEnum("whatsapp", ["waiting", "confirmed", "cancelled"]),
     // The team's note on the order (the orders table's note column and the edit dialog)
     note: varchar("note", { length: 500 }),
     // The order's own delivery fee was waived by the team (edit dialog)
@@ -835,4 +837,28 @@ export const creditPurchases = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [index("credit_purchases_shop_idx").on(t.shopId, t.createdAt), index("credit_purchases_status_idx").on(t.status, t.createdAt)],
+);
+
+// Apps → WhatsApp order confirmation: every message to a buyer (the confirmation question, its reminder and the
+// customer notifications), sent from the platform's WhatsApp Business number and paid from the Balance.
+export const whatsappKinds = ["confirm", "reminder", "confirmed", "shipped", "delivered", "out_for_delivery", "failed_attempt", "at_desk"] as const;
+export const whatsappMessages = mysqlTable(
+  "whatsapp_messages",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    orderId: id("order_id").notNull(),
+    kind: mysqlEnum("kind", whatsappKinds).notNull(),
+    // queued → sent → delivered → read; failed = refused by Meta (credits refunded); skipped = empty balance / order gone
+    status: mysqlEnum("status", ["queued", "sent", "delivered", "read", "failed", "skipped"]).notNull().default("queued"),
+    // Meta's message id (wamid), to match the delivery reports
+    wamid: varchar("wamid", { length: 128 }),
+    credits: int("credits").notNull().default(0),
+    error: varchar("error", { length: 200 }),
+    dueAt: datetime("due_at").notNull(),
+    sentAt: datetime("sent_at"),
+    readAt: datetime("read_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("whatsapp_messages_uq").on(t.orderId, t.kind), index("whatsapp_messages_due_idx").on(t.status, t.dueAt), index("whatsapp_messages_wamid_idx").on(t.wamid), index("whatsapp_messages_shop_idx").on(t.shopId, t.createdAt)],
 );

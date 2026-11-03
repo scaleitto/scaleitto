@@ -14,6 +14,23 @@ export type ContactSettings = { phoneOn: boolean; phone: string; whatsappOn: boo
 // contact "" = reuse the quick contact number; lookup = what a buyer types to find their orders
 export type TrackingSettings = { enabled: boolean; contact: "" | "whatsapp" | "phone" | "none"; number: string; lookup: "phone" | "number_phone" };
 
+// Apps → WhatsApp confirmation (Zimam's): the question to the buyer, quiet hours (Algeria time; from = until → none),
+// one reminder, the messages' language ("" = the store's), all products or a chosen list, and the customer notifications
+export const waNotices = ["confirmed", "shipped", "delivered", "out_for_delivery", "failed_attempt", "at_desk"] as const;
+export type WaNotice = (typeof waNotices)[number];
+export type WhatsAppSettings = {
+  enabled: boolean;
+  quietFrom: number;
+  quietTo: number;
+  reminder: boolean;
+  language: "" | "ar" | "fr" | "en";
+  // null = every product
+  products: string[] | null;
+  notify: Record<WaNotice, boolean>;
+  // "Connect my WhatsApp number": when the merchant asked (ISO date), "" = not asked
+  connectRequested: string;
+};
+
 export type AppSettings = {
   // A draft order is kept when a buyer starts the form and leaves (Orders → Abandoned)
   abandoned: boolean;
@@ -31,6 +48,7 @@ export type AppSettings = {
   tracking: TrackingSettings;
   deliveryRules: DeliveryRule[];
   agentRules: AgentRule[];
+  whatsapp: WhatsAppSettings;
 };
 
 // Only what is true for every cash-on-delivery store is on by default: returns and guarantees are the merchant's promise
@@ -38,6 +56,7 @@ const badgeDefaults: Record<BadgeKey, boolean> = { payment: true, returns: false
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+const hour = (v: unknown, fallback: number) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 23 ? v : fallback);
 const phone = (v: unknown) => str(v, 20).replace(/[^\d+ ]/g, "");
 
 export function resolveApps(raw: unknown): AppSettings {
@@ -45,6 +64,8 @@ export function resolveApps(raw: unknown): AppSettings {
   const badgesIn = Array.isArray(r.badges) ? (r.badges as Record<string, unknown>[]) : [];
   const c = (r.contact && typeof r.contact === "object" ? r.contact : {}) as Record<string, unknown>;
   const th = (r.thanks && typeof r.thanks === "object" ? r.thanks : {}) as Record<string, unknown>;
+  const wa = (r.whatsapp && typeof r.whatsapp === "object" ? r.whatsapp : {}) as Record<string, unknown>;
+  const notify = (wa.notify && typeof wa.notify === "object" ? wa.notify : {}) as Record<string, unknown>;
   const tr = (r.tracking && typeof r.tracking === "object" ? r.tracking : {}) as Record<string, unknown>;
   return {
     abandoned: bool(r.abandoned, true),
@@ -66,6 +87,16 @@ export function resolveApps(raw: unknown): AppSettings {
     },
     deliveryRules: resolveDeliveryRules(r.deliveryRules),
     agentRules: resolveAgentRules(r.agentRules),
+    whatsapp: {
+      enabled: bool(wa.enabled, false),
+      quietFrom: hour(wa.quietFrom, 22),
+      quietTo: hour(wa.quietTo, 8),
+      reminder: bool(wa.reminder, true),
+      language: wa.language === "ar" || wa.language === "fr" || wa.language === "en" ? wa.language : "",
+      products: Array.isArray(wa.products) ? wa.products.filter((x): x is string => typeof x === "string").slice(0, 500) : null,
+      notify: Object.fromEntries(waNotices.map((k) => [k, bool(notify[k], false)])) as Record<WaNotice, boolean>,
+      connectRequested: str(wa.connectRequested, 30),
+    },
   };
 }
 
@@ -80,4 +111,11 @@ export function trackingContact(apps: AppSettings, shopPhone: string | null): { 
   if (c.whatsappOn && c.whatsapp) return { kind: "whatsapp", number: c.whatsapp };
   if (c.phoneOn && c.phone) return { kind: "phone", number: c.phone };
   return null;
+}
+
+// Inside the quiet hours (an hour of the day in Algeria)? The window may cross midnight (22 → 8).
+export function inQuietHours(w: Pick<WhatsAppSettings, "quietFrom" | "quietTo">, hourNow: number) {
+  const { quietFrom: a, quietTo: b } = w;
+  if (a === b) return false;
+  return a < b ? hourNow >= a && hourNow < b : hourNow >= a || hourNow < b;
 }

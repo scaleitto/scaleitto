@@ -36,6 +36,11 @@ jobs:
       E2E_PAYMENT_URL: http://127.0.0.1:4030
       # The platform's own Chargily account (credit packs by card); the fake gateway accepts test_sk_good…
       PLATFORM_CHARGILY_SECRET: test_sk_goodplatform123
+      # The platform's WhatsApp number (WhatsApp confirmation app), sent to the fake Meta server above
+      WHATSAPP_TOKEN: good-token
+      WHATSAPP_PHONE_ID: "100200300"
+      WHATSAPP_APP_SECRET: wa-app-secret
+      WHATSAPP_VERIFY_TOKEN: wa-verify
       # Fake Google Sheets script / webhook / Shopify store / YouCan API (apps); local URLs allowed in tests only
       E2E_APPS_URL: http://127.0.0.1:4040
       ALLOW_PRIVATE_FETCH: "1"

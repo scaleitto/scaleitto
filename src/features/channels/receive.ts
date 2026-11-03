@@ -7,6 +7,7 @@ import { nextOrderNumber } from "@/features/checkout/place-order";
 import { takeOrderSlot } from "@/features/plans/locked";
 import { orderRule } from "@/server/limits";
 import { pickAgent } from "@/features/team/assign";
+import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { ExternalOrder } from "./parse";
 
@@ -88,5 +89,6 @@ export async function receiveOrder(shopId: string, kind: ChannelKind, order: Ext
     throw err;
   }
   await scheduleOrderSync(shopId, id);
+  await scheduleWhatsApp(shopId, id, "confirm");
   return { created: true, id };
 }

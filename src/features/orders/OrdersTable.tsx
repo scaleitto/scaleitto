@@ -38,6 +38,8 @@ export type TableRow = {
   risky: boolean;
   // Paid by card (Apps → Online payments)
   paid: boolean;
+  // Apps → WhatsApp confirmation: the question was sent / the buyer's answer
+  whatsapp: "waiting" | "confirmed" | "cancelled" | null;
   risk: number;
 };
 
@@ -118,6 +120,11 @@ export function OrdersTable({
                         {r.paid && (
                           <span title={t.orders.paidCard} className="text-accent" data-testid="paid-badge">
                             <CreditCard size={14} />
+                          </span>
+                        )}
+                        {r.whatsapp && (
+                          <span title={t.orders.whatsappFilter[r.whatsapp]} className={r.whatsapp === "confirmed" ? "text-accent" : r.whatsapp === "cancelled" ? "text-danger" : "text-muted"} data-testid="wa-badge" data-wa={r.whatsapp}>
+                            <MessageCircle size={14} />
                           </span>
                         )}
                         {r.risky && (

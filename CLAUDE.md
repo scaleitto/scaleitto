@@ -158,7 +158,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (DZD prices); bought by card through the platform's own Chargily (PLATFORM_CHARGILY_SECRET / _MODE → `/api/payments/platform`
   webhook, return `?purchase=` → `refreshCreditPurchase`) or locally (CCP/RIB receipt or WhatsApp → `credit_purchases` pending →
   admin → plan requests page approves → `approveCreditPurchase`, credits once).
-  Coming (not built yet): WhatsApp confirmation (paid from the Balance).
+  WhatsApp confirmation (phase34.mjs, `features/whatsapp`, migration 0047): settings `shops.apps.whatsapp` (`resolveApps`:
+  enabled, quiet hours, reminder, language, products, `notify` per `waNotices`, connectRequested). `whatsapp_messages` = outbox +
+  log (unique order+kind); `queue.ts scheduleWhatsApp` (placement in checkout/cart/channels: confirm; `applyOrderStatus`:
+  confirmed/shipped/delivered; `trackShipment` stage → `stageNotice`) → `processWhatsApp` (claim, skip, quiet hours, `spendCredits`,
+  `cloud.ts sendTemplate`, refund on refusal); cron also `queueReminders` (4 h unread). Webhook `/api/whatsapp` (verify token,
+  X-Hub-Signature-256): reports (failed → refund) and button replies → `orders.whatsapp` (waiting/confirmed/cancelled) = the
+  `?wa=` filter under the status tabs + row badge. Platform env WHATSAPP_TOKEN/_PHONE_ID/_APP_SECRET/_VERIFY_TOKEN; templates in
+  `docs/whatsapp.md`; E2E: mock-pixels `/meta/<v>/<phone>/messages` (numbers ending 0000 refused).
 - Apps sync (`src/features/apps/`): `shop_apps` (google_sheets / webhook; merchant URL + encrypted secret, one per kind) and the
   `app_events` log. `sync.ts`: `scheduleOrderSync` (→ `after()`) is called on placement, every status change
   (`applyOrderStatus`), customer edit and assignment; the sheet gets one row per order keyed by the order number (headers
