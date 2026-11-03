@@ -338,7 +338,10 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (`app/[lang]/call-center/(portal)`, `requireAgent`) reuses `DashboardShell` (`logoutInNav`) with Dashboard (`team/agent-overview.ts`
   + pure `agent-stats.ts`, `AgentDashboard.tsx`) and Orders (`OrdersPage portal`, the same edit dialog). Agents reach no dashboard
   page: `requireSection` sends them to the portal (only order actions accept them); dashboard order URLs redirect there.
-  Owner page = `TeamManager` (agent cards, `AddAgentDialog`: email optional → internal `@agents.invalid` address, hidden).
+  Owner page = `TeamManager` (Zimam's agent cards: headset mark + online dot, name, @username, email, round buttons edit (role,
+  schedule, reset password, deactivate) / copy sign-in details / open the portal / delete = `removeMember` (membership + sessions
+  gone, open orders released, account kept for history), footer "created" + presence; `AddAgentDialog` = Zimam's wide dialog,
+  username + password side by side: email optional → internal `@agents.invalid` address, hidden).
 - Zimam cleanup: Inventory, Finance, the call-center tabs (performance, activity, distribution, customer messages editor), the
   Protection page, the Order form page (with form templates) and the embeddable form were removed (owner's choice: not in
   Zimam; migration 0036). The overview is Zimam's (`analytics/overview.ts`: period today/7d/30d, previous period, tasks with

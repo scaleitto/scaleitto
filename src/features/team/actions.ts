@@ -123,3 +123,25 @@ export async function resetMemberPassword(lang: string, userId: string, _prev: A
   });
 }
 
+
+// Delete an agent (Zimam's trash button): the membership goes, their sessions end and their open orders are released.
+// The account itself stays so the orders' history keeps their name.
+export async function removeMember(lang: string, userId: string): Promise<ActionState> {
+  return safeAction("team/remove", async () => {
+    const ctx = await managerOf(lang);
+    if (!ctx) return { ok: false, error: "forbidden" };
+    const member = await memberOf(ctx.shop.id, userId);
+    if (!member) return { ok: false, error: "notFound" };
+    if (!canManage(ctx, member)) return { ok: false, error: "forbidden" };
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.shopMembers).where(and(eq(schema.shopMembers.shopId, ctx.shop.id), eq(schema.shopMembers.userId, userId)));
+      await tx.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
+      await tx
+        .update(schema.orders)
+        .set({ assignedTo: null, assignedAt: null })
+        .where(and(eq(schema.orders.shopId, ctx.shop.id), eq(schema.orders.assignedTo, userId), inArray(schema.orders.status, [...PENDING_STATUSES])));
+    });
+    refresh();
+    return { ok: true };
+  });
+}

@@ -116,6 +116,22 @@ export default async function phase31(browser) {
     await owner.waitForURL((u) => u.pathname === "/ar/dashboard");
   });
 
+  await step("agent card like Zimam: edit, copy sign-in details, portal link; deleting signs the agent out and releases their orders", async () => {
+    await owner.goto(`${BASE}/ar/dashboard/call-centers`);
+    const card = owner.locator(`[data-username="${username}"]`);
+    expect((await card.locator("[data-testid=agent-portal]").getAttribute("href")).endsWith(`/ar/call-center/login?store=${slug}`), "portal link on the card");
+    expect(await card.locator("[data-testid=agent-edit]").count(), "edit button");
+    expect(await card.locator("[data-testid=agent-copy]").count(), "copy button");
+    owner.once("dialog", (d) => d.accept());
+    await card.locator("[data-testid=agent-remove]").click();
+    await card.waitFor({ state: "detached" });
+    const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM shop_members WHERE shop_id = ? AND user_id = ?", [shopId, agentRow.id]);
+    const [[{ s }]] = await db.query("SELECT COUNT(*) AS s FROM sessions WHERE user_id = ?", [agentRow.id]);
+    const [[{ o }]] = await db.query("SELECT COUNT(*) AS o FROM orders WHERE shop_id = ? AND assigned_to = ? AND status IN ('pending','call_back')", [shopId, agentRow.id]);
+    expect(Number(n) === 0 && Number(s) === 0 && Number(o) === 0, `membership, sessions and open orders gone (${n}/${s}/${o})`);
+    await owner.locator("[data-testid=no-agents]").waitFor();
+  });
+
   await agentCtx.close();
   await context.close();
 }

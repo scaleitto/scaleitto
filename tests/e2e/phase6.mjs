@@ -73,7 +73,7 @@ export default async function phase6(browser) {
     // A manager: created like an agent, then given the manager role
     await addMember("مريم", emails.m);
     const m = owner.locator(`[data-member="${emails.m}"]`);
-    await m.locator('button:has-text("تعديل")').click();
+    await m.locator("[data-testid=agent-edit]").click();
     await m.locator('select[name="role"]').selectOption("manager");
     await m.locator("form button[type=submit]").click();
     await m.getByText("مدير", { exact: true }).waitFor();
@@ -86,7 +86,7 @@ export default async function phase6(browser) {
   await step("working hours are saved for an agent", async () => {
     await owner.goto(cc);
     const card = owner.locator(`[data-member="${emails.a}"]`);
-    await card.locator('button:has-text("تعديل")').click();
+    await card.locator("[data-testid=agent-edit]").click();
     await card.locator('input[name="hasSchedule"]').check();
     // The day boxes are hidden behind their labels: tick the unticked ones
     for (let d = 0; d < 7; d++)
@@ -146,6 +146,7 @@ export default async function phase6(browser) {
   await step("a deactivated agent is signed out, cannot sign in, and their open orders are released", async () => {
     const agentB = await loginAs(emails.b);
     await owner.goto(cc);
+    await owner.locator(`[data-member="${emails.b}"] [data-testid=agent-edit]`).click();
     await owner.locator(`[data-member="${emails.b}"] button:has-text("تعطيل")`).click();
     await owner.locator(`[data-member="${emails.b}"]`).getByText("معطّل").waitFor();
     const [[{ n }]] = await db.query("SELECT COUNT(*) AS n FROM orders WHERE assigned_to = ? AND status IN ('pending','call_back')", [await userId(emails.b)]);
@@ -169,8 +170,8 @@ export default async function phase6(browser) {
     const manager = await loginAs(emails.m);
     await manager.p.goto(cc);
     const ownerCard = manager.p.locator("[data-member^='owner-']");
-    expect(!(await ownerCard.locator('button:has-text("تعطيل")').count()), "no deactivate on the owner");
-    expect(await manager.p.locator(`[data-member="${emails.a}"] button:has-text("تعطيل")`).count(), "can manage agents");
+    expect(!(await ownerCard.locator("[data-testid=agent-remove]").count()), "no delete on the owner");
+    expect(await manager.p.locator(`[data-member="${emails.a}"] [data-testid=agent-remove]`).count(), "can manage agents");
     await manager.ctx.close();
   });
 

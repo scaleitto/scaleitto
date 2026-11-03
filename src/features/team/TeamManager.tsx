@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Clock, Copy, Headphones, Headset, KeyRound, Pencil, Plus, Power, X } from "lucide-react";
+import { Check, Clock, Copy, ExternalLink, Headphones, Headset, KeyRound, Pencil, Plus, Power, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import type { ActionState } from "@/lib/action";
 import { fmt } from "@/lib/format";
 import type { MemberRole, WorkSchedule } from "@/server/db/schema";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { addMember, resetMemberPassword, setMemberActive, updateMember } from "./actions";
+import { addMember, removeMember, resetMemberPassword, setMemberActive, updateMember } from "./actions";
 import { isInternalEmail } from "./validators";
 import { useModal } from "@/ui/useModal";
 
@@ -48,32 +48,36 @@ function AddAgentDialog({ lang, t, onDone }: { lang: string; t: TeamText; onDone
       <Button type="button" className="h-12 px-6 text-base" onClick={() => ref.current?.showModal()} data-testid="add-agent">
         <Plus size={16} /> {ag.add}
       </Button>
-      <dialog ref={ref} className="m-auto w-[min(460px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="agent-dialog">
-        <form key={round} onSubmit={onSubmit} noValidate className="space-y-4 p-5" data-testid="add-member">
-          <div className="flex items-center justify-between">
+      <dialog ref={ref} className="m-auto w-[min(768px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="agent-dialog">
+        <form key={round} onSubmit={onSubmit} noValidate data-testid="add-member">
+          <div className="flex items-center justify-between border-b border-line px-5 py-4">
             <h2 className="text-lg font-bold">{ag.dialogTitle}</h2>
-            <button type="button" aria-label={ag.cancel} className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel-2" onClick={() => ref.current?.close()}>
-              <X size={18} />
+            <button type="button" aria-label={ag.cancel} className="grid size-8 place-items-center rounded-full bg-panel-2 text-fg-2 hover:bg-line" onClick={() => ref.current?.close()}>
+              <X size={16} />
             </button>
           </div>
-          <FormMessage state={state} errors={e} />
-          <Field label={`${ag.fullName} *`} htmlFor="m-name" error={fieldError(state, e, "name")}>
-            <Input id="m-name" name="name" autoComplete="off" />
-          </Field>
-          <Field label={ag.email} htmlFor="m-email" error={fieldError(state, e, "email")}>
-            <Input id="m-email" name="email" type="email" dir="ltr" autoComplete="off" />
-          </Field>
-          <Field label={`${ag.username} *`} htmlFor="m-username" hint={ag.usernameHint} error={fieldError(state, e, "username")}>
-            <Input id="m-username" name="username" dir="ltr" autoComplete="off" autoCapitalize="none" />
-          </Field>
-          <Field label={`${ag.password} *`} htmlFor="m-password" hint={ag.passwordHint} error={fieldError(state, e, "password")}>
-            <Input id="m-password" name="password" type="password" dir="ltr" autoComplete="new-password" />
-          </Field>
-          <div className="flex justify-end gap-2 border-t border-line pt-4">
-            <Button type="button" variant="secondary" onClick={() => ref.current?.close()}>
+          <div className="space-y-4 px-5 py-5">
+            <FormMessage state={state} errors={e} />
+            <Field label={`${ag.fullName} *`} htmlFor="m-name" error={fieldError(state, e, "name")}>
+              <Input id="m-name" name="name" autoComplete="off" placeholder={ag.fullName} />
+            </Field>
+            <Field label={ag.email} htmlFor="m-email" error={fieldError(state, e, "email")}>
+              <Input id="m-email" name="email" type="email" dir="ltr" autoComplete="off" placeholder={ag.emailPlaceholder} />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={`${ag.username} *`} htmlFor="m-username" error={fieldError(state, e, "username")}>
+                <Input id="m-username" name="username" dir="ltr" autoComplete="off" autoCapitalize="none" placeholder={ag.username} title={ag.usernameHint} />
+              </Field>
+              <Field label={`${ag.password} *`} htmlFor="m-password" error={fieldError(state, e, "password")}>
+                <Input id="m-password" name="password" type="password" dir="ltr" autoComplete="new-password" placeholder="••••••••" title={ag.passwordHint} />
+              </Field>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 border-t border-line px-5 py-4">
+            <Button type="button" variant="secondary" className="h-12 text-base" onClick={() => ref.current?.close()}>
               {ag.cancel}
             </Button>
-            <SubmitButton pending={pending} pendingText={t.common.loading} data-testid="create-agent">
+            <SubmitButton pending={pending} pendingText={t.common.loading} className="col-span-2 h-12 text-base" data-testid="create-agent">
               {ag.create}
             </SubmitButton>
           </div>
@@ -155,7 +159,7 @@ function scheduleSummary(s: WorkSchedule | null, t: TeamText) {
   );
 }
 
-function MemberCard({ lang, member, t, viewer }: { lang: string; member: MemberRow; t: TeamText; viewer: { userId: string; role: MemberRole } }) {
+function MemberCard({ lang, member, t, viewer, portal }: { lang: string; member: MemberRow; t: TeamText; viewer: { userId: string; role: MemberRole }; portal: { url: string; storeId: string } }) {
   const tm = t.team;
   const e = errorsOf(t);
   const [mode, setMode] = useState<"view" | "edit" | "password">("view");
@@ -170,69 +174,91 @@ function MemberCard({ lang, member, t, viewer }: { lang: string; member: MemberR
     return r;
   });
   const password = useActionForm(resetMemberPassword.bind(null, lang, member.userId));
+  const [copied, setCopied] = useState(false);
+  const ag = t.team.agents;
+  const iconButton = "grid h-9 w-16 place-items-center rounded-full bg-panel-2 text-fg-2 transition-colors hover:bg-line disabled:opacity-50";
 
   return (
-    <Card className={`space-y-3 ${member.active ? "" : "opacity-60"}`} data-member={member.email} data-username={member.username ?? undefined}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-bright text-white shadow-[0_8px_18px_-10px_var(--color-accent)]">
-            <Headset size={22} aria-hidden />
-            <span className={`absolute -end-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-panel ${member.online ? "bg-emerald-500" : "bg-line"}`} title={member.online ? tm.online : undefined} data-online={member.online} />
-          </span>
-          <div className="min-w-0 space-y-0.5">
-            <p className="flex flex-wrap items-center gap-2 font-semibold">
-              {member.name}
-              {isSelf && <span className="text-xs text-muted">({tm.you})</span>}
-              {member.role !== "agent" && <Badge tone={member.role === "owner" ? "accent" : "neutral"}>{t.profile.roles[member.role]}</Badge>}
-              {!member.active && <Badge tone="danger">{tm.inactive}</Badge>}
+    <Card className={`space-y-4 ${member.active ? "" : "opacity-60"}`} data-member={member.email} data-username={member.username ?? undefined}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="relative grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-bright text-white shadow-[0_8px_18px_-10px_var(--color-accent)]">
+          <Headset size={22} aria-hidden />
+          <span className={`absolute -end-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-panel ${member.online ? "bg-emerald-500" : "bg-line"}`} title={member.online ? tm.online : undefined} data-online={member.online} />
+        </span>
+        <div className="min-w-0 space-y-0.5">
+          <p className="flex flex-wrap items-center gap-2 font-semibold">
+            {member.name}
+            {isSelf && <span className="text-xs text-muted">({tm.you})</span>}
+            {member.role !== "agent" && <Badge tone={member.role === "owner" ? "accent" : "neutral"}>{t.profile.roles[member.role]}</Badge>}
+            {!member.active && <Badge tone="danger">{tm.inactive}</Badge>}
+          </p>
+          {member.username && (
+            <p className="text-sm text-accent" dir="ltr" data-testid="member-username">
+              @{member.username}
             </p>
-            {member.username && (
-              <p className="text-sm text-muted" dir="ltr" data-testid="member-username">
-                @{member.username}
-              </p>
-            )}
-            {!isInternalEmail(member.email) && (
-              <p className="truncate text-xs text-muted" dir="ltr">
-                {member.email}
-              </p>
-            )}
-            <p className="text-[11px] font-semibold tracking-wide text-muted uppercase">{fmt(t.team.agents.created, { at: member.created })}</p>
-            <p className="flex items-center gap-1.5 text-xs text-muted">
-              <Clock size={13} /> {scheduleSummary(member.schedule, t)}
-            </p>
-            <p className="text-xs text-muted" data-testid="presence">
-              {member.online ? tm.online : member.presence}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {editable && (
-            <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setMode(mode === "edit" ? "view" : "edit")}>
-              <Pencil size={14} /> {tm.edit}
-            </Button>
           )}
-          {manageable && (
-            <>
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setMode(mode === "password" ? "view" : "password")}>
-                <KeyRound size={14} /> {tm.resetPassword}
-              </Button>
-              <Button
-                variant={member.active ? "danger" : "secondary"}
-                className="px-2 py-1 text-xs"
-                disabled={pending}
-                onClick={() => {
-                  if (member.active && !confirm(tm.confirmDeactivate)) return;
-                  startTransition(async () => {
-                    const r = await setMemberActive(lang, member.userId, !member.active);
-                    setError(r.ok ? null : (e[r.error ?? "unexpected"] ?? e.unexpected));
-                  });
-                }}
-              >
-                <Power size={14} /> {member.active ? tm.deactivate : tm.activate}
-              </Button>
-            </>
+          {!isInternalEmail(member.email) && (
+            <p className="truncate text-sm text-fg-2" dir="ltr">
+              {member.email}
+            </p>
           )}
+          <p className="flex items-center gap-1.5 text-xs text-muted">
+            <Clock size={13} /> {scheduleSummary(member.schedule, t)}
+          </p>
         </div>
+      </div>
+      {/* Zimam's row of round buttons: edit, copy the sign-in details, open the agents' portal, delete */}
+      <div className="flex flex-wrap items-center gap-2">
+        {editable && (
+          <button type="button" className={iconButton} aria-label={tm.edit} title={tm.edit} onClick={() => setMode(mode === "edit" ? "view" : "edit")} data-testid="agent-edit">
+            <Pencil size={16} />
+          </button>
+        )}
+        {member.username && (
+          <button
+            type="button"
+            className={iconButton}
+            aria-label={ag.copyLogin}
+            title={ag.copyLogin}
+            onClick={() => {
+              void navigator.clipboard?.writeText(fmt(ag.loginText, { url: portal.url, store: portal.storeId, username: member.username ?? "" }));
+              setCopied(true);
+            }}
+            data-testid="agent-copy"
+          >
+            {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}
+          </button>
+        )}
+        {member.role === "agent" && (
+          <a href={portal.url} target="_blank" rel="noreferrer" className={iconButton} aria-label={ag.openPortal} title={ag.openPortal} data-testid="agent-portal">
+            <ExternalLink size={16} />
+          </a>
+        )}
+        {manageable && (
+          <button
+            type="button"
+            className="grid size-9 place-items-center rounded-full text-danger hover:bg-danger/10 disabled:opacity-50"
+            aria-label={ag.remove}
+            title={ag.remove}
+            disabled={pending}
+            onClick={() => {
+              if (!confirm(ag.confirmRemove)) return;
+              startTransition(async () => {
+                const r = await removeMember(lang, member.userId);
+                setError(r.ok ? null : (e[r.error ?? "unexpected"] ?? e.unexpected));
+              });
+            }}
+            data-testid="agent-remove"
+          >
+            <Trash2 size={17} />
+          </button>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-line pt-3 text-[11px] font-semibold tracking-wide text-muted uppercase">
+        <span>{fmt(ag.created, { at: member.created })}</span>
+        <span className="normal-case" data-testid="presence">
+          {member.online ? tm.online : member.presence}
+        </span>
       </div>
       {error && <Alert>{error}</Alert>}
 
@@ -251,9 +277,33 @@ function MemberCard({ lang, member, t, viewer }: { lang: string; member: MemberR
           )}
           <p className="text-sm font-medium">{tm.schedule}</p>
           <ScheduleFields schedule={member.schedule} t={t} error={fieldError(edit.state, e, "days")} />
-          <SubmitButton pending={edit.pending} pendingText={t.common.loading}>
-            {t.common.save}
-          </SubmitButton>
+          <div className="flex flex-wrap items-center gap-2">
+            <SubmitButton pending={edit.pending} pendingText={t.common.loading}>
+              {t.common.save}
+            </SubmitButton>
+            {manageable && (
+              <>
+                <Button type="button" variant="ghost" className="text-xs" onClick={() => setMode("password")}>
+                  <KeyRound size={14} /> {tm.resetPassword}
+                </Button>
+                <Button
+                  type="button"
+                  variant={member.active ? "danger" : "secondary"}
+                  className="text-xs"
+                  disabled={pending}
+                  onClick={() => {
+                    if (member.active && !confirm(tm.confirmDeactivate)) return;
+                    startTransition(async () => {
+                      const r = await setMemberActive(lang, member.userId, !member.active);
+                      setError(r.ok ? null : (e[r.error ?? "unexpected"] ?? e.unexpected));
+                    });
+                  }}
+                >
+                  <Power size={14} /> {member.active ? tm.deactivate : tm.activate}
+                </Button>
+              </>
+            )}
+          </div>
         </form>
       )}
 
@@ -298,7 +348,7 @@ export function TeamManager({ lang, members, viewer, portal, t }: { lang: string
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {people.map((m) => (
-            <MemberCard key={m.userId} lang={lang} member={m} t={t} viewer={viewer} />
+            <MemberCard key={m.userId} lang={lang} member={m} t={t} viewer={viewer} portal={portal} />
           ))}
         </div>
       )}
