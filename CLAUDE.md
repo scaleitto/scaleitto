@@ -109,8 +109,11 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   orders, items, `page_views` and agents once; `compute.ts` (pure, unit-tested) returns each tab: orders (KPIs total/sales/delivery
   rate/avg daily vs the days before, daily bars against the previous period, status ring, funnel, key insights, wilayas, sales and
   delivered/returned lines), products (visitors, orders, order rate, bands excellent ≥ 5% / good ≥ 1% / low, per-product table),
-  impressions (impressions, visitors, sources, daily trend), team (per agent). Charts are plain SVG in `charts.tsx`; tabs in
-  `views.tsx`. Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
+  impressions (impressions, visitors, sources, daily trend switched impressions | visitors with `?trend=`), team (per agent). Charts are
+  plain SVG in `charts.tsx` (Zimam's smooth curves = `smoothPath` monotone cubic, `FunnelShape` = the coloured funnel with rate pills);
+  tabs in `views.tsx` (rates with one decimal, wilaya names without code `wilayaTitle`, products' "…" actions). Wilaya map =
+  `WilayaMap.tsx` + `lib/algeria-map.ts` (69 outlines from geoalgeria, © OpenStreetMap contributors ODbL — attribution under the map,
+  `docs/third-party.md`; the 2026 wilayas 59–69 are drawn with their former wilaya's figures, `mapParent`). Store visits: `VisitPing` (store home, product and landing pages) → POST `/api/visit` → `page_views` (per shop, day,
   product, source host; a visitor counted once per day and page key through the `sc_v` cookie; robots skipped; migration 0038).
 - Pixels like Zimam (`src/features/pixels/`, phase9.mjs): `/integrations/pixels` = "Pixels & Analytics" grid of 5 apps (GTM, GA4,
   Facebook, Snapchat, TikTok; `PlatformMark.tsx`, active when one of its pixels runs) → `/integrations/pixels/<platform>` = back link,

@@ -54,8 +54,10 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
         ))}
       </nav>
       {tab === "orders" && <OrdersTab data={data} lang={lang} t={t} />}
-      {tab === "products" && <ProductsTab data={data} lang={lang} t={t} />}
-      {tab === "impressions" && <ImpressionsTab data={data} lang={lang} t={t} />}
+      {tab === "products" && <ProductsTab data={data} lang={lang} t={t} productsHref={sectionHref(lang, "products")} />}
+      {tab === "impressions" && (
+        <ImpressionsTab data={data} lang={lang} t={t} trend={sp.trend === "visitors" ? "visitors" : "impressions"} trendHref={(k) => `${base}?tab=impressions&period=${range.preset}&trend=${k}`} />
+      )}
       {tab === "team" && <TeamTab data={data} teamHref={sectionHref(lang, "callCenters")} t={t} />}
     </div>
   );

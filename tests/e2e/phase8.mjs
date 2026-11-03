@@ -53,8 +53,11 @@ export default async function phase8(browser) {
     expect((await owner.locator("[data-testid=funnel] [data-step=delivered]").innerText()).includes("2"), "funnel: 2 delivered");
     await owner.locator("[data-testid=insights] [data-insight=pending]").waitFor();
     const oran = await owner.locator('[data-testid=wilayas] [data-wilaya="31"]').innerText();
-    expect(oran.includes("3") && oran.includes("50%"), `wilaya 31: 3 orders, 50% returned (got ${oran})`);
+    expect(oran.includes("3") && oran.includes("50.0%"), `wilaya 31: 3 orders, 50% returned (got ${oran})`);
     for (const id of ["orders-over-time", "sales-over-time", "delivery-performance"]) expect(await owner.locator(`[data-testid=${id}] svg`).count(), `${id} chart`);
+    // The wilaya map colours Oran (and the wilaya taken from it is not counted twice)
+    expect((await owner.locator("[data-testid=wilaya-map] [data-map-wilaya='31']").getAttribute("data-orders")) === "3", "Oran on the map");
+    expect(await owner.locator("[data-testid=funnel-shape]").count(), "funnel shape");
   });
 
   await step("visits from the store are counted once per visitor and day, with their source", async () => {
@@ -76,8 +79,8 @@ export default async function phase8(browser) {
     await owner.locator("[data-testid=analytics-tabs] [data-tab=products]").click();
     await owner.waitForURL(/tab=products/);
     expect((await kpi("visitors")) === "50", `50 visitors (got ${await kpi("visitors")})`);
-    expect((await kpi("orderRate")) === "10%", `5 orders ÷ 50 visitors (got ${await kpi("orderRate")})`);
-    expect((await owner.locator('[data-testid=products-table] [data-product="حذاء رياضي"] [data-col=orderRate]').innerText()) === "10%", "the product's order rate");
+    expect((await kpi("orderRate")) === "10.0%", `5 orders ÷ 50 visitors (got ${await kpi("orderRate")})`);
+    expect((await owner.locator('[data-testid=products-table] [data-product="حذاء رياضي"] [data-col=orderRate]').innerText()) === "10.0%", "the product's order rate");
     expect((await owner.locator("[data-testid=bands] [data-band=excellent]").innerText()).includes("1"), "one excellent product");
   });
 
@@ -86,6 +89,10 @@ export default async function phase8(browser) {
     await owner.waitForURL(/tab=impressions/);
     expect((await kpi("impressions")) === "62", `62 impressions (got ${await kpi("impressions")})`);
     await owner.locator('[data-testid=sources] [data-source="facebook.com"]').waitFor();
+    // Zimam: the daily trend shows one line, switched between impressions and visitors
+    await owner.click("[data-testid=trend-switch] [data-trend=visitors]");
+    await owner.waitForURL(/trend=visitors/);
+    expect((await owner.locator("[data-testid=trend-switch] [data-trend=visitors]").getAttribute("aria-current")) === "true", "visitors trend");
     await owner.locator("[data-testid=analytics-tabs] [data-tab=team]").click();
     await owner.waitForURL(/tab=team/);
     await owner.getByText("لا يوجد موظفون بعد").waitFor();

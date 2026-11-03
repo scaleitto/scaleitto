@@ -1,17 +1,18 @@
 // Zimam's analytics tabs (server components): orders, products, impressions, call center.
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CircleCheck, ClipboardCheck, Clock, Eye, Filter, Headphones, Lightbulb, MapPin, Package, Percent, Plus, ShoppingCart, TrendingUp, Truck, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CircleCheck, ClipboardCheck, Clock, Eye, Filter, Headphones, Lightbulb, MapPin, MoreHorizontal, Package, Percent, Plus, ShoppingCart, TrendingUp, Truck, Users, Wallet, type LucideIcon } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatPrice } from "@/lib/format";
-import { wilayaName } from "@/lib/wilayas";
+import { wilayaTitle } from "@/lib/wilayas";
 import { Card, buttonClass } from "@/ui";
 import type { Analytics } from "./compute";
 import { change, distributionStatuses } from "./compute";
-import { BarChart, Donut, LineChart, Spark } from "./charts";
+import { BarChart, Donut, FunnelShape, LineChart, Spark } from "./charts";
+import { WilayaMap } from "./WilayaMap";
 
 type A = Dictionary["analytics"];
-export const rate = (v: number | null) => (v == null ? "-" : `${v}%`);
+export const rate = (v: number | null) => (v == null ? "-" : `${v.toFixed(1)}%`);
 const dayLabel = (day: string, lang: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-DZ" : lang, { month: "short", day: "numeric", timeZone: "UTC" });
 
 // The status colors of the distribution ring (theme tokens)
@@ -26,12 +27,15 @@ const statusColors: Record<(typeof distributionStatuses)[number], string> = {
   flagged: "#991b1b",
 };
 
-function Box({ title, hint, children, className = "", testId }: { title: string; hint?: string; children: ReactNode; className?: string; testId?: string }) {
+function Box({ title, hint, action, children, className = "", testId }: { title: string; hint?: string; action?: ReactNode; children: ReactNode; className?: string; testId?: string }) {
   return (
     <Card className={`space-y-4 ${className}`} data-testid={testId}>
-      <div>
-        <h2 className="font-semibold">{title}</h2>
-        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+        </div>
+        {action}
       </div>
       {children}
     </Card>
@@ -106,9 +110,7 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Box title={a.funnel} hint={a.funnelHint} testId="funnel">
-          <div className="h-3 overflow-hidden rounded-full bg-panel-2" dir="ltr">
-            <div className="h-full rounded-full bg-gradient-to-r from-accent to-warning" style={{ width: `${o.total ? Math.max(4, (o.funnel.at(-1)!.n / o.total) * 100) : 0}%` }} />
-          </div>
+          <FunnelShape steps={o.funnel.map((s) => ({ n: s.n, rate: s.rate }))} />
           <ol className="grid grid-cols-4 gap-2 text-center">
             {o.funnel.map((s) => {
               const Icon = stepIcons[s.key];
@@ -117,7 +119,7 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
                   <span className="grid size-11 place-items-center rounded-full bg-accent text-white">
                     <Icon size={19} />
                   </span>
-                  <span className="text-xs text-muted">{a.funnelSteps[s.key]}</span>
+                  <span className="text-xs font-semibold">{a.funnelSteps[s.key]}</span>
                   <span className="text-xl font-bold tabular-nums">{s.n}</span>
                   <span className="text-xs text-muted tabular-nums">{rate(s.rate)}</span>
                 </li>
@@ -125,7 +127,7 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
             })}
           </ol>
         </Box>
-        <Card className="space-y-4 border-accent/20 bg-accent-soft/50" data-testid="insights">
+        <Card className="space-y-4 border-accent/25 bg-accent/10" data-testid="insights">
           <h2 className="font-semibold">{a.insights}</h2>
           {o.insights.length === 0 ? (
             <p className="text-sm text-muted">{a.noInsights}</p>
@@ -138,7 +140,7 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
                   v.from = stepName(String(v.from));
                   v.to = stepName(String(v.to));
                 }
-                if (i.key === "noConfirm") v.names = String(v.codes).split(",").map((c) => wilayaName(Number(c), lang)).join("، ");
+                if (i.key === "noConfirm") v.names = String(v.codes).split(",").map((c) => wilayaTitle(Number(c), lang)).join("، ");
                 const text = a.insight[i.key];
                 return (
                   <li key={i.key} className="flex gap-3" data-insight={i.key}>
@@ -156,32 +158,37 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
           )}
         </Card>
       </div>
-      <Box title={a.wilayas} testId="wilayas">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted uppercase">
-              <tr className="border-b border-line">
-                {(["wilaya", "orders", "confirmed", "delivered", "returnRate"] as const).map((k) => (
-                  <th key={k} className={`p-2.5 font-semibold ${k === "wilaya" ? "text-start" : "text-end"}`}>
-                    {a.columns[k]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {o.wilayas.map((w) => (
-                <tr key={w.code} className="border-b border-line last:border-0" data-wilaya={w.code}>
-                  <td className="p-2.5">{wilayaName(w.code, lang)}</td>
-                  <td className="p-2.5 text-end tabular-nums">{w.orders}</td>
-                  <td className="p-2.5 text-end tabular-nums">{w.confirmed}</td>
-                  <td className="p-2.5 text-end tabular-nums">{w.delivered}</td>
-                  <td className="p-2.5 text-end tabular-nums">{rate(w.returnRate)}</td>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <Box title={a.wilayas} testId="wilayas-map">
+          <WilayaMap counts={Object.fromEntries(o.wilayas.map((w) => [w.code, w.orders]))} lang={lang} label={a.wilayas} attribution={a.mapAttribution} />
+        </Box>
+        <Box title={a.wilayasTable} testId="wilayas">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted uppercase">
+                <tr className="border-b border-line">
+                  {(["wilaya", "orders", "confirmed", "delivered", "returnRate"] as const).map((k) => (
+                    <th key={k} className={`p-2.5 font-semibold ${k === "wilaya" ? "text-start" : "text-end"}`}>
+                      {a.columns[k]}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Box>
+              </thead>
+              <tbody>
+                {o.wilayas.map((w) => (
+                  <tr key={w.code} className="border-b border-line last:border-0" data-wilaya={w.code}>
+                    <td className="p-2.5">{wilayaTitle(w.code, lang)}</td>
+                    <td className="p-2.5 text-end tabular-nums">{w.orders}</td>
+                    <td className="p-2.5 text-end tabular-nums">{w.confirmed}</td>
+                    <td className="p-2.5 text-end tabular-nums">{w.delivered}</td>
+                    <td className="p-2.5 text-end tabular-nums">{rate(w.returnRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Box>
+      </div>
       <div className="grid gap-6 xl:grid-cols-2">
         <Box title={a.salesOverTime} testId="sales-over-time">
           <LineChart labels={labels} series={[{ name: a.kpis.sales, values: o.daily.map((d) => d.sales), color: "var(--color-accent)" }]} />
@@ -201,7 +208,7 @@ export function OrdersTab({ data, lang, t }: { data: Analytics; lang: string; t:
 }
 
 // ── Products ─────────────────────────────────────────
-export function ProductsTab({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
+export function ProductsTab({ data, lang, t, productsHref }: { data: Analytics; lang: string; t: Dictionary; productsHref: string }) {
   const a = t.analytics;
   const p = data.products;
   const labels = p.daily.map((d) => dayLabel(d.day, lang));
@@ -238,7 +245,7 @@ export function ProductsTab({ data, lang, t }: { data: Analytics; lang: string; 
             <table className="w-full text-sm">
               <thead className="text-xs text-muted uppercase">
                 <tr className="border-b border-line">
-                  {(["product", "visitors", "orders", "orderRate", "deliveryRate", "trend"] as const).map((k) => (
+                  {(["product", "visitors", "orders", "orderRate", "deliveryRate", "trend", "actions"] as const).map((k) => (
                     <th key={k} className={`p-2.5 font-semibold ${k === "product" ? "text-start" : "text-end"}`}>
                       {a.columns[k]}
                     </th>
@@ -272,6 +279,21 @@ export function ProductsTab({ data, lang, t }: { data: Analytics; lang: string; 
                         <Spark values={r.spark} color="#3b82f6" />
                       </span>
                     </td>
+                    <td className="p-2.5 text-end">
+                      <details className="relative inline-block text-start" data-testid="product-actions">
+                        <summary className="grid size-8 cursor-pointer list-none place-items-center rounded-lg border border-line hover:bg-panel-2" aria-label={a.columns.actions}>
+                          <MoreHorizontal size={16} />
+                        </summary>
+                        <div className="absolute end-0 z-10 mt-1 w-44 rounded-xl border border-line bg-panel p-1 shadow-lg">
+                          <Link href={`${productsHref}/${r.id}`} className="block rounded-lg px-3 py-2 text-sm hover:bg-panel-2">
+                            {a.editProduct}
+                          </Link>
+                          <Link href={`${productsHref}/${r.id}#preview`} className="block rounded-lg px-3 py-2 text-sm hover:bg-panel-2">
+                            {a.viewProduct}
+                          </Link>
+                        </div>
+                      </details>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -293,7 +315,7 @@ function Tip({ text }: { text: string }) {
 }
 
 // ── Impressions ──────────────────────────────────────
-export function ImpressionsTab({ data, lang, t }: { data: Analytics; lang: string; t: Dictionary }) {
+export function ImpressionsTab({ data, lang, t, trend, trendHref }: { data: Analytics; lang: string; t: Dictionary; trend: "impressions" | "visitors"; trendHref: (k: "impressions" | "visitors") => string }) {
   const a = t.analytics;
   const im = data.impressions;
   const labels = im.daily.map((d) => dayLabel(d.day, lang));
@@ -324,13 +346,22 @@ export function ImpressionsTab({ data, lang, t }: { data: Analytics; lang: strin
             </ul>
           )}
         </Box>
-        <Box title={a.dailyTrend} testId="daily-trend">
+        <Box
+          title={a.dailyTrend}
+          testId="daily-trend"
+          action={
+            <span className="inline-flex rounded-lg border border-line p-0.5 text-xs font-semibold" data-testid="trend-switch">
+              {(["impressions", "visitors"] as const).map((k) => (
+                <Link key={k} href={trendHref(k)} aria-current={trend === k ? "true" : undefined} className={`rounded-md px-2.5 py-1.5 ${trend === k ? "bg-accent text-white" : "text-fg-2 hover:bg-panel-2"}`} data-trend={k}>
+                  {a.trend[k]}
+                </Link>
+              ))}
+            </span>
+          }
+        >
           <LineChart
             labels={labels}
-            series={[
-              { name: a.kpis.impressions, values: im.daily.map((d) => d.impressions), color: "var(--color-accent)" },
-              { name: a.kpis.totalVisitors, values: im.daily.map((d) => d.visitors), color: "#3b82f6" },
-            ]}
+            series={[trend === "impressions" ? { name: a.kpis.impressions, values: im.daily.map((d) => d.impressions), color: "var(--color-accent)" } : { name: a.kpis.totalVisitors, values: im.daily.map((d) => d.visitors), color: "#3b82f6" }]}
           />
         </Box>
       </div>

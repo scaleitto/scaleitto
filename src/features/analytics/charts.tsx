@@ -51,6 +51,38 @@ const point = (W: number, i: number, count: number, v: number, max: number) => {
   return [PAD.left + (count === 1 ? plotW / 2 : (plotW * i) / (count - 1)), PAD.top + plotH * (1 - v / max)] as const;
 };
 
+// A smooth line through the points that never overshoots them (monotone cubic, Fritsch–Carlson), like Zimam's curves
+export function smoothPath(pts: readonly (readonly [number, number])[]) {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M${pts[0][0]},${pts[0][1]}`;
+  const n = pts.length;
+  const dx = pts.slice(1).map((p, i) => p[0] - pts[i][0]);
+  const slope = pts.slice(1).map((p, i) => (p[1] - pts[i][1]) / (dx[i] || 1));
+  const m = pts.map((_, i) => (i === 0 ? slope[0] : i === n - 1 ? slope[n - 2] : slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2));
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+    const a = m[i] / slope[i];
+    const b = m[i + 1] / slope[i];
+    const h = a * a + b * b;
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h);
+      m[i] = t * a * slope[i];
+      m[i + 1] = t * b * slope[i];
+    }
+  }
+  const f = (v: number) => Math.round(v * 10) / 10;
+  let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += `C${f(pts[i][0] + h)},${f(pts[i][1] + m[i] * h)} ${f(pts[i + 1][0] - h)},${f(pts[i + 1][1] - m[i + 1] * h)} ${f(pts[i + 1][0])},${f(pts[i + 1][1])}`;
+  }
+  return d;
+}
+
 export type Series = { name: string; values: number[]; color: string };
 
 // Lines over days (one or more series)
@@ -62,9 +94,9 @@ export function LineChart({ labels, series, format, testId, wide = false }: { la
     <div data-testid={testId}>
       <Frame max={max} labels={labels} format={format} W={W}>
         {series.map((s) => (
-          <polyline key={s.name} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinejoin="round" points={s.values.map((v, i) => point(W, i, s.values.length, v, max).join(",")).join(" ")}>
+          <path key={s.name} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinejoin="round" d={smoothPath(s.values.map((v, i) => point(W, i, s.values.length, v, max)))}>
             <title>{s.name}</title>
-          </polyline>
+          </path>
         ))}
       </Frame>
       {series.length > 1 && <Legend items={series.map((s) => ({ label: s.name, color: s.color }))} />}
@@ -142,10 +174,10 @@ export function Legend({ items }: { items: { label: string; color: string }[] })
 export function Spark({ values, color = "var(--color-accent)" }: { values: number[]; color?: string }) {
   if (values.length < 2 || values.every((v) => v === 0)) return null;
   const max = Math.max(...values) || 1;
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 100},${30 - (v / max) * 26}`).join(" ");
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * 100, 30 - (v / max) * 26] as const);
   return (
     <svg viewBox="0 0 100 32" className="h-9 w-24 shrink-0" preserveAspectRatio="none" aria-hidden>
-      <polyline fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" points={pts} />
+      <path fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" d={smoothPath(pts)} />
     </svg>
   );
 }
@@ -175,5 +207,66 @@ export function Donut({ parts, center, sub }: { parts: { value: number; color: s
         <span className="text-xs text-muted">{sub}</span>
       </div>
     </div>
+  );
+}
+
+// Zimam's order funnel: one shape narrowing from stage to stage (its height = the stage's share of the first one), coloured
+// from blue to red, with each stage's rate (share of the previous stage) on a pill where it starts
+export function FunnelShape({ steps }: { steps: { n: number; rate: number | null }[] }) {
+  const W = 600;
+  const H = 150;
+  const cy = H / 2;
+  const first = steps[0]?.n ?? 0;
+  const height = (n: number) => (first ? Math.max(10, (n / first) * (H - 10)) : 10);
+  const seg = W / steps.length;
+  const hs = steps.map((s) => height(s.n));
+  let top = `M0,${cy - hs[0] / 2}`;
+  steps.forEach((_, i) => {
+    const x0 = i * seg;
+    const x1 = (i + 1) * seg;
+    const a = hs[i];
+    const b = hs[Math.min(i + 1, steps.length - 1)];
+    // The first stage keeps its height for a short while, then curves down to the next one
+    const xa = x0 + seg * 0.15;
+    const xb = x0 + seg * 0.65;
+    top += `L${xa},${cy - a / 2}C${(xa + xb) / 2},${cy - a / 2} ${(xa + xb) / 2},${cy - b / 2} ${xb},${cy - b / 2}L${x1},${cy - b / 2}`;
+  });
+  // The bottom edge, drawn back from right to left
+  const reversed = [`L${W},${cy + hs[hs.length - 1] / 2}`];
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const x0 = i * seg;
+    const a = hs[i];
+    const b = hs[Math.min(i + 1, steps.length - 1)];
+    const xa = x0 + seg * 0.15;
+    const xb = x0 + seg * 0.65;
+    reversed.push(`L${xb},${cy + b / 2}C${(xa + xb) / 2},${cy + b / 2} ${(xa + xb) / 2},${cy + a / 2} ${xa},${cy + a / 2}L${x0},${cy + a / 2}`);
+  }
+  const d = `${top}${reversed.join("")}Z`;
+  const label = (r: number | null) => (r === null ? "-" : `${r.toFixed(1)}%`);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" direction="ltr" role="img" data-testid="funnel-shape">
+      <defs>
+        <linearGradient id="funnel-fill" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="#2f8fd8" />
+          <stop offset="30%" stopColor="#139c7c" />
+          <stop offset="65%" stopColor="#e4891f" />
+          <stop offset="100%" stopColor="#d9483b" />
+        </linearGradient>
+      </defs>
+      <path d={d} fill="url(#funnel-fill)" />
+      {steps.map((s, i) => {
+        const x = i === 0 ? 34 : i * seg;
+        const text = label(s.rate);
+        const w = text.length * 7.5 + 18;
+        return (
+          <g key={i}>
+            <rect x={x - w / 2} y={cy - 12} width={w} height={24} rx={12} fill="white" stroke="#e5e7eb" />
+            <text x={x} y={cy + 4.5} textAnchor="middle" fontSize="12" fontWeight="700" fill="#111827">
+              {text}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }

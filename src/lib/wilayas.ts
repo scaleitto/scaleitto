@@ -65,3 +65,9 @@ export function wilayaName(code: number, locale: string) {
   if (!w) return String(code);
   return `${String(code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}`;
 }
+
+// The wilaya's name alone (Zimam's tables and map): "Béjaïa" / "بجاية"
+export function wilayaTitle(code: number, locale: string) {
+  const w = wilayas.find((x) => x.code === code);
+  return w ? (locale === "ar" ? w.ar : w.fr) : String(code);
+}
