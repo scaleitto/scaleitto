@@ -17,7 +17,7 @@ export const discountOf = (price: number, compareAt: number | null) => (compareA
 
 export function StoreFrame({ locale, color, theme, children, className = "" }: { locale: Locale; color: string; theme: Theme; children: ReactNode; className?: string }) {
   return (
-    <div data-testid="store-frame" data-theme={theme.key} lang={locale} dir={dir(locale)} className={`flex flex-col bg-s-bg text-s-text ${className}`} style={themeStyle(theme, color)}>
+    <div data-testid="store-frame" data-theme={theme.key} lang={locale} dir={dir(locale)} className={`@container flex flex-col bg-s-bg text-s-text ${className}`} style={themeStyle(theme, color)}>
       {children}
     </div>
   );
@@ -71,16 +71,16 @@ export function StoreHeader({
       )}
       {phone && (
         <a href={`tel:${phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-s-edge px-3 py-1.5 text-sm font-semibold text-s-text hover:border-brand hover:text-brand-ink">
-          <Phone size={14} /> <span className="hidden sm:inline">{phone}</span>
+          <Phone size={14} /> <span className="hidden @min-[40rem]:inline">{phone}</span>
         </a>
       )}
     </div>
   );
   return (
     <header className="sticky top-0 z-20 border-b border-s-edge bg-s-surface/90 backdrop-blur-md" data-testid="store-header">
-      <div className={`mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 ${center ? "justify-between sm:grid sm:grid-cols-3" : "justify-between"}`}>
+      <div className={`mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 ${center ? "justify-between @min-[40rem]:grid @min-[40rem]:grid-cols-3" : "justify-between"}`}>
         {center && t && (
-          <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted sm:flex">
+          <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[40rem]:flex">
             <Link href={homeHref} className="hover:text-brand-ink">
               {t.home}
             </Link>
@@ -89,13 +89,13 @@ export function StoreHeader({
             </a>
           </nav>
         )}
-        <Link href={homeHref} className={`flex min-w-0 items-center gap-2.5 ${center ? "sm:justify-self-center" : ""}`}>
+        <Link href={homeHref} className={`flex min-w-0 items-center gap-2.5 ${center ? "@min-[40rem]:justify-self-center" : ""}`}>
           <Logo name={name} logoUrl={logoUrl} />
           <span className="truncate text-lg font-extrabold tracking-tight">{name}</span>
         </Link>
-        <div className={`flex items-center gap-5 ${center ? "sm:justify-self-end" : ""}`}>
+        <div className={`flex items-center gap-5 ${center ? "@min-[40rem]:justify-self-end" : ""}`}>
           {!center && t && (
-            <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted md:flex">
+            <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[48rem]:flex">
               <Link href={homeHref} className="hover:text-brand-ink">
                 {t.home}
               </Link>
@@ -126,8 +126,8 @@ function HeroButton({ text, light = false }: { text: string; light?: boolean }) 
 export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]; variant?: Theme["layout"]["hero"]; t?: StoreText }) {
   const text = (light: boolean, centered: boolean) => (
     <div className={`flex flex-col gap-4 ${centered ? "items-center text-center" : "items-start text-start"}`}>
-      {hero.title && <h1 className="max-w-2xl text-3xl leading-tight font-extrabold tracking-tight sm:text-5xl">{hero.title}</h1>}
-      {hero.subtitle && <p className={`max-w-xl text-base sm:text-lg ${light ? "opacity-85" : "text-s-muted"}`}>{hero.subtitle}</p>}
+      {hero.title && <h1 className="max-w-2xl text-3xl leading-tight font-extrabold tracking-tight @min-[40rem]:text-5xl">{hero.title}</h1>}
+      {hero.subtitle && <p className={`max-w-xl text-base @min-[40rem]:text-lg ${light ? "opacity-85" : "text-s-muted"}`}>{hero.subtitle}</p>}
       {hero.buttonText && <HeroButton text={hero.buttonText} light={light} />}
       {t && (
         <p className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold ${centered ? "justify-center" : ""} ${light ? "opacity-85" : "text-s-muted"}`}>
@@ -149,14 +149,14 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
 
   if (variant === "split")
     return (
-      <section className="grid items-center gap-8 py-4 md:grid-cols-2 md:py-10" data-testid="hero" data-variant="split">
+      <section className="grid items-center gap-8 py-4 @min-[48rem]:grid-cols-2 @min-[48rem]:py-10" data-testid="hero" data-variant="split">
         {text(false, false)}
-        {photo ?? <div className="hidden aspect-[4/3] rounded-[var(--s-radius)] bg-gradient-to-br from-brand/25 to-brand/5 md:block" />}
+        {photo ?? <div className="hidden aspect-[4/3] rounded-[var(--s-radius)] bg-gradient-to-br from-brand/25 to-brand/5 @min-[48rem]:block" />}
       </section>
     );
   if (variant === "minimal")
     return (
-      <section className="space-y-8 py-8 sm:py-14" data-testid="hero" data-variant="minimal">
+      <section className="space-y-8 py-8 @min-[40rem]:py-14" data-testid="hero" data-variant="minimal">
         {text(false, true)}
         {photo && <div className="mx-auto max-w-4xl">{photo}</div>}
       </section>
@@ -164,12 +164,12 @@ export function Hero({ hero, variant = "split", t }: { hero: StoreDesign["hero"]
   // full = across the page, card = rounded banner; both put the text over the photo or the main color
   const full = variant === "full";
   return (
-    <section className={`relative overflow-hidden bg-gradient-to-br from-brand to-brand/70 ${hero.image ? "text-white" : "text-brand-fg"} ${full ? "-mx-4 -mt-6 sm:mx-0 sm:mt-0 sm:rounded-[var(--s-radius)]" : "rounded-[var(--s-radius)]"}`} data-testid="hero" data-variant={variant}>
+    <section className={`relative overflow-hidden bg-gradient-to-br from-brand to-brand/70 ${hero.image ? "text-white" : "text-brand-fg"} ${full ? "-mx-4 -mt-6 @min-[40rem]:mx-0 @min-[40rem]:mt-0 @min-[40rem]:rounded-[var(--s-radius)]" : "rounded-[var(--s-radius)]"}`} data-testid="hero" data-variant={variant}>
       {hero.image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={hero.image} alt="" fetchPriority="high" className="absolute inset-0 size-full object-cover" />
       )}
-      <div className={`relative flex flex-col justify-end p-6 sm:p-12 ${full ? "min-h-[26rem] sm:min-h-[32rem]" : "min-h-72 sm:min-h-80"} ${hero.image ? "bg-gradient-to-t from-black/75 via-black/35 to-black/5" : ""}`}>
+      <div className={`relative flex flex-col justify-end p-6 @min-[40rem]:p-12 ${full ? "min-h-[26rem] @min-[40rem]:min-h-[32rem]" : "min-h-72 @min-[40rem]:min-h-80"} ${hero.image ? "bg-gradient-to-t from-black/75 via-black/35 to-black/5" : ""}`}>
         {text(true, full)}
       </div>
     </section>
@@ -190,17 +190,17 @@ export function TrustBadges({ t, items }: { t: StoreText; items?: BadgeItem[] })
   const badges = items ?? trustBadgeItems(null, t);
   if (!badges.length) return null;
   return (
-    <ul className={`grid gap-2 sm:gap-3 ${badges.length === 1 ? "grid-cols-1" : badges.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} data-testid="badges">
+    <ul className={`grid gap-2 @min-[40rem]:gap-3 ${badges.length === 1 ? "grid-cols-1" : badges.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} data-testid="badges">
       {badges.map(({ key, title, text }) => {
         const Icon = badgeIcons[key];
         return (
-          <li key={key} data-badge={key} className="flex flex-col items-center gap-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-3 text-center shadow-[var(--s-shadow)] sm:flex-row sm:gap-3 sm:text-start">
+          <li key={key} data-badge={key} className="flex flex-col items-center gap-2 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-3 text-center shadow-[var(--s-shadow)] @min-[40rem]:flex-row @min-[40rem]:gap-3 @min-[40rem]:text-start">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand-ink">
               <Icon size={19} />
             </span>
             <span className="min-w-0">
-              <span className="block text-xs leading-tight font-bold sm:text-sm">{title}</span>
-              <span className="block text-[11px] text-s-muted sm:text-xs">{text}</span>
+              <span className="block text-xs leading-tight font-bold @min-[40rem]:text-sm">{title}</span>
+              <span className="block text-[11px] text-s-muted @min-[40rem]:text-xs">{text}</span>
             </span>
           </li>
         );
@@ -214,9 +214,9 @@ export function OrderSteps({ t }: { t: StoreText }) {
   return (
     <section className="space-y-5" data-testid="order-steps">
       <h2 className="text-center text-2xl font-extrabold tracking-tight">{t.howTo}</h2>
-      <ol className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+      <ol className="grid gap-3 @min-[40rem]:grid-cols-3 @min-[40rem]:gap-4">
         {t.steps.map((step, i) => (
-          <li key={step.title} className="flex items-center gap-4 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-4 shadow-[var(--s-shadow)] sm:flex-col sm:p-6 sm:text-center">
+          <li key={step.title} className="flex items-center gap-4 rounded-[var(--s-radius)] border border-s-card-border bg-s-surface p-4 shadow-[var(--s-shadow)] @min-[40rem]:flex-col @min-[40rem]:p-6 @min-[40rem]:text-center">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-lg font-extrabold text-brand-fg">{i + 1}</span>
             <span className="min-w-0 space-y-1">
               <span className="block font-bold">{step.title}</span>
@@ -257,10 +257,10 @@ function ProductCard({ p, href, currency, t, layout }: { p: GridProduct; href: s
           </span>
         )}
       </div>
-      <div className={`flex flex-1 flex-col gap-1.5 ${minimal ? "pt-3" : "p-3 sm:p-4"}`}>
-        <h3 className="line-clamp-2 text-sm leading-snug font-semibold sm:text-base">{p.name}</h3>
+      <div className={`flex flex-1 flex-col gap-1.5 ${minimal ? "pt-3" : "p-3 @min-[40rem]:p-4"}`}>
+        <h3 className="line-clamp-2 text-sm leading-snug font-semibold @min-[40rem]:text-base">{p.name}</h3>
         <p className="mt-auto flex flex-wrap items-baseline gap-x-2">
-          <span className="text-base font-extrabold text-brand-ink sm:text-lg">{formatPrice(p.price, currency)}</span>
+          <span className="text-base font-extrabold text-brand-ink @min-[40rem]:text-lg">{formatPrice(p.price, currency)}</span>
           {off > 0 && p.compareAtPrice ? <span className="text-xs text-s-muted line-through">{formatPrice(p.compareAtPrice, currency)}</span> : null}
         </p>
         {layout.cards === "elevated" && (
@@ -291,13 +291,13 @@ export function ProductGrid({
   return (
     <section id="products" className="scroll-mt-20 space-y-5">
       <div className="flex items-end justify-between gap-3">
-        <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title || t.products}</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight @min-[40rem]:text-3xl">{title || t.products}</h2>
         <span className="h-1 w-12 shrink-0 rounded-full bg-brand" aria-hidden />
       </div>
       {products.length === 0 ? (
         <p className="rounded-[var(--s-radius)] bg-s-surface p-10 text-center text-s-muted">{t.empty}</p>
       ) : (
-        <ul className={`grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 ${layout.columns === 4 ? "lg:grid-cols-4" : ""}`}>
+        <ul className={`grid grid-cols-2 gap-3 @min-[40rem]:gap-5 @min-[48rem]:grid-cols-3 ${layout.columns === 4 ? "@min-[64rem]:grid-cols-4" : ""}`}>
           {products.map((p) => (
             <li key={p.id}>
               <ProductCard p={p} href={`${base}/p/${encodeURIComponent(p.slug)}`} currency={currency} t={t} layout={layout} />
@@ -332,7 +332,7 @@ export function StoreFooter({
   ].filter((l) => l.href);
   return (
     <footer className="mt-10 border-t border-s-edge bg-s-surface" data-testid="store-footer">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 @min-[40rem]:grid-cols-3">
         <div className="space-y-3">
           <p className="text-lg font-extrabold">{name}</p>
           {about && <p className="text-sm leading-relaxed whitespace-pre-line text-s-muted">{about}</p>}

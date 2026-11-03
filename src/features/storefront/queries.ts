@@ -1,4 +1,5 @@
 import "server-only";
+import { offered } from "@/features/products/variants";
 import { withPromotion, withPromotions } from "@/features/promotions/apply";
 import { storeForm } from "@/features/order-form/resolve";
 import { cache } from "react";
@@ -6,7 +7,7 @@ import { headers } from "next/headers";
 import { and, asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { RateMap } from "@/features/checkout/pricing";
-import { applyDelivery, resolveDelivery } from "@/features/delivery/settings";
+import { applyDelivery, limitToOption, resolveDelivery } from "@/features/delivery/settings";
 import { planAllowsDomain } from "@/features/settings/domain";
 
 // Active shop by its link, or by its own domain (proxy.ts rewrites <domain>/… to /store/<domain>/…).
@@ -73,17 +74,19 @@ export async function getStoreProduct(shopId: string, slug: string) {
     .from(schema.productVariants)
     .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
     .orderBy(asc(schema.productVariants.position));
-  return withPromotion(shopId, { ...product, variants });
+  return withPromotion(shopId, { ...product, variants: offered(product.options, variants) });
 }
 
 // The delivery prices every form and order uses: the wilaya table shaped by the delivery settings (options, on/off)
-export async function getShippingRates(shopId: string): Promise<RateMap> {
+export async function getShippingRates(shopId: string, deliveryOption?: string | null): Promise<RateMap> {
   const [rows, [shop]] = await Promise.all([
     db.select().from(schema.shippingRates).where(eq(schema.shippingRates.shopId, shopId)),
     db.select({ delivery: schema.shops.delivery }).from(schema.shops).where(eq(schema.shops.id, shopId)),
   ]);
   const table: RateMap = Object.fromEntries(rows.map((r) => [r.wilayaCode, { home: r.homePrice, office: r.officePrice }]));
-  return applyDelivery(table, resolveDelivery(shop?.delivery));
+  const settings = resolveDelivery(shop?.delivery);
+  // A product sold with one delivery option only offers that one
+  return limitToOption(applyDelivery(table, settings), settings, deliveryOption);
 }
 
 // The thank-you page: the order id is a random UUID, so only the customer who ordered knows it.
@@ -112,5 +115,5 @@ export async function getStoreLanding(shopId: string, slug: string) {
     .from(schema.productVariants)
     .where(and(eq(schema.productVariants.shopId, shopId), eq(schema.productVariants.productId, product.id)))
     .orderBy(asc(schema.productVariants.position));
-  return { page, product: await withPromotion(shopId, { ...product, variants }) };
+  return { page, product: await withPromotion(shopId, { ...product, variants: offered(product.options, variants) }) };
 }

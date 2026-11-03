@@ -14,10 +14,11 @@ import { linePrice, resolveWholesale } from "@/features/checkout/pricing";
 import { orderInputSchema } from "@/features/checkout/validators";
 import { MAX_CART_LINES, placeCartOrder } from "@/features/checkout/place-order";
 import { scheduleOrderEvents } from "@/features/pixels/server";
+import { offered } from "@/features/products/variants";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { getShopBySlug, storeBase } from "./queries";
-import { startCardPayment } from "@/features/payments/flow";
+import { cardGateway, startCardPayment } from "@/features/payments/flow";
 
 const items = z
   .array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable(), quantity: z.number().int().min(1).max(1000) }))
@@ -34,7 +35,7 @@ export async function priceCart(slug: string, raw: unknown) {
   const variants = found.length ? await db.select().from(schema.productVariants).where(and(eq(schema.productVariants.shopId, shop.id), inArray(schema.productVariants.productId, ids))) : [];
   const priced = await withPromotions(
     shop.id,
-    found.map((p) => ({ ...p, variants: variants.filter((v) => v.productId === p.id) })),
+    found.map((p) => ({ ...p, variants: offered(p.options, variants.filter((v) => v.productId === p.id)) })),
   );
   const base = await storeBase(shop.slug);
   return parsed.data.map((i) => {
@@ -63,6 +64,10 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const parsed = orderInputSchema.safeParse({ ...Object.fromEntries(formData), quantity: "1", variantId: "" });
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     if (parsed.data.website) return { ok: false, error: "unexpected" };
+    // A product sold with online payment only cannot be paid on delivery
+    const ids = [...new Set(lines.data.map((l) => l.productId))];
+    const cardOnly = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids), eq(schema.products.cardOnly, true)))).length > 0;
+    if (cardOnly && (formData.get("payment") !== "card" || !(await cardGateway(shop.id)))) return { ok: false, error: "cardOnly" };
     const h = await headers();
     const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
     const c = await cookies();

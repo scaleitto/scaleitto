@@ -15,9 +15,15 @@ export const runningPercents = cache(async (shopId: string) => {
 });
 
 // Products as the store sells them right now (lists, product and landing pages, orders)
+// Also drops the quantity offers the merchant switched off (every store loader and the order code come through here)
+const liveOffers = <P,>(p: P): P => {
+  const offers = (p as { offers?: unknown }).offers;
+  return Array.isArray(offers) ? { ...p, offers: (offers as { off?: boolean }[]).filter((o) => !o.off) } : p;
+};
 export async function withPromotions<P extends { id: string; price: number; compareAtPrice: number | null }>(shopId: string, products: P[]): Promise<P[]> {
   const percents = await runningPercents(shopId);
-  return percents.size ? products.map((p) => promoted(p, percents.get(p.id))) : products;
+  const live = products.map(liveOffers);
+  return percents.size ? live.map((p) => promoted(p, percents.get(p.id))) : live;
 }
 export async function withPromotion<P extends { id: string; price: number; compareAtPrice: number | null }>(shopId: string, product: P): Promise<P> {
   return (await withPromotions(shopId, [product]))[0];

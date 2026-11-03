@@ -43,7 +43,7 @@ export default async function EditLandingPage({ params }: PageProps<"/[lang]/das
       hasPublished={Boolean(page.published)}
       product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers }}
       variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
-      rates={await getShippingRates(shop.id)}
+      rates={await getShippingRates(shop.id, product.deliveryOption)}
       storeText={getStoreText(locale)}
       pageLocale={locale}
       theme={storeTheme(resolveDesign(shop.design))}

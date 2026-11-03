@@ -183,13 +183,29 @@ export const shopContracts = mysqlTable(
 
 // e.g. { name: "Size", values: ["S", "M", "L"] }
 // kind "color": the values are shown as color swatches (colors = value → #rrggbb)
-export type ProductOption = { name: string; values: string[]; kind?: "color"; colors?: Record<string, string> };
+// A product option (Zimam's "variant"): its values and how the store shows them — text, color circle, text + color or
+// image —, a color / photo per value, values switched off (`off`), `optional` (the buyer may skip it: not part of the
+// combinations, the choice is written on the order) and `hidden` (not shown in the store). `kind: "color"` = older data.
+export const optionDisplays = ["text", "color", "text_color", "image"] as const;
+export type OptionDisplay = (typeof optionDisplays)[number];
+export type ProductOption = {
+  name: string;
+  values: string[];
+  display?: OptionDisplay;
+  kind?: "color";
+  colors?: Record<string, string>;
+  images?: Record<string, string>;
+  off?: string[];
+  optional?: boolean;
+  hidden?: boolean;
+};
 // "2 pieces for 4500 DZD": the total price for that quantity
 // A quantity offer: `quantity` pieces for `price` in all, with optional extras shown on the offer card and honoured
 // at checkout — free delivery, a gift, a highlight badge (bestSeller / bestValue), chosen by default.
 export const offerBadges = ["bestSeller", "bestValue", "limited"] as const;
 export type OfferBadge = (typeof offerBadges)[number];
-export type QuantityOffer = { quantity: number; price: number; label?: string; freeShipping?: boolean; gift?: string; badge?: OfferBadge; preselected?: boolean };
+// off = switched off by the merchant (kept in the editor, not offered in the store)
+export type QuantityOffer = { quantity: number; price: number; label?: string; freeShipping?: boolean; gift?: string; badge?: OfferBadge; preselected?: boolean; off?: boolean };
 
 export const productStatuses = ["active", "draft"] as const;
 
@@ -204,6 +220,12 @@ export const products = mysqlTable(
     price: int("price").notNull(),
     compareAtPrice: int("compare_at_price"),
     sku: varchar("sku", { length: 80 }),
+    // Most pieces one store order may take (null = no limit; the team can go over it when editing an order)
+    maxPerOrder: int("max_per_order"),
+    // Checkout & delivery: the one delivery option this product is sold with (id from Delivery → settings; null = all)
+    deliveryOption: varchar("delivery_option", { length: 40 }),
+    // Online payment only: the buyer must pay by card, cash on delivery is refused
+    cardOnly: boolean("card_only").notNull().default(false),
     trackStock: boolean("track_stock").notNull().default(false),
     // Used only when the product has no variants (each variant has its own stock)
     stock: int("stock").notNull().default(0),
@@ -254,7 +276,11 @@ export const productVariants = mysqlTable(
     sku: varchar("sku", { length: 80 }),
     // null → the product's price
     price: int("price"),
+    // The combination's own old price (shown struck through)
+    compareAtPrice: int("compare_at_price"),
     stock: int("stock").notNull().default(0),
+    // Off = not offered in the store (Zimam's status column)
+    active: boolean("active").notNull().default(true),
     position: int("position").notNull().default(0),
   },
   (t) => [index("variants_product_idx").on(t.productId)],

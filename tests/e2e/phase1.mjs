@@ -38,21 +38,26 @@ export default async function phase1(browser) {
     await page.waitForSelector("[data-panel=details] [data-testid=images] li >> nth=1");
     await page.click("[data-form-tab=variants]");
     await page.locator("[data-testid=track-stock]").check({ force: true });
+    // Zimam's variant editor: the switch adds a color variant; it becomes a text "size" with two values, then a custom one
     await page.locator("[data-testid=has-variants]").check({ force: true });
-    await page.fill('[aria-label="اسم الخيار"]', "المقاس");
-    await page.fill('[aria-label="القيم"]', "S");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("M");
-    await page.keyboard.press("Enter");
-    await page.click("text=إضافة خيار");
-    await page.locator('[aria-label="اسم الخيار"]').nth(1).fill("اللون");
-    // Typed but not confirmed with Enter: still saved
-    await page.locator('[aria-label="القيم"]').nth(1).fill("أسود");
-    await page.fill('[aria-label="الكمية المتوفرة S / أسود"]', "5");
+    const size = page.locator("[data-option='0']");
+    await size.locator("[data-testid=option-name]").fill("المقاس");
+    await size.locator("[data-display=text]").click();
+    await size.locator("[data-testid=value-label]").first().fill("S");
+    await size.locator("[data-testid=add-value]").click();
+    await size.locator("[data-testid=value-label]").nth(1).fill("M");
+    await page.click("[data-testid=add-variant]");
+    await page.click("[data-variant-kind=custom]");
+    const color = page.locator("[data-option='1']");
+    await color.locator("[data-testid=option-name]").fill("اللون");
+    await color.locator("[data-testid=value-label]").first().fill("أسود");
+    expect((await page.locator("[data-testid=combo-count]").innerText()).includes("2 / 150"), "2 combinations");
+    await page.fill('[aria-label="المخزون S / أسود"]', "5");
     await page.fill('[aria-label="السعر M / أسود"]', "4800");
     await page.click("[data-form-tab=offers]");
     await page.locator("[data-testid=upsell-offers]").check({ force: true });
-    await page.click("text=إضافة عرض");
+    await page.click("[data-testid=add-offer]");
+    await page.locator('[data-testid=offer-rows] [aria-label="الكمية"]').fill("2");
     await page.locator('[aria-label="السعر الإجمالي"]').fill("8500");
     await Promise.all([page.waitForURL("**/products?created=1"), page.locator("[data-testid=save-product]").click()]);
     await page.waitForSelector("text=تمت إضافة المنتج");
@@ -93,7 +98,7 @@ export default async function phase1(browser) {
     await page.click("[data-form-tab=variants]");
     expect((await page.locator("[data-variant]").count()) === 2, "2 variants loaded");
     const [[before]] = await db.query("SELECT id FROM product_variants WHERE product_id = ? AND title = 'S / أسود'", [productId]);
-    await page.locator('[aria-label="حذف الخيار"]').nth(1).click();
+    await page.locator("[data-option='1'] [data-testid=option-remove]").click();
     expect((await page.locator("[data-variant]").count()) === 2, "still 2 variants (S, M)");
     await page.click("[data-form-tab=details]");
     await page.fill("#name", "ساعة كلاسيكية فاخرة");

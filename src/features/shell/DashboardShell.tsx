@@ -518,9 +518,11 @@ export function DashboardShell({
           {children}
           {/* Zimam: a quiet help link at the end of every page (the platform's support) */}
           {supportHref && (
-            <a href={supportHref} target="_blank" rel="noreferrer" className="mt-10 inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg" data-testid="page-help">
-              <CircleHelp size={14} /> {labels.pageHelp}
-            </a>
+            <p className="mt-8 flex justify-end">
+              <a href={supportHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg" data-testid="page-help">
+                <CircleHelp size={14} /> {labels.pageHelp}
+              </a>
+            </p>
           )}
         </main>
       </div>

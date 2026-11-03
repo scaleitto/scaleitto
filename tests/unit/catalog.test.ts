@@ -34,7 +34,7 @@ test("Shopify products: options, variants, prices, images, no 'Default Title'", 
 });
 
 test("too many combinations: imported without options", () => {
-  const values = Array.from({ length: 11 }, (_, i) => `v${i}`);
+  const values = Array.from({ length: 13 }, (_, i) => `v${i}`);
   const [p] = parseShopify({ products: [{ id: 9, title: "Big", options: [{ name: "A", values }, { name: "B", values }], variants: [{ option1: "v0", option2: "v0", price: "100" }] }] }, "s");
   assert.deepEqual([p.options, p.variants, p.price], [[], [], 100]);
 });

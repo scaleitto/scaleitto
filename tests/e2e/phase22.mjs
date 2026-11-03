@@ -35,14 +35,16 @@ export default async function phase22(browser) {
     await owner.fill("#name", "حقيبة");
     await owner.fill("#price", "3000");
     await owner.click("[data-form-tab=variants]");
-    await owner.click("[data-testid=add-color-option]");
-    const palette = owner.locator("[data-testid=color-palette]");
-    await palette.locator('button[aria-label="أسود"]').click();
-    await palette.locator('button[aria-label="أحمر"]').click();
+    // The variants switch adds Zimam's color variant: values named like the palette get their color
+    await owner.locator("[data-testid=has-variants]").check({ force: true });
+    const option = owner.locator("[data-option='0']");
+    await option.locator("[data-testid=value-label]").first().fill("أسود");
+    await option.locator("[data-testid=add-value]").click();
+    await option.locator("[data-testid=value-label]").nth(1).fill("أحمر");
     await Promise.all([owner.waitForURL("**/products?created=1"), owner.locator("[data-testid=save-product]").click()]);
     const [[p]] = await db.query("SELECT slug, options FROM products WHERE shop_id = ? AND name = 'حقيبة'", [shopId]);
     const [color] = json(p.options);
-    expect(color.kind === "color" && color.values.join() === "أسود,أحمر" && color.colors["أحمر"] === "#dc2626", `color option saved (got ${JSON.stringify(color)})`);
+    expect(color.display === "color" && color.values.join() === "أسود,أحمر" && color.colors["أحمر"] === "#dc2626", `color option saved (got ${JSON.stringify(color)})`);
     const page = await browser.newPage();
     await page.goto(`${store}/p/${encodeURIComponent(p.slug)}`);
     const swatch = page.locator('button[aria-label="أحمر"]');

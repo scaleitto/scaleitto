@@ -4,6 +4,7 @@ import { addToCart } from "./cart";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, Check, ShoppingCart, Building2, ChevronLeft, LoaderCircle, Truck, Zap, MapPin, MessageCircle, Minus, NotebookPen, Phone, Plus, ShoppingBag, Signpost, User, X } from "lucide-react";
 import type { ProductOption, QuantityOffer } from "@/server/db/schema";
+import { dimensionOptions, displayOf, valueOn } from "@/features/products/variants";
 import type { StoreText } from "@/i18n/store";
 import type { ActionState } from "@/lib/action";
 import { fmt, formatPrice } from "@/lib/format";
@@ -46,7 +47,7 @@ export function CheckoutForm({
 }: {
   t: StoreText;
   currency: string;
-  product: { price: number; trackStock: boolean; stock: number; options: ProductOption[]; offers: QuantityOffer[]; wholesale?: Wholesale | null };
+  product: { price: number; trackStock: boolean; stock: number; options: ProductOption[]; offers: QuantityOffer[]; wholesale?: Wholesale | null; maxPerOrder?: number | null; cardOnly?: boolean };
   variants: Variant[];
   rates: RateMap;
   wilayas: { code: number; name: string }[];
@@ -139,21 +140,26 @@ export function CheckoutForm({
     };
   }, [open]);
 
-  const variant = variants.find((v) => product.options.every((o) => v.values[o.name] === selected[o.name])) ?? null;
+  // The options that make the combinations; optional ones are a free choice sent with the order (`choices`)
+  const dims = dimensionOptions(product.options);
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const variant = variants.find((v) => dims.every((o) => v.values[o.name] === selected[o.name])) ?? null;
   const available = !product.trackStock ? Infinity : variants.length ? (variant?.stock ?? 0) : product.stock;
-  const soldOut = available <= 0 || (variants.length > 0 && !variant);
+  // Online payment only, and the store takes no card: it cannot be ordered
+  const soldOut = available <= 0 || (variants.length > 0 && !variant) || (Boolean(product.cardOnly) && !cardPayment);
   const line = linePrice(variant?.price ?? product.price, quantity, product.offers, product.wholesale ?? null);
   const shipping = wilaya ? lineShipping(shippingPrice(rates, wilaya, deliveryType), line.offer) : undefined;
   const total = line.total + (shipping ?? 0);
   const hasRates = Object.keys(rates).length > 0;
 
   // A value is unavailable when every variant having it (with the other choices) is sold out.
+  // (only offered combinations reach the form: switched-off ones are missing, so their values are unavailable too)
   const valueAvailable = (option: string, value: string) =>
-    !product.trackStock ||
-    variants.some((v) => v.values[option] === value && v.stock > 0 && product.options.every((o) => o.name === option || v.values[o.name] === selected[o.name]));
+    variants.some((v) => v.values[option] === value && (!product.trackStock || v.stock > 0) && dims.every((o) => o.name === option || v.values[o.name] === selected[o.name]));
 
-  const quantityChoices = settings.showOffers && product.offers.length ? [1, ...product.offers.map((o) => o.quantity).sort((a, b) => a - b)] : [];
-  const maxQuantity = Math.min(maxQuantityFor(product.wholesale ?? null), available);
+  // The offer cards (Zimam: "buy 1" is an offer row of its own when the merchant adds one)
+  const quantityChoices = settings.showOffers && product.offers.length ? [...new Set([1, ...product.offers.map((o) => o.quantity)])].sort((a, b) => a - b) : [];
+  const maxQuantity = Math.min(maxQuantityFor(product.wholesale ?? null), available, product.maxPerOrder || Infinity);
 
   // Abandoned cart: remember the visitor as soon as a valid phone is typed.
   const rememberLead = () => {
@@ -183,7 +189,7 @@ export function CheckoutForm({
     );
   const pad = settings.icons ? " ps-11" : "";
   const error = (name: string) => err(name) && <p className="mt-1 text-sm text-red-600">{err(name)}</p>;
-  const wide = settings.layout === "compact" ? "sm:col-span-2" : "";
+  const wide = settings.layout === "compact" ? "@min-[40rem]:col-span-2" : "";
 
   const nextStep = () => {
     const data = new FormData(formRef.current ?? undefined);
@@ -290,49 +296,74 @@ export function CheckoutForm({
   const element = (key: string): ReactNode => {
     switch (key) {
       case "variants":
-        return product.options.map((option) => (
-          <fieldset key={option.name} className={wide}>
-            <legend className={label}>
-              {fmt(t.choose, { option: option.name })}
-              {option.kind === "color" && selected[option.name] && <span className="font-bold text-s-text">: {selected[option.name]}</span>}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {option.values.map((value) => {
-                const active = selected[option.name] === value;
-                const ok = valueAvailable(option.name, value);
-                const swatch = option.kind === "color" ? option.colors?.[value] : undefined;
-                if (swatch)
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      title={value}
-                      aria-label={value}
-                      aria-pressed={active}
-                      disabled={!ok}
-                      onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
-                      className={`relative size-10 rounded-full border border-s-field-edge transition ${active ? "ring-2 ring-brand ring-offset-2 ring-offset-s-surface" : "hover:scale-105"} disabled:cursor-not-allowed disabled:opacity-30 disabled:after:absolute disabled:after:inset-x-1 disabled:after:top-1/2 disabled:after:h-0.5 disabled:after:-rotate-45 disabled:after:bg-s-text`}
-                      style={{ background: swatch }}
-                    />
-                  );
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={active}
-                    disabled={!ok}
-                    onClick={() => setSelected((s) => ({ ...s, [option.name]: value }))}
-                    className={`min-w-12 rounded-[var(--s-radius-btn)] border-2 px-4 py-2 text-sm font-bold transition ${
-                      active ? "border-brand bg-brand text-brand-fg" : "border-s-field-edge bg-s-surface hover:border-brand"
-                    } disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`}
-                  >
-                    {value}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-        ));
+        // Zimam's displays: text, color circle, text + color, image. Hidden options and switched-off values are not shown.
+        return product.options
+          .filter((o) => !o.hidden && o.name && o.values.some((v) => valueOn(o, v)))
+          .map((option) => {
+            const d = displayOf(option);
+            const chosen = option.optional ? picked[option.name] : selected[option.name];
+            const choose = (value: string) =>
+              option.optional ? setPicked((s) => ({ ...s, [option.name]: s[option.name] === value ? "" : value })) : setSelected((s) => ({ ...s, [option.name]: value }));
+            return (
+              <fieldset key={option.name} className={wide} data-store-option={option.name} data-display={d}>
+                <legend className={label}>
+                  {fmt(t.choose, { option: option.name })}
+                  {option.optional && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
+                  {d !== "text" && chosen && <span className="font-bold text-s-text">: {chosen}</span>}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {option.values
+                    .filter((value) => valueOn(option, value))
+                    .map((value) => {
+                      const active = chosen === value;
+                      const ok = option.optional || valueAvailable(option.name, value);
+                      const color = option.colors?.[value];
+                      const common = { type: "button" as const, "aria-pressed": active, disabled: !ok, onClick: () => choose(value) };
+                      if (d === "color" && color)
+                        return (
+                          <button
+                            key={value}
+                            {...common}
+                            title={value}
+                            aria-label={value}
+                            className={`relative size-10 rounded-full border border-s-field-edge transition ${active ? "ring-2 ring-brand ring-offset-2 ring-offset-s-surface" : "hover:scale-105"} disabled:cursor-not-allowed disabled:opacity-30 disabled:after:absolute disabled:after:inset-x-1 disabled:after:top-1/2 disabled:after:h-0.5 disabled:after:-rotate-45 disabled:after:bg-s-text`}
+                            style={{ background: color }}
+                          />
+                        );
+                      if (d === "image")
+                        return (
+                          <button
+                            key={value}
+                            {...common}
+                            title={value}
+                            className={`flex w-20 flex-col items-center gap-1 rounded-[var(--s-radius)] border-2 p-1 text-xs font-semibold transition ${active ? "border-brand" : "border-s-field-edge hover:border-brand"} disabled:cursor-not-allowed disabled:opacity-40`}
+                          >
+                            {option.images?.[value] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={option.images[value]} alt="" className="aspect-square w-full rounded-[calc(var(--s-radius)-4px)] object-cover" />
+                            ) : (
+                              <span className="grid aspect-square w-full place-items-center rounded bg-s-bg text-s-muted">{value.slice(0, 2)}</span>
+                            )}
+                            <span className="w-full truncate">{value}</span>
+                          </button>
+                        );
+                      return (
+                        <button
+                          key={value}
+                          {...common}
+                          className={`inline-flex min-w-12 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] border-2 px-4 py-2 text-sm font-bold transition ${
+                            active ? "border-brand bg-brand text-brand-fg" : "border-s-field-edge bg-s-surface hover:border-brand"
+                          } disabled:cursor-not-allowed disabled:opacity-40 disabled:line-through`}
+                        >
+                          {d === "text_color" && color && <span className="size-4 rounded-full border border-black/10" style={{ background: color }} />}
+                          {value}
+                        </button>
+                      );
+                    })}
+                </div>
+              </fieldset>
+            );
+          });
       case "quantity":
         if (quantityChoices.length)
           return (
@@ -524,7 +555,7 @@ export function CheckoutForm({
         return (
           <fieldset className={wide}>
             <legend className={label}>{t.form.deliveryType}</legend>
-            <div className={`grid gap-2 ${allowedTypes.length > 1 ? "sm:grid-cols-2" : ""}`}>
+            <div className={`grid gap-2 ${allowedTypes.length > 1 ? "@min-[40rem]:grid-cols-2" : ""}`}>
               {allowedTypes.map((type) => {
                 const price = wilaya ? lineShipping(shippingPrice(rates, wilaya, type), line.offer) : undefined;
                 const unavailable = price === null;
@@ -634,7 +665,7 @@ export function CheckoutForm({
         if (fillRef.current) fillRef.current.value = String(Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000));
       }}
       noValidate
-      className={overlay ? "space-y-5 p-4 sm:p-5" : "space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5"}
+      className={overlay ? "space-y-5 p-4 @min-[40rem]:p-5" : "space-y-5 rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] @min-[40rem]:p-5"}
     >
       <div className={overlay ? "pe-8" : ""}>
         <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
@@ -642,6 +673,7 @@ export function CheckoutForm({
       </div>
 
       <input type="hidden" name="variantId" value={variant?.id ?? ""} />
+      <input type="hidden" name="choices" value={JSON.stringify(picked)} />
       <input type="hidden" name="quantity" value={quantity} />
       <input ref={fillRef} type="hidden" name="fill" defaultValue="" />
       {/* Honeypot: invisible to people */}
@@ -657,7 +689,7 @@ export function CheckoutForm({
           ))}
         </ol>
       )}
-      <div className={`grid gap-4 ${settings.layout === "compact" ? "sm:grid-cols-2" : ""}`}>
+      <div className={`grid gap-4 ${settings.layout === "compact" ? "@min-[40rem]:grid-cols-2" : ""}`}>
         {settings.order.map((key, i) => {
           const node = element(key);
           // Two steps: the second step's fields stay in the form (hidden) so everything is sent together
@@ -677,7 +709,7 @@ export function CheckoutForm({
         </p>
       )}
 
-      {cardPayment && (!stepper || step === 2) && <PaymentChoice t={t} />}
+      {cardPayment && (!stepper || step === 2) && <PaymentChoice t={t} cardOnly={product.cardOnly} />}
       {stepper && step === 1 ? (
         <button type="button" onClick={nextStep} disabled={soldOut} className="flex w-full items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand px-6 py-4 text-lg font-extrabold text-brand-fg shadow-lg shadow-brand/30 transition hover:brightness-110 disabled:opacity-60" data-testid="form-next">
           {soldOut ? t.outOfStock : t.form.next} <ChevronLeft size={20} className="ltr:rotate-180" />
@@ -740,7 +772,7 @@ export function CheckoutForm({
       {overlay ? (
         <>
           {/* In the page: the order button (links to #order-form land here and open the form) */}
-          <div ref={anchorRef} id="order-form" className="rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] sm:p-5">
+          <div ref={anchorRef} id="order-form" className="rounded-[var(--s-radius)] border-2 border-brand/30 bg-s-surface p-4 shadow-[var(--s-shadow)] @min-[40rem]:p-5">
             <h2 className="text-xl font-extrabold">{settings.title || t.form.title}</h2>
             <p className="mt-1 text-sm text-s-muted">{settings.subtitle || t.form.subtitle}</p>
             <button
@@ -780,7 +812,7 @@ export function CheckoutForm({
       <a
         href="#order-form"
         aria-hidden={formVisible}
-        className={`${formVisible || embedded || !settings.stickyButton || open ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-brand-fg shadow-xl md:hidden ${effect}`}
+        className={`${formVisible || embedded || !settings.stickyButton || open ? "hidden" : "flex"} fixed inset-x-3 bottom-3 z-30 items-center justify-center gap-2 rounded-[var(--s-radius-btn)] bg-brand py-3.5 text-base font-extrabold text-brand-fg shadow-xl @min-[48rem]:hidden ${effect}`}
       >
         <ShoppingBag size={18} /> {settings.buttonText || t.form.title}
       </a>
@@ -789,13 +821,14 @@ export function CheckoutForm({
 }
 
 // Apps → Online payments: cash on delivery (default) or card at the gateway after ordering
-export function PaymentChoice({ t }: { t: StoreText }) {
+// cardOnly: the product is sold with online payment only (no cash on delivery)
+export function PaymentChoice({ t, cardOnly = false }: { t: StoreText; cardOnly?: boolean }) {
   return (
     <fieldset className="space-y-2" data-testid="payment-choice">
       <legend className="mb-1 text-sm font-semibold">{t.payment.title}</legend>
-      {(["cod", "card"] as const).map((m) => (
+      {(cardOnly ? (["card"] as const) : (["cod", "card"] as const)).map((m) => (
         <label key={m} className="flex cursor-pointer items-center gap-2 rounded-[var(--s-radius-btn)] border border-s-field-edge p-3 text-sm has-checked:border-brand">
-          <input type="radio" name="payment" value={m} defaultChecked={m === "cod"} className="accent-[var(--brand)]" data-testid={`payment-${m}`} />
+          <input type="radio" name="payment" value={m} defaultChecked={cardOnly || m === "cod"} className="accent-[var(--brand)]" data-testid={`payment-${m}`} />
           <span className="flex-1 font-semibold">{m === "cod" ? t.payment.cod : t.payment.card}</span>
         </label>
       ))}

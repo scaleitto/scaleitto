@@ -47,7 +47,7 @@ test("compare-at price must be above the price", () => {
 test("duplicate option values and too many variants are refused", () => {
   const dup = productSchema.safeParse({ ...base, options: JSON.stringify([{ name: "Size", values: ["S", "s"] }]) });
   assert.ok(!dup.success);
-  const many = Array.from({ length: 11 }, (_, i) => String(i));
+  const many = Array.from({ length: 13 }, (_, i) => String(i));
   const huge = productSchema.safeParse({ ...base, options: JSON.stringify([{ name: "A", values: many }, { name: "B", values: many }]) });
   assert.ok(!huge.success);
 });
@@ -55,4 +55,27 @@ test("duplicate option values and too many variants are refused", () => {
 test("images must be our uploads or https links", () => {
   assert.ok(productSchema.safeParse({ ...base, images: JSON.stringify(["/uploads/abc-123/f.webp", "https://cdn.example.com/a.jpg"]) }).success);
   assert.ok(!productSchema.safeParse({ ...base, images: JSON.stringify(["javascript:alert(1)"]) }).success);
+});
+
+test("Zimam's variants: displays, optional and hidden options, values and combinations switched off", async () => {
+  const { combinations, offered, optionalChoices, displayOf } = await import("../../src/features/products/variants");
+  const options = [
+    { name: "Color", values: ["Red", "Blue"], display: "color" as const, colors: { Red: "#ff0000", Blue: "#0000ff" }, off: ["Blue"] },
+    { name: "Size", values: ["S", "M"] },
+    { name: "Gift wrap", values: ["Yes"], optional: true },
+    { name: "Internal", values: ["x"], hidden: true },
+  ];
+  // Optional and hidden options do not make combinations
+  assert.equal(combinations(options).length, 4);
+  // A switched-off value or combination is not offered
+  const rows = combinations(options).map((v, i) => ({ optionValues: v, active: i !== 0 }));
+  assert.deepEqual(offered(options, rows).map((r) => r.optionValues), [{ Color: "Red", Size: "M" }]);
+  assert.deepEqual(optionalChoices(options, { "Gift wrap": "Yes", Internal: "x", Size: "S" }), [{ label: "Gift wrap", value: "Yes" }]);
+  assert.equal(displayOf({ name: "C", values: ["a"], kind: "color" }), "color");
+  // The form's JSON keeps only what the display uses
+  const parsed = productSchema.safeParse({ ...base, options: JSON.stringify([{ name: "Size", values: ["S"], display: "text", colors: { S: "#000000" }, optional: true }]) });
+  assert.ok(parsed.success);
+  assert.deepEqual(parsed.data.options, [{ name: "Size", values: ["S"], display: "text", optional: true }]);
+  assert.ok(!productSchema.safeParse({ ...base, maxPerOrder: "0" }).success);
+  assert.equal(productSchema.safeParse({ ...base, maxPerOrder: "5" }).data?.maxPerOrder, 5);
 });

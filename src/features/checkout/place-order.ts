@@ -1,5 +1,6 @@
 import "server-only";
 import { withPromotion } from "@/features/promotions/apply";
+import { offered } from "@/features/products/variants";
 import { resolveApps } from "@/features/apps/settings";
 import { matchDeliveryRule } from "@/features/apps/rules";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -17,7 +18,7 @@ import type { OrderInput } from "./validators";
 import { applyOrderStatus } from "@/features/orders/transition";
 import type { OrderTracking } from "@/server/db/schema";
 
-export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping" | "invalid" | "minQuantity";
+export type CheckoutError = BlockReason | "unavailable" | "variant" | "stock" | "shipping" | "invalid" | "minQuantity" | "maxPerOrder";
 export type PlaceOrderResult = { ok: true; orderId: string; number: number } | { ok: false; error: CheckoutError };
 
 const FIRST_ORDER_NUMBER = 1001;
@@ -74,7 +75,7 @@ export async function placeCartOrder(shop: Pick<StoreShop, "id">, cart: CartLine
   for (const l of merged) {
     const product = products.find((p) => p.id === l.productId)!;
     // Prices as the store shows them now (a running promotion lowers them)
-    const { variants, ...priced } = await withPromotion(shop.id, { ...product, variants: allVariants.filter((v) => v.productId === product.id) });
+    const { variants, ...priced } = await withPromotion(shop.id, { ...product, variants: offered(product.options, allVariants.filter((v) => v.productId === product.id)) });
     // Apps → Wholesale: the minimum order and the larger quantities apply while it is on
     const wholesale = apps.wholesale ? resolveWholesale(priced.wholesale) : null;
     if (l.quantity < 1 || l.quantity > maxQuantityFor(wholesale)) return { ok: false, error: "invalid" };
@@ -83,6 +84,8 @@ export async function placeCartOrder(shop: Pick<StoreShop, "id">, cart: CartLine
     if (variants.length > 0 && !variant) return { ok: false, error: "variant" };
     lines.push({ product, variant, quantity: l.quantity, price: linePrice(variant?.price ?? priced.price, l.quantity, priced.offers, wholesale) });
   }
+  // The product's "maximum per order" counts all its combinations together
+  for (const p of products) if (p.maxPerOrder && lines.filter((l) => l.product.id === p.id).reduce((n, l) => n + l.quantity, 0) > p.maxPerOrder) return { ok: false, error: "maxPerOrder" };
   const first = lines[0];
   const quantity = lines.reduce((n, l) => n + l.quantity, 0);
 
@@ -102,7 +105,8 @@ export async function placeCartOrder(shop: Pick<StoreShop, "id">, cart: CartLine
 
   const subtotal = lines.reduce((n, l) => n + l.price.total, 0);
   const freeOffer = lines.map((l) => l.price.offer).find((o) => o?.freeShipping) ?? null;
-  const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id), input.wilaya, input.deliveryType), freeOffer);
+  // A product sold with one delivery option limits the order to it
+  const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id, lines.find((l) => l.product.deliveryOption)?.product.deliveryOption), input.wilaya, input.deliveryType), freeOffer);
   if (shipping === null) return { ok: false, error: "shipping" };
   const orderId = newId();
   const rule = await orderRule(shop.id);

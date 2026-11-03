@@ -14,28 +14,34 @@ export default async function phase24(browser) {
   const lamp = randomUUID();
   await db.query("INSERT INTO products (id, shop_id, name, slug, price, images, options, offers) VALUES (?, ?, 'مصباح', 'lamp', 2000, '[]', '[]', '[]')", [lamp, shopId]);
 
-  await step("offers: a ready-made offer with free delivery, a badge and preselected; the store and the order honour it", async () => {
+  await step("offers (Zimam's rows): free delivery and chosen by default; a switched-off offer stays out of the store; the order honours it", async () => {
     await owner.goto(`${dash}/products/${lamp}`);
     await owner.locator("[data-testid=product-form][data-ready]").waitFor();
     await owner.click("[data-form-tab=offers]");
     await owner.locator("[data-testid=upsell-offers]").check({ force: true });
-    await owner.locator('[data-testid=offer-templates] button[data-template="2-10"]').click();
-    const offer = owner.locator("[data-testid=offers] [data-offer='2']");
-    await offer.locator("[data-testid=offer-free-shipping]").check();
-    await offer.locator("[data-testid=offer-preselected]").check();
-    await offer.locator("select").selectOption("bestSeller");
-    await offer.locator('input[aria-label="هدية مع العرض (اختياري)"]').fill("حافظة مجانية");
+    await owner.click("[data-testid=add-offer]");
+    await owner.click("[data-testid=add-offer]");
+    const rows = owner.locator("[data-testid=offer-rows] [data-offer]");
+    await rows.nth(0).locator('[aria-label="الكمية"]').fill("2");
+    await rows.nth(0).locator('[aria-label="السعر الإجمالي"]').fill("3600");
+    await rows.nth(0).locator('[aria-label="نص العرض (اختياري)"]').fill("قطعتان بسعر خاص");
+    await rows.nth(0).locator("[data-testid=offer-free-shipping]").check({ force: true });
+    await rows.nth(0).locator("[data-testid=offer-preselected]").click();
+    await rows.nth(1).locator('[aria-label="الكمية"]').fill("3");
+    await rows.nth(1).locator('[aria-label="السعر الإجمالي"]').fill("5000");
+    await rows.nth(1).locator("[data-testid=offer-active]").click();
     await owner.locator("[data-testid=save-product]").click();
-    await expectSoon(async () => json((await db.query("SELECT offers FROM products WHERE id = ?", [lamp]))[0][0].offers).length === 1, "offer saved");
+    await expectSoon(async () => json((await db.query("SELECT offers FROM products WHERE id = ?", [lamp]))[0][0].offers).length === 2, "offers saved");
     const [[p]] = await db.query("SELECT offers FROM products WHERE id = ?", [lamp]);
-    const [saved] = json(p.offers);
-    expect(saved.quantity === 2 && saved.price === 3600 && saved.freeShipping && saved.preselected && saved.badge === "bestSeller" && saved.gift === "حافظة مجانية", `offer saved (got ${JSON.stringify(saved)})`);
+    const [saved, off] = json(p.offers);
+    expect(saved.quantity === 2 && saved.price === 3600 && saved.freeShipping && saved.preselected && saved.label === "قطعتان بسعر خاص" && off.quantity === 3 && off.off === true, `offers saved (got ${JSON.stringify(json(p.offers))})`);
     await db.query("INSERT INTO shipping_rates (shop_id, wilaya_code, home_price, office_price) VALUES (?, 16, 500, 300)", [shopId]);
     const page = await browser.newPage();
     await page.goto(`${store}/p/lamp`);
     const card = page.locator("[data-offer-card='2']");
     expect(await card.locator("input[type=radio]").isChecked(), "preselected");
-    expect((await card.locator("[data-testid=offer-badge]").innerText()) === "الأكثر طلباً" && (await card.locator("[data-testid=offer-free-shipping]").count()) && (await card.locator("[data-testid=offer-gift]").innerText()).includes("حافظة مجانية"), "badge, free delivery and gift on the card");
+    expect((await card.locator("[data-testid=offer-free-shipping]").count()) > 0, "free delivery on the card");
+    expect(!(await page.locator("[data-offer-card='3']").count()), "the switched-off offer is not offered");
     await page.fill("#name", "زبون العرض");
     await page.fill("#phone", "0661 22 33 45");
     await page.selectOption("#wilaya", "16");
@@ -44,7 +50,7 @@ export default async function phase24(browser) {
     await page.waitForTimeout(4500);
     await Promise.all([page.waitForURL(/\/thanks\?o=/), page.locator("button[type=submit]").click({ force: true })]);
     const [[o]] = await db.query("SELECT o.shipping_price AS ship, o.subtotal, i.offer_label AS label FROM orders o JOIN order_items i ON i.order_id = o.id WHERE o.id = ?", [new URL(page.url()).searchParams.get("o")]);
-    expect(o.ship === 0 && o.subtotal === 3600 && o.label.includes("حافظة مجانية"), `free delivery and the gift on the order (got ${JSON.stringify(o)})`);
+    expect(o.ship === 0 && o.subtotal === 3600 && o.label.includes("قطعتان بسعر خاص"), `free delivery and the offer on the order (got ${JSON.stringify(o)})`);
     await page.close();
   });
 

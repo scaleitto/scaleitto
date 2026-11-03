@@ -60,7 +60,7 @@ export default async function ProductPage({
   const t = getStoreText(locale);
   const cur = currencyLabel(locale);
   const [rates, pixels, similar, base] = await Promise.all([
-    getShippingRates(shop.id),
+    getShippingRates(shop.id, product.deliveryOption),
     pagePixels(shop.id, [product.id]),
     similarProducts(shop.id, product),
     storeBase(shop.slug),
@@ -123,6 +123,8 @@ export default async function ProductPage({
                 options: product.options,
                 offers: product.offers,
                 wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null,
+                maxPerOrder: product.maxPerOrder,
+                cardOnly: product.cardOnly,
               }}
               variants={product.variants.map((v) => ({
                 id: v.id,

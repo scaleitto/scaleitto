@@ -54,6 +54,14 @@ export function applyDelivery(rates: RateMap, settings: DeliverySettings): RateM
   return Object.fromEntries(wilayas.map((w) => [w.code, { home: priceOf(w.code, "home"), office: priceOf(w.code, "office") }]));
 }
 
+// A product sold with one delivery option (Products → Checkout & delivery): the other way of delivering is not offered.
+// An unknown or switched-off option leaves the prices as they are.
+export function limitToOption(rates: RateMap, settings: DeliverySettings, optionId: string | null | undefined): RateMap {
+  const option = optionId ? settings.options.find((o) => o.id === optionId && o.active) : undefined;
+  if (!option) return rates;
+  return Object.fromEntries(Object.entries(rates).map(([code, r]) => [code, option.type === "home" ? { home: r.home, office: null } : { home: null, office: r.office }]));
+}
+
 // ─── Handover manifest ─────────────────────────────────────
 
 export const manifestFields = ["cod", "phone", "items", "notes", "reference", "signatures"] as const;

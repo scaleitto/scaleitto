@@ -281,6 +281,21 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   "Upsell offers" switch + similar-products checklist (all ticked = null = automatic; Select all / Clear all). Live preview =
   `ProductPreview.tsx`: the real product page (store language, theme, color, `CheckoutForm` inert, description, badges, footer)
   in a scrolling phone; data from `editor-props.ts preview`. The form sets `data-ready` once hydrated (e2e waits for it).
+- Zimam parity round 2 (owner: "every detail like Zimam", phase35.mjs). Overview: period dropdown (today, yesterday, 7d, 30d,
+  this/last month = `analytics/range.ts` presets incl. `lastMonth`) and chart range dropdown (`ui/LinkMenu.tsx`), chart with side
+  amounts, a dot per day and a % badge, last week's orders under the tasks; every dashboard page ends with "Help for this page"
+  (the support link). Page headers have no divider. Products: the live preview is a fixed phone (280/320 × 560/640 screen,
+  scrolls inside) and the storefront blocks + CheckoutForm use container queries (`@container` on `StoreFrame`, `@min-[40rem]:`
+  instead of `sm:`…) so the preview and Design's mobile view show the real phone layout. Variants = Zimam's editor
+  (`products/VariantsEditor.tsx`): up to 3 variants (color / size / custom), display `text | color | text_color | image`
+  (`ProductOption.display`, older `kind: "color"` read by `displayOf`), per-value color/photo and on/off (`off`), `optional`
+  (not a combination: the buyer's choice goes to the order's `extra` via the form's `choices` field, `optionalChoices`) and
+  `hidden`; 30 values, 150 combinations; combinations keep price, old price (`product_variants.compare_at_price`), SKU, stock and
+  `active`. The store only gets `variants.ts offered()` combinations. Products also have `max_per_order` (store orders only,
+  checked in `placeCartOrder`), `delivery_option` (the store's delivery option id → `getShippingRates(shop, option)` /
+  `delivery/settings.ts limitToOption`) and `card_only` (online payment only: COD refused in `submitOrder`/`submitCart`, no
+  gateway = cannot be ordered). Offers = Zimam's rows (★ default, text, quantity from 1, total price, free delivery, on/off
+  `QuantityOffer.off`, reorder); switched-off offers are dropped in `withPromotions` (every store loader). Migration 0048.
 - Zimam parity phase 4 (phase28.mjs) — delivery (Zimam layout: underline section tabs from the shell, no page header): sections
   `delivery` (compact `AutoSendSwitch`, title, connected accounts when any, `CarrierCatalog` with search and wide "Integrate" cards), `manifest`
   (`delivery/manifest`, `ManifestEditor` + shared `Manifest.tsx` with its own ar/fr/en labels) and `deliverySettings`

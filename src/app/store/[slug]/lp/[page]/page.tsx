@@ -68,9 +68,9 @@ export default async function LandingPage({ params, searchParams }: PageProps<"/
         sections={sections}
         settings={productForm(shop, product)}
         cardPayment={Boolean(await cardGateway(shop.id))}
-        product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers, wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null }}
+        product={{ price: product.price, trackStock: product.trackStock, stock: product.stock, options: product.options, offers: product.offers, wholesale: resolveApps(shop.apps).wholesale ? resolveWholesale(product.wholesale) : null, maxPerOrder: product.maxPerOrder, cardOnly: product.cardOnly }}
         variants={product.variants.map((v) => ({ id: v.id, values: v.optionValues, price: v.price, stock: v.stock }))}
-        rates={await getShippingRates(shop.id)}
+        rates={await getShippingRates(shop.id, product.deliveryOption)}
         action={submitOrder.bind(null, shop.slug, product.id, { id: page.id, version })}
         saveLead={saveLead.bind(null, shop.slug, product.id)}
         whatsapp={{ phone: shop.phone ?? "", product: product.name }}

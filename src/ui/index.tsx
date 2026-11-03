@@ -44,7 +44,7 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0">
         <h1 className="text-2xl leading-tight font-bold tracking-tight text-fg sm:text-[1.7rem]">{title}</h1>
         {description && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>}

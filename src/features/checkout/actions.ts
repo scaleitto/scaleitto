@@ -1,6 +1,6 @@
 "use server";
 
-import { startCardPayment } from "@/features/payments/flow";
+import { cardGateway, startCardPayment } from "@/features/payments/flow";
 import { resolveApps } from "@/features/apps/settings";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -16,6 +16,7 @@ import { orderInputSchema } from "./validators";
 import { WHOLESALE_MAX_QUANTITY } from "./pricing";
 import { customFieldValid, liveVersions, readPublished, versionSections, type VersionKey } from "@/features/landing/types";
 import { productForm } from "@/features/order-form/resolve";
+import { optionalChoices } from "@/features/products/variants";
 import { placeOrder, saveAbandoned } from "./place-order";
 import { MAX_LEADS_PER_IP_PER_HOUR } from "./protection";
 import { scheduleOrderEvents } from "@/features/pixels/server";
@@ -25,8 +26,22 @@ import type { OrderTracking } from "@/server/db/schema";
 
 // The product's own checkout questions (Apps → Custom fields)
 async function productQuestions(shopId: string, productId: string) {
-  const [row] = await db.select({ customFields: schema.products.customFields }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
+  const [row] = await db.select({ customFields: schema.products.customFields, cardOnly: schema.products.cardOnly }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
   return row ?? null;
+}
+
+// The buyer's choices for the product's optional options (written on the order like the form's extra questions)
+async function chosenOptions(shopId: string, productId: string, raw: FormDataEntryValue | null) {
+  let picked: Record<string, string> = {};
+  try {
+    const parsed = JSON.parse(String(raw ?? "{}"));
+    if (parsed && typeof parsed === "object") picked = Object.fromEntries(Object.entries(parsed).filter(([k, v]) => typeof v === "string" && k.length <= 40).map(([k, v]) => [k, String(v).slice(0, 40)]));
+  } catch {
+    return [];
+  }
+  if (!Object.keys(picked).length) return [];
+  const [row] = await db.select({ options: schema.products.options }).from(schema.products).where(and(eq(schema.products.shopId, shopId), eq(schema.products.id, productId)));
+  return row ? optionalChoices(row.options, picked) : [];
 }
 
 async function requestMeta() {
@@ -85,6 +100,9 @@ export async function submitOrder(slug: string, productId: string, landing: { id
       else if (value) extra.push({ label: c.label, value });
     }
     if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
+    extra.unshift(...(await chosenOptions(shop.id, productId, formData.get("choices"))));
+    // Online payment only: no cash on delivery, and the store must take cards
+    if ((await productQuestions(shop.id, productId))?.cardOnly && (formData.get("payment") !== "card" || !(await cardGateway(shop.id)))) return { ok: false, error: "cardOnly" };
     const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
     if (input.website) return { ok: false, error: "unexpected" };

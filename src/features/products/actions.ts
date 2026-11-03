@@ -29,7 +29,7 @@ async function saveVariants(tx: Tx, shopId: string, productId: string, input: Pr
   for (const [position, values] of combinations(input.options).entries()) {
     const title = variantTitle(values, input.options);
     const data = supplied.get(title);
-    const row = { optionValues: values, title, position, sku: data?.sku || null, price: data?.price ?? null, stock: data?.stock ?? 0 };
+    const row = { optionValues: values, title, position, sku: data?.sku || null, price: data?.price ?? null, compareAtPrice: data?.compareAtPrice ?? null, stock: data?.stock ?? 0, active: data?.active ?? true };
     const current = existing.get(title);
     if (current) {
       await tx.update(schema.productVariants).set(row).where(eq(schema.productVariants.id, current.id));
@@ -52,6 +52,7 @@ function productRow(input: ProductInput) {
     compareAtPrice: input.compareAtPrice,
     sku: input.sku || null,
     trackStock: input.trackStock,
+    maxPerOrder: input.maxPerOrder,
     stock: input.stock,
     images: input.images,
     options: input.options,
@@ -62,6 +63,8 @@ function productRow(input: ProductInput) {
     lowStock: input.lowStock,
     showOutOfStock: input.showOutOfStock,
     carrierAccountId: input.carrierAccountId || null,
+    deliveryOption: input.deliveryOption || null,
+    cardOnly: input.cardOnly,
     similarIds: input.similar === "chosen" ? input.similarIds : null,
     collectionIds: input.collectionIds.length ? input.collectionIds : null,
     customFields: input.customFields.length ? input.customFields : null,

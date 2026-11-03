@@ -38,18 +38,26 @@ export function ProductPreview({ data, product, storeName, labels }: { data: Pro
         </h2>
         <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-ink">{labels.mobile}</span>
       </div>
-      <div className="mx-auto w-[340px] rounded-[2.6rem] bg-[#0b1220] p-2.5 shadow-2xl">
-        <div className="flex items-center justify-between px-6 pt-1.5 pb-2 text-[11px] font-semibold text-white" dir="ltr">
+      {/* A real phone's proportions (about 9 × 19.5), whatever the window's height: the page scrolls, the screen scrolls inside */}
+      <div className="mx-auto w-[280px] rounded-[2.75rem] bg-[#0b1220] p-2.5 shadow-2xl min-[1400px]:w-[320px]" data-testid="preview-phone">
+        <div className="flex items-center justify-between px-6 pt-2 pb-2.5 text-[11px] font-semibold text-white" dir="ltr">
           <span>9:41</span>
-          <span className="h-5 w-20 rounded-full bg-black" />
-          <span className="flex items-end gap-0.5" aria-hidden>
-            <span className="h-1.5 w-1 rounded-sm bg-white" />
-            <span className="h-2 w-1 rounded-sm bg-white" />
-            <span className="h-2.5 w-1 rounded-sm bg-white" />
-            <span className="ms-1 h-2.5 w-5 rounded-sm border border-white" />
+          <span className="flex items-center gap-1.5" aria-hidden>
+            <span className="flex items-end gap-0.5">
+              <span className="h-1.5 w-[3px] rounded-sm bg-white" />
+              <span className="h-2 w-[3px] rounded-sm bg-white" />
+              <span className="h-2.5 w-[3px] rounded-sm bg-white" />
+            </span>
+            <span className="h-2.5 w-2.5 rounded-t-full border-2 border-b-0 border-white" />
+            <span className="h-2.5 w-5 rounded-[3px] border border-white p-px">
+              <span className="block h-full w-3/4 rounded-[1px] bg-white" />
+            </span>
           </span>
         </div>
-        <div className="h-[min(620px,calc(100vh-15rem))] overflow-y-auto overscroll-contain rounded-[2rem] bg-white [scrollbar-width:thin]" data-testid="preview-screen">
+        <div
+          className="h-[560px] overflow-x-hidden overflow-y-auto overscroll-contain rounded-b-[2.1rem] bg-white [scrollbar-color:var(--color-accent)_transparent] [scrollbar-width:thin] min-[1400px]:h-[640px]"
+          data-testid="preview-screen"
+        >
           <div inert>
             <StoreFrame locale={data.locale} color={data.color} theme={data.theme} className="min-h-full text-[13px]">
               <StoreHeader name={storeName} logoUrl={data.logoUrl} phone={null} whatsapp="" homeHref="#" align={data.theme.layout.header} t={t} />

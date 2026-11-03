@@ -2,10 +2,10 @@ import { descriptionHtml } from "@/lib/rich-text";
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { productFields } from "@/features/order-form/resolve";
 import { z } from "zod";
-import { offerBadges, productStatuses } from "@/server/db/schema";
+import { offerBadges, optionDisplays, productStatuses } from "@/server/db/schema";
 import { slugify } from "@/lib/format";
 import { combinations } from "./variants";
-import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS, MAX_VARIANTS } from "./constants";
+import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS, MAX_VALUES, MAX_VARIANTS } from "./constants";
 
 // "4 500", "4,500" and "4500" are all 4500 DZD. Empty → null.
 const money = (message: string) =>
@@ -38,30 +38,48 @@ const imagePath = z.string().regex(/^(\/uploads\/[\w-]+\/[\w.-]+|https:\/\/\S+)$
 const optionSchema = z
   .object({
     name: z.string().trim().min(1).max(40),
-    values: z.array(z.string().trim().min(1).max(40)).min(1).max(30),
+    values: z.array(z.string().trim().min(1).max(40)).min(1).max(MAX_VALUES),
+    display: z.enum(optionDisplays).optional(),
     kind: z.literal("color").optional(),
     colors: z.record(z.string(), z.string().regex(/^#[0-9a-f]{6}$/i)).optional(),
+    images: z.record(z.string(), imagePath).optional(),
+    off: z.array(z.string()).optional(),
+    optional: z.boolean().optional(),
+    hidden: z.boolean().optional(),
   })
-  // Only color options keep colors, and only for their own values
-  .transform(({ kind, colors, ...o }) =>
-    kind === "color" ? { ...o, kind, colors: Object.fromEntries(Object.entries(colors ?? {}).filter(([v]) => o.values.includes(v))) } : o,
-  );
+  // Colors and photos only for the display that uses them, and only for the option's own values
+  .transform(({ kind, colors, images, off, optional, hidden, display, ...o }) => {
+    const mode = display ?? (kind === "color" ? "color" : "text");
+    const own = <T,>(m: Record<string, T> | undefined) => Object.fromEntries(Object.entries(m ?? {}).filter(([v]) => o.values.includes(v)));
+    return {
+      ...o,
+      display: mode,
+      ...(mode === "color" || mode === "text_color" ? { colors: own(colors) } : {}),
+      ...(mode === "image" ? { images: own(images) } : {}),
+      ...(off?.some((v) => o.values.includes(v)) ? { off: off.filter((v) => o.values.includes(v)) } : {}),
+      ...(optional ? { optional: true } : {}),
+      ...(hidden ? { hidden: true } : {}),
+    };
+  });
 
 const variantSchema = z.object({
   title: z.string(),
   sku: z.string().trim().max(80).optional().default(""),
   price: z.number().int().min(0).max(100_000_000).nullable().optional().default(null),
+  compareAtPrice: z.number().int().min(0).max(100_000_000).nullable().optional().default(null),
   stock: z.number().int().min(0).max(1_000_000).optional().default(0),
+  active: z.boolean().optional().default(true),
 });
 
 const offerSchema = z.object({
-  quantity: z.number().int().min(2).max(100),
+  quantity: z.number().int().min(1).max(100),
   price: z.number().int().min(1).max(100_000_000),
   label: z.string().trim().max(60).optional(),
   freeShipping: z.boolean().optional(),
   gift: z.string().trim().max(80).optional(),
   badge: z.enum(offerBadges).optional(),
   preselected: z.boolean().optional(),
+  off: z.boolean().optional(),
 });
 
 export const productSchema = z
@@ -83,12 +101,16 @@ export const productSchema = z
     sku: z.string().trim().max(80, "e:invalid").optional().default(""),
     trackStock: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     stock: money("e:stock").transform((v) => v ?? 0),
+    // Most pieces per store order (empty = no limit)
+    maxPerOrder: money("e:maxPerOrder").refine((v) => v === null || (v >= 1 && v <= 1000), "e:maxPerOrder"),
     status: z.enum(productStatuses),
     images: json(z.array(imagePath).max(MAX_IMAGES), "e:images"),
     descriptionImages: json(z.array(imagePath).max(MAX_IMAGES), "e:images"),
     lowStock: money("e:stock"),
     showOutOfStock: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     carrierAccountId: z.string().optional().default(""),
+    deliveryOption: z.string().trim().max(40).optional().default(""),
+    cardOnly: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     // "auto" = the store's other products; otherwise the chosen ones
     similar: z.enum(["auto", "chosen"]).optional().default("auto"),
     similarIds: json(z.array(z.string().uuid()).max(50), "e:invalid"),

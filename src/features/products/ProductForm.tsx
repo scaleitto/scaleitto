@@ -3,7 +3,7 @@
 import { resolveWholesale } from "@/features/checkout/pricing";
 import { customFieldTypes, type CustomField, type CustomFieldType } from "@/features/landing/types";
 import Link from "next/link";
-import { useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   AlignLeft,
   ArrowRight,
@@ -22,7 +22,6 @@ import {
   Link2,
   Lock,
   Package,
-  Palette,
   ListChecks,
   Plus,
   SlidersHorizontal,
@@ -31,18 +30,20 @@ import {
   Trash2,
   TriangleAlert,
   Truck,
-  X,
+  ShoppingCart,
+  Check,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
+  X as XIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import {
-  offerBadges,
   type ProductOption,
   type QuantityOffer,
 } from "@/server/db/schema";
-import { offerTemplate } from "@/features/checkout/pricing";
 import type { ActionState } from "@/lib/action";
-import { fmt, formatPrice } from "@/lib/format";
-import { colorByName, colorPalette } from "@/lib/colors";
+import { fmt } from "@/lib/format";
 import {
   Alert,
   Card,
@@ -59,22 +60,15 @@ import {
   useActionForm,
 } from "@/ui/form";
 import { ImageManager } from "@/ui/ImageManager";
-import { combinations, variantTitle } from "./variants";
-import { MAX_IMAGES, MAX_OFFERS, MAX_OPTIONS } from "./constants";
+import { offered } from "./variants";
+import { VariantsEditor, cleanOptions, emptyVariant, variantRows, type VariantData } from "./VariantsEditor";
+import { MAX_IMAGES, MAX_OFFERS } from "./constants";
 import type { ProductStatus } from "./types";
 import { AiDescriptionBox } from "./AiDescriptionBox";
 import { ProductPreview } from "./ProductPreview";
 import type { ProductPreviewData } from "./editor-props";
 import { RichTextEditor } from "@/ui/RichTextEditor";
 import type { AiLanguage as PageLanguage } from "@/features/ai/languages";
-
-// The quick offer buttons: 2 pieces −10%, 3 pieces −15%, buy 2 get 1 free, buy 3 get 2 free
-const offerPresets = [
-  { key: "2-10", kind: "pct", quantity: 2, value: 10 },
-  { key: "3-15", kind: "pct", quantity: 3, value: 15 },
-  { key: "3-1", kind: "free", quantity: 3, value: 1 },
-  { key: "5-2", kind: "free", quantity: 5, value: 2 },
-] as const;
 
 export type ProductFormValues = {
   name: string;
@@ -97,8 +91,13 @@ export type ProductFormValues = {
     title: string;
     sku: string | null;
     price: number | null;
+    compareAtPrice?: number | null;
     stock: number;
+    active?: boolean;
   }[];
+  maxPerOrder?: number | null;
+  deliveryOption?: string | null;
+  cardOnly?: boolean;
   carrierAccountId: string | null;
   similarIds: string[] | null;
   collectionIds: string[] | null;
@@ -111,8 +110,6 @@ export type ProductFormText = Pick<
   "products" | "media" | "errors" | "common" | "assistant"
 >;
 type Action = (state: ActionState, formData: FormData) => Promise<ActionState>;
-type VariantData = { sku: string; price: number | null; stock: number };
-const DEFAULT_SWATCH = "#9ca3af";
 
 // Zimam's editor tabs, and which fields live in each (a tab with an error gets a dot and opens after saving)
 const tabs = [
@@ -135,7 +132,7 @@ const tabFields: Record<Tab, string[]> = {
     "images",
   ],
   description: ["description", "shortDescription", "descriptionImages"],
-  variants: ["stock", "lowStock", "options", "variants"],
+  variants: ["stock", "lowStock", "maxPerOrder", "options", "variants"],
   delivery: ["carrierAccountId"],
   offers: ["offers", "similarIds"],
   wholesale: ["wholesale"],
@@ -157,6 +154,10 @@ export function ProductForm({
   store,
   accounts,
   deliveryHref,
+  deliveryOptions,
+  deliverySettingsHref,
+  cardPayments,
+  paymentsHref,
   others,
   preview,
   collections,
@@ -177,6 +178,10 @@ export function ProductForm({
   // Connected delivery companies
   accounts: { id: string; name: string }[];
   deliveryHref: string;
+  deliveryOptions: { id: string; name: string; type: "home" | "office" }[];
+  deliverySettingsHref: string;
+  cardPayments: boolean;
+  paymentsHref: string;
   // The store's other products (similar products)
   others: { id: string; name: string; image: string | null }[];
   // What the live preview needs to draw the real product page
@@ -212,20 +217,12 @@ export function ProductForm({
   const [images, setImages] = useState(values.images);
   const [descImages, setDescImages] = useState(values.descriptionImages);
   const [options, setOptions] = useState<ProductOption[]>(values.options);
-  const [pendingValues, setPendingValues] = useState<string[]>(
-    values.options.map(() => ""),
-  );
-  const [variantData, setVariantData] = useState<Record<string, VariantData>>(
-    () =>
-      Object.fromEntries(
-        values.variants.map((v) => [
-          v.title,
-          { sku: v.sku ?? "", price: v.price, stock: v.stock },
-        ]),
-      ),
+  const [variantData, setVariantData] = useState<Record<string, VariantData>>(() =>
+    Object.fromEntries(values.variants.map((v) => [v.title, { sku: v.sku ?? "", price: v.price, compareAtPrice: v.compareAtPrice ?? null, stock: v.stock, active: v.active ?? true }])),
   );
   const [offers, setOffers] = useState<QuantityOffer[]>(values.offers);
   const [trackStock, setTrackStock] = useState(values.trackStock);
+  const [cardOnly, setCardOnly] = useState(Boolean(values.cardOnly));
   const [price, setPrice] = useState(values.price?.toString() ?? "");
   const [oldPrice, setOldPrice] = useState(
     values.compareAtPrice?.toString() ?? "",
@@ -252,92 +249,10 @@ export function ProductForm({
   const tabHasError = (k: Tab) =>
     tabFields[k].some((f) => state.fieldErrors?.[f]);
 
-  // Values typed but not confirmed with Enter still count when saving.
-  const effectiveOptions = options
-    .map((o, i) => {
-      const typed = pendingValues[i]?.trim();
-      const values =
-        typed && !o.values.includes(typed) ? [...o.values, typed] : o.values;
-      if (o.kind !== "color") return { name: o.name.trim(), values };
-      return {
-        name: o.name.trim(),
-        values,
-        kind: o.kind,
-        colors: Object.fromEntries(
-          values.map((v) => [
-            v,
-            o.colors?.[v] ?? colorByName(v) ?? DEFAULT_SWATCH,
-          ]),
-        ),
-      };
-    })
-    .filter((o) => o.name && o.values.length);
-  const variants = combinations(effectiveOptions).map((values) => {
-    const title = variantTitle(values, effectiveOptions);
-    return {
-      title,
-      values,
-      ...(variantData[title] ?? { sku: "", price: null, stock: 0 }),
-    };
-  });
-
-  const updateOption = (i: number, patch: Partial<ProductOption>) =>
-    setOptions((all) => all.map((o, j) => (j === i ? { ...o, ...patch } : o)));
-  const addValue = (i: number, color?: string) => {
-    const value = pendingValues[i]?.trim();
-    if (value && !options[i].values.includes(value))
-      addColorValue(i, value, color);
-    setPendingValues((all) => all.map((v, j) => (j === i ? "" : v)));
-  };
-  // A value (with its swatch on color options); an existing value only gets the new color
-  const addColorValue = (i: number, value: string, color?: string) =>
-    setOptions((all) =>
-      all.map((o, j) => {
-        if (j !== i) return o;
-        const values = o.values.includes(value)
-          ? o.values
-          : [...o.values, value];
-        if (o.kind !== "color") return { ...o, values };
-        return {
-          ...o,
-          values,
-          colors: {
-            ...o.colors,
-            [value]:
-              color ??
-              o.colors?.[value] ??
-              colorByName(value) ??
-              DEFAULT_SWATCH,
-          },
-        };
-      }),
-    );
-  const addOption = (option: ProductOption) => {
-    setOptions((all) => [...all, option]);
-    setPendingValues((all) => [...all, ""]);
-  };
-  const paletteName = (c: (typeof colorPalette)[number]) =>
-    c[ai.lang as "ar" | "fr" | "en"] ?? c.ar;
-  const onValueKey = (i: number) => (ev: KeyboardEvent<HTMLInputElement>) => {
-    if (ev.key === "Enter" || ev.key === ",") {
-      ev.preventDefault();
-      addValue(i);
-    } else if (
-      ev.key === "Backspace" &&
-      !pendingValues[i] &&
-      options[i].values.length
-    ) {
-      updateOption(i, { values: options[i].values.slice(0, -1) });
-    }
-  };
-  const setVariant = (title: string, patch: Partial<VariantData>) =>
-    setVariantData((all) => ({
-      ...all,
-      [title]: {
-        ...(all[title] ?? { sku: "", price: null, stock: 0 }),
-        ...patch,
-      },
-    }));
+  // What is saved and previewed: the cleaned options and their combinations
+  const effectiveOptions = cleanOptions(options);
+  const variants = variantRows(effectiveOptions, variantData);
+  const setVariant = (title: string, patch: Partial<VariantData>) => setVariantData((all) => ({ ...all, [title]: { ...(all[title] ?? emptyVariant), ...patch } }));
 
   const priceNum = toNumber(price);
   const oldNum = toNumber(oldPrice);
@@ -351,7 +266,6 @@ export function ProductForm({
     setImages([]);
     setDescImages([]);
     setOptions([]);
-    setPendingValues([]);
     setVariantData({});
     setOffers([]);
     setTrackStock(false);
@@ -453,12 +367,7 @@ export function ProductForm({
         type="hidden"
         name="variants"
         value={JSON.stringify(
-          variants.map(({ title, sku, price, stock }) => ({
-            title,
-            sku,
-            price,
-            stock,
-          })),
+          variants.map(({ title, sku, price, compareAtPrice, stock, active }) => ({ title, sku, price, compareAtPrice, stock, active })),
         )}
       />
       <input type="hidden" name="offers" value={JSON.stringify(offersOn ? offers : [])} />
@@ -733,6 +642,13 @@ export function ProductForm({
                     <Input id="lowStock" name="lowStock" inputMode="numeric" dir="ltr" defaultValue={values.lowStock ?? ""} placeholder="0" disabled={!trackStock} />
                     <p className="text-xs text-muted">{err("lowStock") ?? p.lowStockHint}</p>
                   </div>
+                  <div className="space-y-2">
+                    <label htmlFor="maxPerOrder" className="flex items-center gap-2 text-sm font-semibold">
+                      <ShoppingCart size={16} className="text-accent" /> {p.maxPerOrder}
+                    </label>
+                    <Input id="maxPerOrder" name="maxPerOrder" inputMode="numeric" dir="ltr" defaultValue={values.maxPerOrder ?? ""} placeholder={p.maxPerOrderPlaceholder} />
+                    <p className={`text-xs ${err("maxPerOrder") ? "text-danger" : "text-muted"}`}>{err("maxPerOrder") ?? p.maxPerOrderHint}</p>
+                  </div>
                 </div>
                 <ShowOutOfStock
                   initial={values.showOutOfStock}
@@ -751,308 +667,11 @@ export function ProductForm({
                 />
               </div>
 
-              <div className="space-y-4 rounded-xl border border-line p-4" data-testid="variants">
-                {toggleRow(
-                  options.length > 0,
-                  (on) => {
-                    if (on) addOption({ name: "", values: [] });
-                    else {
-                      setOptions([]);
-                      setPendingValues([]);
-                    }
-                  },
-                  <SlidersHorizontal size={18} />,
-                  p.hasVariants,
-                  p.variantsHint,
-                  "has-variants",
-                )}
-                {options.map((option, i) => (
-                  <div
-                    key={i}
-                    className="grid gap-3 rounded-lg border border-line bg-panel-2/50 p-3 sm:grid-cols-[10rem_1fr_auto]"
-                    data-option={i}
-                  >
-                    <div className="space-y-2">
-                      <Input
-                        aria-label={p.optionName}
-                        placeholder={p.optionNamePlaceholder}
-                        value={option.name}
-                        maxLength={40}
-                        onChange={(ev) =>
-                          updateOption(i, { name: ev.target.value })
-                        }
-                      />
-                      <Select
-                        aria-label={p.optionKind}
-                        value={option.kind ?? "text"}
-                        onChange={(ev) =>
-                          updateOption(
-                            i,
-                            ev.target.value === "color"
-                              ? { kind: "color", colors: option.colors ?? {} }
-                              : { kind: undefined },
-                          )
-                        }
-                        data-testid="option-kind"
-                      >
-                        <option value="text">{p.optionKinds.text}</option>
-                        <option value="color">{p.optionKinds.color}</option>
-                      </Select>
-                    </div>
-                    <div
-                      className={`${inputClass} flex flex-wrap items-center gap-1.5 self-start py-1.5`}
-                    >
-                      {option.values.map((value) => (
-                        <span
-                          key={value}
-                          className="inline-flex items-center gap-1 rounded-md bg-panel-2 px-2 py-0.5 text-xs"
-                        >
-                          {option.kind === "color" && (
-                            <label
-                              className="relative size-4 cursor-pointer overflow-hidden rounded-full border border-field-line"
-                              style={{
-                                background:
-                                  option.colors?.[value] ??
-                                  colorByName(value) ??
-                                  DEFAULT_SWATCH,
-                              }}
-                              title={p.pickColor}
-                            >
-                              <input
-                                type="color"
-                                aria-label={`${p.pickColor} ${value}`}
-                                className="absolute inset-0 cursor-pointer opacity-0"
-                                value={
-                                  option.colors?.[value] ??
-                                  colorByName(value) ??
-                                  DEFAULT_SWATCH
-                                }
-                                onChange={(ev) =>
-                                  addColorValue(i, value, ev.target.value)
-                                }
-                              />
-                            </label>
-                          )}
-                          {value}
-                          <button
-                            type="button"
-                            aria-label={`${p.remove} ${value}`}
-                            className="text-muted hover:text-danger"
-                            onClick={() =>
-                              updateOption(i, {
-                                values: option.values.filter(
-                                  (v) => v !== value,
-                                ),
-                              })
-                            }
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                      <input
-                        aria-label={p.optionValues}
-                        className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted/70"
-                        placeholder={
-                          option.values.length ? "" : p.optionValuesPlaceholder
-                        }
-                        value={pendingValues[i] ?? ""}
-                        maxLength={40}
-                        onChange={(ev) =>
-                          setPendingValues((all) =>
-                            all.map((v, j) =>
-                              j === i ? ev.target.value.replace(",", "") : v,
-                            ),
-                          )
-                        }
-                        onKeyDown={onValueKey(i)}
-                        onBlur={() => addValue(i)}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      title={p.removeOption}
-                      aria-label={p.removeOption}
-                      className="justify-self-end rounded-lg p-2 text-muted hover:bg-danger/10 hover:text-danger"
-                      onClick={() => {
-                        setOptions((all) => all.filter((_, j) => j !== i));
-                        setPendingValues((all) =>
-                          all.filter((_, j) => j !== i),
-                        );
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    {option.kind === "color" && (
-                      <div
-                        className="space-y-1.5 sm:col-span-3"
-                        data-testid="color-palette"
-                      >
-                        <p className="text-xs text-muted">{p.paletteHint}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {colorPalette.map((c) => {
-                            const label = paletteName(c);
-                            const used = option.values.includes(label);
-                            return (
-                              <button
-                                key={c.hex}
-                                type="button"
-                                title={label}
-                                aria-label={label}
-                                aria-pressed={used}
-                                onClick={() =>
-                                  used
-                                    ? updateOption(i, {
-                                        values: option.values.filter(
-                                          (v) => v !== label,
-                                        ),
-                                      })
-                                    : addColorValue(i, label, c.hex)
-                                }
-                                className={`size-7 rounded-full border border-field-line transition hover:scale-110 ${used ? "ring-2 ring-accent ring-offset-2 ring-offset-panel" : ""}`}
-                                style={{ background: c.hex }}
-                              />
-                            );
-                          })}
-                          <label
-                            className="relative inline-flex size-7 cursor-pointer items-center justify-center rounded-full border border-dashed border-field-line text-muted hover:text-fg"
-                            title={p.customColor}
-                          >
-                            <Plus size={14} />
-                            <input
-                              type="color"
-                              aria-label={p.customColor}
-                              className="absolute inset-0 cursor-pointer opacity-0"
-                              defaultValue="#4f3bd6"
-                              onChange={(ev) => {
-                                const hex = ev.target.value;
-                                if (pendingValues[i]?.trim()) addValue(i, hex);
-                                else addColorValue(i, hex.toUpperCase(), hex);
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {
-                  <div className="flex flex-wrap gap-x-5 gap-y-2">
-                    {options.length > 0 && options.length < MAX_OPTIONS && (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
-                        onClick={() => addOption({ name: "", values: [] })}
-                      >
-                        <Plus size={16} /> {p.addOption}
-                      </button>
-                    )}
-                    {options.length < MAX_OPTIONS &&
-                      !options.some((o) => o.kind === "color") && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
-                          data-testid="add-color-option"
-                          onClick={() =>
-                            addOption({
-                              name: p.colorOptionName,
-                              values: [],
-                              kind: "color",
-                              colors: {},
-                            })
-                          }
-                        >
-                          <Palette size={16} /> {p.addColorOption}
-                        </button>
-                      )}
-                  </div>
-                }
-                {err("options") && <Alert>{err("options")}</Alert>}
-                {variants.length > 0 && (
-                  <div className="overflow-x-auto rounded-lg border border-line">
-                    <table className="w-full text-sm">
-                      <thead className="bg-panel-2 text-xs text-muted">
-                        <tr>
-                          <th className="p-2 text-start font-medium">
-                            {p.variant}
-                          </th>
-                          <th className="p-2 text-start font-medium">
-                            {p.price}
-                          </th>
-                          <th className="p-2 text-start font-medium">
-                            {p.sku}
-                          </th>
-                          {trackStock && (
-                            <th className="p-2 text-start font-medium">
-                              {p.stock}
-                            </th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {variants.map((v) => (
-                          <tr
-                            key={v.title}
-                            className="border-t border-line"
-                            data-variant={v.title}
-                          >
-                            <td className="p-2 font-medium whitespace-nowrap">
-                              {v.title}
-                            </td>
-                            <td className="p-2">
-                              <Input
-                                aria-label={`${p.price} ${v.title}`}
-                                inputMode="numeric"
-                                dir="ltr"
-                                className="min-w-24"
-                                placeholder={p.samePrice}
-                                value={v.price ?? ""}
-                                onChange={(ev) =>
-                                  setVariant(v.title, {
-                                    price: toNumber(
-                                      ev.target.value.replace(/\D/g, ""),
-                                    ),
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="p-2">
-                              <Input
-                                aria-label={`${p.sku} ${v.title}`}
-                                dir="ltr"
-                                className="min-w-24"
-                                value={v.sku}
-                                maxLength={80}
-                                onChange={(ev) =>
-                                  setVariant(v.title, { sku: ev.target.value })
-                                }
-                              />
-                            </td>
-                            {trackStock && (
-                              <td className="p-2">
-                                <Input
-                                  aria-label={`${p.stock} ${v.title}`}
-                                  inputMode="numeric"
-                                  dir="ltr"
-                                  className="min-w-20"
-                                  value={v.stock}
-                                  onChange={(ev) =>
-                                    setVariant(v.title, {
-                                      stock: Number(
-                                        ev.target.value.replace(/\D/g, "") || 0,
-                                      ),
-                                    })
-                                  }
-                                />
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+              <div className={`space-y-4 rounded-xl border p-4 ${options.length ? "border-accent/30 bg-accent-soft/30" : "border-line"}`} data-testid="variants">
+                {toggleRow(options.length > 0, (on) => setOptions(() => (on ? [{ name: p.variantEditor.defaultNames.color, values: [""], display: "color" }] : [])), <SlidersHorizontal size={18} />, p.hasVariants, p.variantsHint, "has-variants")}
               </div>
+              {options.length > 0 && <VariantsEditor options={options} setOptions={setOptions} variantData={variantData} setVariant={setVariant} trackStock={trackStock} t={p.variantEditor} />}
+              {err("options") && <Alert>{err("options")}</Alert>}
               </Card>
             </>,
           )}
@@ -1099,8 +718,44 @@ export function ProductForm({
                   </p>
                 )}
               </Field>
-              <div className="rounded-xl border border-line p-4">
-                {toggleRow(false, () => undefined, <CreditCard size={18} />, p.onlinePayment, p.onlinePaymentHint, "online-only", true)}
+              <Field
+                label={
+                  <span className="flex items-center gap-2">
+                    <Truck size={16} className="text-accent" /> {p.deliveryOption}
+                  </span>
+                }
+                htmlFor="deliveryOption"
+                hint={p.deliveryOptionHint}
+              >
+                {deliveryOptions.length ? (
+                  <Select id="deliveryOption" name="deliveryOption" defaultValue={values.deliveryOption ?? ""} data-testid="delivery-option">
+                    <option value="">{p.deliveryOptionAll}</option>
+                    {deliveryOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name === o.type ? p.deliveryTypes[o.type] : o.name}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <p className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-line p-3 text-sm text-muted">
+                    {p.noDeliveryOption}
+                    <Link href={deliverySettingsHref} className="font-semibold text-accent hover:underline">
+                      {p.openDeliverySettings}
+                    </Link>
+                  </p>
+                )}
+              </Field>
+              <div className="space-y-2 rounded-xl border border-line p-4">
+                {toggleRow(cardOnly, setCardOnly, <CreditCard size={18} />, p.onlinePayment, p.onlinePaymentHint, "online-only")}
+                {cardOnly && <input type="hidden" name="cardOnly" value="on" />}
+                {cardOnly && !cardPayments && (
+                  <p className="text-xs font-semibold text-warning" data-testid="online-only-warning">
+                    {p.onlinePaymentMissing}{" "}
+                    <Link href={paymentsHref} className="underline">
+                      {p.openPayments}
+                    </Link>
+                  </p>
+                )}
               </div>
             </Card>
             {customFieldsOn && <CustomFieldsCard value={questions} onChange={setQuestions} t={t} />}
@@ -1154,222 +809,90 @@ export function ProductForm({
               <div className="space-y-4 rounded-xl border border-line p-4" data-testid="offers">
                 {toggleRow(offersOn, setOffersOn, <Star size={18} />, p.upsell, p.upsellHint, "upsell-offers")}
                 {offersOn && (
-                <>
-                <p className="text-sm text-muted">{p.offersHint}</p>
-                {/* Ready-made offers from the price: percent off, or "buy N get M free" */}
-                {(priceNum ?? 0) > 0 && offers.length < MAX_OFFERS && (
-                  <div
-                    className="flex flex-wrap items-center gap-2 text-sm"
-                    data-testid="offer-templates"
-                  >
-                    <span className="text-muted">{p.offerTemplates}</span>
-                    {offerPresets.map((t0) => {
-                      const offer = offerTemplate(
-                        priceNum ?? 0,
-                        t0.kind,
-                        t0.quantity,
-                        t0.value,
-                      );
-                      const exists = offers.some(
-                        (o) => o.quantity === offer.quantity,
-                      );
-                      const label = fmt(
-                        t0.kind === "pct" ? p.presetPct : p.presetFree,
-                        {
-                          n: t0.quantity,
-                          v: t0.value,
-                          paid: t0.quantity - t0.value,
-                        },
-                      );
+                  <div className="space-y-3" data-testid="offer-rows">
+                    {/* Zimam's offer rows: default ★, text, quantity, total price, free delivery, on/off, delete */}
+                    <div className="hidden grid-cols-[2rem_2rem_minmax(0,1fr)_4.5rem_7rem_7.5rem_2.5rem_2.5rem] gap-2 px-3 text-xs font-semibold text-muted sm:grid">
+                      <span />
+                      <span />
+                      <span>{p.offerLabel}</span>
+                      <span>{p.quantity}</span>
+                      <span>{p.totalPrice}</span>
+                      <span>{p.offerFreeShipping}</span>
+                      <span className="col-span-2 text-center">{p.offerActions}</span>
+                    </div>
+                    {offers.map((offer, i) => {
+                      const set = (patch: Partial<QuantityOffer>) => setOffers((all) => all.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+                      const move = (by: number) =>
+                        setOffers((all) => {
+                          const next = [...all];
+                          const [o] = next.splice(i, 1);
+                          next.splice(i + by, 0, o);
+                          return next;
+                        });
                       return (
-                        <button
-                          key={t0.key}
-                          type="button"
-                          disabled={exists}
-                          data-template={t0.key}
-                          className="rounded-full border border-line px-3 py-1 font-medium hover:border-accent/40 hover:text-accent disabled:opacity-40"
-                          onClick={() =>
-                            setOffers((all) =>
-                              [...all, { ...offer, label }].sort(
-                                (a, b) => a.quantity - b.quantity,
-                              ),
-                            )
-                          }
-                        >
-                          {label}
-                        </button>
+                        <div key={i} className={`grid items-center gap-2 rounded-xl border border-line bg-panel p-3 sm:grid-cols-[2rem_2rem_minmax(0,1fr)_4.5rem_7rem_7.5rem_2.5rem_2.5rem] ${offer.off ? "opacity-60" : ""}`} data-offer={offer.quantity}>
+                          <span className="flex flex-col items-center text-muted">
+                            <button type="button" aria-label={p.moveUp} disabled={i === 0} onClick={() => move(-1)} className="disabled:opacity-30">
+                              <ChevronUp size={14} />
+                            </button>
+                            <GripVertical size={14} aria-hidden />
+                            <button type="button" aria-label={p.moveDown} disabled={i === offers.length - 1} onClick={() => move(1)} className="disabled:opacity-30">
+                              <ChevronDown size={14} />
+                            </button>
+                          </span>
+                          <button
+                            type="button"
+                            aria-pressed={Boolean(offer.preselected)}
+                            title={p.offerPreselected}
+                            aria-label={p.offerPreselected}
+                            onClick={() => setOffers((all) => all.map((o, j) => ({ ...o, preselected: j === i ? !o.preselected : false })))}
+                            className={offer.preselected ? "text-warning" : "text-muted hover:text-warning"}
+                            data-testid="offer-preselected"
+                          >
+                            <Star size={18} fill={offer.preselected ? "currentColor" : "none"} />
+                          </button>
+                          <Input aria-label={p.offerLabel} placeholder={p.offerLabelPlaceholder} value={offer.label ?? ""} maxLength={60} onChange={(ev) => set({ label: ev.target.value })} />
+                          <Input aria-label={p.quantity} inputMode="numeric" dir="ltr" className="text-center" value={offer.quantity || ""} onChange={(ev) => set({ quantity: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
+                          <Input aria-label={p.totalPrice} inputMode="numeric" dir="ltr" placeholder={t.common.currency} value={offer.price || ""} onChange={(ev) => set({ price: Number(ev.target.value.replace(/\D/g, "") || 0) })} />
+                          <label className="relative flex cursor-pointer items-center gap-2 text-xs text-muted">
+                            <input type="checkbox" role="switch" checked={Boolean(offer.freeShipping)} onChange={(ev) => set({ freeShipping: ev.target.checked })} className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0" aria-label={p.offerFreeShipping} data-testid="offer-free-shipping" />
+                            <span aria-hidden className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-accent after:absolute after:top-0.5 after:start-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:after:start-[1.375rem]" />
+                            {offer.freeShipping ? p.yes : p.no}
+                          </label>
+                          <button
+                            type="button"
+                            aria-pressed={!offer.off}
+                            aria-label={offer.off ? p.offerOff : p.offerOn}
+                            title={offer.off ? p.offerOff : p.offerOn}
+                            onClick={() => set({ off: !offer.off })}
+                            className={`grid size-9 place-items-center rounded-lg ${offer.off ? "border border-line text-muted" : "bg-accent-soft text-accent-ink"}`}
+                            data-testid="offer-active"
+                          >
+                            {offer.off ? <XIcon size={16} /> : <Check size={16} />}
+                          </button>
+                          <button type="button" aria-label={p.remove} className="grid size-9 place-items-center rounded-lg bg-danger/10 text-danger" onClick={() => setOffers((all) => all.filter((_, j) => j !== i))}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       );
                     })}
+                    {offers.length < MAX_OFFERS && (
+                      <button
+                        type="button"
+                        className="mx-auto flex items-center gap-2 text-sm font-semibold text-accent hover:underline"
+                        onClick={() => {
+                          const quantity = offers.length ? Math.max(...offers.map((o) => o.quantity)) + 1 : 1;
+                          setOffers((all) => [...all, { quantity, price: priceNum ? priceNum * quantity : 0, label: "" }]);
+                        }}
+                        data-testid="add-offer"
+                      >
+                        <span className="grid size-6 place-items-center rounded-full bg-accent-soft">
+                          <Plus size={14} />
+                        </span>
+                        {offers.length ? p.addOtherOffer : p.addOffer}
+                      </button>
+                    )}
                   </div>
-                )}
-                {offers.map((offer, i) => {
-                  const set = (patch: Partial<QuantityOffer>) =>
-                    setOffers((all) =>
-                      all.map((o, j) => (j === i ? { ...o, ...patch } : o)),
-                    );
-                  const full = (priceNum ?? 0) * offer.quantity;
-                  const saving =
-                    full > 0 && offer.price > 0 && offer.price < full
-                      ? Math.round(((full - offer.price) / full) * 100)
-                      : 0;
-                  return (
-                    <div
-                      key={i}
-                      className="space-y-3 rounded-lg border border-line bg-panel-2/50 p-3"
-                      data-offer={offer.quantity}
-                    >
-                      <div className="grid items-end gap-3 sm:grid-cols-[6rem_9rem_1fr_auto]">
-                        <Field label={p.quantity}>
-                          <Input
-                            aria-label={p.quantity}
-                            inputMode="numeric"
-                            dir="ltr"
-                            value={offer.quantity || ""}
-                            onChange={(ev) =>
-                              set({
-                                quantity: Number(
-                                  ev.target.value.replace(/\D/g, "") || 0,
-                                ),
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label={p.totalPrice}>
-                          <Input
-                            aria-label={p.totalPrice}
-                            inputMode="numeric"
-                            dir="ltr"
-                            value={offer.price || ""}
-                            onChange={(ev) =>
-                              set({
-                                price: Number(
-                                  ev.target.value.replace(/\D/g, "") || 0,
-                                ),
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label={p.offerLabel}>
-                          <Input
-                            aria-label={p.offerLabel}
-                            placeholder={p.offerLabelPlaceholder}
-                            value={offer.label ?? ""}
-                            maxLength={60}
-                            onChange={(ev) => set({ label: ev.target.value })}
-                          />
-                        </Field>
-                        <button
-                          type="button"
-                          aria-label={p.remove}
-                          className="mb-1 rounded-lg p-2 text-muted hover:bg-danger/10 hover:text-danger"
-                          onClick={() =>
-                            setOffers((all) => all.filter((_, j) => j !== i))
-                          }
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label={p.offerGift}>
-                          <Input
-                            aria-label={p.offerGift}
-                            placeholder={p.offerGiftPlaceholder}
-                            value={offer.gift ?? ""}
-                            maxLength={80}
-                            onChange={(ev) => set({ gift: ev.target.value })}
-                          />
-                        </Field>
-                        <Field label={p.offerBadge}>
-                          <Select
-                            aria-label={p.offerBadge}
-                            value={offer.badge ?? ""}
-                            onChange={(ev) =>
-                              set({
-                                badge: (ev.target.value ||
-                                  undefined) as QuantityOffer["badge"],
-                              })
-                            }
-                          >
-                            <option value="">{p.offerBadgeNone}</option>
-                            {offerBadges.map((b) => (
-                              <option key={b} value={b}>
-                                {p.offerBadges[b]}
-                              </option>
-                            ))}
-                          </Select>
-                        </Field>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                        <label className="flex cursor-pointer items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(offer.freeShipping)}
-                            onChange={(ev) =>
-                              set({ freeShipping: ev.target.checked })
-                            }
-                            className="size-4 accent-[var(--color-accent)]"
-                            data-testid="offer-free-shipping"
-                          />
-                          {p.offerFreeShipping}
-                        </label>
-                        <label className="flex cursor-pointer items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(offer.preselected)}
-                            onChange={(ev) =>
-                              setOffers((all) =>
-                                all.map((o, j) => ({
-                                  ...o,
-                                  preselected:
-                                    j === i ? ev.target.checked : false,
-                                })),
-                              )
-                            }
-                            className="size-4 accent-[var(--color-accent)]"
-                            data-testid="offer-preselected"
-                          />
-                          {p.offerPreselected}
-                        </label>
-                        {offer.quantity >= 2 && offer.price > 0 && (
-                          <span className="ms-auto text-xs text-muted">
-                            {fmt(p.perPiece, {
-                              price: formatPrice(
-                                Math.round(offer.price / offer.quantity),
-                                t.common.currency,
-                              ),
-                            })}
-                            {saving > 0 && (
-                              <span className="ms-2 font-semibold text-accent">
-                                −{saving}%
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {offers.length < MAX_OFFERS && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
-                    onClick={() => {
-                      const quantity =
-                        Math.max(1, ...offers.map((o) => o.quantity)) + 1;
-                      setOffers((all) => [
-                        ...all,
-                        {
-                          quantity,
-                          price: priceNum ? priceNum * quantity : 0,
-                          label: "",
-                        },
-                      ]);
-                    }}
-                  >
-                    <Plus size={16} /> {p.addOffer}
-                  </button>
-                )}
-                </>
                 )}
                 {err("offers") && <Alert>{err("offers")}</Alert>}
               </div>
@@ -1455,7 +978,7 @@ export function ProductForm({
             stock: 0,
             options: effectiveOptions,
             offers: offersOn ? offers : [],
-            variants: variants.map((v) => ({ id: v.title, values: v.values, price: v.price, stock: v.stock })),
+            variants: offered(effectiveOptions, variants.map((v) => ({ ...v, optionValues: v.values }))).map((v) => ({ id: v.title, values: v.values, price: v.price, stock: v.stock })),
           }}
         />
       </div>
