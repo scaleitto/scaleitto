@@ -15,11 +15,13 @@ export default async function phase5(browser) {
     await page.goto(gallery);
     const cards = page.locator("[data-theme-card]");
     expect((await cards.count()) >= 12, `12+ themes (got ${await cards.count()})`);
-    await page.locator('[data-theme-card="classic"]').getByText("الثيم الحالي").waitFor();
+    await page.locator('[data-theme-card="classic"]').locator("[data-testid=active-theme]").waitFor();
+    expect((await page.locator('[data-theme-card="classic"] [data-action=customize]').getAttribute("href")).endsWith("/dashboard/store-design"), "Customize opens the builder");
+    await page.getByRole("heading", { name: "متجر الثيمات" }).waitFor();
   });
 
   await step("previewing a theme shows the store with it, without applying it", async () => {
-    await page.click('[data-theme-card="night"] button:has-text("معاينة")');
+    await page.click('[data-theme-card="night"] [data-action=preview]');
     const preview = page.locator("[data-testid=theme-preview]");
     await preview.getByText("ساعة").waitFor();
     expect((await preview.locator("[data-testid=store-frame]").getAttribute("data-theme")) === "night", "preview uses the theme");
@@ -30,10 +32,11 @@ export default async function phase5(browser) {
 
   await step("applying a theme with its color changes the store", async () => {
     // A store that never picked a color takes the theme's color by default
-    expect(!(await page.locator('input[type=checkbox]').isChecked()), "keep-color unticked for a default-colored store");
-    await page.click('[data-theme-card="night"] button:has-text("تفعيل")');
+    await page.click('[data-theme-card="night"] [data-action=preview]');
+    expect(!(await page.locator("[data-testid=keep-color]").isChecked()), "keep-color unticked for a default-colored store");
+    await page.click("[data-testid=install-open]");
     await page.waitForSelector("text=تم تفعيل ثيم ليلي");
-    await page.locator('[data-theme-card="night"]').getByText("الثيم الحالي").waitFor();
+    await page.locator('[data-theme-card="night"]').locator("[data-testid=active-theme]").waitFor();
     await page.goto(store);
     expect((await page.locator("[data-testid=store-frame]").getAttribute("data-theme")) === "night", "store uses night");
     expect((await frameStyle(page, "--brand")) === "#8b5cf6", "theme color applied");
@@ -50,8 +53,11 @@ export default async function phase5(browser) {
   await step("keeping my own color when switching theme", async () => {
     await db.query("UPDATE shops SET primary_color = '#123456' WHERE id = ?", [shopId]);
     await page.goto(gallery);
-    expect(await page.locator('input[type=checkbox]').isChecked(), "keep-color ticked for a custom color");
-    await page.click('[data-theme-card="elegant"] button:has-text("تفعيل")');
+    await page.click('[data-theme-card="elegant"] [data-action=preview]');
+    expect(await page.locator("[data-testid=keep-color]").isChecked(), "keep-color ticked for a custom color");
+    await page.click('[role=dialog] button[aria-label="إغلاق"]');
+    // Installing from the card keeps the same choice
+    await page.click('[data-theme-card="elegant"] [data-action=install]');
     await page.waitForSelector("text=تم تفعيل ثيم أنيق");
     await page.goto(store);
     expect((await frameStyle(page, "--brand")) === "#123456", "own color kept");

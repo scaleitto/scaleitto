@@ -83,6 +83,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-edge` — not `border-s-line`, Tailwind reads that as border-inline-start —…), `rounded-[var(--s-radius)]`,
   `rounded-[var(--s-radius-btn)]` and `shadow-[var(--s-shadow)]` — never fixed slate/white colors, or dark themes
   break. Fonts for all themes are declared once in `src/app/fonts.ts`. The chosen theme is `design.theme`.
+  Theme Store page (phase5.mjs) = Zimam's: "Theme Store" header + View storefront, "Browse themes", 4-column cards (live mini
+  preview, name, Free, Preview + Install; the active card tinted with "Active theme" + Customize → the builder); keep-my-color is in
+  the preview dialog. `applyTheme` only sets `design.theme` (and the color) on the raw JSON.
 - Call centers (`src/features/team/`): members are added by owners/managers (one account = one shop; `maxStaff`
   counts active members), with role, work schedule (`WorkSchedule`, Algeria time) and active flag (deactivating
   deletes their sessions and releases their open orders). New orders are assigned in `place-order.ts` via
