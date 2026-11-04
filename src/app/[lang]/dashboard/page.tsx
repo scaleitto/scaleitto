@@ -45,10 +45,10 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
   const summary = [data.todayOrders ? fmt(o.today, { n: data.todayOrders }) : o.noOrdersToday, data.tasks.length ? fmt(o.waiting, { n: data.tasks.length, minutes: data.minutes }) : o.nothingWaiting].join(" — ");
 
   const kpis: { key: keyof typeof data.kpis; icon: LucideIcon; tone: string; value: string; sub: string }[] = [
-    { key: "orders", icon: ShoppingBag, tone: "bg-accent-soft text-accent-ink", value: String(data.kpis.orders.value), sub: fmt(o.sub.pending, { n: data.kpis.orders.sub }) },
-    { key: "sales", icon: Wallet, tone: "bg-violet-soft text-violet", value: formatPrice(data.kpis.sales.value, cur), sub: fmt(o.sub.perOrder, { amount: formatPrice(data.kpis.sales.sub, cur) }) },
-    { key: "confirmed", icon: ClipboardList, tone: "bg-warning-soft text-warning", value: String(data.kpis.confirmed.value), sub: fmt(o.sub.cancelled, { n: data.kpis.confirmed.sub }) },
-    { key: "delivered", icon: Truck, tone: "bg-info-soft text-info", value: String(data.kpis.delivered.value), sub: data.kpis.delivered.sub ? fmt(o.sub.returned, { n: data.kpis.delivered.sub }) : o.sub.noReturns },
+    { key: "orders", icon: ShoppingBag, tone: "text-accent-ink", value: String(data.kpis.orders.value), sub: fmt(o.sub.pending, { n: data.kpis.orders.sub }) },
+    { key: "sales", icon: Wallet, tone: "text-violet", value: formatPrice(data.kpis.sales.value, cur), sub: fmt(o.sub.perOrder, { amount: formatPrice(data.kpis.sales.sub, cur) }) },
+    { key: "confirmed", icon: ClipboardList, tone: "text-warning", value: String(data.kpis.confirmed.value), sub: fmt(o.sub.cancelled, { n: data.kpis.confirmed.sub }) },
+    { key: "delivered", icon: Truck, tone: "text-info", value: String(data.kpis.delivered.value), sub: data.kpis.delivered.sub ? fmt(o.sub.returned, { n: data.kpis.delivered.sub }) : o.sub.noReturns },
   ];
   const taskIcons = { pending: ShoppingBag, toShip: PackageCheck, flagged: ShieldAlert } as const;
   const taskHref = { pending: `${orders}?status=pending`, toShip: `${orders}?status=confirmed`, flagged: `${orders}?status=flagged` } as const;
@@ -77,7 +77,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
 
   return (
     <div className="space-y-5">
-      <section className="relative z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-gradient-to-r from-accent-soft via-panel to-panel p-6" data-testid="welcome">
+      <section className="relative z-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-accent-tint p-6" data-testid="welcome">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{fmt(greeting, { name: user.name })}</h1>
           <p className="mt-1.5 text-sm text-muted" data-testid="summary">
@@ -102,9 +102,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
           return (
             <Card key={key} className="space-y-3" data-stat={key}>
               <p className="flex items-center gap-2.5 text-sm font-medium text-fg-2">
-                <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>
-                  <Icon size={17} aria-hidden />
-                </span>
+                <Icon size={17} className={tone} aria-hidden />
                 {o.kpis[key]}
               </p>
               <p className="text-3xl font-bold tabular-nums" data-value data-amount>
@@ -312,7 +310,7 @@ export default async function OverviewPage({ params, searchParams }: PageProps<"
       </div>
 
       {doneSteps < steps.length && (
-        <section className="grid gap-4 rounded-2xl border border-line bg-gradient-to-r from-panel via-panel to-accent-soft p-5 lg:grid-cols-[1fr_3fr]" data-testid="checklist">
+        <section className="grid gap-4 rounded-2xl border border-line bg-panel p-5 lg:grid-cols-[1fr_3fr]" data-testid="checklist">
           <div className="flex flex-col justify-center gap-2">
             <h2 className="text-xl font-bold">{fmt(o.progress, { done: doneSteps, left: steps.length - doneSteps })}</h2>
             <p className="text-sm text-muted">{o.progressHint}</p>

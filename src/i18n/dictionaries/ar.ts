@@ -365,7 +365,7 @@ const ar = {
     showAmounts: "إظهار المبالغ",
     periods: { today: "اليوم", yesterday: "أمس", "7d": "آخر 7 أيام", "30d": "آخر 30 يوماً", month: "هذا الشهر", lastMonth: "الشهر الماضي" },
     kpis: { orders: "إجمالي الطلبات", sales: "إجمالي المبيعات", confirmed: "المؤكدة", delivered: "المسلّمة" },
-    sub: { pending: "{n} ما زالت في الانتظار", perOrder: "{amount} لكل طلب", cancelled: "{n} ملغاة", returned: "{n} مرتجعة", noReturns: "لا مرتجعات في هذه الفترة 🎉" },
+    sub: { pending: "{n} ما زالت في الانتظار", perOrder: "{amount} لكل طلب", cancelled: "{n} ملغاة", returned: "{n} مرتجعة", noReturns: "لا مرتجعات في هذه الفترة" },
     vsPrev: "مقارنة بالفترة السابقة",
     attention: "أمور تحتاجك",
     attentionHint: "مرتبة حسب ما يكلفك أكثر إذا انتظر.",

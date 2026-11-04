@@ -32,7 +32,7 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cx(
-        "rounded-[14px] border border-line bg-panel shadow-[0_1px_2px_rgba(16,24,40,.05),0_8px_24px_-12px_rgba(16,24,40,.12)] [&>h2:first-child]:text-base [&>h2:first-child]:font-bold [&>h2:first-child]:text-fg",
+        "rounded-[14px] border border-line bg-panel shadow-[0_1px_2px_rgba(16,24,40,.05)] [&>h2:first-child]:text-base [&>h2:first-child]:font-bold [&>h2:first-child]:text-fg",
         // A page may give its own padding (p-0 for tables)
         !/(^|\s)p-\d/.test(className ?? "") && "p-5",
         className,

@@ -18,7 +18,7 @@ export function LanguageSwitcher({ current }: { current: Locale }) {
         <span className="hidden sm:inline">{names[current]}</span>
         <ChevronDown size={14} className="text-muted transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <ul className="absolute end-0 top-11 z-50 min-w-36 rounded-xl border border-line bg-panel p-1 shadow-lg">
+      <ul className="absolute end-0 top-11 z-50 min-w-36 rounded-xl border border-line bg-panel p-1">
         {locales.map((l) => (
           <li key={l}>
             <Link

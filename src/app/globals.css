@@ -3,6 +3,9 @@
 /* Dashboard design tokens: design-system/scaleitto/MASTER.md (white + deep indigo/violet after ayor, Arabic first).
    Storefronts set their own --brand. */
 @theme inline {
+  /* The smallest text: 13px, never 12 (taste skill: nothing meant to be read goes below 13px) */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
   --font-sans: var(--font-ui), var(--font-ui-ar), var(--font-cairo), system-ui, sans-serif;
   /* Dashboard tokens (Zimam's layout: slate surfaces, emerald accent). Each reads a --d-* variable so the dark mode
      ([data-theme=dark] on the shell) swaps them all at once. */
@@ -62,20 +65,20 @@
   --d-field-line: #e2e8f0;
   --d-fg: #0f172a;
   --d-fg-2: #475569;
-  --d-muted: #64748b;
-  --d-accent: #059669;
-  --d-accent-ink: #046a4e;
+  --d-muted: #556274;
+  --d-accent: #047857;
+  --d-accent-ink: #065f46;
   --d-accent-soft: #e4f5ec;
   --d-accent-tint: #f0f9f6;
-  --d-amber: #d97706;
+  --d-amber: #b45309;
   --d-amber-soft: #fef3c7;
   --d-sky: #2a86c9;
   --d-sky-soft: #e2f0fa;
-  --d-rose: #d2564a;
+  --d-rose: #b93a2f;
   --d-rose-soft: #fbe7e3;
   --d-violet: #5b54d6;
   --d-violet-soft: #ecebfb;
-  --d-shadow-card: 0 1px 2px #0f172a0d, 0 8px 24px -12px #0f172a29;
+  --d-shadow-card: 0 1px 2px #0f172a0d;
   --d-shadow-lift: 0 2px 6px #0f172a12, 0 20px 40px -20px #0f172a42;
 }
 
@@ -103,7 +106,7 @@
   --d-rose-soft: #f8717124;
   --d-violet: #8b85f0;
   --d-violet-soft: #8b85f024;
-  --d-shadow-card: 0 1px 2px #0006, 0 8px 24px -12px #000a;
+  --d-shadow-card: 0 1px 2px #0006;
   --d-shadow-lift: 0 2px 6px #0008, 0 20px 40px -20px #000c;
   color-scheme: dark;
 }
@@ -248,3 +251,19 @@ input[type="range"] {
 .rich-text blockquote { border-inline-start: 3px solid currentColor; opacity: 0.85; padding-inline-start: 0.9em; margin: 0.6em 0; font-style: italic; }
 .rich-text a { text-decoration: underline; }
 .rich-text > :first-child { margin-top: 0; }
+
+/* Marketing page motion (taste skill, step 9): parts rise in as they enter the screen. Transform and opacity only; nothing moves
+   for visitors who prefer less motion, and without scroll timelines the rise simply plays once on load. */
+@keyframes sc-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-hero] > * { animation: sc-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  [data-hero] > :nth-child(2) { animation-delay: 80ms; }
+  [data-hero] > :nth-child(3) { animation-delay: 160ms; }
+  [data-reveal] { animation: sc-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  @supports (animation-timeline: view()) {
+    [data-reveal] { animation-timeline: view(); animation-range: entry 0% entry 45%; animation-duration: auto; }
+  }
+}

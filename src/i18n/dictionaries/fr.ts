@@ -367,7 +367,7 @@ const fr: Dictionary = {
     showAmounts: "Afficher les montants",
     periods: { today: "Aujourd'hui", yesterday: "Hier", "7d": "7 derniers jours", "30d": "30 derniers jours", month: "Ce mois-ci", lastMonth: "Le mois dernier" },
     kpis: { orders: "Commandes", sales: "Ventes", confirmed: "Confirmées", delivered: "Livrées" },
-    sub: { pending: "{n} encore en attente", perOrder: "{amount} par commande", cancelled: "{n} annulée(s)", returned: "{n} retournée(s)", noReturns: "Aucun retour sur la période 🎉" },
+    sub: { pending: "{n} encore en attente", perOrder: "{amount} par commande", cancelled: "{n} annulée(s)", returned: "{n} retournée(s)", noReturns: "Aucun retour sur la période" },
     vsPrev: "par rapport à la période précédente",
     attention: "Quelques choses vous attendent",
     attentionHint: "Classées par ce qui coûte le plus si ça attend.",

@@ -44,13 +44,13 @@ export type HomePlan = { code: string; name: string; priceMonthly: number; order
 const RECOMMENDED = "rocket";
 
 const inkButton =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-[#2a2178] to-ink px-7 py-3.5 text-base font-medium text-white shadow-[0_12px_30px_-14px_rgba(8,5,41,.8)] transition hover:brightness-125 focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:outline-none";
+  "inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-3.5 text-base font-medium text-white transition hover:bg-[#1d1650] active:scale-[.98] focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:outline-none";
 const softButton = "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-fg transition hover:bg-accent/10 focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:outline-none";
 // The two-tone headings: the first line in violet, the second in ink
-const violetText = "bg-gradient-to-b from-[#4a1fd0] to-[#2a0b96] bg-clip-text text-transparent";
+const violetText = "text-ink";
 
 function Mark({ size = "size-9" }: { size?: string }) {
-  return <LogoMark className={`${size} drop-shadow-[0_6px_12px_rgba(79,59,214,.35)]`} />;
+  return <LogoMark className={size} />;
 }
 
 function Heading({ top, bottom, center = false }: { top: string; bottom: string; center?: boolean }) {
@@ -65,10 +65,10 @@ function Heading({ top, bottom, center = false }: { top: string; bottom: string;
 // A section head: the title on one side, the text and an action on the other
 function SectionHead({ top, bottom, text, action }: { top: string; bottom: string; text: string; action: ReactNode }) {
   return (
-    <div className="grid items-end gap-6 md:grid-cols-[1.2fr_1fr] md:gap-12">
+    <div className="grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-12" data-reveal>
       <Heading top={top} bottom={bottom} />
       <div className="space-y-5">
-        <p className="text-lg leading-relaxed text-muted">{text}</p>
+        <p className="text-lg leading-relaxed text-ink">{text}</p>
         {action}
       </div>
     </div>
@@ -86,7 +86,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
   ];
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-fg">
-      <header className="sticky top-0 z-30 border-b border-line/60 bg-white/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link href={`/${lang}`} className="flex items-center gap-2.5">
             <Mark />
@@ -116,22 +116,12 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 
       <main>
         {/* Hero, centred like ayor's: announcement, two-tone title, one dark call to action */}
-        <section className="relative px-4 pt-10 text-center sm:pt-14">
-          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-[420px] max-w-4xl bg-[radial-gradient(ellipse_at_top,rgba(124,108,242,.18),transparent_65%)]" />
-          <Link href={register} className="inline-flex max-w-full items-center gap-2 rounded-full bg-[#efedff] py-1.5 ps-1.5 pe-4 text-sm text-ink transition hover:bg-[#e6e2ff]">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-[#6d5cf0] to-[#3f2db8] text-white">
-              <Sparkles size={14} />
-            </span>
-            <span className="truncate">{l.announce.text}</span>
-            <span className="hidden shrink-0 items-center gap-1 font-medium text-accent sm:inline-flex">
-              {l.announce.link} <Arrow size={14} />
-            </span>
-          </Link>
-          <h1 className="mx-auto mt-7 max-w-4xl text-[2.6rem] leading-[1.1] font-bold tracking-tight text-balance sm:text-6xl lg:text-7xl">
+        <section className="relative px-4 pt-10 text-center sm:pt-14" data-hero>
+          <h1 className="mx-auto mt-2 max-w-4xl text-[2.2rem] leading-[1.1] font-bold tracking-tight text-balance sm:text-6xl lg:text-7xl">
             <span className={`block pb-1 ${violetText}`}>{l.titleTop}</span>
             <span className="block text-ink">{l.titleBottom}</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted sm:text-xl">{l.subtitle}</p>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink sm:text-xl">{l.subtitle}</p>
           <div className="mt-9">
             <Link href={register} className={inkButton}>
               {l.cta}
@@ -140,8 +130,8 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
         </section>
 
         {/* The facts band (where ayor shows its customers: we only state what is true) */}
-        <div className="mt-12 border-y border-[#ebe8ff] bg-[#f7f6ff]">
-          <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-4 text-[15px] text-ink/80">
+        <div className="mt-12 bg-[#f4f2ff]">
+          <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-5 text-base text-ink">
             {l.facts.map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <CheckCircle2 size={17} className="text-accent" aria-hidden /> {f}
@@ -150,7 +140,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
           </ul>
         </div>
 
-        <section className="mx-auto max-w-6xl px-4 pt-12 sm:pt-16">
+        <section className="mx-auto max-w-6xl px-4 pt-12 sm:pt-16" data-reveal>
           <DashboardScreen t={t} />
         </section>
 
@@ -201,9 +191,9 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 
         {/* The confirmation team: three phone screens, like ayor's app section */}
         <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto max-w-3xl text-center" data-reveal>
             <h2 className={`text-[2.1rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-5xl ${violetText}`}>{l.teamTitle}</h2>
-            <p className="mt-5 text-lg leading-relaxed text-muted">{l.teamText}</p>
+            <p className="mt-5 text-lg leading-relaxed text-ink">{l.teamText}</p>
           </div>
           <TeamPhones t={t} />
         </section>
@@ -211,11 +201,9 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
         {plans.length > 0 && <Pricing lang={lang} t={t} plans={plans} contact={contact} />}
 
         <section className="px-4 pt-24 pb-24 sm:pt-32">
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[32px] bg-gradient-to-br from-[#1b1452] via-ink to-[#0d0838] px-6 py-16 text-center text-white sm:py-20">
-            <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 size-[420px] -translate-x-1/2 rounded-full bg-[#6d5cf0]/30 blur-3xl" />
-            <Stars />
+          <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[32px] bg-ink px-6 py-16 text-center text-white sm:py-20">
             <h2 className="relative text-3xl font-bold tracking-tight text-balance sm:text-5xl">{l.ctaTitle}</h2>
-            <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/70">{l.ctaText}</p>
+            <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/85">{l.ctaText}</p>
             <Link href={register} className="relative mt-9 inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-ink transition hover:bg-[#efedff] focus-visible:ring-4 focus-visible:ring-white/40 focus-visible:outline-none">
               {l.cta}
             </Link>
@@ -223,13 +211,13 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
         </section>
       </main>
 
-      <footer className="border-t border-line">
+      <footer className="bg-[#f4f2ff]">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
           <div className="space-y-4">
             <span className="flex items-center gap-2.5 text-lg font-bold text-ink">
               <Mark /> {t.brand}
             </span>
-            <p className="max-w-sm text-muted">{l.footer.tagline}</p>
+            <p className="max-w-sm text-ink">{l.footer.tagline}</p>
           </div>
           <FooterLinks
             title={l.footer.platform}
@@ -247,7 +235,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
             ]}
           />
         </div>
-        <p className="border-t border-line px-4 py-6 text-center text-sm text-muted">
+        <p className="px-4 pb-8 text-center text-sm text-ink">
           © {t.brand}. {l.rights}
         </p>
       </footer>
@@ -259,7 +247,7 @@ function FooterLinks({ title, links }: { title: string; links: string[][] }) {
   return (
     <div>
       <p className="font-semibold text-ink">{title}</p>
-      <ul className="mt-4 space-y-3 text-muted">
+      <ul className="mt-4 space-y-3 text-ink">
         {links.map(([href, label]) => (
           <li key={href}>
             <Link href={href} className="transition-colors hover:text-ink">
@@ -272,25 +260,6 @@ function FooterLinks({ title, links }: { title: string; links: string[][] }) {
   );
 }
 
-// Twinkling dots on the dark cards (decorative)
-function Stars({ light = false }: { light?: boolean }) {
-  const dots = [
-    [8, 18],
-    [22, 70],
-    [40, 12],
-    [63, 82],
-    [78, 30],
-    [90, 64],
-    [52, 46],
-  ];
-  return (
-    <span aria-hidden className="pointer-events-none absolute inset-0">
-      {dots.map(([x, y], i) => (
-        <span key={i} className={`absolute size-1 rounded-full ${light ? "bg-accent/40" : "bg-white/50"}`} style={{ insetInlineStart: `${x}%`, top: `${y}%` }} />
-      ))}
-    </span>
-  );
-}
 
 const statusTone = {
   new: "bg-[#fff4e5] text-warning",
@@ -316,9 +285,9 @@ function DashboardScreen({ t }: { t: Dictionary }) {
   const bars = [38, 52, 44, 66, 58, 80, 72];
   const statuses: (keyof typeof statusTone)[] = ["new", "confirmed", "delivered", "returned"];
   return (
-    <div className="relative" aria-hidden>
-      <span className="pointer-events-none absolute -inset-x-6 -top-6 bottom-10 -z-10 rounded-[40px] bg-gradient-to-b from-[#efedff] to-transparent" />
-      <div className="overflow-hidden rounded-[22px] border border-[#e4e1f5] bg-white shadow-[0_40px_80px_-40px_rgba(30,20,90,.45)]">
+    <div className="relative" aria-hidden data-ui>
+      <span className="pointer-events-none absolute -inset-x-6 -top-6 bottom-10 -z-10 rounded-[40px] bg-[#efedff]" />
+      <div className="overflow-hidden rounded-[22px] border border-[#e4e1f5] bg-white">
         <div className="flex items-center gap-1.5 border-b border-[#efedf7] bg-[#fbfaff] px-4 py-3">
           <span className="size-2.5 rounded-full bg-[#ff6159]" />
           <span className="size-2.5 rounded-full bg-[#ffbd2e]" />
@@ -341,15 +310,14 @@ function DashboardScreen({ t }: { t: Dictionary }) {
           <div className="space-y-4 p-4 sm:p-6">
             <p className="text-lg font-bold text-ink">{m.hello}</p>
             <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#3b2bb0] via-[#26186f] to-ink p-5 text-white">
-                <Stars />
+              <div className="relative overflow-hidden rounded-2xl bg-ink p-5 text-white">
                 <p className="relative text-sm text-white/70">{m.revenue}</p>
                 <p className="relative mt-1 text-3xl font-bold tabular-nums sm:text-4xl" dir="ltr">
                   97 400 <span className="text-lg font-medium text-white/70">DZD</span>
                 </p>
                 <div className="relative mt-5 flex h-20 items-end gap-2">
                   {bars.map((h, i) => (
-                    <span key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-[#7c6cf2]/40 to-[#a99ff8]" style={{ height: `${h}%` }} />
+                    <span key={i} className="flex-1 rounded-t-md bg-[#a99ff8]" style={{ height: `${h}%` }} />
                   ))}
                 </div>
               </div>
@@ -362,12 +330,12 @@ function DashboardScreen({ t }: { t: Dictionary }) {
                     <span className="font-bold text-ink tabular-nums">72%</span>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0eef8]">
-                    <span className="block h-full w-[72%] rounded-full bg-gradient-to-l from-[#7c6cf2] to-accent" />
+                    <span className="block h-full w-[72%] rounded-full bg-accent" />
                   </div>
                 </div>
               </div>
             </div>
-            <ul className="divide-y divide-[#f0eef8] rounded-2xl border border-[#efedf7]">
+            <ul className="divide-y divide-white rounded-2xl border border-[#efedf7]">
               {l.sampleOrders.map(([name, city, amount], i) => (
                 <li key={name} className="flex items-center gap-3 px-4 py-3 text-sm">
                   <span className="w-12 shrink-0 font-semibold text-muted tabular-nums" dir="ltr">
@@ -407,7 +375,7 @@ function CardText({ title, text, light = false }: { title: string; text: string;
   return (
     <div className="relative">
       <h3 className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-ink"}`}>{title}</h3>
-      <p className={`mt-2 leading-relaxed ${light ? "text-white/70" : "text-ink/65"}`}>{text}</p>
+      <p className={`mt-2 leading-relaxed ${light ? "text-white/85" : "text-ink"}`}>{text}</p>
     </div>
   );
 }
@@ -419,48 +387,45 @@ function Bento({ t }: { t: Dictionary }) {
     <div className="mt-12 space-y-4">
       {/* The store banner */}
       <div className="grid overflow-hidden rounded-[28px] border border-[#e4e1f5] md:grid-cols-2">
-        <div className="flex flex-col justify-center gap-3 bg-gradient-to-br from-[#ece9ff] to-[#dcd6ff] p-7 sm:p-9">
-          <span className="w-fit rounded-full bg-accent px-3 py-1 text-xs font-bold text-white">{c.store.badge}</span>
+        <div className="flex flex-col justify-center gap-3 bg-[#dcd6ff] p-7 sm:p-9">
           <CardText title={c.store.title} text={c.store.text} />
         </div>
         <StoreScreen t={t} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.35fr]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.35fr]" data-reveal>
         {/* Abandoned carts, with their source */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#e4e9ff] to-[#c9cffc] p-6 sm:p-7">
-          <div aria-hidden>
+        <div className="flex flex-col gap-6 rounded-[28px] bg-[#c9cffc] p-6 sm:p-7">
+          <div aria-hidden data-ui>
             <CartsTable t={t} />
           </div>
           <CardText title={c.carts.title} text={c.carts.text} />
         </div>
         {/* Image landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#2b1a8c] to-[#140c4a] p-6 sm:p-7">
-          <Stars />
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-[#140c4a] p-6 sm:p-7">
           <CardText title={c.posters.title} text={c.posters.text} light />
           <PosterStack t={t} />
         </div>
         {/* AI landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#1d1460] to-ink p-6 sm:p-7">
-          <Stars />
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-ink p-6 sm:p-7">
           <CardText title={c.ai.title} text={c.ai.text} light />
           <AiScreen t={t} />
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr_1fr]" data-reveal>
         {/* Analytics */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#ece9ff] to-[#f6f5ff] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-[#f6f5ff] p-6 sm:p-7">
           <AnalyticsScreen t={t} />
           <CardText title={c.analytics.title} text={c.analytics.text} />
         </div>
         {/* Stock and variants */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#d9f7f0] to-[#bdeee2] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-[#bdeee2] p-6 sm:p-7">
           <CardText title={c.stock.title} text={c.stock.text} />
           <StockScreen t={t} />
         </div>
         {/* Fake-order protection, drawn as a receipt */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#fde8e1] to-[#f9d5e0] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-[#f9d5e0] p-6 sm:p-7">
           <CardText title={c.guard.title} text={c.guard.text} />
           <GuardTicket t={t} />
         </div>
@@ -470,15 +435,15 @@ function Bento({ t }: { t: Dictionary }) {
 }
 
 function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/70 bg-white p-4 shadow-[0_18px_40px_-24px_rgba(30,20,90,.35)] ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-white/70 bg-white p-4 ${className}`}>{children}</div>;
 }
 
 function StoreScreen({ t }: { t: Dictionary }) {
   const l = t.landing;
-  const tiles = ["from-[#ffe1cc] to-[#ffc59e]", "from-[#d9e7ff] to-[#b8d0ff]", "from-[#e3f8ec] to-[#bfeccf]"];
+  const tiles = ["bg-[#ffe1cc]", "bg-[#d9e7ff]", "bg-[#e3f8ec]"];
   return (
-    <div className="relative bg-white p-6 sm:p-8" aria-hidden>
-      <div className="rounded-2xl border border-[#efedf7] p-4 shadow-[0_18px_40px_-24px_rgba(30,20,90,.35)]">
+    <div className="relative bg-white p-6 sm:p-8" aria-hidden data-ui>
+      <div className="rounded-2xl border border-[#efedf7] p-4">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-2 text-sm font-bold text-ink">
             <span className="size-6 rounded-lg bg-[#ffb36b]" /> Atlas Shop
@@ -489,7 +454,7 @@ function StoreScreen({ t }: { t: Dictionary }) {
         <div className="mt-3 grid grid-cols-3 gap-2.5">
           {tiles.map((tile, i) => (
             <div key={tile}>
-              <div className={`flex aspect-square items-center justify-center rounded-xl bg-gradient-to-br ${tile}`}>
+              <div className={`flex aspect-square items-center justify-center rounded-xl ${tile}`}>
                 {i === 0 ? <WatchIcon /> : i === 1 ? <Headphones size={26} className="text-[#3b5bdb]" /> : <Package size={26} className="text-[#2f9e44]" />}
               </div>
               <span className="mt-1.5 block h-2 w-3/4 rounded bg-[#efedf7]" />
@@ -526,7 +491,7 @@ function CartsTable({ t }: { t: Dictionary }) {
         <span>{c.source}</span>
         <span>{c.status}</span>
       </div>
-      <ul className="divide-y divide-[#f0eef8]">
+      <ul className="divide-y divide-white">
         {rows.map(([source, tone, status, won]) => (
           <li key={source} className="flex items-center justify-between px-4 py-2.5">
             <span className={`rounded-full px-2.5 py-0.5 font-semibold ${tone}`} dir="ltr">
@@ -542,14 +507,14 @@ function CartsTable({ t }: { t: Dictionary }) {
 
 // Three designed images stacked like the page they make
 function PosterStack({ t }: { t: Dictionary }) {
-  const looks = ["from-[#6d5cf0] to-[#3f2db8]", "from-[#f4b740] to-[#e08a1e]", "from-[#22b8a5] to-[#0f766e]"];
+  const looks = ["bg-[#5b45e0]", "bg-[#b45309]", "bg-[#0f766e]"];
   const texts = t.landing.cards.ai.chips;
   return (
-    <div className="relative mx-auto mt-auto h-56 w-full max-w-[15rem]" aria-hidden>
+    <div className="relative mx-auto mt-auto h-56 w-full max-w-[15rem]" aria-hidden data-ui>
       {looks.map((look, i) => (
         <div
           key={look}
-          className={`absolute inset-x-0 mx-auto flex h-44 w-36 flex-col justify-between rounded-2xl bg-gradient-to-b ${look} p-3 text-white shadow-[0_18px_30px_-12px_rgba(0,0,0,.55)] ring-1 ring-white/20`}
+          className={`absolute inset-x-0 mx-auto flex h-44 w-36 flex-col justify-between rounded-2xl ${look} p-3 text-white ring-1 ring-white/20`}
           style={{ top: `${i * 14}px`, transform: `translateX(${(i - 1) * 46}px) rotate(${(i - 1) * 7}deg)`, zIndex: i === 1 ? 3 : 1 }}
         >
           <span className="text-sm leading-tight font-bold">{texts[i]}</span>
@@ -567,12 +532,12 @@ function PosterStack({ t }: { t: Dictionary }) {
 function AiScreen({ t }: { t: Dictionary }) {
   const a = t.landing.cards.ai;
   return (
-    <div className="relative mx-auto mt-auto w-full max-w-sm" aria-hidden>
-      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-gradient-to-b from-[#7c6cf2] to-[#4f3bd6] shadow-[0_0_40px_rgba(124,108,242,.7)]">
+    <div className="relative mx-auto mt-auto w-full max-w-sm" aria-hidden data-ui>
+      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#4f3bd6]">
         <Sparkles size={26} className="text-white" />
       </div>
       <div className="mx-auto mt-4 w-56 overflow-hidden rounded-t-[26px] border-x-4 border-t-4 border-[#a99ff8]/60 bg-white">
-        <p className="bg-gradient-to-b from-[#7c6cf2] to-[#5b45e0] px-3 py-3 text-center text-sm font-bold text-white">{a.generate}</p>
+        <p className="bg-[#5b45e0] px-3 py-3 text-center text-sm font-bold text-white">{a.generate}</p>
         <div className="grid grid-cols-2 gap-2 p-3">
           {a.chips.map((chip, i) => (
             <span key={chip} className={`flex h-12 items-center justify-center rounded-lg border text-[11px] font-semibold ${i === 0 ? "border-accent bg-[#efedff] text-accent" : "border-[#efedf7] text-muted"}`}>
@@ -582,8 +547,8 @@ function AiScreen({ t }: { t: Dictionary }) {
         </div>
       </div>
       {/* Floating section chips */}
-      <span className="absolute start-0 top-24 -rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent shadow-lg">{a.chips[1]}</span>
-      <span className="absolute end-0 top-32 rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent shadow-lg">{a.chips[3]}</span>
+      <span className="absolute start-0 top-24 -rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent">{a.chips[1]}</span>
+      <span className="absolute end-0 top-32 rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent">{a.chips[3]}</span>
     </div>
   );
 }
@@ -591,7 +556,7 @@ function AiScreen({ t }: { t: Dictionary }) {
 function AnalyticsScreen({ t }: { t: Dictionary }) {
   const c = t.landing.cards.analytics;
   return (
-    <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr]" aria-hidden>
+    <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr]" aria-hidden data-ui>
       <Panel>
         <p className="text-sm font-bold text-ink">{c.chart}</p>
         <svg viewBox="0 0 200 90" className="mt-3 h-28 w-full" preserveAspectRatio="none">
@@ -623,7 +588,7 @@ function StockScreen({ t }: { t: Dictionary }) {
   const c = t.landing.cards.stock;
   const [black, white, m, l] = c.values;
   return (
-    <div className="mt-auto space-y-3" aria-hidden>
+    <div className="mt-auto space-y-3" aria-hidden data-ui>
       <Panel>
         <p className="text-sm font-bold text-ink">{c.stock}</p>
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 text-xs">
@@ -655,7 +620,7 @@ function StockScreen({ t }: { t: Dictionary }) {
 function GuardTicket({ t }: { t: Dictionary }) {
   const c = t.landing.cards.guard;
   return (
-    <div className="relative mt-auto rounded-2xl bg-white px-5 pt-5 pb-7 shadow-[0_18px_40px_-24px_rgba(120,30,60,.35)]" aria-hidden>
+    <div className="relative mt-auto rounded-2xl bg-white px-5 pt-5 pb-7" aria-hidden data-ui>
       <div className="flex items-center gap-3 border-b border-dashed border-[#f1d9de] pb-3">
         <ShieldCheck size={22} className="text-accent" />
         <span className="font-bold text-ink">{t.brand}</span>
@@ -684,32 +649,30 @@ function GuardTicket({ t }: { t: Dictionary }) {
 
 // Integrations: a pastel top with the app's tile, then what it does
 function Apps({ t }: { t: Dictionary }) {
-  const looks: [LucideIcon, string, string][] = [
-    [Sheet, "from-[#dcf7e6] to-[#b8eccb]", "bg-[#1e9e5a]"],
-    [Tag, "from-[#dbeafe] to-[#bfd7fb]", "bg-[#2f7cf6]"],
-    [Radar, "from-[#ece9ff] to-[#d5cefe]", "bg-[#5b45e0]"],
-    [Webhook, "from-[#fef3c7] to-[#fde29b]", "bg-[#d97706]"],
-    [Download, "from-[#ecfccb] to-[#d6f5a3]", "bg-[#4d7c0f]"],
+  // Each app's own colour, on its mark only
+  const looks: [LucideIcon, string][] = [
+    [Sheet, "bg-[#1e9e5a]"],
+    [Tag, "bg-[#2f7cf6]"],
+    [Radar, "bg-[#5b45e0]"],
+    [Webhook, "bg-[#d97706]"],
+    [Download, "bg-[#4d7c0f]"],
   ];
+  // A list set in large type on one tinted field (no row of identical cards)
   return (
-    <ul className="-mx-4 mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 lg:grid-cols-3">
+    <ul className="mt-12 grid gap-x-12 gap-y-9 rounded-[28px] bg-[#f4f2ff] p-7 sm:p-10 md:grid-cols-2" data-reveal>
       {t.landing.apps.map(([name, text], i) => {
-        const [Icon, top, tile] = looks[i];
+        const [Icon, tile] = looks[i];
         return (
-          <li key={name} className="w-[78%] shrink-0 snap-start overflow-hidden rounded-[24px] border border-[#ebe8f7] bg-white sm:w-[46%] md:w-auto">
-            <div className={`flex h-32 items-end justify-center bg-gradient-to-b ${top}`}>
-              <span className="flex h-24 w-36 items-center justify-center rounded-t-[22px] bg-white">
-                <span className={`flex size-14 items-center justify-center rounded-2xl ${tile} text-white shadow-md`}>
-                  <Icon size={28} />
-                </span>
-              </span>
-            </div>
-            <div className="p-5">
-              <h3 className="text-lg font-bold text-ink" dir="auto">
+          <li key={name} className="flex items-start gap-4">
+            <span className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-xl ${tile} text-white`} aria-hidden>
+              <Icon size={22} />
+            </span>
+            <span className="min-w-0">
+              <h3 className="text-2xl font-bold tracking-tight text-ink" dir="auto">
                 {name}
               </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{text}</p>
-            </div>
+              <p className="mt-1.5 text-base leading-relaxed text-ink">{text}</p>
+            </span>
           </li>
         );
       })}
@@ -730,8 +693,7 @@ function DeliveryCollage({ t }: { t: Dictionary }) {
     ["Procolis", "bg-[#334155]", false],
   ];
   return (
-    <div className="relative mt-12 [perspective:1600px]" aria-hidden>
-      <span className="pointer-events-none absolute inset-x-10 top-10 bottom-0 -z-10 rounded-full bg-[radial-gradient(ellipse,rgba(124,108,242,.18),transparent_70%)]" />
+    <div className="relative mt-12 [perspective:1600px]" aria-hidden data-ui data-reveal>
       <div className="grid gap-4 md:grid-cols-[1fr_1.5fr] md:[transform:rotateX(14deg)_rotateZ(-3deg)]">
         <Panel className="space-y-3 border-[#ebe8f7]">
           <p className="flex items-center gap-2 font-bold text-ink">
@@ -784,7 +746,7 @@ function TeamPhones({ t }: { t: Dictionary }) {
     <div key="share" className="space-y-2.5">
       {m.agents.map(([name, n], i) => (
         <div key={name} className="flex items-center gap-2.5 rounded-xl bg-[#f7f6ff] p-2.5">
-          <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-b from-[#a99ff8] to-[#5b45e0] text-xs font-bold text-white">{name.charAt(0)}</span>
+          <span className="flex size-8 items-center justify-center rounded-full bg-[#5b45e0] text-xs font-bold text-white">{name.charAt(0)}</span>
           <span className="flex-1">
             <span className="block text-xs font-bold text-ink">{name}</span>
             <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
@@ -819,7 +781,7 @@ function TeamPhones({ t }: { t: Dictionary }) {
             <span className="font-bold text-ink tabular-nums">{value as string}</span>
           </div>
           <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
-            <span className="block h-full rounded-full bg-gradient-to-l from-[#7c6cf2] to-accent" style={{ width: `${w}%` }} />
+            <span className="block h-full rounded-full bg-accent" style={{ width: `${w}%` }} />
           </span>
         </div>
       ))}
@@ -830,7 +792,7 @@ function TeamPhones({ t }: { t: Dictionary }) {
     </div>,
   ];
   return (
-    <ul className="mt-12 grid gap-6 sm:grid-cols-3" aria-hidden>
+    <ul className="mt-12 grid gap-6 sm:grid-cols-3" aria-hidden data-ui data-reveal>
       {l.team.map(([label, hint], i) => {
         const [Icon, tone] = icons[i];
         return (
@@ -864,11 +826,11 @@ function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; pla
   const contactHref = contact ? `https://wa.me/${contact}?text=${encodeURIComponent(custom.whatsapp)}` : register;
   return (
     <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:pt-32">
-      <div className="mx-auto max-w-2xl text-center">
+      <div className="mx-auto max-w-2xl text-center" data-reveal>
         <h2 className={`text-[2.1rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-5xl ${violetText}`}>{l.pricingTitle}</h2>
-        <p className="mt-5 text-lg text-muted">{l.pricingText}</p>
+        <p className="mt-5 text-lg text-ink">{l.pricingText}</p>
       </div>
-      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing">
+      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing" data-reveal>
         {plans.map((plan) => {
           const picked = plan.code === RECOMMENDED;
           const tag = plan.orderPack ? p.payg : picked ? p.recommended : null;
@@ -876,34 +838,31 @@ function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; pla
           return (
             <div
               key={plan.code}
-              className={`relative flex flex-col items-center rounded-[22px] border bg-white px-5 pt-8 pb-6 text-center ${picked ? "border-accent shadow-[0_24px_50px_-28px_rgba(79,59,214,.7)] ring-1 ring-accent" : "border-[#e4e1f5]"}`}
+              className={`relative flex flex-col items-center rounded-[22px] px-5 pt-8 pb-6 text-center ${picked ? "bg-ink text-white" : "bg-[#f4f2ff]"}`}
               data-plan={plan.code}
             >
-              {tag && <span className={`absolute -top-3 rounded-full px-3 py-0.5 text-xs font-medium ${picked ? "bg-accent text-white" : "bg-[#efedff] text-accent"}`}>{tag}</span>}
-              <h3 className="text-2xl font-bold text-[#2a0b96]">{plan.name}</h3>
-              <a href="#compare" className="mt-2 inline-flex items-center gap-1 text-sm text-accent hover:underline">
-                {l.compare}
-              </a>
-              <p className="mt-5 text-3xl font-bold tracking-tight text-ink tabular-nums">{price.amount}</p>
-              <p className="mt-1 min-h-5 text-sm text-muted">{price.note}</p>
-              <Link href={register} className={`mt-6 w-full rounded-xl py-3 text-sm font-medium transition ${picked ? "bg-gradient-to-b from-[#2a2178] to-ink text-white hover:brightness-125" : "border border-[#d9d5ee] text-ink hover:border-accent hover:text-accent"}`}>
+              <h3 className={`text-2xl font-bold ${picked ? "text-white" : "text-ink"}`}>{plan.name}</h3>
+              <p className={`mt-4 text-3xl font-bold tracking-tight tabular-nums ${picked ? "text-white" : "text-ink"}`}>{price.amount}</p>
+              <p className={`mt-1 min-h-5 text-sm ${picked ? "text-white/85" : "text-ink"}`}>{price.note}</p>
+              <Link href={register} className={`mt-6 w-full rounded-xl py-3 text-sm font-medium transition active:scale-[.98] ${picked ? "bg-white text-ink hover:bg-[#efedff]" : "bg-ink text-white hover:bg-[#1d1650]"}`}>
                 {l.choose}
               </Link>
-              <p className="mt-4 text-sm text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
+              {/* What sets this plan apart, said with its tagline (no badge above the price) */}
+              <p className={`mt-4 text-sm ${picked ? "text-white/85" : "text-ink"}`}>
+                {tag && <b className={`block font-semibold ${picked ? "text-[#c9c2ff]" : "text-accent"}`}>{tag}</b>}
+                {(p.taglines as Record<string, string>)[plan.code] ?? ""}
+              </p>
             </div>
           );
         })}
-        <div className="flex flex-col items-center rounded-[22px] border border-[#e4e1f5] bg-white px-5 pt-8 pb-6 text-center" data-plan="custom">
-          <h3 className="text-2xl font-bold text-[#2a0b96]">{custom.name}</h3>
-          <a href="#compare" className="mt-2 text-sm text-accent hover:underline">
-            {l.compare}
-          </a>
-          <p className="mt-5 text-3xl font-bold tracking-tight text-ink">{custom.price}</p>
-          <p className="mt-1 min-h-5 text-sm text-muted" />
-          <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-xl border border-[#d9d5ee] py-3 text-sm font-medium text-ink transition hover:border-accent hover:text-accent">
+        <div className="flex flex-col items-center rounded-[22px] bg-[#f4f2ff] px-5 pt-8 pb-6 text-center" data-plan="custom">
+          <h3 className="text-2xl font-bold text-ink">{custom.name}</h3>
+          <p className="mt-4 text-3xl font-bold tracking-tight text-ink">{custom.price}</p>
+          <p className="mt-1 min-h-5" />
+          <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-xl bg-ink py-3 text-sm font-medium text-white transition hover:bg-[#1d1650] active:scale-[.98]">
             {custom.contact}
           </a>
-          <p className="mt-4 text-sm text-muted">{custom.tagline}</p>
+          <p className="mt-4 text-sm text-ink">{custom.tagline}</p>
         </div>
       </div>
       <Compare t={t} plans={plans} />
@@ -917,10 +876,10 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
   return (
     <div id="compare" className="mt-16 scroll-mt-24">
       <h3 className="text-center text-2xl font-bold text-ink">{l.compareTitle}</h3>
-      <div className="mt-6 overflow-x-auto rounded-[22px] border border-[#e4e1f5]">
+      <div className="mt-6 overflow-x-auto rounded-[22px] bg-[#f4f2ff]">
         <table className="w-full min-w-[640px] text-sm" data-testid="plan-compare">
           <thead>
-            <tr className="bg-[#f7f6ff] text-ink">
+            <tr className="text-ink">
               <th className="p-4 text-start font-semibold" />
               {plans.map((plan) => (
                 <th key={plan.code} className="p-4 font-bold">
@@ -930,10 +889,10 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
               <th className="p-4 font-bold">{p.custom.name}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#f0eef8]">
+          <tbody className="divide-y divide-white">
             {limitKeys.map((k) => (
               <tr key={k}>
-                <td className="p-4 text-muted">{p.limits[k]}</td>
+                <td className="p-4 text-ink">{p.limits[k]}</td>
                 {plans.map((plan) => {
                   const line = limitLine(plan, k, t);
                   return (
@@ -946,7 +905,7 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
               </tr>
             ))}
             <tr>
-              <td className="p-4 text-muted">{l.customDomain}</td>
+              <td className="p-4 text-ink">{l.customDomain}</td>
               {plans.map((plan) => (
                 <td key={plan.code} className="p-4 text-center">
                   {plan.features.includes("custom_domain") ? <Check size={18} className="mx-auto text-[#047857]" aria-label="✓" /> : <X size={18} className="mx-auto text-muted" aria-label="✕" />}
@@ -959,7 +918,7 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-4 text-center text-sm text-muted">{p.allFeatures}</p>
+      <p className="mt-4 text-center text-sm text-ink">{p.allFeatures}</p>
     </div>
   );
 }

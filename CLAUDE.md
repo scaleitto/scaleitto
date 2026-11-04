@@ -431,6 +431,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
 - `.claude/skills/ui-ux-pro-max/` (UI/UX Pro Max, MIT, from github.com/nextlevelbuilder/ui-ux-pro-max-skill): use it for any UI
   work. Search: `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain <product|style|color|typography|ux|chart> -n 3`
   (or `--design-system` for a full proposal). Keep the project's own tokens (globals.css, `s-*` storefront colors) as the source.
+- `.claude/skills/taste-skill/` (Taste Skill v2, MIT, from github.com/Leonxlnx/taste-skill): the no-slop house style and its real-browser
+  meter. Pages: `node .claude/skills/taste-skill/scripts/inspect.mjs <url> --allow palette-purple` (violet is the brand, kept on
+  purpose); app screens add `--app` (rules in its `references/app-screens.md`). As root in this container Chrome needs a wrapper that adds
+  `--no-sandbox` (CHROME_PATH); dashboard pages need a signed-in relay. Applied Nov 2026: the homepage has no gradients, glows, stars, eyebrows,
+  resting shadows or icon cards (apps = a list in large type), headings in one ink, body text in the full ink, mockups marked `data-ui`,
+  `[data-hero]` / `[data-reveal]` rise-in motion in globals.css (reduced-motion safe); the dashboard has flat cards (`--d-shadow-card` 1px),
+  no icons in tinted squares on KPIs / status tabs, a darker accent (#047857), amber (#b45309), rose (#b93a2f) and muted (#556274) for 4.5:1
+  contrast, and `text-xs` = 13px. New UI keeps to these rules; `.taste-skill/` (its screenshots) is git-ignored.
 - The platform's design system is `design-system/scaleitto/MASTER.md` (tokens, type, components, checklist): read it before UI
   work. ayor.ai is the owner's visual reference. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout
   only); primary violet #4f3bd6 (`accent`), #7c6cf2 (`accent-bright`) for indicators only, `ink` #080529 for marketing buttons and

@@ -93,9 +93,8 @@ export async function OrdersPage({ lang, searchParams, portal = false }: { lang:
                 aria-current={current ? "page" : undefined}
                 className={`flex shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${current ? tone.on : `bg-panel text-fg hover:bg-panel-2 ${tone.edge}`}`}
               >
-                <span className={`grid size-8 place-items-center rounded-lg ${current ? "bg-white/20" : tone.soft}`}>
-                  <Icon size={16} />
-                </span>
+                {/* The status colour on the icon itself (no tinted square) */}
+                <Icon size={17} className={current ? "" : tone.soft.replace(/bg-\S+\s?/, "")} aria-hidden />
                 {t.orders.statuses[s]}
                 <span className={`rounded-full px-1.5 text-xs tabular-nums ring-1 ${current ? "bg-white/20 ring-white/30" : tone.count}`} data-count>
                   {(counts[s] ?? 0) + (s === "pending" ? (counts.call_back ?? 0) : 0)}

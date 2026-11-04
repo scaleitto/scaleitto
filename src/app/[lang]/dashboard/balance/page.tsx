@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Bot, Coins, CreditCard, Layers, MessageCircle, Package, Plus, Send, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Bot, CreditCard, Layers, MessageCircle, Package, Plus, Send, TrendingUp } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { fmt, formatDate } from "@/lib/format";
@@ -23,10 +23,10 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
   const v = await balanceView(shop.id);
   const low = v.credits < LOW_BALANCE;
   const kpis = [
-    { key: "earned", value: v.earned, icon: TrendingUp, tone: "bg-accent-soft text-accent" },
-    { key: "fromSubscription", value: v.fromSubscription, icon: Layers, tone: "bg-info/10 text-info" },
-    { key: "purchased", value: v.purchased, icon: CreditCard, tone: "bg-accent-soft text-accent" },
-    { key: "spent", value: v.spentThisMonth, icon: ArrowDownRight, tone: "bg-danger/10 text-danger" },
+    { key: "earned", value: v.earned, icon: TrendingUp, tone: "text-accent" },
+    { key: "fromSubscription", value: v.fromSubscription, icon: Layers, tone: "text-info" },
+    { key: "purchased", value: v.purchased, icon: CreditCard, tone: "text-accent" },
+    { key: "spent", value: v.spentThisMonth, icon: ArrowDownRight, tone: "text-danger" },
   ] as const;
   const packNames = t.plans.billing.packs as Record<string, string>;
   const label = (kind: string, note: string | null) => {
@@ -52,11 +52,11 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
         </p>
       )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#062e25] via-[#0b3d30] to-[#0f5a45] p-7 text-white shadow-lg" data-testid="balance-card">
-          <Coins size={180} className="absolute -end-8 -top-6 text-white/10" />
+        <section className="relative overflow-hidden rounded-2xl bg-[#0b3d30] p-7 text-white" data-testid="balance-card">
+          
           <p className="text-sm font-semibold text-white/80">{b.current}</p>
           <p className="mt-2 flex items-baseline gap-3">
-            <span className="text-6xl font-extrabold tabular-nums" data-testid="balance-credits">
+            <span className="text-5xl font-extrabold tabular-nums" data-testid="balance-credits">
               {v.credits.toLocaleString("fr-FR")}
             </span>
             <span className="text-2xl font-bold text-emerald-300">{b.credits}</span>
@@ -93,9 +93,7 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
         {kpis.map((k) => (
           <Card key={k.key} className="space-y-3 p-5" data-kpi={k.key}>
             <p className="flex items-center gap-2 text-sm text-muted">
-              <span className={`grid size-9 place-items-center rounded-lg ${k.tone}`}>
-                <k.icon size={17} />
-              </span>
+              <k.icon size={17} className={k.tone} aria-hidden />
               {b.kpis[k.key]}
             </p>
             <p className="text-3xl font-extrabold tabular-nums">{k.value.toLocaleString("fr-FR")}</p>
