@@ -30,6 +30,7 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   dark mode = `[data-theme=dark]` on <html> set before paint by `THEME_SCRIPT`). Dashboard colors are `--d-*` variables
   (globals.css; slate + emerald, dark values under `[data-theme=dark]`), fonts Space Grotesk + IBM Plex Sans Arabic.
   Roles: owner / manager / agent (call center).
+- Profile (`features/profile`, phase0.mjs) = Zimam's Profile settings: back button, personal information + dashboard language (`users.locale` + `sc_locale` cookie, then the dashboard reopens in it), password in a row that opens, account deletion request (support WhatsApp = PAYMENT_WHATSAPP). No Google/Facebook sign-in yet.
 - `src/server/auth/` — sessions, passwords, `requireShop()`, `requireSection(lang, key)` (redirects to the
   member's home section when not allowed), `requirePlatformAdmin()`.
 - `src/server/errors.ts` — every server action is wrapped in `safeAction(where, fn)`: errors are logged to

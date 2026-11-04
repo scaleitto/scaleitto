@@ -96,6 +96,14 @@ export default async function phase0(browser) {
     await page.fill("#phone", "0555 12 34 56");
     await page.click("form:has(#name) button[type=submit]");
     await page.waitForSelector("text=تم الحفظ");
+    // Dashboard language: saved on the account, the dashboard opens in it
+    await page.selectOption("#locale", "fr");
+    await Promise.all([page.waitForURL("**/fr/dashboard/profile"), page.click("form:has(#name) button[type=submit]")]);
+    const [[u]] = await db.query("SELECT locale FROM users WHERE email = ?", [owner.email]);
+    expect(u.locale === "fr", `locale saved (${u.locale})`);
+    await page.selectOption("#locale", "ar");
+    await Promise.all([page.waitForURL("**/ar/dashboard/profile"), page.click("form:has(#name) button[type=submit]")]);
+    await page.click("[data-testid=password-panel] summary");
     await page.fill("#currentPassword", "wrong-password");
     await page.fill("#newPassword", "newpassword456");
     await page.click("form:has(#newPassword) button[type=submit]");

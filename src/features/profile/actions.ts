@@ -8,7 +8,9 @@ import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { safeAction } from "@/server/errors";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
+import { cookies } from "next/headers";
 import { asLocale } from "@/i18n";
+import { locales } from "@/i18n/config";
 import type { ActionState } from "@/lib/action";
 
 const profileSchema = z.object({
@@ -18,6 +20,8 @@ const profileSchema = z.object({
     .trim()
     .transform((v) => (v ? normalizePhone(v) : ""))
     .refine((v) => v === "" || isValidDzPhone(v), "e:phone"),
+  // Dashboard language (Zimam: Profile → Dashboard Language)
+  locale: z.enum(locales).optional(),
 });
 
 export async function updateProfile(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -25,7 +29,10 @@ export async function updateProfile(lang: string, _prev: ActionState, formData: 
     const { user } = await requireSection(asLocale(lang), "profile");
     const parsed = profileSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
-    await db.update(schema.users).set({ name: parsed.data.name, phone: parsed.data.phone || null }).where(eq(schema.users.id, user.id));
+    const { name, phone, locale } = parsed.data;
+    await db.update(schema.users).set({ name, phone: phone || null, ...(locale ? { locale } : {}) }).where(eq(schema.users.id, user.id));
+    // The same cookie as the language switcher: the next visits open in this language
+    if (locale) (await cookies()).set("sc_locale", locale, { path: "/", maxAge: 31_536_000 });
     return { ok: true };
   });
 }
