@@ -132,6 +132,7 @@ export default async function phase33(browser) {
     await owner.goto(`${BASE}/ar/dashboard/balance`);
     expect((await owner.locator("[data-testid=balance-credits]").textContent()).replace(/\s/g, "") === "500", "500 credits");
     expect((await owner.locator("[data-testid=credit-history] tr[data-ledger=trial]").count()) === 1, "trial line in the history");
+    expect((await owner.getAttribute("[data-testid=charge-credits]", "href")) === "#packs", "Charge credits goes to the packs");
     await owner.locator("[data-testid=pay-cib]").check();
     await Promise.all([owner.waitForURL(/\/dashboard\/balance\?purchase=/), owner.click("[data-testid=buy-starter]")]);
     expect((await owner.locator("[data-testid=purchase-result]").getAttribute("data-result")) === "paid", "card purchase paid");

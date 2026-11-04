@@ -19,7 +19,7 @@ export async function balanceView(shopId: string) {
     earned: sum(["trial", "subscription", "admin", "purchase", "refund"]),
     fromSubscription: sum(["trial", "subscription", "admin"]),
     purchased: sum(["purchase"]),
-    spentThisMonth: -Number(spent?.total ?? 0),
+    spentThisMonth: Math.abs(Number(spent?.total ?? 0)),
     history,
     pending: purchases.filter((p) => p.method !== "card"),
   };

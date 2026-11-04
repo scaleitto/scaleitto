@@ -1,13 +1,15 @@
-import { ArrowDownRight, ArrowUpRight, Coins, CreditCard, Layers, MessageCircle, Send, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowDownRight, ArrowUpRight, Bot, Coins, CreditCard, Layers, MessageCircle, Package, Plus, Send, TrendingUp } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { fmt, formatDate } from "@/lib/format";
-import { Card, PageHeader } from "@/ui";
+import { Card, PageHeader, buttonClass } from "@/ui";
 import { balanceView } from "@/features/credits/queries";
 import { CreditPacks } from "@/features/credits/CreditPacks";
 import { CREDIT_COSTS, LOW_BALANCE } from "@/features/credits/packs";
 import { platformMethods, refreshCreditPurchase } from "@/features/credits/purchases";
 import { paymentDetails } from "@/features/plans/billing";
+import { quotaPacks } from "@/features/plans/packs";
 
 // Zimam's Balance: the credits, where they came from, this month's spending, credit packs and the full history
 export default async function BalancePage({ params, searchParams }: PageProps<"/[lang]/dashboard/balance">) {
@@ -26,10 +28,24 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
     { key: "purchased", value: v.purchased, icon: CreditCard, tone: "bg-accent-soft text-accent" },
     { key: "spent", value: v.spentThisMonth, icon: ArrowDownRight, tone: "bg-danger/10 text-danger" },
   ] as const;
-  const label = (kind: string, note: string | null) => (b.kinds as Record<string, string>)[kind] ?? kind + (note ? ` · ${note}` : "");
+  const packNames = t.plans.billing.packs as Record<string, string>;
+  const label = (kind: string, note: string | null) => {
+    // Feature packs bought on the Plans page are written as "pack:<key>"
+    const pack = note?.startsWith("pack:") ? packNames[note.slice(5)] : null;
+    if (pack) return `${b.featurePack} · ${pack}`;
+    return (b.kinds as Record<string, string>)[kind] ?? kind + (note ? ` · ${note}` : "");
+  };
   return (
     <>
-      <PageHeader title={b.title} description={b.subtitle} />
+      <PageHeader
+        title={b.title}
+        description={b.subtitle}
+        actions={
+          <Link href="#packs" className={buttonClass("primary")} data-testid="charge-credits">
+            <Plus size={16} /> {b.charge}
+          </Link>
+        }
+      />
       {bought && (
         <p className={`mb-4 rounded-xl p-3 text-sm font-semibold ${bought === "paid" ? "bg-accent-soft text-accent-ink" : bought === "rejected" ? "bg-danger/10 text-danger" : "bg-panel-2 text-muted"}`} data-testid="purchase-result" data-result={bought}>
           {bought === "paid" ? b.purchasePaid : bought === "rejected" ? b.purchaseFailed : b.purchasePending}
@@ -52,7 +68,9 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
             {kpis.map((k) => (
               <div key={k.key}>
                 <dt className="text-[11px] font-bold tracking-wide text-white/60 uppercase">{b.kpis[k.key]}</dt>
-                <dd className="mt-1 font-bold tabular-nums">{k.value.toLocaleString("fr-FR")} c</dd>
+                <dd className="mt-1 font-bold tabular-nums">
+                  <bdi dir="ltr">{k.value.toLocaleString("fr-FR")} c</bdi>
+                </dd>
               </div>
             ))}
           </dl>
@@ -62,6 +80,7 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
           {[
             { icon: MessageCircle, label: b.uses.whatsapp, cost: fmt(b.perMessage, { n: CREDIT_COSTS.whatsapp }) },
             { icon: Send, label: b.uses.notification, cost: fmt(b.perMessage, { n: CREDIT_COSTS.notification }) },
+            ...quotaPacks.map((p) => ({ icon: p.key === "ai20" ? Bot : Package, label: `${b.featurePack} · ${packNames[p.key]}`, cost: fmt(b.perPack, { n: p.credits.toLocaleString("fr-FR") }) })),
           ].map((u) => (
             <p key={u.label} className="flex items-center gap-3 rounded-xl bg-panel-2 px-4 py-3 text-sm">
               <u.icon size={16} className="text-muted" /> <span className="flex-1">{u.label}</span> <b>{u.cost}</b>
@@ -105,7 +124,7 @@ export default async function BalancePage({ params, searchParams }: PageProps<"/
             ))
           )}
         </Card>
-        <Card className="space-y-3 p-6">
+        <Card className="scroll-mt-24 space-y-3 p-6" id="packs">
           <h2 className="font-semibold">{b.packsTitle}</h2>
           <CreditPacks
             lang={lang}
