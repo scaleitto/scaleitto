@@ -39,6 +39,7 @@ export default async function phase20(browser) {
   });
 
   await step("top-up: packs instead of months, approved by the admin, the locked order opens", async () => {
+    await owner.click("[data-pay=local]");
     const card = owner.locator("[data-plan-card=orbit]");
     expect((await card.innerText()).includes("لكل 100 طلبية") && (await card.innerText()).includes("الدفع عند الاستخدام"), "price per pack of 100 orders");
     await card.locator("button", { hasText: "شحن الرصيد" }).click();

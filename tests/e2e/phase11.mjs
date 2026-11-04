@@ -35,7 +35,7 @@ export default async function phase11(browser) {
     expect((await owner.locator("[data-meter=maxProducts]").innerText()).includes("1 / 10"), "products 1 / 10");
     expect((await owner.locator("[data-meter=maxOrdersPerMonth]").innerText()).includes("0 / 2"), "contract limit shown");
     expect((await owner.locator("[data-plan-card]").count()) === 5, "4 plans and the custom one");
-    expect(!(await owner.locator("[data-plan-card=starter] button").count()), "free plan cannot be requested");
+    expect(await owner.locator("[data-plan-card=starter] button").isDisabled(), "free plan cannot be requested (Zimam: a greyed Active button)");
   });
 
   await step("at the alert threshold a warning shows on every page", async () => {
@@ -68,11 +68,13 @@ export default async function phase11(browser) {
 
   await step("upgrade request: payment details, receipt required, pending request", async () => {
     await owner.goto(plans);
+    // Local payment (the test server also has the platform's online payment)
+    await owner.click("[data-pay=local]");
     await owner.locator("[data-plan-card=rocket] button").click();
     const form = owner.locator("[data-testid=plan-request-form]");
     await form.waitFor();
     await owner.selectOption("#pr-months", "3");
-    expect((await owner.locator("[data-testid=plan-amount]").innerText()).replace(/\s/g, "").includes("10500"), "3 × 3500");
+    expect((await owner.locator("[data-testid=plan-amount]").innerText()).replace(/\s/g, "").includes("9975"), "3 × 3500 − 5% (3-month term)");
     expect(!(await form.getByText("تحويل بنكي (RIB)").count()), "RIB hidden (not set up)");
     expect((await owner.locator("[data-testid=payment-account]").innerText()).includes("0012345678"), "CCP account shown");
     await form.locator("button[type=submit]").click();
@@ -82,7 +84,7 @@ export default async function phase11(browser) {
     await form.locator("button[type=submit]").click();
     await owner.waitForSelector("[data-testid=plan-pending]");
     const [[req]] = await db.query("SELECT * FROM plan_requests WHERE shop_id = ?", [shopId]);
-    expect(req.status === "pending" && req.months === 3 && req.amount === 10500 && req.method === "ccp" && req.receipt_url.startsWith(`/uploads/${shopId}/`), "request saved");
+    expect(req.status === "pending" && req.months === 3 && req.amount === 9975 && req.method === "ccp" && req.receipt_url.startsWith(`/uploads/${shopId}/`), "request saved");
     expect(await owner.locator("[data-plan-card=rocket] button").isDisabled(), "one request at a time");
   });
 
@@ -145,6 +147,7 @@ export default async function phase11(browser) {
   });
 
   await step("cancel a request; managers get the warning without the plans page; agents nothing", async () => {
+    await owner.click("[data-pay=local]");
     await owner.locator("[data-plan-card=rocket] button").click();
     await owner.locator("[data-testid=plan-request-form] label", { hasText: "واتساب" }).click();
     expect((await owner.locator("[data-testid=plan-request-form] a[href^='https://wa.me/213555001122']").count()) === 1, "WhatsApp link with the platform number");

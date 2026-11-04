@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Check, Clock, MessageCircle } from "lucide-react";
+import { Check, Clock, CreditCard, Landmark, MessageCircle, Package, Sparkles, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatPrice } from "@/lib/format";
 import { Alert, Badge, Button, Card, Field, Select, Textarea, buttonClass } from "@/ui";
@@ -12,19 +12,22 @@ import type { Limits } from "@/server/db/schema";
 import { cancelPlanRequest, requestPlan } from "./actions";
 import { limitLine, periodLabel, priceLabel } from "./labels";
 import { previewDiscount, type DiscountPreview } from "@/features/referrals/discount";
+import { PERIODS as TERMS, planAmount, termDiscount } from "./terms";
+import { buyQuotaPack, requestPlanOnline } from "./actions";
+import { quotaPacks } from "./packs";
 
 type Text = Pick<Dictionary, "plans" | "errors" | "common" | "media">;
-type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; limits: Limits };
+type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; limits: Limits; features: string[] };
 type Payment = { holder: string | null; methods: Partial<Record<PaymentMethod, string>> };
 // Same lists as billing.ts (server): months of a monthly plan, packs of a pay-as-you-go plan
 const PERIODS = [1, 3, 6, 12];
 const PACKS = [1, 2, 3, 5, 10];
 
-function RequestForm({ lang, plan, payment, shopName, onClose, referral, t }: { lang: string; plan: Plan; payment: Payment; shopName: string; onClose: () => void; referral: DiscountPreview; t: Text }) {
+function RequestForm({ lang, plan, payment, shopName, onClose, referral, initialMonths = 1, t }: { lang: string; plan: Plan; payment: Payment; shopName: string; onClose: () => void; referral: DiscountPreview; initialMonths?: number; t: Text }) {
   const r = t.plans.request;
   const e = t.errors as Record<string, string>;
   const methods = (Object.keys(payment.methods) as PaymentMethod[]).filter((m) => payment.methods[m]);
-  const [months, setMonths] = useState(1);
+  const [months, setMonths] = useState(plan.orderPack ? 1 : initialMonths);
   const [method, setMethod] = useState<PaymentMethod | undefined>(methods[0]);
   const [receipt, setReceipt] = useState<string[]>([]);
   const { state, pending, onSubmit } = useActionForm(requestPlan.bind(null, lang));
@@ -32,8 +35,9 @@ function RequestForm({ lang, plan, payment, shopName, onClose, referral, t }: { 
     if (state.ok) onClose();
   }, [state, onClose]);
   // Refer a seller: the discount the server will take off (first payment of a referred store, a voucher)
-  const discount = previewDiscount(referral, plan.priceMonthly, plan.priceMonthly * months);
-  const amount = formatPrice(plan.priceMonthly * months - discount, t.common.currency);
+  const gross = planAmount(plan, months);
+  const discount = previewDiscount(referral, plan.priceMonthly, gross);
+  const amount = formatPrice(gross - discount, t.common.currency);
   if (!method) return <Alert variant="info">{r.noMethods}</Alert>;
   const whatsappText = fmt(r.whatsappMessage, { plan: plan.name, period: periodLabel(months, plan.orderPack, t), amount, shop: shopName });
   return (
@@ -121,6 +125,7 @@ export function PlanChooser({
   payment,
   shopName,
   referral = { firstPayment: false, voucherValue: null },
+  online = [],
   t,
 }: {
   lang: string;
@@ -130,13 +135,45 @@ export function PlanChooser({
   payment: Payment;
   shopName: string;
   referral?: DiscountPreview;
+  // The platform's online payment methods (none = only local payment)
+  online?: string[];
   t: Text;
 }) {
   const p = t.plans;
+  const b = p.billing;
+  const e = t.errors as Record<string, string>;
   const [chosen, setChosen] = useState<Plan | null>(null);
+  const [way, setWay] = useState<"online" | "local">(online.length ? "online" : "local");
+  const [gateway, setGateway] = useState(online[0] ?? "");
+  const [term, setTerm] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
+  const subscribe = (plan: Plan) => {
+    setError(null);
+    if (way === "local") return setChosen(plan);
+    startTransition(async () => {
+      const r = await requestPlanOnline(lang, { planId: plan.id, months: plan.orderPack ? 1 : term, method: gateway });
+      if (!r.ok) setError(e[r.error ?? "unexpected"] ?? e.unexpected);
+    });
+  };
+  const methodCard = (key: "online" | "local", Icon: typeof CreditCard, title: string, hint: string, disabled: boolean) => (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-pressed={way === key}
+      onClick={() => setWay(key)}
+      className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-start transition disabled:cursor-not-allowed disabled:opacity-50 ${way === key ? "border-accent bg-accent-soft/50" : "border-line bg-panel hover:border-fg-2/30"}`}
+      data-pay={key}
+    >
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs text-muted">{disabled ? b.notAvailable : hint}</span>
+      </span>
+      <Icon size={18} className={way === key ? "text-accent" : "text-muted"} />
+    </button>
+  );
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {pending && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm" data-testid="plan-pending">
           <Clock size={18} className="shrink-0 text-warning" />
@@ -146,20 +183,78 @@ export function PlanChooser({
           </Button>
         </div>
       )}
-      <h2 className="text-lg font-semibold">{p.compare}</h2>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+
+      <div className="space-y-4 text-center">
+        <p className="text-xs font-semibold tracking-wider text-muted uppercase">{b.available}</p>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{b.chooseTerm}</h2>
+        <div className="mx-auto max-w-xl space-y-1.5">
+          <p className="text-xs text-muted">{b.payMethod}</p>
+          <div className="grid gap-2 sm:grid-cols-2" data-testid="pay-ways">
+            {methodCard("online", CreditCard, b.online, b.onlineHint, !online.length)}
+            {methodCard("local", Landmark, b.local, b.localHint, false)}
+          </div>
+          {way === "online" && online.length > 1 && (
+            <div className="flex flex-wrap justify-center gap-1.5 pt-1" data-testid="gateways">
+              <span className="text-xs text-muted">{b.payWith}</span>
+              {online.map((m) => (
+                <button key={m} type="button" aria-pressed={gateway === m} onClick={() => setGateway(m)} className={`rounded-full border px-3 py-1 text-xs font-semibold ${gateway === m ? "border-accent bg-accent text-accent-fg" : "border-line"}`} data-gateway={m}>
+                  {(b.gateways as Record<string, string>)[m] ?? m}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted">{b.prepaid}</p>
+          <div className="mx-auto inline-flex flex-wrap justify-center gap-1 rounded-xl bg-ink p-1" role="radiogroup" aria-label={b.prepaid} data-testid="terms">
+            {TERMS.map((n) => (
+              <button key={n} type="button" role="radio" aria-checked={term === n} onClick={() => setTerm(n)} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold ${term === n ? "bg-accent text-accent-fg" : "text-white/80 hover:text-white"}`} data-term={n}>
+                {(b.terms as Record<string, string>)[String(n)]}
+                {termDiscount(n) > 0 && <span className="rounded bg-white/15 px-1.5 text-[11px]">{fmt(b.save, { n: termDiscount(n) })}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {error && <Alert variant="error">{error}</Alert>}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
           const mine = plan.code === currentCode;
           const paid = plan.priceMonthly > 0;
+          const popular = plan.code === "rocket";
+          const months = plan.orderPack ? 1 : term;
+          const total = planAmount(plan, months);
+          const full = plan.priceMonthly * months;
+          const domain = plan.features.includes("custom_domain");
           return (
-            <Card key={plan.id} className={`flex flex-col gap-4 ${mine ? "border-accent" : ""}`} data-plan-card={plan.code}>
+            <Card key={plan.id} className={`relative flex flex-col gap-4 ${mine ? "border-2 border-accent" : popular ? "border-accent/40 bg-accent-soft/30" : ""}`} data-plan-card={plan.code}>
+              {popular && (
+                <span className="absolute -top-3 start-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-accent/30 bg-panel px-3 py-0.5 text-xs font-semibold text-accent-ink rtl:translate-x-1/2">
+                  <Sparkles size={12} /> {b.mostPopular}
+                </span>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-lg font-bold">{plan.name}</h3>
                 {mine && <Badge tone="accent">{p.yours}</Badge>}
               </div>
-              <p className="-mt-2 text-sm text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
-              <p className="text-2xl font-extrabold">{priceLabel(plan, t)}</p>
-              <ul className="flex-1 space-y-1.5 text-sm">
+              <div>
+                <p className="text-3xl font-extrabold tracking-tight" data-testid="plan-price">
+                  {paid ? formatPrice(total, t.common.currency) : p.free}
+                </p>
+                {paid && (
+                  <p className="mt-1 text-xs text-muted">
+                    {plan.orderPack ? priceLabel(plan, t) : months > 1 ? fmt(b.forTerm, { price: formatPrice(total, t.common.currency), n: months }) : p.monthly}
+                    {full > total && (
+                      <span className="ms-1">
+                        · <s>{formatPrice(full, t.common.currency)}</s> <span className="font-semibold text-accent-ink">{fmt(b.save, { n: termDiscount(months) })}</span>
+                      </span>
+                    )}
+                  </p>
+                )}
+                <p className="mt-1 text-sm text-muted">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
+              </div>
+              <ul className="space-y-1.5 text-sm">
                 {limitKeys.map((k) => {
                   const line = limitLine(plan, k, t);
                   return (
@@ -171,19 +266,97 @@ export function PlanChooser({
                     </li>
                   );
                 })}
+                <li className={`flex items-center gap-2 ${domain ? "" : "text-muted"}`}>
+                  {domain ? <Check size={15} className="shrink-0 text-accent" /> : <X size={15} className="shrink-0" />}
+                  {domain ? b.domain : b.noDomain}
+                </li>
               </ul>
-              {paid && (
-                <Button variant={mine ? "secondary" : "primary"} disabled={Boolean(pending)} onClick={() => setChosen(plan)}>
-                  {mine ? (plan.orderPack ? p.topUp : p.renew) : p.choose}
-                </Button>
-              )}
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold tracking-wider text-muted uppercase">{b.integrations}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {b.integrationList.map((x) => (
+                    <span key={x} className="rounded-md border border-line bg-panel-2 px-2 py-0.5 text-xs">
+                      {x}
+                    </span>
+                  ))}
+                </div>
+                <p className="pt-1 text-[11px] font-semibold tracking-wider text-muted uppercase">{b.features}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {b.featureList.map((x) => (
+                    <span key={x} className="rounded-md border border-line bg-panel-2 px-2 py-0.5 text-xs">
+                      {x}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-auto pt-2">
+                {paid ? (
+                  <Button className={`w-full ${popular ? "" : "bg-ink text-white hover:bg-ink/90"}`} disabled={Boolean(pending) || busy || (way === "online" && !gateway)} onClick={() => subscribe(plan)} data-action="subscribe">
+                    <CreditCard size={15} /> {mine ? (plan.orderPack ? p.topUp : p.renew) : fmt(b.subscribe, { name: plan.name })}
+                  </Button>
+                ) : (
+                  <Button variant="secondary" className="w-full" disabled>
+                    {mine ? b.active : p.free}
+                  </Button>
+                )}
+              </div>
             </Card>
           );
         })}
         <CustomPlanCard whatsapp={payment.methods.whatsapp} t={t} />
       </div>
-      {chosen && !pending && <RequestForm key={chosen.id} lang={lang} plan={chosen} payment={payment} shopName={shopName} onClose={() => setChosen(null)} referral={referral} t={t} />}
+      {chosen && !pending && <RequestForm key={`${chosen.id}-${term}`} lang={lang} plan={chosen} payment={payment} shopName={shopName} onClose={() => setChosen(null)} referral={referral} initialMonths={term} t={t} />}
     </div>
+  );
+}
+
+// Plans → Feature packs (Zimam): extra quota for this month, paid with credits
+export function FeaturePacks({ lang, credits, t }: { lang: string; credits: number; t: Text }) {
+  const b = t.plans.billing;
+  const e = t.errors as Record<string, string>;
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, start] = useTransition();
+  return (
+    <Card className="space-y-4" data-testid="feature-packs">
+      <h2 className="flex items-center gap-2 text-lg font-semibold">
+        <Package size={18} className="text-accent" /> {b.packsTitle}
+      </h2>
+      <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">{b.packsHint}</p>
+      {msg && <Alert variant={msg.ok ? "success" : "error"}>{msg.text}</Alert>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {quotaPacks.map((pack) => {
+          const name = (b.packs as Record<string, string>)[pack.key];
+          return (
+            <div key={pack.key} className="space-y-3 rounded-xl border border-line p-4" data-pack={pack.key}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{name}</p>
+                  <p className="text-xs text-muted">
+                    {name} · {fmt(b.packCost, { n: pack.credits })}
+                  </p>
+                </div>
+                <Package size={16} className="text-accent" />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={busy || credits < pack.credits}
+                onClick={() =>
+                  start(async () => {
+                    const r = await buyQuotaPack(lang, pack.key);
+                    setMsg(r.ok ? { ok: true, text: b.bought } : { ok: false, text: e[r.error ?? "unexpected"] ?? e.unexpected });
+                  })
+                }
+                data-action="buy-pack"
+              >
+                {fmt(b.buy, { name })}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 

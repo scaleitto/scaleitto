@@ -11,7 +11,13 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
 import { paymentMethods } from "@/server/db/schema";
 import { FREE_PLAN } from "@/server/limits";
-import { PACKS, PERIODS, approvePlanRequest, paymentDetails, rejectPlanRequest } from "./billing";
+import { PACKS, PERIODS, approvePlanRequest, onlinePlanMethods, paymentDetails, planAmount, rejectPlanRequest, startPlanPayment } from "./billing";
+import { findQuotaPack } from "./packs";
+import { releaseLockedOrders } from "./locked";
+import { spendCredits } from "@/features/credits/ledger";
+import { packMonth } from "@/server/limits";
+import { redirect } from "next/navigation";
+import { sectionHref } from "@/lib/permissions";
 import { referralDiscount } from "@/features/referrals/referrals";
 import { pendingRequest } from "./queries";
 
@@ -45,7 +51,7 @@ export async function requestPlan(lang: string, _prev: ActionState, formData: Fo
     if (!((plan.orderPack ? PACKS : PERIODS) as readonly number[]).includes(d.months)) return { ok: false, error: "invalid" };
     if (await pendingRequest(shop.id)) return { ok: false, error: "requestPending" };
     // Refer a seller: the referred store's first payment and the referrer's vouchers come off the amount
-    const gross = plan.priceMonthly * d.months;
+    const gross = planAmount(plan, d.months);
     const { discount, voucherId } = await referralDiscount(shop.id, plan, gross);
     await db.insert(schema.planRequests).values({
       id: newId(),
@@ -86,4 +92,47 @@ export async function decidePlanRequest(lang: string, id: string, approve: boole
     refresh();
     return ok ? { ok: true } : { ok: false, error: "notFound" };
   });
+}
+
+// Plans → Feature packs: extra quota for this month, paid with credits (refused when the balance is short)
+export async function buyQuotaPack(lang: string, key: string): Promise<ActionState> {
+  return safeAction("plans/pack", async () => {
+    const { shop } = await requireSection(asLocale(lang), "plans");
+    const pack = findQuotaPack(key);
+    if (!pack) return { ok: false, error: "invalid" };
+    if (!(await spendCredits(shop.id, pack.credits, "subscription", `pack:${pack.key}`))) return { ok: false, error: "notEnoughCredits" };
+    await db.insert(schema.quotaPacks).values({ id: newId(), shopId: shop.id, pack: pack.key, limitKey: pack.limit, amount: pack.amount, credits: pack.credits, month: packMonth() });
+    await releaseLockedOrders(shop.id);
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Plans → "Online payment": the request is created and the buyer goes to the gateway's page (paid = the plan starts at once)
+export async function requestPlanOnline(lang: string, input: { planId: string; months: number; method: string }): Promise<ActionState> {
+  let url: string | null = null;
+  const state = await safeAction("plans/online", async (): Promise<ActionState> => {
+    const locale = asLocale(lang);
+    const { shop, user } = await requireSection(locale, "plans");
+    if (!onlinePlanMethods().includes(input.method as never)) return { ok: false, error: "paymentMethod" };
+    const [plan] = await db.select().from(schema.plans).where(and(eq(schema.plans.id, String(input.planId)), eq(schema.plans.isActive, true)));
+    if (!plan || plan.code === FREE_PLAN || plan.priceMonthly <= 0) return { ok: false, error: "invalid" };
+    const months = Number(input.months);
+    if (!((plan.orderPack ? PACKS : PERIODS) as readonly number[]).includes(months)) return { ok: false, error: "invalid" };
+    if (await pendingRequest(shop.id)) return { ok: false, error: "requestPending" };
+    const gross = planAmount(plan, months);
+    const { discount, voucherId } = await referralDiscount(shop.id, plan, gross);
+    const id = newId();
+    await db.insert(schema.planRequests).values({ id, shopId: shop.id, planId: plan.id, months, amount: gross - discount, discount, voucherId, method: "online", requestedBy: user.id });
+    const back = `${(process.env.APP_URL ?? "").replace(/\/+$/, "")}${sectionHref(locale, "plans")}?request=${id}`;
+    const started = await startPlanPayment(input.method, { id, amount: gross - discount, label: `${plan.name} × ${months}` }, back, locale);
+    if (!started.ok) {
+      await db.update(schema.planRequests).set({ status: "cancelled", decidedAt: new Date() }).where(eq(schema.planRequests.id, id));
+      return { ok: false, error: "paymentFailed" };
+    }
+    url = started.url;
+    return { ok: true };
+  });
+  if (state.ok && url) redirect(url);
+  return state;
 }

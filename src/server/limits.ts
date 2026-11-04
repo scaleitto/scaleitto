@@ -1,8 +1,11 @@
 import "server-only";
-import { and, count, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { limitKeys, type LimitKey } from "@/server/db/schema";
-import { algeriaMonthStart } from "@/lib/time";
+import { algeriaMonthStart, algeriaParts } from "@/lib/time";
+
+// The Algeria month a feature pack belongs to ("2026-11-01")
+export const packMonth = (now = new Date()) => `${algeriaParts(now).day.slice(0, 8)}01`;
 
 // -1 means unlimited
 export type EffectiveLimits = Record<LimitKey, number>;
@@ -60,6 +63,13 @@ export async function getEffectiveLimits(shopId: string): Promise<EffectiveLimit
   const row = current?.plan;
   const limits = {} as EffectiveLimits;
   for (const key of limitKeys) limits[key] = contract?.limits[key] ?? row?.limits[key] ?? 0;
+  // Feature packs bought for this month (Plans → Feature packs) add to the monthly quotas
+  const packs = await db
+    .select({ key: schema.quotaPacks.limitKey, n: sql<number>`sum(${schema.quotaPacks.amount})` })
+    .from(schema.quotaPacks)
+    .where(and(eq(schema.quotaPacks.shopId, shopId), eq(schema.quotaPacks.month, packMonth())))
+    .groupBy(schema.quotaPacks.limitKey);
+  for (const p of packs) if ((limitKeys as readonly string[]).includes(p.key) && limits[p.key as LimitKey] !== -1) limits[p.key as LimitKey] += Number(p.n);
   return limits;
 }
 

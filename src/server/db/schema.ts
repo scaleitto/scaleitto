@@ -3,7 +3,7 @@ import { mysqlTable, varchar, int, text, boolean, timestamp, datetime, json, mys
 
 // Conventions: ids are UUID strings, money is integer DZD, timestamps are server time.
 // Value lists shared with browser code live in a plain module (no database code in client bundles)
-import { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
+import { limitKeys, paymentMethods, planRequestMethods, pixelPlatforms, policyKinds, purchaseTriggers, type LimitKey, type ParcelDefaults, type PolicyKind, type ProtectionSettings } from "../../lib/enums";
 export { limitKeys, paymentMethods, pixelPlatforms, policyKinds, purchaseTriggers };
 export type { LimitKey, PaymentMethod, PixelPlatform, PolicyKind, PurchaseTrigger } from "../../lib/enums";
 
@@ -489,6 +489,23 @@ export const referralVouchers = mysqlTable(
   (t) => [uniqueIndex("referral_vouchers_uq").on(t.shopId, t.referredShopId), index("referral_vouchers_shop_idx").on(t.shopId, t.status)],
 );
 
+// Plans → Feature packs (Zimam): extra quota for the current Algeria month, bought with credits (features/plans/packs.ts)
+export const quotaPacks = mysqlTable(
+  "quota_packs",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    pack: varchar("pack", { length: 40 }).notNull(),
+    limitKey: varchar("limit_key", { length: 40 }).notNull(),
+    amount: int("amount").notNull(),
+    credits: int("credits").notNull(),
+    // First day of the Algeria month the pack is for
+    month: date("month", { mode: "string" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("quota_packs_shop_idx").on(t.shopId, t.month)],
+);
+
 // Store Design history: a copy of the store's pages at every publish (the builder's History restores one into the draft)
 export const designVersions = mysqlTable(
   "design_versions",
@@ -815,7 +832,9 @@ export const planRequests = mysqlTable(
     // Months of a monthly plan, or packs of a pay-as-you-go plan
     months: int("months").notNull(),
     amount: int("amount").notNull(),
-    method: mysqlEnum("method", paymentMethods).notNull(),
+    method: mysqlEnum("method", planRequestMethods).notNull(),
+    // Online payment: "<card|cib|edahabia|paypal…>:<gateway reference>" (asked again on the way back, never trusted from the URL)
+    providerRef: varchar("provider_ref", { length: 80 }),
     // /uploads/<shop>/<file> (transfer receipt), null for WhatsApp
     receiptUrl: varchar("receipt_url", { length: 255 }),
     note: varchar("note", { length: 500 }),

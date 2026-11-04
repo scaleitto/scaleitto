@@ -4,8 +4,11 @@ import { db, schema } from "@/server/db";
 import type { PaymentMethod } from "@/server/db/schema";
 import { releaseLockedOrders } from "./locked";
 import { settleReferral } from "@/features/referrals/referrals";
+import { clients } from "@/features/payments/connectors";
+import { chargeAmount, isOnlineMethod } from "@/features/payments/methods";
+import { platformMethod, platformMethods } from "@/features/credits/purchases";
 
-export const PERIODS = [1, 3, 6, 12] as const;
+export { PERIODS, termDiscount, planAmount } from "./terms";
 // Packs of orders a pay-as-you-go request can buy at once
 export const PACKS = [1, 2, 3, 5, 10] as const;
 
@@ -56,4 +59,38 @@ export async function rejectPlanRequest(requestId: string, adminNote: string | n
     .set({ status: "rejected", adminNote, decidedAt: new Date() })
     .where(and(eq(schema.planRequests.id, requestId), eq(schema.planRequests.status, "pending")));
   return res.affectedRows > 0;
+}
+
+// Plans → payment method "Online payment": the platform's own payment accounts (the same as the balance's packs)
+export const onlinePlanMethods = () => platformMethods().map((p) => p.method);
+
+// Opens the payment page of a plan request paid online (plan_requests.provider_ref = "<method>:<gateway reference>")
+export async function startPlanPayment(method: string, request: { id: string; amount: number; label: string }, back: string, language: "ar" | "fr" | "en") {
+  const p = platformMethod(method);
+  if (!p) return { ok: false as const };
+  const started = await clients[p.connector]!.start(p.keys, p.mode, {
+    amount: chargeAmount(request.amount, p.currency, p.rate),
+    currency: p.currency,
+    reference: request.id,
+    orderNumber: Date.now() % 1_000_000_000,
+    description: request.label,
+    returnUrl: back,
+    cancelUrl: back,
+    language,
+  });
+  if (started.ok) await db.update(schema.planRequests).set({ providerRef: `${p.method}:${started.ref}`.slice(0, 80) }).where(eq(schema.planRequests.id, request.id));
+  return started;
+}
+
+// Back from the payment page: the gateway says how it went (never the address bar); paid = the plan starts at once
+export async function refreshPlanPayment(shopId: string, id: string) {
+  const [r] = await db.select().from(schema.planRequests).where(and(eq(schema.planRequests.shopId, shopId), eq(schema.planRequests.id, id)));
+  if (!r || r.status !== "pending" || r.method !== "online" || !r.providerRef) return r?.status ?? null;
+  const [method, ...rest] = r.providerRef.split(":");
+  const gateway = isOnlineMethod(method) ? platformMethod(method) : null;
+  if (!gateway) return "pending";
+  const status = await clients[gateway.connector]!.status(gateway.keys, gateway.mode, rest.join(":"), chargeAmount(r.amount, gateway.currency, gateway.rate));
+  if (status === "paid") await approvePlanRequest(id, null);
+  else if (status === "failed") await db.update(schema.planRequests).set({ status: "rejected", decidedAt: new Date() }).where(eq(schema.planRequests.id, id));
+  return status === "paid" ? "approved" : status === "failed" ? "rejected" : "pending";
 }

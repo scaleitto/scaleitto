@@ -1,5 +1,5 @@
 // Plans page blocks (server components).
-import { CircleAlert, Crown, Lock } from "lucide-react";
+import { CircleAlert, Crown, Lock, ReceiptText } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt, formatDate, formatDay, formatPrice } from "@/lib/format";
 import { Alert, Badge, Card } from "@/ui";
@@ -105,10 +105,15 @@ export function UsageMeters({ meters, threshold, t }: { meters: Overview["meters
 
 export function RequestHistory({ data, lang, t }: { data: Overview; lang: string; t: Dictionary }) {
   const p = t.plans;
-  if (!data.requests.length) return null;
   return (
     <Card className="overflow-x-auto p-0" data-testid="plan-requests">
-      <h2 className="p-4 pb-2 font-semibold">{p.history}</h2>
+      <div className="p-4 pb-2">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <ReceiptText size={18} className="text-accent" /> {p.billing.invoices}
+        </h2>
+        <p className="mt-0.5 text-sm text-muted">{p.billing.invoicesHint}</p>
+      </div>
+      {!data.requests.length && <p className="px-4 pb-4 text-sm text-muted">{p.billing.noInvoices}</p>}
       <table className="w-full text-sm">
         <tbody>
           {data.requests.map((r) => (

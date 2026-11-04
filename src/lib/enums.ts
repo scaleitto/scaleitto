@@ -9,6 +9,9 @@ export const purchaseTriggers = ["placed", "confirmed", "delivered"] as const;
 export type PurchaseTrigger = (typeof purchaseTriggers)[number];
 
 export const paymentMethods = ["ccp", "rib", "whatsapp"] as const;
+// A plan request is paid by hand (above) or online through the platform's own payment accounts (credits/purchases.ts)
+export const planRequestMethods = [...paymentMethods, "online"] as const;
+export type PlanRequestMethod = (typeof planRequestMethods)[number];
 export type PaymentMethod = (typeof paymentMethods)[number];
 
 // Policy pages a store can show in its footer

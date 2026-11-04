@@ -211,6 +211,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   PAYMENT_CCP / PAYMENT_RIB / PAYMENT_WHATSAPP), approved on `/[lang]/admin/plan-requests` (platform admin) →
   `approvePlanRequest` (plan + paid period). Dashboard banner (`planNotice`): locked orders, or a monthly quota past the
   contract's alert threshold (default 80%). Lists shared with browser code live in `src/lib/enums.ts`.
+  Plans page = Zimam's "Subscription & Billing" (phase39.mjs): credit balance pill, current plan + usage, Invoices (requests), "Choose
+  your subscription term" = payment method (online = the platform's own methods `billing.ts onlinePlanMethods` → `requestPlanOnline`
+  → `startPlanPayment` → back to `?request=` → `refreshPlanPayment` approves at once; `plan_requests.method` "online" + `provider_ref`,
+  migration 0053 | local = the CCP/RIB/WhatsApp request form) and the prepaid term (`terms.ts`: 1/3/6/12 months, −0/5/10/25%,
+  `planAmount`; packs of pay-as-you-go plans get no term discount), plan cards (✓ limits, custom domain ✓/✗, included integrations /
+  features chips, "Most popular" = rocket, free plan = greyed button), Balance card, Feature packs (`packs.ts quotaPacks`: 500 orders
+  1,500 credits, 20 AI pages 400 credits → `buyQuotaPack` spends credits, `quota_packs` rows for the Algeria month are added to the
+  monthly limits in `getEffectiveLimits`, `packMonth`).
 - Settings (`src/features/settings/`, phase12.mjs) = Zimam's Store settings with underline tabs (`?tab=`): General (name, description =
   `design.about`, location = `design.location`, Instagram / TikTok / Facebook / Telegram usernames → `design.socials` links, phone; the
   device notifications card = browser permission + new-order sound/volume kept in localStorage `shell/alerts.ts`, played by

@@ -138,6 +138,7 @@ export default async function phase38(browser) {
     expect((await owner.locator("[data-testid=refer-vouchers]").innerText()).includes("1"), "vouchers shown");
     // The referrer's next request: half a month off (both on rocket), the voucher kept on the request
     await owner.goto(`${BASE}/ar/dashboard/plans`);
+    await owner.click("[data-pay=local]");
     await owner.locator("[data-plan-card=rocket] button").click();
     const form = owner.locator("[data-testid=plan-request-form]");
     await form.waitFor();
