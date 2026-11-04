@@ -34,7 +34,7 @@ export type OrderInput = z.output<typeof orderInputSchema>;
 // Store settings → Checkout: a hidden field is dropped, an optional one may stay empty, a required one must be filled.
 // Adds the errors to `errors` and returns the values to save.
 export function checkContact(rules: { name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required"; wilaya?: "optional" | "required" }, input: { name: string; commune: string; wilaya?: number }, errors: Record<string, string>) {
-  if ((rules.wilaya ?? "required") === "required" && !input.wilaya) errors.wilaya = "wilaya";
+  if (input.wilaya !== undefined && (rules.wilaya ?? "required") === "required" && !input.wilaya) errors.wilaya = "wilaya";
   const one = (key: "name" | "commune") => {
     const rule = rules[key];
     const value = rule === "hidden" ? "" : input[key];

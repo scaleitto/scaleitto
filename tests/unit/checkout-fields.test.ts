@@ -15,3 +15,12 @@ test("checkout fields: hidden dropped, optional may be empty, required must be f
   assert.equal(form.commune, "hidden");
   assert.equal(form.optionButtons, true);
 });
+
+test("checkout fields: the wilaya is required unless the store makes it optional", () => {
+  const e1: Record<string, string> = {};
+  checkContact({ name: "required", commune: "hidden", wilaya: "required" }, { name: "Ali", commune: "", wilaya: 0 }, e1);
+  assert.deepEqual(e1, { wilaya: "wilaya" });
+  const e2: Record<string, string> = {};
+  checkContact({ name: "required", commune: "hidden", wilaya: "optional" }, { name: "Ali", commune: "", wilaya: 0 }, e2);
+  assert.deepEqual(e2, {});
+});
