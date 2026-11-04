@@ -3,7 +3,6 @@ import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { db, schema } from "@/server/db";
 import { formatDate } from "@/lib/format";
-import { PageHeader } from "@/ui";
 import { listTeam } from "@/features/team/queries";
 import { TeamInvites } from "@/features/team/TeamInvites";
 import { staffUsage } from "@/features/team/invites";
@@ -23,13 +22,15 @@ export default async function TeamPage({ params }: PageProps<"/[lang]/dashboard/
   ]);
   return (
     <>
-      <PageHeader title={t.sections.team.title} description={t.sections.team.description} />
       <TeamInvites
         lang={lang}
-        members={team.filter((m) => m.active).map((m) => ({ userId: m.userId, name: m.name, email: m.email, role: m.role, active: m.active }))}
+        title={t.sections.team.title}
+        description={t.sections.team.description}
+        // Zimam lists and counts the teammates: the owner is not one of them (the plan's staff limit counts the owner's seat)
+        members={team.filter((m) => m.active && m.role !== "owner").map((m) => ({ userId: m.userId, name: m.name, email: m.email, role: m.role, active: m.active }))}
         invites={invites.map((i) => ({ id: i.id, email: i.email, role: i.role, expires: formatDate(i.expiresAt, lang) }))}
-        used={usage.used}
-        max={usage.max}
+        used={Math.max(0, usage.used - 1)}
+        max={usage.max < 0 ? -1 : Math.max(0, usage.max - 1)}
         canInviteManagers={role === "owner"}
         t={{ team: t.team, errors: t.errors, profile: t.profile }}
       />

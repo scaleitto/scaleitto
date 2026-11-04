@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Mail, Plus, X } from "lucide-react";
+import { Copy, Mail, Plus, Trash2, X } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
 import { Alert, Badge, Button, Card, Field, Input, Select, inputClass } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
 import { cancelInvite, inviteMember } from "./invites";
+import { removeMember } from "./actions";
 import { useModal } from "@/ui/useModal";
 
 type Text = Pick<Dictionary, "team" | "errors" | "profile">;
@@ -15,7 +16,7 @@ type Invite = { id: string; email: string; role: "owner" | "manager" | "agent"; 
 
 // Team (Zimam): the counter against the plan's staff limit, "+ Invite" (email + role), the active teammates and the
 // invitations still waiting
-export function TeamInvites({ lang, members, invites, used, max, canInviteManagers, t }: { lang: string; members: Member[]; invites: Invite[]; used: number; max: number; canInviteManagers: boolean; t: Text }) {
+export function TeamInvites({ lang, title, description, members, invites, used, max, canInviteManagers, t }: { lang: string; title: string; description: string; members: Member[]; invites: Invite[]; used: number; max: number; canInviteManagers: boolean; t: Text }) {
   const i = t.team.invite;
   const errors = t.errors as Record<string, string>;
   const dialog = useModal();
@@ -25,13 +26,20 @@ export function TeamInvites({ lang, members, invites, used, max, canInviteManage
   const roleLabel = (r: Member["role"]) => (r === "owner" ? t.profile.roles.owner : i.roles[r]);
   return (
     <div className="space-y-6" data-testid="team-page">
-      <div className="flex items-center justify-between gap-3">
-        <span className="rounded-full bg-panel-2 px-3 py-1 text-sm font-semibold tabular-nums" data-testid="team-count">
-          {max < 0 ? fmt(i.unlimited, { used }) : fmt(i.count, { used, max })}
-        </span>
-        <Button type="button" onClick={() => dialog.current?.showModal()} data-testid="invite-open">
-          <Plus size={16} /> {i.button}
-        </Button>
+      {/* Zimam: the title on one side, the teammates counter above "+ Invite" on the other (the owner is not counted) */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl leading-tight font-bold tracking-tight sm:text-[1.7rem]">{title}</h1>
+          <p className="mt-1.5 text-sm text-muted">{description}</p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <span className="text-sm font-semibold tabular-nums" data-testid="team-count">
+            {max < 0 ? fmt(i.unlimited, { used }) : fmt(i.count, { used, max })}
+          </span>
+          <Button type="button" onClick={() => dialog.current?.showModal()} data-testid="invite-open">
+            <Plus size={16} /> {i.button}
+          </Button>
+        </div>
       </div>
 
       <dialog ref={dialog} className="m-auto w-[min(460px,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-0 text-fg shadow-xl backdrop:bg-black/40" data-testid="invite-dialog">
@@ -104,12 +112,14 @@ export function TeamInvites({ lang, members, invites, used, max, canInviteManage
         </Card>
       )}
 
-      <Card className="space-y-3 p-0" data-testid="members">
-        <h2 className="px-4 pt-4 text-xs font-semibold tracking-wide text-muted uppercase">{i.active}</h2>
+      <section className="space-y-2" data-testid="members">
+        <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">{i.active}</h2>
         {members.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted">{i.none}</p>
+          <p className="rounded-xl border border-line bg-panel px-4 py-6 text-center text-sm text-muted" data-testid="team-empty">
+            {i.none}
+          </p>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line rounded-xl border border-line bg-panel">
             {members.map((m) => (
               <li key={m.userId} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm" data-member={m.email}>
                 <span className="grid size-8 place-items-center rounded-full bg-accent-soft text-xs font-bold text-accent-ink">{m.name.slice(0, 2).toUpperCase()}</span>
@@ -119,15 +129,28 @@ export function TeamInvites({ lang, members, invites, used, max, canInviteManage
                     {m.email}
                   </span>
                 </span>
-                <span className="ms-auto">
+                <span className="ms-auto flex items-center gap-2">
                   <Badge tone={m.role === "owner" ? "violet" : m.role === "manager" ? "accent" : "neutral"}>{roleLabel(m.role)}</Badge>
+                  {(canInviteManagers || m.role === "agent") && (
+                    <button
+                      type="button"
+                      className="grid size-8 place-items-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
+                      aria-label={i.remove}
+                      title={i.remove}
+                      disabled={busy}
+                      onClick={() => confirm(i.confirmRemove) && start(async () => void (await removeMember(lang, m.userId)))}
+                      data-testid="member-remove"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="px-4 pb-4 text-xs text-muted">{i.manageAgents}</p>
-      </Card>
+        <p className="text-xs text-muted">{i.manageAgents}</p>
+      </section>
     </div>
   );
 }

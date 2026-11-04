@@ -1089,6 +1089,8 @@ const fr: Dictionary = {
       managers: "Managers",
     },
     invite: {
+      remove: "Retirer de l'équipe",
+      confirmRemove: "Retirer ce membre de la boutique ? Ses commandes ouvertes sont libérées.",
       button: "Inviter",
       title: "Inviter un collègue",
       email: "E-mail",
@@ -1103,7 +1105,7 @@ const fr: Dictionary = {
       pending: "Invitations en attente",
       expires: "Expire le {at}",
       revoke: "Annuler l'invitation",
-      none: "Pas encore de collègues.",
+      none: "Aucun coéquipier pour l'instant.",
       manageAgents: "Les agents d'appel se gèrent depuis le centre d'appels.",
       accept: { title: "Rejoindre {store}", body: "Vous êtes invité(e) comme {role} avec l'adresse {email}. Choisissez votre nom et un mot de passe.", name: "Nom", password: "Mot de passe", submit: "Créer le compte et rejoindre", invalid: "Lien d'invitation invalide ou expiré. Demandez une nouvelle invitation." },
       mail: { subject: "Invitation à rejoindre {store}", body: "{name} vous invite à travailler sur la boutique {store} sur Scaleitto.", expires: "Le lien est valable {days} jours.", button: "Accepter l'invitation", footer: "Si vous n'attendiez pas cette invitation, ignorez ce message." },

@@ -1089,6 +1089,8 @@ const en: Dictionary = {
       managers: "Managers",
     },
     invite: {
+      remove: "Remove from the team",
+      confirmRemove: "Remove this member from the store? Their open orders are released.",
       button: "Invite",
       title: "Invite a teammate",
       email: "Email",

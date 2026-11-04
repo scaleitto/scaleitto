@@ -100,7 +100,9 @@ export default async function phase29(browser) {
   const email = `invitee-${tag}@test.dz`;
   await step("team: invite an agent by email; the link is sent and shown", async () => {
     await owner.goto(`${dash}/team`);
-    expect((await owner.locator("[data-testid=team-count]").innerText()).includes("1 / 4"), "the owner counts");
+    // Zimam: teammates only (the owner's seat is not shown): 0 of 3
+    expect((await owner.locator("[data-testid=team-count]").innerText()).includes("0 / 3"), "teammates counter");
+    await owner.locator("[data-testid=team-empty]").waitFor();
     await owner.click("[data-testid=invite-open]");
     await owner.fill("#invite-email", email);
     await owner.selectOption("#invite-role", "agent");
@@ -109,7 +111,7 @@ export default async function phase29(browser) {
     expect(Boolean(lastLink(email)), "invitation emailed");
     await owner.reload();
     await owner.locator(`[data-invite="${email}"]`).waitFor();
-    expect((await owner.locator("[data-testid=team-count]").innerText()).includes("2 / 4"), "the invitation counts");
+    expect((await owner.locator("[data-testid=team-count]").innerText()).includes("1 / 3"), "the invitation counts");
   });
 
   await step("the invited agent joins from the link and lands in the call-center portal", async () => {
@@ -134,6 +136,15 @@ export default async function phase29(browser) {
     await ctx.close();
     await owner.goto(`${dash}/team`);
     await owner.locator(`[data-member="${email}"]`).waitFor();
+  });
+
+  await step("a teammate can be removed from the Team page", async () => {
+    await owner.goto(`${dash}/team`);
+    owner.once("dialog", (d) => d.accept());
+    await owner.locator(`[data-member="${email}"] [data-testid=member-remove]`).click();
+    await owner.locator(`[data-member="${email}"]`).waitFor({ state: "detached" });
+    const [[m]] = await db.query("SELECT COUNT(*) AS n FROM shop_members m JOIN users u ON u.id = m.user_id WHERE m.shop_id = ? AND u.email = ?", [shopId, email]);
+    expect(m.n === 0, "membership removed");
   });
 
   await step("an invitation can be cancelled", async () => {

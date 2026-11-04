@@ -388,7 +388,9 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   price by name, home delivery from the store) → answer "#1042 · status"; `applyOrderStatus` → `sheets-sync.ts scheduleSheetStatus`
   posts the new status back to the row. Team (`team` section): `member_invites` (sha256 of the
   token, 7 days), `team/invites.ts` (`inviteMember` emails the link and returns it, `staffUsage` = active members + pending
-  invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`.
+  invitations vs `maxStaff`, `cancelInvite`, `acceptInvite` → account + membership + session), `/[lang]/invite/<token>`. Team page like Zimam
+  (`TeamInvites`: title + teammates counter above "+ Invite"; the owner is neither listed nor counted — shown as used − 1 / maxStaff − 1;
+  "Active" list with remove = `removeMember`; pending invitations).
 - Call center like Zimam (phase31.mjs): agents have `shop_members.username` (unique per shop) and sign in at
   `/[lang]/call-center/login` (store slug or domain + username or email + password, `team/portal.ts agentLogin`); the portal
   (`app/[lang]/call-center/(portal)`, `requireAgent`) reuses `DashboardShell` (`logoutInNav`) with Dashboard (`team/agent-overview.ts`
