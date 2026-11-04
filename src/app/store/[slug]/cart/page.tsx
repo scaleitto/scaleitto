@@ -10,6 +10,7 @@ import { liveMethods } from "@/features/payments/flow";
 import { resolveApps } from "@/features/apps/settings";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { wilayas } from "@/lib/wilayas";
+import { storeForm } from "@/features/order-form/resolve";
 
 export const metadata: Metadata = { title: "Cart", robots: { index: false } };
 
@@ -31,6 +32,7 @@ export default async function Cart({ params }: PageProps<"/store/[slug]/cart">) 
       action={submitCart.bind(null, shop.slug)}
       payMethods={await liveMethods(shop.id)}
       captcha={storeCaptcha(resolveProtection(shop.protection))}
+      fields={(({ name, commune, address, delivery, preferDelivery }) => ({ name, commune, address, delivery, preferDelivery }))(storeForm(shop))}
       t={getStoreText(locale)}
     />
   );

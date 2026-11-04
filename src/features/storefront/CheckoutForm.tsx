@@ -316,6 +316,20 @@ export function CheckoutForm({
                   {option.optional && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
                   {d !== "text" && chosen && <span className="font-bold text-s-text">: {chosen}</span>}
                 </legend>
+                {/* Zimam: a text option with more than 6 values, or a value longer than 18 characters, is a dropdown — unless the
+                    store shows options as buttons (Store settings → Product page) */}
+                {d === "text" && !settings.optionButtons && (option.values.filter((v) => valueOn(option, v)).length > 6 || option.values.some((v) => valueOn(option, v) && v.length > 18)) ? (
+                  <select className={selectField} value={chosen ?? ""} onChange={(e) => e.target.value ? choose(e.target.value) : option.optional && setPicked((st) => ({ ...st, [option.name]: "" }))} aria-label={option.name} data-option-select={option.name}>
+                    {(option.optional || !chosen) && <option value="">{fmt(t.choose, { option: option.name })}</option>}
+                    {option.values
+                      .filter((value) => valueOn(option, value))
+                      .map((value) => (
+                        <option key={value} value={value} disabled={!(option.optional || valueAvailable(option.name, value))}>
+                          {value}
+                        </option>
+                      ))}
+                  </select>
+                ) : (
                 <div className="flex flex-wrap gap-2">
                   {option.values
                     .filter((value) => valueOn(option, value))
@@ -366,6 +380,7 @@ export function CheckoutForm({
                       );
                     })}
                 </div>
+                )}
               </fieldset>
             );
           });
@@ -476,10 +491,12 @@ export function CheckoutForm({
           </div>
         );
       case "name":
+        if (settings.name === "hidden") return null;
         return (
           <div>
             <label htmlFor="name" className={label}>
               {text("name", t.form.name)}
+              {settings.name === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
             </label>
             {withIcon("name", <input id="name" aria-invalid={Boolean(err("name"))} name="name" autoComplete="name" placeholder={hint("name", t.form.namePlaceholder)} className={field + pad} onBlur={rememberLead} />)}
             {error("name")}
@@ -535,10 +552,12 @@ export function CheckoutForm({
           </div>
         );
       case "commune":
+        if (settings.commune === "hidden") return null;
         return (
           <div>
             <label htmlFor="commune" className={label}>
               {text("commune", t.form.commune)}
+              {settings.commune === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
             </label>
             {withIcon(
               "commune",
@@ -557,6 +576,8 @@ export function CheckoutForm({
           </div>
         );
       case "delivery":
+        // Store settings → Checkout: delivery type hidden = always the store's one, no choice shown
+        if (allowedTypes.length === 1) return <input type="hidden" name="deliveryType" value={allowedTypes[0]} />;
         return (
           <fieldset className={wide}>
             <legend className={label}>{t.form.deliveryType}</legend>

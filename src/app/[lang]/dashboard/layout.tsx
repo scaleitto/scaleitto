@@ -62,6 +62,7 @@ export default async function DashboardLayout({ children, params }: LayoutProps<
           })),
         }))}
         usage={usage}
+        alerts={{ title: t.settings.notify.alertTitle, body: t.settings.notify.alertBody, href: sectionHref(lang, "orders") }}
         notifications={{ count: waiting.n, text: fmt(s.waitingOrders, { n: waiting.n }), href: `${sectionHref(lang, "orders")}?status=pending` }}
         supportHref={whatsapp ? `https://wa.me/${whatsapp}` : null}
         profileHref={sectionHref(lang, "profile")}

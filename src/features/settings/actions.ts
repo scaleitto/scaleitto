@@ -14,31 +14,123 @@ import type { ActionState } from "@/lib/action";
 import { policyKinds } from "@/lib/enums";
 import { shopSlugSchema } from "@/features/auth/validators";
 import { checkDomain, newDomainToken, normalizeDomain, planAllowsDomain } from "./domain";
+import { fieldRules, resolveForm } from "@/features/landing/types";
 
 const shopOf = async (lang: string) => (await requireSection(asLocale(lang), "settings")).shop;
 
+// A social profile written as a username or a full link → the https link (empty stays empty)
+const profile = (base: string, host: RegExp) =>
+  z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .default("")
+    .transform((v) => {
+      const clean = v.replace(/^@/, "");
+      if (!clean) return "";
+      if (/^https?:\/\//i.test(clean)) return clean.replace(/^http:/i, "https:");
+      if (host.test(clean.split("/")[0])) return `https://${clean}`;
+      return `${base}${clean}`;
+    })
+    .refine((v) => {
+      if (!v) return true;
+      try {
+        return host.test(new URL(v).hostname.replace(/^www\./, ""));
+      } catch {
+        return false;
+      }
+    }, "e:socialLink");
+
 const generalSchema = z.object({
   name: z.string().trim().min(2, "e:tooShort").max(120, "e:invalid"),
+  description: z.string().trim().max(1000, "e:tooLong").optional().default(""),
+  location: z.string().trim().max(160, "e:tooLong").optional().default(""),
+  instagram: profile("https://instagram.com/", /^instagram\.com$/i),
+  tiktok: profile("https://tiktok.com/@", /^tiktok\.com$/i),
+  facebook: profile("https://facebook.com/", /^(facebook\.com|fb\.com)$/i),
+  telegram: profile("https://t.me/", /^(t\.me|telegram\.me)$/i),
   phone: z
     .string()
     .trim()
     .transform((v) => (v ? normalizePhone(v) : ""))
     .refine((v) => !v || isValidDzPhone(v), "e:phone"),
-  defaultLocale: z.enum(locales, { error: "e:invalid" }),
-  slug: shopSlugSchema,
 });
+const raw = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-// Name, phone, store language and link
+// Store settings → General (Zimam): name, description, location, social profiles, phone. The description, location and
+// profiles are the store footer's (the same as Store Design → Footer).
 export async function saveGeneral(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   return safeAction("settings/general", async () => {
     const shop = await shopOf(lang);
     const parsed = generalSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
     const d = parsed.data;
-    if (d.slug !== shop.slug && (await db.$count(schema.shops, and(eq(schema.shops.slug, d.slug), ne(schema.shops.id, shop.id)))) > 0) {
+    const design = raw(shop.design);
+    const socials = { ...raw(design.socials), instagram: d.instagram, tiktok: d.tiktok, facebook: d.facebook, telegram: d.telegram };
+    await db
+      .update(schema.shops)
+      .set({ name: d.name, phone: d.phone || null, design: { ...design, about: d.description, location: d.location, socials } })
+      .where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Store settings → Domain: the store's link on the platform
+export async function saveSlug(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("settings/slug", async () => {
+    const shop = await shopOf(lang);
+    const parsed = z.object({ slug: shopSlugSchema }).safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const slug = parsed.data.slug;
+    if (slug !== shop.slug && (await db.$count(schema.shops, and(eq(schema.shops.slug, slug), ne(schema.shops.id, shop.id)))) > 0) {
       return { ok: false, error: "checkFields", fieldErrors: { slug: "slugTaken" } };
     }
-    await db.update(schema.shops).set({ name: d.name, phone: d.phone || null, defaultLocale: d.defaultLocale, slug: d.slug }).where(eq(schema.shops.id, shop.id));
+    await db.update(schema.shops).set({ slug }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Store settings → Language: saved as soon as it is chosen
+export async function saveStoreLanguage(lang: string, locale: string): Promise<ActionState> {
+  return safeAction("settings/language", async () => {
+    const shop = await shopOf(lang);
+    if (!(locales as readonly string[]).includes(locale)) return { ok: false, error: "invalid" };
+    await db.update(schema.shops).set({ defaultLocale: locale }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+const rule = z.enum(fieldRules);
+const checkoutSchema = z.object({ name: rule, commune: rule, address: rule, delivery: z.enum(["hidden", "optional"]) });
+
+// Store settings → Checkout: what the buyer is asked (phone and wilaya are always required)
+export async function saveCheckoutFields(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  return safeAction("settings/checkout", async () => {
+    const shop = await shopOf(lang);
+    const parsed = checkoutSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const d = parsed.data;
+    const form = resolveForm(shop.orderForm);
+    // Hidden delivery type: always the store's preferred one (home unless the store chose desks)
+    const delivery = d.delivery === "optional" ? "both" : form.delivery === "both" ? form.preferDelivery : form.delivery;
+    await db
+      .update(schema.shops)
+      .set({ orderForm: { ...raw(shop.orderForm), name: d.name, commune: d.commune, address: d.address, delivery } })
+      .where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Store settings → Product page: options always as buttons
+export async function saveOptionButtons(lang: string, on: boolean): Promise<ActionState> {
+  return safeAction("settings/product-page", async () => {
+    const shop = await shopOf(lang);
+    await db.update(schema.shops).set({ orderForm: { ...raw(shop.orderForm), optionButtons: on === true } }).where(eq(schema.shops.id, shop.id));
     refresh();
     return { ok: true };
   });

@@ -93,6 +93,7 @@ const toInput = (g: GlobalState) => ({
   facebook: g.facebook,
   instagram: g.instagram,
   tiktok: g.tiktok,
+  telegram: g.telegram,
   whatsapp: g.whatsapp,
 });
 
@@ -591,7 +592,7 @@ export function StoreBuilder({
               {g.footerEnabled && (
                 <div role="button" tabIndex={-1} onClick={() => select("g:footer")} className="cursor-pointer">
                   <div className="pointer-events-none">
-                    <StoreFooter name={preview.shopName} about={g.about} socials={{ facebook: g.facebook, instagram: g.instagram, tiktok: g.tiktok, whatsapp: g.whatsapp }} phone={preview.phone} t={preview.storeText} />
+                    <StoreFooter name={preview.shopName} about={g.about} socials={{ facebook: g.facebook, instagram: g.instagram, tiktok: g.tiktok, whatsapp: g.whatsapp, telegram: g.telegram }} phone={preview.phone} t={preview.storeText} />
                   </div>
                 </div>
               )}

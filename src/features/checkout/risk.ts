@@ -47,7 +47,8 @@ export function scoreOrder(s: RiskSignals): { score: number; reasons: RiskReason
   if (s.fillSeconds === null) add("noScript", 30);
   else if (s.fillSeconds < s.minFillSeconds) add("fast", 25);
   if (s.botAgent) add("bot", 50);
-  if (fakeName(s.name)) add("name", 20);
+  // No name at all = the store does not ask for it (Store settings → Checkout)
+  if (s.name.trim() && fakeName(s.name)) add("name", 20);
   if (s.phonesFromIp >= 3) add("sharedIp", 20);
   // Customers who already received their parcels are trusted more
   score -= Math.min(30, 15 * s.delivered);

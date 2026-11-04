@@ -34,6 +34,7 @@ export default async function PortalLayout({ children, params }: LayoutProps<"/[
             ],
           },
         ]}
+        alerts={{ title: t.settings.notify.alertTitle, body: t.settings.notify.alertBody, href: `${home}/orders` }}
         notifications={{ count: waiting.n, text: fmt(s.waitingOrders, { n: waiting.n }), href: `${home}/orders?status=pending` }}
         labels={{ ...s, logout: t.portal.nav.logout, menu: t.portal.menu }}
         logout={agentLogout.bind(null, lang)}

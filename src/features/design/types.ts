@@ -11,7 +11,9 @@ export type StoreDesign = {
   productsTitle: string;
   showBadges: boolean;
   about: string;
-  socials: { facebook: string; instagram: string; tiktok: string; whatsapp: string };
+  socials: { facebook: string; instagram: string; tiktok: string; whatsapp: string; telegram: string };
+  // Store settings → General: where the store is (shown in the footer)
+  location: string;
   // The merchant's own changes to the theme ("" / 0 = the theme's choice)
   style: StyleOverrides;
   // "How to order" steps under the products
@@ -55,7 +57,8 @@ export const defaultDesign: StoreDesign = {
   productsTitle: "",
   showBadges: true,
   about: "",
-  socials: { facebook: "", instagram: "", tiktok: "", whatsapp: "" },
+  socials: { facebook: "", instagram: "", tiktok: "", whatsapp: "", telegram: "" },
+  location: "",
   style: noStyle,
   showOrderSteps: true,
   pages: { home: legacyHome({ showBadges: true }), custom: [] },
@@ -80,6 +83,7 @@ export function resolveDesign(saved: unknown): StoreDesign {
     showBadges: typeof s.showBadges === "boolean" ? s.showBadges : defaultDesign.showBadges,
     about: typeof s.about === "string" ? s.about : defaultDesign.about,
     socials: { ...defaultDesign.socials, ...obj(s.socials) } as StoreDesign["socials"],
+    location: typeof s.location === "string" ? s.location.slice(0, 160) : "",
     style: resolveStyle(s.style),
     showOrderSteps: typeof s.showOrderSteps === "boolean" ? s.showOrderSteps : typeof s.showBadges === "boolean" ? s.showBadges : defaultDesign.showOrderSteps,
     pages,

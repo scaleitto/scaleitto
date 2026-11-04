@@ -26,6 +26,7 @@ export type GlobalState = {
   facebook: string;
   instagram: string;
   tiktok: string;
+  telegram: string;
   whatsapp: string;
 };
 
@@ -171,9 +172,9 @@ export function GlobalFields({ part, g, set, t, err, targets }: { part: "header"
         <Textarea id="about" rows={3} maxLength={1000} placeholder={d.aboutPlaceholder} value={g.about} onChange={(e) => set({ about: e.target.value }, "about")} />
       </Field>
       <p className="text-sm font-semibold">{d.socials}</p>
-      {(["facebook", "instagram", "tiktok"] as const).map((k) => (
+      {(["facebook", "instagram", "tiktok", "telegram"] as const).map((k) => (
         <Field key={k} label={k === "tiktok" ? "TikTok" : k[0].toUpperCase() + k.slice(1)} htmlFor={k} error={err(k)}>
-          <Input id={k} dir="ltr" placeholder={`https://${k}.com/…`} value={g[k]} onChange={(e) => set({ [k]: e.target.value }, k)} />
+          <Input id={k} dir="ltr" placeholder={k === "telegram" ? "https://t.me/…" : `https://${k}.com/…`} value={g[k]} onChange={(e) => set({ [k]: e.target.value }, k)} />
         </Field>
       ))}
       <Field label={d.whatsapp} htmlFor="whatsapp" error={err("whatsapp")}>

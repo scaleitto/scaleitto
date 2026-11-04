@@ -53,6 +53,7 @@ import {
 import type { Locale } from "@/i18n/config";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { ActivityPing } from "./ActivityPing";
+import { OrderAlerts } from "./OrderAlerts";
 import { LogoMark } from "@/ui/Logo";
 import { tabOrder } from "@/lib/permissions";
 
@@ -168,6 +169,7 @@ export function DashboardShell({
   logout,
   logoutInNav = false,
   ping = true,
+  alerts,
   children,
 }: {
   lang: Locale;
@@ -191,6 +193,8 @@ export function DashboardShell({
   // The agents' portal lists "Log out" with the pages (Zimam's call-center sidebar)
   logoutInNav?: boolean;
   ping?: boolean;
+  // New-order sound + browser notification (Store settings → General)
+  alerts?: { title: string; body: string; href: string };
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -411,6 +415,7 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-bg text-fg md:flex" data-shell>
       {ping && <ActivityPing />}
+      {alerts && <OrderAlerts {...alerts} />}
       {/* Desktop sidebar (folds to icons) */}
       <aside className={`sticky top-0 hidden h-screen shrink-0 border-e border-line bg-panel transition-[width] duration-200 md:block ${collapsed ? "w-[68px]" : "w-60"}`}>{sidebar(collapsed)}</aside>
 

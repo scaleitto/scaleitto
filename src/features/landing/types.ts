@@ -121,7 +121,14 @@ export type FormSettings = {
   blocks: FormBlock[];
   // Two steps: the name and phone first, then the rest
   stepper: boolean;
+  // Store settings → Checkout (Zimam): the buyer's name and commune can be hidden, optional or required
+  name: FieldRule;
+  commune: FieldRule;
+  // Store settings → Product page: options always as buttons (else long lists become a dropdown)
+  optionButtons: boolean;
 };
+export type FieldRule = "hidden" | "optional" | "required";
+export const fieldRules = ["hidden", "optional", "required"] as const;
 
 export const defaultForm: FormSettings = {
   title: "",
@@ -148,6 +155,9 @@ export const defaultForm: FormSettings = {
   whatsapp: false,
   blocks: [],
   stepper: false,
+  name: "required",
+  commune: "required",
+  optionButtons: false,
 };
 
 // Every built-in element exactly once and every custom field once (new ones before the summary), in the saved order
@@ -404,6 +414,9 @@ export function resolveForm(input: unknown): FormSettings {
     buttonText: str(f.buttonText, 60),
     layout: oneOf(f.layout, ["stacked", "compact"] as const, defaultForm.layout),
     address: oneOf(f.address, ["hidden", "optional", "required"] as const, defaultForm.address),
+    name: oneOf(f.name, fieldRules, defaultForm.name),
+    commune: oneOf(f.commune, fieldRules, defaultForm.commune),
+    optionButtons: bool(f.optionButtons, defaultForm.optionButtons),
     note: bool(f.note, defaultForm.note),
     delivery: oneOf(f.delivery, ["both", "home", "office"] as const, defaultForm.delivery),
     showSummary: bool(f.showSummary, defaultForm.showSummary),

@@ -12,7 +12,7 @@ import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import { wilayas } from "@/lib/wilayas";
 import type { ActionState } from "@/lib/action";
 import { getShopBySlug, storeBase } from "@/features/storefront/queries";
-import { orderInputSchema } from "./validators";
+import { checkContact, orderInputSchema } from "./validators";
 import { WHOLESALE_MAX_QUANTITY } from "./pricing";
 import { customFieldValid, liveVersions, readPublished, versionSections, type VersionKey } from "@/features/landing/types";
 import { productForm } from "@/features/order-form/resolve";
@@ -89,6 +89,7 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     const deliveryType = String(formData.get("deliveryType") ?? "");
     if (settings.delivery !== "both" && deliveryType !== settings.delivery) fieldErrors.deliveryType = "deliveryType";
     if (settings.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";
+    const contact = checkContact(settings, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim() }, fieldErrors);
     const extra: { label: string; value: string }[] = [];
     for (const c of settings.custom) {
       const raw = String(formData.get(`custom_${c.id}`) ?? "").trim();
@@ -105,7 +106,7 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     // Online payment only: no cash on delivery, and the chosen method must be one the store really takes
     const payment = String(formData.get("payment") ?? "cod");
     if ((await productQuestions(shop.id, productId))?.cardOnly && !(await liveMethods(shop.id)).includes(payment as never)) return { ok: false, error: "cardOnly" };
-    const input = { ...parsed.data, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
+    const input = { ...parsed.data, ...contact, address: settings.address === "hidden" ? "" : parsed.data.address, note: settings.note ? parsed.data.note : "" };
     // A bot filled the hidden field: pretend nothing happened.
     if (input.website) return { ok: false, error: "unexpected" };
     const placed = await placeOrder(shop, productId, input, { ...(await requestMeta()), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, landingPageId: landing?.id ?? null, landingVersion: page?.version ?? null, extra, tracking: await adTracking() });

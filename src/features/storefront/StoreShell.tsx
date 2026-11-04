@@ -39,7 +39,7 @@ export function StoreShell({ shop, base, children }: { shop: StoreShop; base: st
         extra={apps.cart ? <CartLink shopId={shop.id} href={`${base}/cart`} label={t.cart.title} /> : null}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
-      {design.footer.enabled && <StoreFooter name={shop.name} about={design.about} socials={design.socials} policies={shopPolicies(shop).map(([kind]) => ({ kind, href: `${base}/policies/${kind}` }))} phone={shop.phone} t={t} />}
+      {design.footer.enabled && <StoreFooter name={shop.name} about={design.about} socials={design.socials} policies={shopPolicies(shop).map(([kind]) => ({ kind, href: `${base}/policies/${kind}` }))} phone={shop.phone} location={design.location} t={t} />}
       {(contact.phoneOn && contact.phone) || (contact.whatsappOn && contact.whatsapp) ? (
         // Apps → Quick contact buttons, above the phone's sticky order button
         <div className="fixed end-4 bottom-20 z-20 flex flex-col gap-3 md:bottom-6" data-testid="quick-contact">

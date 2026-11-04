@@ -28,7 +28,8 @@ test("order form normalizes the phone and rejects bad input with keys", () => {
   const bad = orderInputSchema.safeParse({ name: "K", phone: "0123", wilaya: "99", commune: "", deliveryType: "drone", quantity: "1" });
   assert.ok(!bad.success);
   const keys = new Set(bad.error.issues.map((i) => i.message.replace(/^e:/, "")));
-  for (const k of ["name", "phone", "wilaya", "commune", "deliveryType"]) assert.ok(keys.has(k), k);
+  // Name and commune follow the store's checkout settings (checkContact)
+  for (const k of ["phone", "wilaya", "deliveryType"]) assert.ok(keys.has(k), k);
 });
 
 test("cancelled and returned orders release stock", () => {

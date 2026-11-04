@@ -211,7 +211,15 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   PAYMENT_CCP / PAYMENT_RIB / PAYMENT_WHATSAPP), approved on `/[lang]/admin/plan-requests` (platform admin) →
   `approvePlanRequest` (plan + paid period). Dashboard banner (`planNotice`): locked orders, or a monthly quota past the
   contract's alert threshold (default 80%). Lists shared with browser code live in `src/lib/enums.ts`.
-- Settings (`src/features/settings/`): store details (name, phone, store language, link — `shopSlugSchema` shared with
+- Settings (`src/features/settings/`, phase12.mjs) = Zimam's Store settings with underline tabs (`?tab=`): General (name, description =
+  `design.about`, location = `design.location`, Instagram / TikTok / Facebook / Telegram usernames → `design.socials` links, phone; the
+  device notifications card = browser permission + new-order sound/volume kept in localStorage `shell/alerts.ts`, played by
+  `shell/OrderAlerts.tsx` polling `/api/orders/latest` every 30 s in the dashboard and the agents' portal; Google & sharing), Domain
+  (store link `saveSlug`, custom domain, SSL, help), Language (`saveStoreLanguage`, at once), Checkout (`order_form.name` / `commune` /
+  `address` hidden|optional|required, delivery hidden = one type; phone + wilaya always required; checked by `checkout/validators.ts
+  checkContact` in `submitOrder` / `submitCart`), Product page (`order_form.optionButtons`; otherwise a text option with > 6 values or a
+  value > 18 characters is a dropdown in `CheckoutForm`), Policy pages. Zimam's MCP and "Refer a seller" tabs are not built. Older notes:
+  store details (name, phone, store language, link — `shopSlugSchema` shared with
   sign-up), SEO (`shops.seo` → store layout metadata, title template "%s | shop"), policy pages (`shops.policies`,
   `/store/<slug>/policies/<kind>`, footer links). Custom domain (paid plans with the `custom_domain` feature): the merchant
   adds TXT `_scaleitto.<domain>` = `scaleitto-verify=<token>` and a CNAME www → DOMAIN_CNAME_TARGET (or A → SERVER_IP);

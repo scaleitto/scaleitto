@@ -3,7 +3,7 @@
 // and product card style (src/features/themes/themes.ts); colors come only from the s-* tokens.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BadgeCheck, ImageOff, Megaphone, MessageCircle, Phone, RotateCcw, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
+import { BadgeCheck, ImageOff, MapPin, Megaphone, MessageCircle, Phone, RotateCcw, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
 import { dir, type Locale } from "@/i18n/config";
 import type { StoreText } from "@/i18n/store";
 import { formatPrice } from "@/lib/format";
@@ -317,10 +317,12 @@ export function StoreFooter({
   socials,
   policies = [],
   phone = null,
+  location = "",
   t,
 }: {
   name: string;
   about: string;
+  location?: string;
   socials: StoreDesign["socials"];
   policies?: { kind: PolicyKind; href: string }[];
   phone?: string | null;
@@ -330,6 +332,7 @@ export function StoreFooter({
     { href: socials.facebook, label: "Facebook" },
     { href: socials.instagram, label: "Instagram" },
     { href: socials.tiktok, label: "TikTok" },
+    { href: socials.telegram, label: "Telegram" },
     { href: socials.whatsapp ? whatsappHref(socials.whatsapp) : "", label: "WhatsApp" },
   ].filter((l) => l.href);
   return (
@@ -338,6 +341,11 @@ export function StoreFooter({
         <div className="space-y-3">
           <p className="text-lg font-extrabold">{name}</p>
           {about && <p className="text-sm leading-relaxed whitespace-pre-line text-s-muted">{about}</p>}
+          {location && (
+            <p className="flex items-center gap-1.5 text-sm text-s-muted" data-testid="store-location">
+              <MapPin size={15} className="shrink-0" /> {location}
+            </p>
+          )}
         </div>
         {policies.length > 0 && (
           <nav className="space-y-2 text-sm" data-testid="policy-links">

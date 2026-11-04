@@ -43,6 +43,7 @@ export const globalSchema = z
     facebook: social(/(^|\.)(facebook\.com|fb\.com)$/i),
     instagram: social(/(^|\.)instagram\.com$/i),
     tiktok: social(/(^|\.)tiktok\.com$/i),
+    telegram: social(/^(t\.me|telegram\.me)$/i),
     whatsapp: z
       .string()
       .trim()
@@ -64,7 +65,7 @@ export const globalSchema = z
       footer: { enabled: d.footerEnabled },
       style: { font: d.styleFont, header: d.styleHeader, hero: d.styleHero, columns: d.styleColumns || 0, image: d.styleImage, cards: d.styleCards, corners: d.styleCorners },
       about: d.about,
-      socials: { facebook: d.facebook, instagram: d.instagram, tiktok: d.tiktok, whatsapp: d.whatsapp },
+      socials: { facebook: d.facebook, instagram: d.instagram, tiktok: d.tiktok, whatsapp: d.whatsapp, telegram: d.telegram },
     },
   }));
 export type GlobalInput = z.input<typeof globalSchema>;

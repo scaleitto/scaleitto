@@ -11,7 +11,8 @@ import { fieldErrorsFrom } from "@/lib/validation";
 import { resolveApps } from "@/features/apps/settings";
 import { withPromotions } from "@/features/promotions/apply";
 import { linePrice, resolveWholesale } from "@/features/checkout/pricing";
-import { orderInputSchema } from "@/features/checkout/validators";
+import { checkContact, orderInputSchema } from "@/features/checkout/validators";
+import { storeForm } from "@/features/order-form/resolve";
 import { MAX_CART_LINES, placeCartOrder } from "@/features/checkout/place-order";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { offered } from "@/features/products/variants";
@@ -62,8 +63,15 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const lines = items.safeParse(cart);
     if (!lines.success || !lines.data.length) return { ok: false, error: "invalid" };
     const parsed = orderInputSchema.safeParse({ ...Object.fromEntries(formData), quantity: "1", variantId: "" });
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
+    const form = storeForm(shop);
+    const fieldErrors: Record<string, string> = parsed.success ? {} : fieldErrorsFrom(parsed.error);
+    const contact = checkContact(form, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim() }, fieldErrors);
+    const deliveryType = String(formData.get("deliveryType") ?? "");
+    if (form.delivery !== "both" && deliveryType !== form.delivery) fieldErrors.deliveryType = "deliveryType";
+    if (form.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";
+    if (!parsed.success || Object.keys(fieldErrors).length) return { ok: false, error: "checkFields", fieldErrors };
     if (parsed.data.website) return { ok: false, error: "unexpected" };
+    const input = { ...parsed.data, ...contact, address: form.address === "hidden" ? "" : parsed.data.address };
     // A product sold with online payment only cannot be paid on delivery
     const ids = [...new Set(lines.data.map((l) => l.productId))];
     const cardOnly = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids), eq(schema.products.cardOnly, true)))).length > 0;
@@ -71,7 +79,7 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const h = await headers();
     const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
     const c = await cookies();
-    const placed = await placeCartOrder(shop, lines.data, parsed.data, { ip, userAgent: h.get("user-agent"), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
+    const placed = await placeCartOrder(shop, lines.data, input, { ip, userAgent: h.get("user-agent"), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
     if (!placed.ok) return { ok: false, error: placed.error };
     scheduleOrderEvents(shop.id, placed.orderId, "placed");
     await scheduleOrderSync(shop.id, placed.orderId, "order.created");

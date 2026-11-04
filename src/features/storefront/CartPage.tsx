@@ -18,7 +18,10 @@ import { PaymentChoice } from "./CheckoutForm";
 const emptyCart: CartItem[] = [];
 
 // Apps → Shopping cart: the lines (priced by the server), then one delivery form for the whole order
-export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency, action, payMethods = [], captcha = null, t }: { slug: string; shopId: string; base: string; rates: RateMap; wilayas: { code: number; name: string }[]; arabic: boolean; currency: string; action: (prev: ActionState, fd: FormData) => Promise<ActionState>; payMethods?: OnlineMethod[]; captcha?: StoreCaptcha; t: StoreText }) {
+// Store settings → Checkout, as the cart form follows it
+type CartFields = { name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required"; address: "hidden" | "optional" | "required"; delivery: "both" | "home" | "office"; preferDelivery: "home" | "office" };
+
+export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency, action, payMethods = [], captcha = null, fields = { name: "required", commune: "required", address: "optional", delivery: "both", preferDelivery: "home" }, t }: { fields?: CartFields; slug: string; shopId: string; base: string; rates: RateMap; wilayas: { code: number; name: string }[]; arabic: boolean; currency: string; action: (prev: ActionState, fd: FormData) => Promise<ActionState>; payMethods?: OnlineMethod[]; captcha?: StoreCaptcha; t: StoreText }) {
   const snapshot = useRef<{ key: string; items: CartItem[] }>({ key: "", items: emptyCart });
   const items = useSyncExternalStore(
     onCartChange,
@@ -42,7 +45,8 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
   }, [slug, items]);
   const { state, pending, onSubmit } = useActionForm(action);
   const [wilaya, setWilaya] = useState<number | null>(null);
-  const [deliveryType, setDeliveryType] = useState<"home" | "office">("home");
+  const types = fields.delivery === "both" ? (["home", "office"] as const) : ([fields.delivery] as const);
+  const [deliveryType, setDeliveryType] = useState<"home" | "office">(types.includes(fields.preferDelivery as never) ? fields.preferDelivery : types[0]);
   const started = useRef<number | null>(null);
   const fill = useRef<HTMLInputElement>(null);
 
@@ -132,11 +136,14 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
         <input type="hidden" name="items" value={JSON.stringify(items)} />
         <input ref={fill} type="hidden" name="fill" defaultValue="" />
         <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -start-[9999px] h-0 w-0 opacity-0" />
-        <label className="block space-y-1 text-sm font-semibold">
-          {t.form.name}
-          <input id="name" name="name" autoComplete="name" placeholder={t.form.namePlaceholder} className={field} />
-          {err("name") && <span className="text-xs text-red-600">{err("name")}</span>}
-        </label>
+        {fields.name !== "hidden" && (
+          <label className="block space-y-1 text-sm font-semibold">
+            {t.form.name}
+            {fields.name === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
+            <input id="name" name="name" autoComplete="name" placeholder={t.form.namePlaceholder} className={field} />
+            {err("name") && <span className="text-xs text-red-600">{err("name")}</span>}
+          </label>
+        )}
         <label className="block space-y-1 text-sm font-semibold">
           {t.form.phone}
           <input id="phone" name="phone" type="tel" inputMode="tel" dir="ltr" placeholder="0555 12 34 56" className={`${field} text-start`} />
@@ -154,14 +161,20 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
           </select>
           {err("wilaya") && <span className="text-xs text-red-600">{err("wilaya")}</span>}
         </label>
+        {fields.commune !== "hidden" && (
         <label className="block space-y-1 text-sm font-semibold">
           {t.form.commune}
+          {fields.commune === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
           <CommuneSelect key={wilaya ?? 0} wilaya={wilaya} arabic={arabic} className={field} invalid={Boolean(err("commune"))} placeholder={t.form.communePlaceholder} choose={t.form.chooseCommune} chooseWilayaFirst={t.summary.chooseWilayaFirst} />
           {err("commune") && <span className="text-xs text-red-600">{err("commune")}</span>}
         </label>
+        )}
+        {types.length === 1 ? (
+          <input type="hidden" name="deliveryType" value={types[0]} />
+        ) : (
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-semibold">{t.form.deliveryType}</legend>
-          {(["home", "office"] as const).map((type) => {
+          {types.map((type) => {
             const price = wilaya ? shippingPrice(rates, wilaya, type) : 0;
             return (
               <label key={type} className={`flex items-center gap-2 rounded-[var(--s-radius-btn)] border p-3 text-sm ${deliveryType === type ? "border-brand" : "border-s-field-edge"} ${price === null ? "opacity-50" : ""}`}>
@@ -172,7 +185,8 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
             );
           })}
         </fieldset>
-        {deliveryType === "home" && (
+        )}
+        {deliveryType === "home" && fields.address !== "hidden" && (
           <label className="block space-y-1 text-sm font-semibold">
             {t.form.address}
             <input name="address" placeholder={t.form.addressPlaceholder} className={field} />
