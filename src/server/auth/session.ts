@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, ne } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 
 const COOKIE = "sc_session";
@@ -21,6 +21,13 @@ export async function createSession(userId: string) {
     path: "/",
     expires: expiresAt,
   });
+}
+
+// After a password change: every other device is signed out, this one stays signed in
+export async function endOtherSessions(userId: string) {
+  const token = (await cookies()).get(COOKIE)?.value;
+  const current = token ? hashToken(token) : "";
+  await db.delete(schema.sessions).where(and(eq(schema.sessions.userId, userId), ne(schema.sessions.id, current)));
 }
 
 export async function destroySession() {

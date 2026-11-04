@@ -10,6 +10,7 @@ import { lookupAllowed, lookupOrders, orderByToken, type TrackedOrder } from "@/
 import { resolveApps, trackingContact } from "@/features/apps/settings";
 import { currencyLabel, getStoreText } from "@/i18n/store";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
+import { clientIp } from "@/server/client-ip";
 
 export const metadata: Metadata = { title: "Tracking", robots: { index: false } };
 
@@ -39,7 +40,7 @@ export default async function TrackPage({ params, searchParams }: PageProps<"/st
     const phone = normalizePhone(phoneIn);
     const number = /^\d{1,9}$/.test(numberIn.replace(/^#/, "")) ? Number(numberIn.replace(/^#/, "")) : null;
     const h = await headers();
-    const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
+    const ip = clientIp(h);
     if (!isValidDzPhone(phone) || (tracking.lookup === "number_phone" && number === null)) message = tr.none;
     else if (!lookupAllowed(ip)) message = tr.tooMany;
     else {

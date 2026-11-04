@@ -414,6 +414,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   Zimam; migration 0036). The overview is Zimam's (`analytics/overview.ts`: period today/7d/30d, previous period, tasks with
   minutes, line chart 7/30 days, best sellers, latest orders, four set-up steps; `OverviewControls.tsx` hides amounts).
 - Dashboard `error.tsx` / `not-found.tsx` keep the sidebar and show a friendly message (errors are in error_logs).
+- Security (audit Nov 2026 with `.claude/skills/security-audit/`, Cloudflare's skill, MIT; summary `docs/security-audit.md`): the visitor's
+  IP only through `src/server/client-ip.ts clientIp` (last X-Forwarded-For entry = the one the proxy wrote; TRUSTED_PROXY_HOPS,
+  CLIENT_IP_HEADER) — never `x-forwarded-for.split(",")[0]`. Guessing limits in `src/server/rate-limit.ts` (memory): sign-in and the
+  agents' sign-in count failed passwords (10 per account, 50 per IP / 15 min, `tooManyAttempts`), forgot password 3 per address / 10 per
+  IP an hour, sign-up 20 per IP an hour, the profile's current password 10 / 15 min, tracking lookups 20 per IP an hour. A password
+  change ends the user's other sessions (`endOtherSessions`).
 - Any server-side fetch of a user URL must go through `src/server/safe-fetch.ts` (product links: `src/server/product-import.ts`).
 - The server applies pending migrations at startup (`src/instrumentation-node.ts` → `scripts/migrate-lib.mjs`);
   `/api/health` shows version, DB, migrations and env status.

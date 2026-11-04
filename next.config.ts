@@ -7,6 +7,23 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   poweredByHeader: false,
   // Sections moved under a parent section (round 7): old links keep working
+  // Browser protections. The dashboard, admin and sign-in pages (/ar|fr|en/…) can never be shown inside another site's frame
+  // (clickjacking: a hidden button under a fake page); the storefront stays embeddable for merchants.
+  async headers() {
+    const common = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    ];
+    const noFrames = [
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+    ];
+    return [
+      { source: "/:path*", headers: common },
+      { source: "/:lang(ar|fr|en)", headers: noFrames },
+      { source: "/:lang(ar|fr|en)/:path*", headers: noFrames },
+    ];
+  },
   async redirects() {
     return [
       { source: "/:lang(ar|fr|en)/dashboard/pixels", destination: "/:lang/dashboard/integrations/pixels", permanent: true },

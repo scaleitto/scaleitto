@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { orderToken } from "@/server/crypto";
 import { timingSafeEqual } from "node:crypto";
+import { allowAttempt } from "@/server/rate-limit";
 
 // Apps → Order tracking: what a buyer sees about their own order (no notes, no agent, no address line).
 export type TrackedOrder = Awaited<ReturnType<typeof loadOrders>>[number];
@@ -52,14 +53,6 @@ export async function lookupOrders(shopId: string, phone: string, number: number
 export const trackLink = (base: string, orderId: string) => `${base}/track?o=${orderId}&k=${orderToken(orderId)}`;
 
 // Lookups from one connection are limited (phone numbers are short: no guessing them one by one)
-const attempts = new Map<string, number[]>();
 export function lookupAllowed(ip: string | null, max = 20) {
-  const key = ip ?? "?";
-  const now = Date.now();
-  const recent = (attempts.get(key) ?? []).filter((t) => now - t < 3600_000);
-  if (recent.length >= max) return false;
-  recent.push(now);
-  attempts.set(key, recent);
-  if (attempts.size > 5000) attempts.clear();
-  return true;
+  return allowAttempt(`track:${ip ?? "?"}`, max, 3600_000);
 }

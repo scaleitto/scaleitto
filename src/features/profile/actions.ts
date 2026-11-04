@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db, schema } from "@/server/db";
 import { requireSection } from "@/server/auth/context";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
+import { endOtherSessions } from "@/server/auth/session";
 import { safeAction } from "@/server/errors";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
@@ -12,6 +13,7 @@ import { cookies } from "next/headers";
 import { asLocale } from "@/i18n";
 import { locales } from "@/i18n/config";
 import type { ActionState } from "@/lib/action";
+import { recordFailure, tooManyFailures } from "@/server/rate-limit";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "e:tooShort").max(120),
@@ -47,9 +49,14 @@ export async function changePassword(lang: string, _prev: ActionState, formData:
     const { user } = await requireSection(asLocale(lang), "profile");
     const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
+    if (tooManyFailures(`password:${user.id}`, 10, 15 * 60_000)) return { ok: false, error: "tooManyAttempts" };
     const [row] = await db.select({ hash: schema.users.passwordHash }).from(schema.users).where(eq(schema.users.id, user.id));
-    if (!row || !(await verifyPassword(parsed.data.currentPassword, row.hash))) return { ok: false, fieldErrors: { currentPassword: "wrongPassword" } };
+    if (!row || !(await verifyPassword(parsed.data.currentPassword, row.hash))) {
+      recordFailure(`password:${user.id}`);
+      return { ok: false, fieldErrors: { currentPassword: "wrongPassword" } };
+    }
     await db.update(schema.users).set({ passwordHash: await hashPassword(parsed.data.newPassword) }).where(eq(schema.users.id, user.id));
+    await endOtherSessions(user.id);
     return { ok: true };
   });
 }

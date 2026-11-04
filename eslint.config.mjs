@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Third-party agent skills (their own code style)
+    ".claude/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

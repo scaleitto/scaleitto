@@ -10,6 +10,9 @@ import { safeAction } from "@/server/errors";
 import { asLocale } from "@/i18n";
 import { fieldErrorsFrom } from "@/lib/validation";
 import type { ActionState } from "@/lib/action";
+import { headers } from "next/headers";
+import { clearAttempts, recordFailure, tooManyFailures } from "@/server/rate-limit";
+import { clientIp } from "@/server/client-ip";
 
 const loginSchema = z.object({
   store: z.string().trim().toLowerCase().min(1, "e:required").max(255),
@@ -27,6 +30,9 @@ export async function agentLogin(lang: string, _prev: ActionState, formData: For
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
     const { store, username, password } = parsed.data;
     const key = store.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+    const accountKey = `agent-login:${key}:${username}`;
+    const ipKey = `login-ip:${clientIp(await headers()) ?? "?"}`;
+    if (tooManyFailures(accountKey, 10, 15 * 60_000) || tooManyFailures(ipKey, 50, 15 * 60_000)) return { ok: false, error: "tooManyAttempts" };
     const [row] = await db
       .select({ userId: schema.users.id, hash: schema.users.passwordHash, role: schema.shopMembers.role, active: schema.shopMembers.active, status: schema.shops.status })
       .from(schema.shopMembers)
@@ -34,7 +40,12 @@ export async function agentLogin(lang: string, _prev: ActionState, formData: For
       .innerJoin(schema.users, eq(schema.users.id, schema.shopMembers.userId))
       .where(and(or(eq(schema.shops.slug, key), eq(schema.shops.customDomain, key)), or(eq(schema.shopMembers.username, username), eq(schema.users.email, username))))
       .limit(1);
-    if (!row || row.role !== "agent" || !(await verifyPassword(password, row.hash))) return { ok: false, error: "invalidCredentials" };
+    if (!row || row.role !== "agent" || !(await verifyPassword(password, row.hash))) {
+      recordFailure(accountKey);
+      recordFailure(ipKey);
+      return { ok: false, error: "invalidCredentials" };
+    }
+    clearAttempts(accountKey);
     if (!row.active || row.status !== "active") return { ok: false, error: "accountDisabled" };
     await createSession(row.userId);
     ok = true;

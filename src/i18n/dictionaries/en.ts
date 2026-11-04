@@ -113,6 +113,7 @@ const en: Dictionary = {
     backToLogin: "Back to sign in",
   },
   errors: {
+    tooManyAttempts: "Too many attempts. Wait a few minutes and try again.",
     platformRefused: "The platform refused the details",
     sheetHeaders: "Paste the header row (at least two columns)",
     scriptUrl: "Invalid Google script URL (script.google.com/macros/s/…/exec)",

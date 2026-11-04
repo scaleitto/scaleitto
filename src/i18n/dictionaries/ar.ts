@@ -111,6 +111,7 @@ const ar = {
     backToLogin: "العودة لتسجيل الدخول",
   },
   errors: {
+    tooManyAttempts: "محاولات كثيرة. انتظر بضع دقائق ثم أعد المحاولة.",
     platformRefused: "رفضت المنصة البيانات",
     sheetHeaders: "الصق صف العناوين (عمودان على الأقل)",
     scriptUrl: "رابط سكربت Google غير صحيح (script.google.com/macros/s/…/exec)",

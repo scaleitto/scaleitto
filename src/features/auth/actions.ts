@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { REF_COOKIE, recordReferral } from "@/features/referrals/referrals";
 
 import { grantCredits } from "@/features/credits/ledger";
@@ -20,6 +20,13 @@ import { asLocale } from "@/i18n";
 import type { ActionState } from "@/lib/action";
 import { emailSchema, loginSchema, newPasswordSchema, registerSchema } from "./validators";
 import { sendResetEmail, sendVerifyEmail } from "./emails";
+import { allowAttempt, clearAttempts, recordFailure, tooManyFailures } from "@/server/rate-limit";
+import { clientIp } from "@/server/client-ip";
+
+// Guessing limits: per account and per connection (a 15-minute window for sign-in, an hour for mails and sign-ups)
+const MIN15 = 15 * 60_000;
+const HOUR = 60 * 60_000;
+const ipOf = async () => clientIp(await headers()) ?? "?";
 
 const adminEmail = () => process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || null;
 
@@ -28,6 +35,7 @@ export async function register(lang: string, _prev: ActionState, formData: FormD
   const result = await safeAction("auth/register", async () => {
     const parsed = registerSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
+    if (!allowAttempt(`register:${await ipOf()}`, 20, HOUR)) return { ok: false, error: "tooManyAttempts" };
     const d = parsed.data;
 
     const [[emailUsed], [slugUsed], [starter]] = await Promise.all([
@@ -79,8 +87,17 @@ export async function login(lang: string, _prev: ActionState, formData: FormData
   const result = await safeAction("auth/login", async () => {
     const parsed = loginSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
+    const accountKey = `login:${parsed.data.email}`;
+    const ipKey = `login-ip:${await ipOf()}`;
+    // Failed passwords only: 10 per account and 50 per connection in 15 minutes
+    if (tooManyFailures(accountKey, 10, MIN15) || tooManyFailures(ipKey, 50, MIN15)) return { ok: false, error: "tooManyAttempts" };
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, parsed.data.email));
-    if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) return { ok: false, error: "invalidCredentials" };
+    if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+      recordFailure(accountKey);
+      recordFailure(ipKey);
+      return { ok: false, error: "invalidCredentials" };
+    }
+    clearAttempts(accountKey);
     const [member] = await db.select({ role: schema.shopMembers.role, active: schema.shopMembers.active }).from(schema.shopMembers).where(eq(schema.shopMembers.userId, user.id)).limit(1);
     if (member && !member.active) return { ok: false, error: "accountDisabled" };
     // The account named in PLATFORM_ADMIN_EMAIL becomes the platform admin, even if it was created before the setting
@@ -125,6 +142,8 @@ export async function forgotPassword(lang: string, _prev: ActionState, formData:
     const parsed = emailSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return { ok: false, fieldErrors: fieldErrorsFrom(parsed.error) };
     if (!mailConfigured()) return { ok: false, error: "mailNotSetUp" };
+    // No mail flood: a few reset mails per address and per connection
+    if (!allowAttempt(`forgot:${parsed.data.email}`, 3, HOUR) || !allowAttempt(`forgot-ip:${await ipOf()}`, 10, HOUR)) return { ok: false, error: "tooManyAttempts" };
     const [user] = await db.select({ id: schema.users.id, email: schema.users.email, name: schema.users.name }).from(schema.users).where(eq(schema.users.email, parsed.data.email));
     if (user) await sendResetEmail(user, asLocale(lang));
     return { ok: true };

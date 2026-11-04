@@ -23,6 +23,7 @@ import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import type { OrderTracking } from "@/server/db/schema";
+import { clientIp } from "@/server/client-ip";
 
 // The product's own checkout questions (Apps → Custom fields)
 async function productQuestions(shopId: string, productId: string) {
@@ -46,7 +47,7 @@ async function chosenOptions(shopId: string, productId: string, raw: FormDataEnt
 
 async function requestMeta() {
   const h = await headers();
-  return { ip: (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null, userAgent: h.get("user-agent") };
+  return { ip: clientIp(h), userAgent: h.get("user-agent") };
 }
 
 // Ad-click cookies set by the pixels on the store's domain (sent again from the server with the purchase)

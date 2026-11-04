@@ -7,6 +7,7 @@ import { logError } from "@/server/errors";
 import { scheduleOrderEvents } from "@/features/pixels/server";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { scheduleWhatsApp } from "@/features/whatsapp/queue";
+import { clientIp } from "@/server/client-ip";
 
 // POST /api/storefront/v1/<store>/orders — a cash-on-delivery order from the merchant's own storefront. JSON body:
 // { productId, variantId?, quantity, name, phone, wilaya, commune, address?, deliveryType: "home" | "office", note?, captcha?,
@@ -31,7 +32,7 @@ export async function POST(req: Request, { params }: RouteContext<"/api/storefro
     const productId = str(body.productId);
     if (!/^[\w-]{1,36}$/.test(productId)) return apiJson({ error: "invalid_fields", fields: { productId: "invalid" } }, 422, headers);
     try {
-      const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || null;
+      const ip = clientIp(req.headers);
       const input = { ...parsed.data, ...contact, address: form.address === "hidden" ? "" : parsed.data.address, note: form.note ? parsed.data.note : "", fill: parsed.data.fill ?? 30 };
       const placed = await placeOrder(shop, productId, input, { ip, userAgent: str(body.userAgent).slice(0, 300) || req.headers.get("user-agent"), captcha: str(body.captcha) || null, extra: [{ label: "API", value: req.headers.get("origin") ?? "server" }] });
       if (!placed.ok) return apiJson({ error: placed.error }, 422, headers);

@@ -109,8 +109,30 @@ export default async function phase0(browser) {
     await page.click("form:has(#newPassword) button[type=submit]");
     await page.waitForSelector("text=كلمة المرور الحالية غير صحيحة");
     await page.fill("#currentPassword", owner.password);
+    // Another device signed in before the change is signed out by it
+    const [[u0]] = await db.query("SELECT id FROM users WHERE email = ?", [owner.email]);
+    await db.query("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY))", [`other-${id}`, u0.id]);
     await page.click("form:has(#newPassword) button[type=submit]");
     await page.waitForSelector("text=تم تغيير كلمة المرور");
+    const [[s0]] = await db.query("SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?", [u0.id]);
+    expect(Number(s0.n) === 1, `only this device stays signed in (${s0.n})`);
+  });
+
+  await step("password guessing is stopped after 10 wrong tries", async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    await p.goto(`${BASE}/ar/login`);
+    const target = `nobody-${id}@test.dz`;
+    for (let i = 0; i < 10; i++) {
+      await p.fill("#email", target);
+      await p.fill("#password", `wrong-${i}-password`);
+      await Promise.all([p.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/login")), p.click("button[type=submit]")]);
+      await p.waitForSelector("text=البريد الإلكتروني أو كلمة المرور غير صحيحة");
+    }
+    await p.fill("#password", "another-wrong-one");
+    await p.click("button[type=submit]");
+    await p.waitForSelector("text=محاولات كثيرة");
+    await ctx.close();
   });
 
   await step("logout, old password refused, new password works", async () => {

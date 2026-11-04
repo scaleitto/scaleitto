@@ -113,6 +113,7 @@ const fr: Dictionary = {
     backToLogin: "Retour à la connexion",
   },
   errors: {
+    tooManyAttempts: "Trop de tentatives. Attendez quelques minutes puis réessayez.",
     platformRefused: "La plateforme a refusé les informations",
     sheetHeaders: "Collez la ligne d'en-têtes (au moins deux colonnes)",
     scriptUrl: "URL de script Google invalide (script.google.com/macros/s/…/exec)",

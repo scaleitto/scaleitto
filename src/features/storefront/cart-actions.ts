@@ -20,6 +20,7 @@ import { scheduleWhatsApp } from "@/features/whatsapp/queue";
 import { scheduleOrderSync } from "@/features/apps/sync";
 import { getShopBySlug, storeBase } from "./queries";
 import { liveMethods, startOnlinePayment } from "@/features/payments/flow";
+import { clientIp } from "@/server/client-ip";
 
 const items = z
   .array(z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable(), quantity: z.number().int().min(1).max(1000) }))
@@ -77,7 +78,7 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const cardOnly = (await db.select({ id: schema.products.id }).from(schema.products).where(and(eq(schema.products.shopId, shop.id), inArray(schema.products.id, ids), eq(schema.products.cardOnly, true)))).length > 0;
     if (cardOnly && !(await liveMethods(shop.id)).includes(String(formData.get("payment") ?? "cod") as never)) return { ok: false, error: "cardOnly" };
     const h = await headers();
-    const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || null;
+    const ip = clientIp(h);
     const c = await cookies();
     const placed = await placeCartOrder(shop, lines.data, input, { ip, userAgent: h.get("user-agent"), captcha: String(formData.get("cf-turnstile-response") ?? "") || null, tracking: { url: h.get("referer")?.slice(0, 500) || undefined, fbp: c.get("_fbp")?.value, fbc: c.get("_fbc")?.value } });
     if (!placed.ok) return { ok: false, error: placed.error };
