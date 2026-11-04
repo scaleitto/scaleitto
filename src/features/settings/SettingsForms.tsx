@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { BellRing, CircleCheck, Clock, Globe, Play, Plus, Volume2 } from "lucide-react";
+import { BellRing, CircleCheck, Clock, Copy, Globe, Play, Plus, Trash2, Volume2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
 import { Alert, Badge, Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { removeDomain, saveCheckoutFields, saveGeneral, saveOptionButtons, saveSlug, saveStoreLanguage, setDomain, verifyDomain } from "./actions";
+import { removeDomain, saveCheckoutFields, saveGeneral, saveOptionButtons, saveOrigins, saveSlug, saveStoreLanguage, setDomain, verifyDomain } from "./actions";
 import { SwitchRow } from "@/ui/Switch";
 import { alertSounds, defaultPrefs, playSound, readPrefs, writePrefs, type AlertPrefs, type AlertSound } from "@/features/shell/alerts";
 
@@ -401,5 +401,81 @@ export function DomainCard({ lang, state: d, plansHref, t }: { lang: string; sta
         </>
       )}
     </section>
+  );
+}
+
+// Store settings → Domain → Allowed origins (Zimam): the connection details of the public store API and the websites allowed
+// to call it from a browser
+export function OriginsCard({ lang, storeId, apiUrl, initial, t }: { lang: string; storeId: string; apiUrl: string; initial: string[]; t: Text }) {
+  const o = t.settings.dom;
+  const e = t.errors as Record<string, string>;
+  const [list, setList] = useState(initial);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [state, setState] = useState<{ ok: boolean; bad?: number; error?: string } | null>(null);
+  const [pending, start] = useTransition();
+  const copy = (key: string, value: string) => {
+    void navigator.clipboard?.writeText(value);
+    setCopied(key);
+  };
+  const row = (key: string, label: string, value: string, button: string) => (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="w-20 shrink-0 text-xs text-muted">{label}</span>
+      <code className="min-w-0 flex-1 truncate rounded-lg bg-panel-2 px-3 py-2 font-mono text-sm" dir="ltr" data-connection={key}>
+        {value}
+      </code>
+      <Button type="button" variant="secondary" className="h-9" onClick={() => copy(key, value)}>
+        <Copy size={14} /> {copied === key ? o.copied : button}
+      </Button>
+    </div>
+  );
+  return (
+    <Card className="space-y-4" data-testid="settings-origins">
+      <div>
+        <h2 className="font-semibold">{o.originsTitle}</h2>
+        <p className="mt-1 text-sm text-muted">{o.originsHint}</p>
+      </div>
+      <div className="space-y-3 rounded-xl border border-line p-4">
+        <p className="font-semibold">{o.connection}</p>
+        {row("store", o.storeId, storeId, o.copyStoreId)}
+        {row("api", o.apiUrl, apiUrl, o.copyApiUrl)}
+        <p className="text-xs text-muted">{o.connectionNote}</p>
+      </div>
+      <p className="text-xs text-muted">{o.originsRule}</p>
+      {list.length === 0 ? (
+        <p className="text-sm text-muted">{o.noOrigins}</p>
+      ) : (
+        <ul className="space-y-2" data-testid="origins">
+          {list.map((value, i) => (
+            <li key={i} className="flex gap-2">
+              <Input dir="ltr" aria-label={o.originsTitle} placeholder="https://shop.example.com" value={value} aria-invalid={state?.bad === i} onChange={(ev) => setList(list.map((x, n) => (n === i ? ev.target.value : x)))} data-origin={i} />
+              <Button type="button" variant="secondary" aria-label={t.common.delete} onClick={() => setList(list.filter((_, n) => n !== i))}>
+                <Trash2 size={14} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {state && !state.ok && <p className="text-sm text-danger">{state.bad !== undefined ? e.origin : (e[state.error ?? "unexpected"] ?? e.unexpected)}</p>}
+      {state?.ok && <p className="text-sm text-accent">{t.common.saved}</p>}
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" disabled={list.length >= 10} onClick={() => setList([...list, ""])} data-testid="add-origin">
+          <Plus size={15} /> {o.addOrigin}
+        </Button>
+        <Button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await saveOrigins(lang, list);
+              const bad = r.fieldErrors ? Number(Object.keys(r.fieldErrors)[0]?.split(".")[1]) : undefined;
+              setState({ ok: r.ok === true, bad: Number.isInteger(bad) ? bad : undefined, error: r.error });
+            })
+          }
+          data-testid="save-origins"
+        >
+          {o.saveOrigins}
+        </Button>
+      </div>
+    </Card>
   );
 }

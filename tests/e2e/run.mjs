@@ -37,12 +37,13 @@ import phase34 from "./phase34.mjs";
 import phase35 from "./phase35.mjs";
 import phase36 from "./phase36.mjs";
 import phase37 from "./phase37.mjs";
+import phase38 from "./phase38.mjs";
 import { startMockCarriers } from "./mock-carriers.mjs";
 import { startMockOpenAi } from "./mock-openai.mjs";
 import { startMockPixels } from "./mock-pixels.mjs";
 import { startMockApps } from "./mock-apps.mjs";
 
-const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12, phase13, phase14, phase15, phase16, phase17, phase18, phase20, phase21, phase22, phase23, phase24, phase26, phase27, phase28, phase29, phase30, phase31, phase32, phase33, phase34, phase35, phase36, phase37 };
+const phases = { phase0, phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8, phase9, phase10, phase11, phase12, phase13, phase14, phase15, phase16, phase17, phase18, phase20, phase21, phase22, phase23, phase24, phase26, phase27, phase28, phase29, phase30, phase31, phase32, phase33, phase34, phase35, phase36, phase37, phase38 };
 const only = process.argv[2];
 
 // The fake delivery company server (the app under test must have the same E2E_CARRIER_URL)

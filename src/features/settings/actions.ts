@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/server/db";
@@ -14,6 +14,9 @@ import type { ActionState } from "@/lib/action";
 import { shopSlugSchema } from "@/features/auth/validators";
 import { checkDomain, newDomainToken, normalizeDomain, planAllowsDomain } from "./domain";
 import { fieldRules, resolveForm } from "@/features/landing/types";
+import { MAX_ORIGINS, cleanOrigin } from "@/features/storefront/api";
+import { cleanScopes } from "@/features/mcp/scopes";
+import { createToken } from "@/features/mcp/tokens";
 
 const shopOf = async (lang: string) => (await requireSection(asLocale(lang), "settings")).shop;
 
@@ -174,6 +177,57 @@ export async function removeDomain(lang: string): Promise<ActionState> {
   return safeAction("settings/remove-domain", async () => {
     const shop = await shopOf(lang);
     await db.update(schema.shops).set({ customDomain: null, domainToken: null, domainVerifiedAt: null }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Store settings → Domain → Allowed origins (the public store API, features/storefront/api.ts)
+export async function saveOrigins(lang: string, origins: string[]): Promise<ActionState> {
+  return safeAction("settings/origins", async () => {
+    const shop = await shopOf(lang);
+    const list = (Array.isArray(origins) ? origins : []).map((o) => String(o ?? "")).filter((o) => o.trim());
+    if (list.length > MAX_ORIGINS) return { ok: false, error: "tooMany" };
+    const clean = list.map(cleanOrigin);
+    const bad = clean.findIndex((o) => !o);
+    if (bad >= 0) return { ok: false, error: "checkFields", fieldErrors: { [`origin.${bad}`]: "origin" } };
+    await db.update(schema.shops).set({ apiOrigins: [...new Set(clean as string[])] }).where(eq(schema.shops.id, shop.id));
+    return { ok: true };
+  });
+}
+
+// Store settings → MCP: a new access token for an AI assistant (shown once). The owner must accept that customer data
+// goes to their own AI provider.
+export async function createMcpToken(lang: string, input: { name: string; scopes: string[]; consent: boolean }): Promise<ActionState & { token?: string }> {
+  const result: { token?: string } = {};
+  const state = await safeAction("settings/mcp-create", async (): Promise<ActionState> => {
+    const { shop, user } = await requireSection(asLocale(lang), "settings");
+    const name = String(input.name ?? "").trim();
+    const scopes = cleanScopes(input.scopes);
+    if (!name) return { ok: false, error: "checkFields", fieldErrors: { name: "required" } };
+    if (!scopes.length) return { ok: false, error: "checkFields", fieldErrors: { scopes: "required" } };
+    if (input.consent !== true) return { ok: false, error: "checkFields", fieldErrors: { consent: "required" } };
+    result.token = await createToken(shop.id, user.id, name, scopes);
+    refresh();
+    return { ok: true };
+  });
+  return { ...state, ...result };
+}
+
+export async function revokeMcpToken(lang: string, id: string): Promise<ActionState> {
+  return safeAction("settings/mcp-revoke", async () => {
+    const shop = await shopOf(lang);
+    await db.update(schema.mcpTokens).set({ revokedAt: new Date() }).where(and(eq(schema.mcpTokens.shopId, shop.id), eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// Revoking a connected app signs it out everywhere: every token it used
+export async function revokeMcpClient(lang: string, client: string): Promise<ActionState> {
+  return safeAction("settings/mcp-revoke-client", async () => {
+    const shop = await shopOf(lang);
+    await db.update(schema.mcpTokens).set({ revokedAt: new Date() }).where(and(eq(schema.mcpTokens.shopId, shop.id), eq(schema.mcpTokens.client, String(client).slice(0, 120)), isNull(schema.mcpTokens.revokedAt)));
     refresh();
     return { ok: true };
   });

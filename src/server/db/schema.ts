@@ -98,6 +98,10 @@ export const shops = mysqlTable(
     seo: json("seo").$type<ShopSeo | null>(),
     // Policy pages shown in the store footer (plain text)
     policies: json("policies").$type<ShopPolicies | null>(),
+    // Store settings → Domain → Allowed origins: websites allowed to call the public store API (features/storefront/api)
+    apiOrigins: json("api_origins").$type<string[] | null>(),
+    // Store settings → Refer a seller: the store whose link brought this one (features/referrals)
+    referredBy: id("referred_by"),
     // Fake-order protection settings (src/features/checkout/protection-settings.ts); null → defaults
     protection: json("protection").$type<Partial<ProtectionSettings> | null>(),
     // The store's order form (features/landing/types.ts FormSettings, read through resolveForm): product pages use it,
@@ -447,6 +451,44 @@ export const pageViews = mysqlTable(
 );
 
 // Saved versions of a landing page (the builder's History): one per save, the last 20 kept
+// Store settings → MCP: access tokens for AI assistants (only the sha256 of the token is kept; scopes = features/mcp/scopes.ts)
+export const mcpTokens = mysqlTable(
+  "mcp_tokens",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    userId: id("user_id").notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    scopes: json("scopes").$type<string[]>().notNull(),
+    // The MCP client that used it (from "initialize": clientInfo name/version)
+    client: varchar("client", { length: 120 }),
+    lastUsedAt: datetime("last_used_at"),
+    revokedAt: datetime("revoked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("mcp_tokens_hash_uq").on(t.tokenHash), index("mcp_tokens_shop_idx").on(t.shopId)],
+);
+
+// Store settings → Refer a seller: one voucher per referred store. pending = signed up; available = paid its first plan; used =
+// taken off one of the referrer's plan payments (50% of one month, of the lower of the two plans' prices)
+export const referralVoucherStatuses = ["pending", "available", "used"] as const;
+export const referralVouchers = mysqlTable(
+  "referral_vouchers",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    referredShopId: id("referred_shop_id").notNull(),
+    status: mysqlEnum("status", referralVoucherStatuses).notNull().default("pending"),
+    // DZD off, set when the referred store pays (min of both monthly prices / 2)
+    value: int("value").notNull().default(0),
+    availableAt: datetime("available_at"),
+    usedAt: datetime("used_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("referral_vouchers_uq").on(t.shopId, t.referredShopId), index("referral_vouchers_shop_idx").on(t.shopId, t.status)],
+);
+
 // Store Design history: a copy of the store's pages at every publish (the builder's History restores one into the draft)
 export const designVersions = mysqlTable(
   "design_versions",
@@ -780,6 +822,9 @@ export const planRequests = mysqlTable(
     status: mysqlEnum("status", planRequestStatuses).notNull().default("pending"),
     adminNote: varchar("admin_note", { length: 500 }),
     requestedBy: id("requested_by").notNull(),
+    // Refer a seller: DZD taken off the amount (a referrer's voucher, or the referred seller's first payment) and the voucher used
+    discount: int("discount").notNull().default(0),
+    voucherId: id("voucher_id"),
     decidedAt: datetime("decided_at"),
     createdAt: createdAt(),
   },

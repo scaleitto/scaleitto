@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { PaymentMethod } from "@/server/db/schema";
 import { releaseLockedOrders } from "./locked";
+import { settleReferral } from "@/features/referrals/referrals";
 
 export const PERIODS = [1, 3, 6, 12] as const;
 // Packs of orders a pay-as-you-go request can buy at once
@@ -28,6 +29,8 @@ export async function approvePlanRequest(requestId: string, adminNote: string | 
     const [shop] = await tx.select({ planId: schema.shops.planId, expiresAt: schema.shops.planExpiresAt }).from(schema.shops).where(eq(schema.shops.id, req.shopId)).for("update");
     const now = new Date();
     const [plan] = await tx.select({ orderPack: schema.plans.orderPack }).from(schema.plans).where(eq(schema.plans.id, req.planId));
+    // Refer a seller: the voucher used is spent; a referred store's first payment opens its referrer's voucher
+    await settleReferral(tx, req);
     if (plan?.orderPack) {
       await tx
         .update(schema.shops)

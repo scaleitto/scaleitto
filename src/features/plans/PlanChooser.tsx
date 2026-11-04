@@ -11,6 +11,7 @@ import { limitKeys, type PaymentMethod } from "@/lib/enums";
 import type { Limits } from "@/server/db/schema";
 import { cancelPlanRequest, requestPlan } from "./actions";
 import { limitLine, periodLabel, priceLabel } from "./labels";
+import { previewDiscount, type DiscountPreview } from "@/features/referrals/discount";
 
 type Text = Pick<Dictionary, "plans" | "errors" | "common" | "media">;
 type Plan = { id: string; code: string; name: string; priceMonthly: number; orderPack: number | null; limits: Limits };
@@ -19,7 +20,7 @@ type Payment = { holder: string | null; methods: Partial<Record<PaymentMethod, s
 const PERIODS = [1, 3, 6, 12];
 const PACKS = [1, 2, 3, 5, 10];
 
-function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: string; plan: Plan; payment: Payment; shopName: string; onClose: () => void; t: Text }) {
+function RequestForm({ lang, plan, payment, shopName, onClose, referral, t }: { lang: string; plan: Plan; payment: Payment; shopName: string; onClose: () => void; referral: DiscountPreview; t: Text }) {
   const r = t.plans.request;
   const e = t.errors as Record<string, string>;
   const methods = (Object.keys(payment.methods) as PaymentMethod[]).filter((m) => payment.methods[m]);
@@ -30,7 +31,9 @@ function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: stri
   useEffect(() => {
     if (state.ok) onClose();
   }, [state, onClose]);
-  const amount = formatPrice(plan.priceMonthly * months, t.common.currency);
+  // Refer a seller: the discount the server will take off (first payment of a referred store, a voucher)
+  const discount = previewDiscount(referral, plan.priceMonthly, plan.priceMonthly * months);
+  const amount = formatPrice(plan.priceMonthly * months - discount, t.common.currency);
   if (!method) return <Alert variant="info">{r.noMethods}</Alert>;
   const whatsappText = fmt(r.whatsappMessage, { plan: plan.name, period: periodLabel(months, plan.orderPack, t), amount, shop: shopName });
   return (
@@ -55,6 +58,11 @@ function RequestForm({ lang, plan, payment, shopName, onClose, t }: { lang: stri
             <p className="text-2xl font-bold text-accent" data-testid="plan-amount">
               {amount}
             </p>
+            {discount > 0 && (
+              <p className="text-xs text-muted" data-testid="plan-discount">
+                {fmt(r.referralDiscount, { amount: formatPrice(discount, t.common.currency) })}
+              </p>
+            )}
           </div>
         </div>
         <fieldset>
@@ -112,6 +120,7 @@ export function PlanChooser({
   pending,
   payment,
   shopName,
+  referral = { firstPayment: false, voucherValue: null },
   t,
 }: {
   lang: string;
@@ -120,6 +129,7 @@ export function PlanChooser({
   pending: { id: string; planName: string; months: number; orderPack: number | null; amount: number } | null;
   payment: Payment;
   shopName: string;
+  referral?: DiscountPreview;
   t: Text;
 }) {
   const p = t.plans;
@@ -172,7 +182,7 @@ export function PlanChooser({
         })}
         <CustomPlanCard whatsapp={payment.methods.whatsapp} t={t} />
       </div>
-      {chosen && !pending && <RequestForm key={chosen.id} lang={lang} plan={chosen} payment={payment} shopName={shopName} onClose={() => setChosen(null)} t={t} />}
+      {chosen && !pending && <RequestForm key={chosen.id} lang={lang} plan={chosen} payment={payment} shopName={shopName} onClose={() => setChosen(null)} referral={referral} t={t} />}
     </div>
   );
 }

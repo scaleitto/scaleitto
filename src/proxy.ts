@@ -57,7 +57,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.rewrite(url, { request: { headers } });
   }
 
-  if (first === "store" || first === "embed" || first === "api" || first === "uploads" || (locales as readonly string[]).includes(first)) {
+  if (first === "store" || first === "embed" || first === "api" || first === "uploads" || first === "r" || (locales as readonly string[]).includes(first)) {
     return NextResponse.next();
   }
 

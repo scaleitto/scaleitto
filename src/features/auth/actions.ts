@@ -1,5 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { REF_COOKIE, recordReferral } from "@/features/referrals/referrals";
+
 import { grantCredits } from "@/features/credits/ledger";
 import { TRIAL_CREDITS } from "@/features/credits/packs";
 import { redirect } from "next/navigation";
@@ -56,6 +59,8 @@ export async function register(lang: string, _prev: ActionState, formData: FormD
       await tx.insert(schema.shopMembers).values({ shopId, userId, role: "owner" });
       // Balance: every new store starts with the free trial credits
       await grantCredits(shopId, TRIAL_CREDITS, "trial", null, tx);
+      // Refer a seller: the store whose link brought this one
+      await recordReferral(tx, shopId, (await cookies()).get(REF_COOKIE)?.value);
     });
     if (!confirmNow) {
       // The account exists either way: a failed email can be sent again from the confirmation page

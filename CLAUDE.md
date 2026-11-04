@@ -218,7 +218,21 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   (store link `saveSlug`, custom domain, SSL, help), Language (`saveStoreLanguage`, at once), Checkout (`order_form.name` / `commune` /
   `address` hidden|optional|required, delivery hidden = one type; phone + wilaya always required; checked by `checkout/validators.ts
   checkContact` in `submitOrder` / `submitCart`), Product page (`order_form.optionButtons`; otherwise a text option with > 6 values or a
-  value > 18 characters is a dropdown in `CheckoutForm`), Policy pages. Zimam's MCP and "Refer a seller" tabs are not built. Older notes:
+  value > 18 characters is a dropdown in `CheckoutForm`), MCP, Refer a seller (phase12.mjs + phase38.mjs). The wilaya can be optional
+  (`order_form.wilaya`; an order without one = `wilaya_code` 0, shipping 0 until the team completes it, `sendParcel` refuses
+  `wilayaMissing`, `wilayaName(0)` = "—"). Sounds: `shell/alerts.ts` (Zimam's list, "system" = none of ours) for new orders and
+  other notifications (a new abandoned checkout, `/api/orders/latest` → `abandoned`). SEO (home page settings = the builder's gear,
+  `design/actions.ts saveHomeSeo`) and policy pages (builder → Pages panel, `savePolicyPage`) moved to Store Design (`PageExtras.tsx`).
+  Domain → Allowed origins (`shops.api_origins`, migration 0052) = the public store API `/api/storefront/v1/<store id>/products |
+  products/<slug> | shipping | orders` (`features/storefront/api.ts`: CORS only for allowed origins, server calls accepted; orders go
+  through `checkContact` + `placeOrder`; docs/storefront-api.md). MCP (`features/mcp`: `mcp_tokens` sha256 + scopes from `scopes.ts`,
+  `tools.ts` = list/get orders, products, sales_summary, delivery_status, update_order_status, create_order, create/update_product,
+  send_to_carrier) served by POST `/api/mcp` (JSON-RPC: initialize records the client = "connected apps", tools/list by scope,
+  tools/call); tokens shown once, revocable one by one or per client. Refer a seller (`features/referrals`): `/r/<slug>` → cookie
+  `sc_ref` (relative redirect to /<lang>/register) → `recordReferral` at sign-up (`shops.referred_by` + a pending
+  `referral_vouchers` row); `approvePlanRequest` → `settleReferral` (voucher available with the referred plan's price, or used when
+  the request carried it); `requestPlan` takes `referralDiscount` off (`plan_requests.discount` / `voucher_id`; 10% of a referred
+  store's first payment + half a month of the lower price; `discount.ts previewDiscount` shows it on the Plans page). Older notes:
   store details (name, phone, store language, link — `shopSlugSchema` shared with
   sign-up), SEO (`shops.seo` → store layout metadata, title template "%s | shop"), policy pages (`shops.policies`,
   `/store/<slug>/policies/<kind>`, footer links). Custom domain (paid plans with the `custom_domain` feature): the merchant

@@ -5,6 +5,7 @@ import { planOverview } from "@/features/plans/queries";
 import { paymentDetails } from "@/features/plans/billing";
 import { CurrentPlan, RequestHistory } from "@/features/plans/views";
 import { PlanChooser } from "@/features/plans/PlanChooser";
+import { nextDiscountPreview } from "@/features/referrals/referrals";
 
 export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard/plans">) {
   const lang = asLocale((await params).lang);
@@ -24,6 +25,7 @@ export default async function PlansPage({ params }: PageProps<"/[lang]/dashboard
           pending={pending}
           payment={paymentDetails()}
           shopName={shop.name}
+          referral={await nextDiscountPreview(shop.id)}
           t={{ plans: t.plans, errors: t.errors, common: t.common, media: t.media }}
         />
         <RequestHistory data={data} lang={lang} t={t} />

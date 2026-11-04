@@ -12,6 +12,7 @@ import type { ActionState } from "@/lib/action";
 import { paymentMethods } from "@/server/db/schema";
 import { FREE_PLAN } from "@/server/limits";
 import { PACKS, PERIODS, approvePlanRequest, paymentDetails, rejectPlanRequest } from "./billing";
+import { referralDiscount } from "@/features/referrals/referrals";
 import { pendingRequest } from "./queries";
 
 const requestSchema = z.object({
@@ -43,12 +44,17 @@ export async function requestPlan(lang: string, _prev: ActionState, formData: Fo
     if (!plan || plan.code === FREE_PLAN || plan.priceMonthly <= 0) return { ok: false, error: "invalid" };
     if (!((plan.orderPack ? PACKS : PERIODS) as readonly number[]).includes(d.months)) return { ok: false, error: "invalid" };
     if (await pendingRequest(shop.id)) return { ok: false, error: "requestPending" };
+    // Refer a seller: the referred store's first payment and the referrer's vouchers come off the amount
+    const gross = plan.priceMonthly * d.months;
+    const { discount, voucherId } = await referralDiscount(shop.id, plan, gross);
     await db.insert(schema.planRequests).values({
       id: newId(),
       shopId: shop.id,
       planId: plan.id,
       months: d.months,
-      amount: plan.priceMonthly * d.months,
+      amount: gross - discount,
+      discount,
+      voucherId,
       method: d.method,
       receiptUrl: d.method === "whatsapp" ? null : d.receiptUrl,
       note: d.note || null,

@@ -189,3 +189,8 @@ MAIL_FROM="Scaleitto <no-reply@scaleitto.com>"
 | خطأ `Incorrect API key` أو `insufficient_quota` عند الإنشاء | المفتاح خاطئ أو لا يوجد رصيد في حساب OpenAI |
 | خطأ `model ... does not exist` | تحقق من اسم النموذج في `OPENAI_MODEL` (الافتراضي `gpt-6.1-sol`، والأرخص `gpt-6-luna`)، أو احذف السطر ليُستعمل الافتراضي، ثم Restart |
 | الإحصائيات اليومية بتوقيت خاطئ | تأكد من وجود `TZ="Africa/Algiers"` في `.env` |
+
+## Store API, MCP and referral links
+
+The public store API (`/api/storefront/v1/...`), the MCP server (`/api/mcp`) and the referral links (`/r/<store>`) show their
+addresses from **APP_URL**: keep it set to the platform's public address (https://…). Nothing else to configure.

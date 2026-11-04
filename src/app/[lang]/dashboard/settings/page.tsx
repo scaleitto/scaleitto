@@ -8,9 +8,15 @@ import { PageHeader } from "@/ui";
 import { resolveDesign } from "@/features/design/types";
 import { storeForm } from "@/features/order-form/resolve";
 import { domainTarget, planAllowsDomain } from "@/features/settings/domain";
-import { CheckoutFieldsForm, DomainCard, GeneralForm, LanguagePicker, NotificationsCard, ProductPageForm, SlugForm } from "@/features/settings/SettingsForms";
+import { CheckoutFieldsForm, DomainCard, GeneralForm, LanguagePicker, NotificationsCard, OriginsCard, ProductPageForm, SlugForm } from "@/features/settings/SettingsForms";
+import { apiBase } from "@/features/storefront/api";
+import { McpPanel } from "@/features/settings/McpPanel";
+import { ReferPanel } from "@/features/settings/ReferPanel";
+import { referralLink, referralStats } from "@/features/referrals/referrals";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { db, schema } from "@/server/db";
 
-const tabs = ["general", "domain", "language", "checkout", "productPage"] as const;
+const tabs = ["general", "domain", "language", "checkout", "productPage", "mcp", "refer"] as const;
 type Tab = (typeof tabs)[number];
 
 // Store settings like Zimam: underline tabs General, Domain, Language, Checkout, Product page (+ our policy pages)
@@ -92,11 +98,27 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
                 </div>
               </div>
             </div>
+            <OriginsCard lang={lang} storeId={shop.id} apiUrl={apiBase()} initial={shop.apiOrigins ?? []} t={text} />
           </>
         )}
         {tab === "language" && <LanguagePicker lang={lang} current={shop.defaultLocale} t={text} />}
         {tab === "checkout" && <CheckoutFieldsForm lang={lang} values={{ name: form.name, commune: form.commune, address: form.address, wilaya: form.wilaya, delivery: form.delivery === "both" ? "optional" : "hidden" }} t={text} />}
         {tab === "productPage" && <ProductPageForm lang={lang} optionButtons={form.optionButtons} t={text} />}
+        {tab === "mcp" && (
+          <McpPanel
+            lang={lang}
+            serverUrl={`${(process.env.APP_URL ?? "").replace(/\/+$/, "")}/api/mcp`}
+            tokens={(
+              await db
+                .select({ id: schema.mcpTokens.id, name: schema.mcpTokens.name, scopes: schema.mcpTokens.scopes, client: schema.mcpTokens.client, lastUsedAt: schema.mcpTokens.lastUsedAt, createdAt: schema.mcpTokens.createdAt })
+                .from(schema.mcpTokens)
+                .where(and(eq(schema.mcpTokens.shopId, shop.id), isNull(schema.mcpTokens.revokedAt)))
+                .orderBy(desc(schema.mcpTokens.createdAt))
+            ).map((x) => ({ ...x, lastUsedAt: x.lastUsedAt?.toISOString() ?? null, createdAt: x.createdAt.toISOString() }))}
+            t={text}
+          />
+        )}
+        {tab === "refer" && <ReferPanel lang={lang} link={referralLink(shop.slug)} stats={await referralStats(shop.id)} t={text} />}
       </div>
     </>
   );
