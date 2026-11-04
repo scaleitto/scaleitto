@@ -50,6 +50,7 @@ export function StoreHeader({
   align = "start",
   t,
   extra,
+  links,
 }: {
   name: string;
   logoUrl: string | null;
@@ -60,8 +61,16 @@ export function StoreHeader({
   t?: StoreText;
   // Shown beside the contact buttons (the cart icon)
   extra?: ReactNode;
+  // The menu (Store Design → Navigation): undefined = Home + Products, [] = no menu
+  links?: { label: string; href: string }[];
 }) {
   const center = align === "center";
+  const menu = links ?? (t ? [{ label: t.home, href: homeHref }, { label: t.products, href: `${homeHref === "/" ? "" : homeHref}#products` }] : []);
+  const navLinks = menu.map((l, i) => (
+    <a key={i} href={l.href} className="hover:text-brand-ink">
+      {l.label}
+    </a>
+  ));
   const contact = (
     <div className="flex items-center gap-2">
       {whatsapp && (
@@ -79,14 +88,9 @@ export function StoreHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-s-edge bg-s-surface/90 backdrop-blur-md" data-testid="store-header">
       <div className={`mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 ${center ? "justify-between @min-[40rem]:grid @min-[40rem]:grid-cols-3" : "justify-between"}`}>
-        {center && t && (
-          <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[40rem]:flex">
-            <Link href={homeHref} className="hover:text-brand-ink">
-              {t.home}
-            </Link>
-            <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand-ink">
-              {t.products}
-            </a>
+        {center && (
+          <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[40rem]:flex" data-testid="store-nav">
+            {navLinks}
           </nav>
         )}
         <Link href={homeHref} className={`flex min-w-0 items-center gap-2.5 ${center ? "@min-[40rem]:justify-self-center" : ""}`}>
@@ -94,14 +98,9 @@ export function StoreHeader({
           <span className="truncate text-lg font-extrabold tracking-tight">{name}</span>
         </Link>
         <div className={`flex items-center gap-5 ${center ? "@min-[40rem]:justify-self-end" : ""}`}>
-          {!center && t && (
-            <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[48rem]:flex">
-              <Link href={homeHref} className="hover:text-brand-ink">
-                {t.home}
-              </Link>
-              <a href={`${homeHref === "/" ? "" : homeHref}#products`} className="hover:text-brand-ink">
-                {t.products}
-              </a>
+          {!center && menu.length > 0 && (
+            <nav className="hidden items-center gap-5 text-sm font-semibold text-s-muted @min-[48rem]:flex" data-testid="store-nav">
+              {navLinks}
             </nav>
           )}
           {contact}
@@ -229,7 +228,7 @@ export function OrderSteps({ t }: { t: StoreText }) {
   );
 }
 
-export type GridProduct = { id: string; slug: string; name: string; price: number; compareAtPrice: number | null; images: string[] };
+export type GridProduct = { id: string; slug: string; name: string; price: number; compareAtPrice: number | null; images: string[]; collectionIds?: string[] | null };
 
 function ProductCard({ p, href, currency, t, layout }: { p: GridProduct; href: string; currency: string; t: StoreText; layout: Pick<Theme["layout"], "image" | "cards"> }) {
   const off = discountOf(p.price, p.compareAtPrice);
@@ -280,16 +279,19 @@ export function ProductGrid({
   currency,
   t,
   layout = { columns: 4, image: "square", cards: "elevated" },
+  anchor = true,
 }: {
   title: string;
   products: GridProduct[];
   base: string;
   currency: string;
   t: StoreText;
-  layout?: Pick<Theme["layout"], "columns" | "image" | "cards">;
+  layout?: { columns: 2 | 3 | 4; image: Theme["layout"]["image"]; cards: Theme["layout"]["cards"] };
+  // The first products section of a page is the "#products" the buttons and menu point to
+  anchor?: boolean;
 }) {
   return (
-    <section id="products" className="scroll-mt-20 space-y-5">
+    <section id={anchor ? "products" : undefined} className="scroll-mt-20 space-y-5" data-section="products">
       <div className="flex items-end justify-between gap-3">
         <h2 className="text-2xl font-extrabold tracking-tight @min-[40rem]:text-3xl">{title || t.products}</h2>
         <span className="h-1 w-12 shrink-0 rounded-full bg-brand" aria-hidden />
@@ -297,7 +299,7 @@ export function ProductGrid({
       {products.length === 0 ? (
         <p className="rounded-[var(--s-radius)] bg-s-surface p-10 text-center text-s-muted">{t.empty}</p>
       ) : (
-        <ul className={`grid grid-cols-2 gap-3 @min-[40rem]:gap-5 @min-[48rem]:grid-cols-3 ${layout.columns === 4 ? "@min-[64rem]:grid-cols-4" : ""}`}>
+        <ul className={`grid grid-cols-2 gap-3 @min-[40rem]:gap-5 ${layout.columns === 2 ? "" : "@min-[48rem]:grid-cols-3"} ${layout.columns === 4 ? "@min-[64rem]:grid-cols-4" : ""}`}>
           {products.map((p) => (
             <li key={p.id}>
               <ProductCard p={p} href={`${base}/p/${encodeURIComponent(p.slug)}`} currency={currency} t={t} layout={layout} />

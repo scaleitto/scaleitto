@@ -35,7 +35,7 @@ export async function storeBase(slug: string) {
 
 export async function listStoreProducts(shopId: string) {
   const rows = await db
-    .select({ id: schema.products.id, slug: schema.products.slug, name: schema.products.name, price: schema.products.price, compareAtPrice: schema.products.compareAtPrice, images: schema.products.images })
+    .select({ id: schema.products.id, slug: schema.products.slug, name: schema.products.name, price: schema.products.price, compareAtPrice: schema.products.compareAtPrice, images: schema.products.images, collectionIds: schema.products.collectionIds })
     .from(schema.products)
     .where(and(eq(schema.products.shopId, shopId), eq(schema.products.status, "active"), inStock))
     .orderBy(desc(schema.products.createdAt));

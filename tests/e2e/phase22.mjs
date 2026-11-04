@@ -56,11 +56,12 @@ export default async function phase22(browser) {
 
   await step("store design: own font, corners and columns over the theme", async () => {
     await owner.goto(`${BASE}/ar/dashboard/store-design`);
-    await owner.selectOption("#styleFont", "changa");
-    await owner.selectOption("#styleCorners", "round");
-    await owner.selectOption("#styleColumns", "3");
-    await owner.locator("button[type=submit]", { hasText: "حفظ" }).last().click();
-    await owner.waitForSelector("text=تم الحفظ");
+    await owner.click("[data-panel-button=theme]");
+    await owner.selectOption("#style-font", "changa");
+    await owner.selectOption("#style-corners", "round");
+    await owner.selectOption("#style-columns", "3");
+    await owner.waitForTimeout(300);
+    await owner.waitForSelector("[data-testid=save-state][data-state=saved]");
     const [[row]] = await db.query("SELECT design FROM shops WHERE id = ?", [shopId]);
     const design = json(row.design);
     expect(design.style.font === "changa" && design.style.corners === "round" && design.style.columns === 3, `design saved (got ${JSON.stringify(design.style)})`);

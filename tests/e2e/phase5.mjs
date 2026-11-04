@@ -61,9 +61,11 @@ export default async function phase5(browser) {
 
   await step("saving Store Design keeps the chosen theme", async () => {
     await page.goto(`${BASE}/ar/dashboard/store-design`);
-    await page.fill("#productsTitle", "جديدنا");
-    await page.locator("form button[type=submit]").click();
-    await page.waitForSelector("text=تم الحفظ");
+    await page.click("[data-section-row=products] button");
+    await page.fill("[data-field=title]", "جديدنا");
+    await page.waitForSelector("[data-testid=save-state][data-state=saved]");
+    await page.click("[data-testid=publish]");
+    await page.waitForSelector("[data-testid=publish-state][data-published=true]");
     await page.goto(store);
     expect((await page.locator("[data-testid=store-frame]").getAttribute("data-theme")) === "elegant", "theme kept");
     await page.waitForSelector("text=جديدنا");

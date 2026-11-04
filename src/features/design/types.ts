@@ -1,4 +1,5 @@
 import { findTheme, type Theme, type ThemeFont } from "@/features/themes/themes";
+import { legacyHome, sanitizeLinks, sanitizePages, type NavLink, type StorePages } from "./builder";
 
 // How a shop's storefront looks. Stored as JSON in shops.design; missing keys fall back to the defaults,
 // so new options can be added later without migrating old shops.
@@ -15,7 +16,13 @@ export type StoreDesign = {
   style: StyleOverrides;
   // "How to order" steps under the products
   showOrderSteps: boolean;
-  // A round WhatsApp button in the corner of every store page (the footer's WhatsApp number)
+  // The store builder: published pages (what visitors see) and the draft the builder edits (builder.ts)
+  pages: StorePages;
+  draft: StorePages;
+  // Global parts (apply at once): the header's menu, the header's phone button, the footer
+  navigation: { enabled: boolean; links: NavLink[] };
+  header: { showPhone: boolean };
+  footer: { enabled: boolean };
 };
 
 export const themeFonts: ThemeFont[] = ["cairo", "tajawal", "almarai", "changa", "el-messiri", "plex", "kufi", "readex"];
@@ -51,6 +58,11 @@ export const defaultDesign: StoreDesign = {
   socials: { facebook: "", instagram: "", tiktok: "", whatsapp: "" },
   style: noStyle,
   showOrderSteps: true,
+  pages: { home: legacyHome({ showBadges: true }), custom: [] },
+  draft: { home: legacyHome({ showBadges: true }), custom: [] },
+  navigation: { enabled: true, links: [] },
+  header: { showPhone: true },
+  footer: { enabled: true },
 };
 
 const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -58,6 +70,8 @@ const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (
 // Saved design (possibly old or partial) → a complete design.
 export function resolveDesign(saved: unknown): StoreDesign {
   const s = obj(saved);
+  // Stores designed before the builder keep their home page: banner, perks, collections, products, steps
+  const pages = sanitizePages(s.pages, legacyHome(s));
   return {
     theme: typeof s.theme === "string" ? s.theme : defaultDesign.theme,
     announcement: { ...defaultDesign.announcement, ...obj(s.announcement) } as StoreDesign["announcement"],
@@ -68,6 +82,11 @@ export function resolveDesign(saved: unknown): StoreDesign {
     socials: { ...defaultDesign.socials, ...obj(s.socials) } as StoreDesign["socials"],
     style: resolveStyle(s.style),
     showOrderSteps: typeof s.showOrderSteps === "boolean" ? s.showOrderSteps : typeof s.showBadges === "boolean" ? s.showBadges : defaultDesign.showOrderSteps,
+    pages,
+    draft: s.draft ? sanitizePages(s.draft, pages.home) : pages,
+    navigation: { enabled: obj(s.navigation).enabled !== false, links: sanitizeLinks(obj(s.navigation).links) },
+    header: { showPhone: obj(s.header).showPhone !== false },
+    footer: { enabled: obj(s.footer).enabled !== false },
   };
 }
 

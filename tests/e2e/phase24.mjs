@@ -56,11 +56,13 @@ export default async function phase24(browser) {
 
   await step("store design: the live preview scrolls", async () => {
     await owner.goto(`${dash}/store-design`);
+    await owner.setViewportSize({ width: 1280, height: 500 });
     const preview = owner.locator("[data-testid=design-preview]");
     await preview.hover();
     await owner.mouse.wheel(0, 600);
     await owner.waitForTimeout(400);
-    expect((await preview.evaluate((el) => el.scrollTop)) > 0, "the wheel scrolls the preview");
+    expect((await preview.evaluate((el) => el.parentElement.scrollTop)) > 0, "the wheel scrolls the preview");
+    await owner.setViewportSize({ width: 1280, height: 800 });
   });
 
   await step("platform admin: the plans are the subscription page's plans", async () => {

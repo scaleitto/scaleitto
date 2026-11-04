@@ -6,6 +6,7 @@ import { MessageCircle, Phone } from "lucide-react";
 import { resolveApps } from "@/features/apps/settings";
 import { CartLink } from "./CartLink";
 import { resolveDesign, storeTheme } from "@/features/design/types";
+import { navHref } from "@/features/design/builder";
 import { intlPhone } from "@/lib/phone";
 import type { StoreShop } from "./queries";
 import { AnnouncementBar, StoreFooter, StoreFrame, StoreHeader } from "./blocks";
@@ -29,15 +30,16 @@ export function StoreShell({ shop, base, children }: { shop: StoreShop; base: st
       <StoreHeader
         name={shop.name}
         logoUrl={shop.logoUrl}
-        phone={shop.phone}
+        phone={design.header.showPhone ? shop.phone : null}
         whatsapp={design.socials.whatsapp}
         homeHref={base || "/"}
+        links={!design.navigation.enabled ? [] : design.navigation.links.length ? design.navigation.links.map((l) => ({ label: l.label, href: navHref(l.target, base) })) : undefined}
         align={theme.layout.header}
         t={t}
         extra={apps.cart ? <CartLink shopId={shop.id} href={`${base}/cart`} label={t.cart.title} /> : null}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
-      <StoreFooter name={shop.name} about={design.about} socials={design.socials} policies={shopPolicies(shop).map(([kind]) => ({ kind, href: `${base}/policies/${kind}` }))} phone={shop.phone} t={t} />
+      {design.footer.enabled && <StoreFooter name={shop.name} about={design.about} socials={design.socials} policies={shopPolicies(shop).map(([kind]) => ({ kind, href: `${base}/policies/${kind}` }))} phone={shop.phone} t={t} />}
       {(contact.phoneOn && contact.phone) || (contact.whatsappOn && contact.whatsapp) ? (
         // Apps → Quick contact buttons, above the phone's sticky order button
         <div className="fixed end-4 bottom-20 z-20 flex flex-col gap-3 md:bottom-6" data-testid="quick-contact">

@@ -447,6 +447,19 @@ export const pageViews = mysqlTable(
 );
 
 // Saved versions of a landing page (the builder's History): one per save, the last 20 kept
+// Store Design history: a copy of the store's pages at every publish (the builder's History restores one into the draft)
+export const designVersions = mysqlTable(
+  "design_versions",
+  {
+    id: id().primaryKey(),
+    shopId: id("shop_id").notNull(),
+    pages: json("pages").notNull(),
+    userId: id("user_id"),
+    createdAt: timestamp("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (t) => [index("design_versions_shop_idx").on(t.shopId, t.createdAt)],
+);
+
 export const landingVersions = mysqlTable(
   "landing_versions",
   {

@@ -64,10 +64,20 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   ZR's new platform), not official docs: verify with a real merchant account before relying on a platform. Courier status words
   → `delivery/status.ts` (ZR states pass through `readableState`). Meta Graph API version: `META_VERSION` in
   `src/server/meta.ts` (pixels; Meta retires versions ~2 years after the next one: move it forward yearly).
-- Store Design (`src/features/design/`): `shops.design` JSON read through `resolveDesign()` (defaults for missing keys —
-  add new options there), `validators.ts`, `DesignEditor.tsx` (form + live preview). The storefront is drawn from
-  `src/features/storefront/blocks.tsx` (plain components shared by the real store and the preview — change the
-  look there, not in pages).
+- Store Design (`src/features/design/`, phase4.mjs) = Zimam's full-screen store builder (`StoreBuilder.tsx` + `BuilderFields.tsx`):
+  top bar (back, published state, page picker, add custom page, page settings, desktop/mobile, undo/redo, discard draft, History,
+  preview store, publish), icon rail (sections | colors & fonts | pages), Content | Layout tabs, the real store in the middle.
+  `shops.design` JSON read through `resolveDesign()` (defaults for missing keys — add new options there). Pages (`builder.ts`, pure):
+  `design.pages` = published {home, custom[{id,title,handle,sections}]}, `design.draft` = what the builder edits; sections
+  (`storeSectionTypes`: hero, products, collections, badges, steps, text, imageText, faq, video, spacer, each `hidden`-able) always
+  read through `sanitizePages` (stores from before the builder get `legacyHome` from hero/showBadges/productsTitle/showOrderSteps).
+  Global parts apply at once (`saveStoreDesign` checks `validators.ts globalSchema`): announcement, `navigation` {enabled, links
+  [{label, target home|products|page:|collection:|policy:|url:}] → `navHref`}, `header.showPhone`, `footer.enabled`, color, logo,
+  style, about, socials. `publishStoreDesign` copies the draft and keeps a copy in `design_versions` (20, migration 0051);
+  `discardStoreDraft`, `listDesignHistory` / `getDesignVersion` (restores into the draft). Store home and `/store/<slug>/pages/<handle>`
+  render `storefront/sections.tsx StoreSections` with `page-data.ts sectionData`; the builder's preview uses the same component
+  (`editing`). The storefront is drawn from `src/features/storefront/blocks.tsx` (plain components shared by the real store and the
+  preview — change the look there, not in pages).
 - Themes (`src/features/themes/themes.ts`): each theme = tokens (font, surfaces, radii, card style) + layout
   switches (header start/center, hero split/full/card/minimal, columns, image shape, product cards elevated/outline/minimal). `themeStyle()` sets CSS variables on `StoreFrame`; storefront
   code uses only the `s-*` colors (`bg-s-surface`, `text-s-muted`, `border-s-edge` — not `border-s-line`, Tailwind reads that as border-inline-start —…), `rounded-[var(--s-radius)]`,
