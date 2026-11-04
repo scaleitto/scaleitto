@@ -11,7 +11,6 @@ import { locales } from "@/i18n/config";
 import { fieldErrorsFrom } from "@/lib/validation";
 import { isValidDzPhone, normalizePhone } from "@/lib/phone";
 import type { ActionState } from "@/lib/action";
-import { policyKinds } from "@/lib/enums";
 import { shopSlugSchema } from "@/features/auth/validators";
 import { checkDomain, newDomainToken, normalizeDomain, planAllowsDomain } from "./domain";
 import { fieldRules, resolveForm } from "@/features/landing/types";
@@ -105,7 +104,7 @@ export async function saveStoreLanguage(lang: string, locale: string): Promise<A
 }
 
 const rule = z.enum(fieldRules);
-const checkoutSchema = z.object({ name: rule, commune: rule, address: rule, delivery: z.enum(["hidden", "optional"]) });
+const checkoutSchema = z.object({ name: rule, commune: rule, address: rule, wilaya: z.enum(["optional", "required"]), delivery: z.enum(["hidden", "optional"]) });
 
 // Store settings → Checkout: what the buyer is asked (phone and wilaya are always required)
 export async function saveCheckoutFields(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -119,7 +118,7 @@ export async function saveCheckoutFields(lang: string, _prev: ActionState, formD
     const delivery = d.delivery === "optional" ? "both" : form.delivery === "both" ? form.preferDelivery : form.delivery;
     await db
       .update(schema.shops)
-      .set({ orderForm: { ...raw(shop.orderForm), name: d.name, commune: d.commune, address: d.address, delivery } })
+      .set({ orderForm: { ...raw(shop.orderForm), name: d.name, commune: d.commune, address: d.address, wilaya: d.wilaya, delivery } })
       .where(eq(schema.shops.id, shop.id));
     refresh();
     return { ok: true };
@@ -131,33 +130,6 @@ export async function saveOptionButtons(lang: string, on: boolean): Promise<Acti
   return safeAction("settings/product-page", async () => {
     const shop = await shopOf(lang);
     await db.update(schema.shops).set({ orderForm: { ...raw(shop.orderForm), optionButtons: on === true } }).where(eq(schema.shops.id, shop.id));
-    refresh();
-    return { ok: true };
-  });
-}
-
-const seoSchema = z.object({ title: z.string().trim().max(70, "e:invalid"), description: z.string().trim().max(160, "e:invalid") });
-
-export async function saveSeo(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("settings/seo", async () => {
-    const shop = await shopOf(lang);
-    const parsed = seoSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-    await db.update(schema.shops).set({ seo: { title: parsed.data.title || undefined, description: parsed.data.description || undefined } }).where(eq(schema.shops.id, shop.id));
-    refresh();
-    return { ok: true };
-  });
-}
-
-const policiesSchema = z.object(Object.fromEntries(policyKinds.map((k) => [k, z.string().trim().max(10_000, "e:invalid")])) as Record<(typeof policyKinds)[number], z.ZodString>);
-
-export async function savePolicies(lang: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  return safeAction("settings/policies", async () => {
-    const shop = await shopOf(lang);
-    const parsed = policiesSchema.safeParse(Object.fromEntries(policyKinds.map((k) => [k, formData.get(k) ?? ""])));
-    if (!parsed.success) return { ok: false, error: "checkFields", fieldErrors: fieldErrorsFrom(parsed.error) };
-    const policies = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v));
-    await db.update(schema.shops).set({ policies }).where(eq(schema.shops.id, shop.id));
     refresh();
     return { ok: true };
   });

@@ -113,7 +113,8 @@ export async function placeCartOrder(shop: Pick<StoreShop, "id">, cart: CartLine
   const subtotal = lines.reduce((n, l) => n + l.price.total, 0);
   const freeOffer = lines.map((l) => l.price.offer).find((o) => o?.freeShipping) ?? null;
   // A product sold with one delivery option limits the order to it
-  const shipping = lineShipping(shippingPrice(await getShippingRates(shop.id, lines.find((l) => l.product.deliveryOption)?.product.deliveryOption), input.wilaya, input.deliveryType), freeOffer);
+  // No wilaya (optional in the store's checkout settings): delivery is priced by the team when they complete the order
+  const shipping = input.wilaya ? lineShipping(shippingPrice(await getShippingRates(shop.id, lines.find((l) => l.product.deliveryOption)?.product.deliveryOption), input.wilaya, input.deliveryType), freeOffer) : 0;
   if (shipping === null) return { ok: false, error: "shipping" };
   const orderId = newId();
   const rule = await orderRule(shop.id);

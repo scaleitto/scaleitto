@@ -32,7 +32,7 @@ export default async function Cart({ params }: PageProps<"/store/[slug]/cart">) 
       action={submitCart.bind(null, shop.slug)}
       payMethods={await liveMethods(shop.id)}
       captcha={storeCaptcha(resolveProtection(shop.protection))}
-      fields={(({ name, commune, address, delivery, preferDelivery }) => ({ name, commune, address, delivery, preferDelivery }))(storeForm(shop))}
+      fields={(({ name, commune, wilaya, address, delivery, preferDelivery }) => ({ name, commune, wilaya, address, delivery, preferDelivery }))(storeForm(shop))}
       t={getStoreText(locale)}
     />
   );

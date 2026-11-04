@@ -57,7 +57,9 @@ export default async function StoreDesignPage({ params }: PageProps<"/[lang]/das
       backHref={sectionHref(lang, "overview")}
       themesHref={sectionHref(lang, "themes")}
       title={t.sections.storeDesign.title}
-      t={{ design: t.design, media: t.media, errors: t.errors, common: t.common }}
+      seo={{ title: shop.seo?.title ?? "", description: shop.seo?.description ?? "" }}
+      policies={shop.policies ?? {}}
+      t={{ design: t.design, media: t.media, errors: t.errors, common: t.common, settings: t.settings }}
     />
   );
 }

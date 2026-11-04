@@ -520,6 +520,7 @@ export function CheckoutForm({
           <div>
             <label htmlFor="wilaya" className={label}>
               {text("wilaya", t.form.wilaya)}
+              {settings.wilaya === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
             </label>
             {withIcon(
               "wilaya",

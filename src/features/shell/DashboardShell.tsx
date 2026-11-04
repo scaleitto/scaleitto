@@ -194,7 +194,7 @@ export function DashboardShell({
   logoutInNav?: boolean;
   ping?: boolean;
   // New-order sound + browser notification (Store settings → General)
-  alerts?: { title: string; body: string; href: string };
+  alerts?: { title: string; body: string; href: string; other?: string };
   children: ReactNode;
 }) {
   const pathname = usePathname();

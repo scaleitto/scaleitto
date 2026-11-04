@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { BellRing, CircleCheck, Clock, Globe, Play, Volume2 } from "lucide-react";
+import { BellRing, CircleCheck, Clock, Globe, Play, Plus, Volume2 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries/ar";
 import { fmt } from "@/lib/format";
-import { policyKinds, type PolicyKind } from "@/lib/enums";
 import { Alert, Badge, Button, Card, Field, Input, Select, Textarea } from "@/ui";
 import { FormMessage, SubmitButton, fieldError, useActionForm } from "@/ui/form";
-import { removeDomain, saveCheckoutFields, saveGeneral, saveOptionButtons, savePolicies, saveSeo, saveSlug, saveStoreLanguage, setDomain, verifyDomain } from "./actions";
+import { removeDomain, saveCheckoutFields, saveGeneral, saveOptionButtons, saveSlug, saveStoreLanguage, setDomain, verifyDomain } from "./actions";
 import { SwitchRow } from "@/ui/Switch";
 import { alertSounds, defaultPrefs, playSound, readPrefs, writePrefs, type AlertPrefs, type AlertSound } from "@/features/shell/alerts";
 
@@ -109,19 +108,23 @@ export function NotificationsCard({ t }: { t: Text }) {
           <p className="mt-1 text-xs text-muted">{n.soundsNote}</p>
         </div>
         <div className="space-y-3">
-          <p className="text-[11px] font-semibold tracking-wider text-muted uppercase">{n.newOrders}</p>
-          <div className="flex gap-2">
-            <Select aria-label={n.newOrders} value={prefs.sound} onChange={(ev) => update({ ...prefs, sound: ev.target.value as AlertSound })} data-testid="alert-sound">
-              {alertSounds.map((k) => (
-                <option key={k} value={k}>
-                  {n.soundNames[k]}
-                </option>
-              ))}
-            </Select>
-            <Button type="button" variant="secondary" className="shrink-0" disabled={prefs.sound === "none"} onClick={() => playSound(prefs.sound, prefs.volume)}>
-              <Play size={14} /> {n.play}
-            </Button>
-          </div>
+          {(["sound", "other"] as const).map((key) => (
+            <div key={key} className="space-y-1.5">
+              <p className="text-[11px] font-semibold tracking-wider text-muted uppercase">{key === "sound" ? n.newOrders : n.otherNotifications}</p>
+              <div className="flex gap-2">
+                <Select aria-label={key === "sound" ? n.newOrders : n.otherNotifications} value={prefs[key]} onChange={(ev) => update({ ...prefs, [key]: ev.target.value as AlertSound })} data-testid={key === "sound" ? "alert-sound" : "alert-other"}>
+                  {alertSounds.map((k) => (
+                    <option key={k} value={k}>
+                      {n.soundNames[k]}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="button" variant="secondary" className="shrink-0" disabled={prefs[key] === "system"} onClick={() => playSound(prefs[key], prefs.volume)}>
+                  <Play size={14} /> {n.play}
+                </Button>
+              </div>
+            </div>
+          ))}
           <label className="block space-y-1.5">
             <span className="flex justify-between text-xs font-semibold text-fg-2">
               {n.volume} <span>{Math.round(prefs.volume * 100)}%</span>
@@ -134,24 +137,25 @@ export function NotificationsCard({ t }: { t: Text }) {
   );
 }
 
-// Store settings → Domain: the store's link on the platform
-export function SlugForm({ lang, slug, host, t }: { lang: string; slug: string; host: string; t: Text }) {
+// Store settings → Domain (Zimam's "Store Domain"): the store's link on the platform
+export function SlugForm({ lang, slug, prefix, suffix, t }: { lang: string; slug: string; prefix: string; suffix: string; t: Text }) {
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(saveSlug.bind(null, lang));
   const [value, setValue] = useState(slug);
   return (
     <Card data-testid="settings-slug">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
-        <h2 className="font-semibold">{t.settings.dom.storeDomain}</h2>
         <FormMessage state={state} errors={e} success={t.common.saved} />
-        <Field label={t.settings.general.slug} htmlFor="st-slug" error={fieldError(state, e, "slug")}>
-          <div className="flex overflow-hidden rounded-xl border border-field-line bg-field" dir="ltr">
-            <span className="flex items-center border-e border-field-line bg-panel-2 px-3 text-sm text-muted">{host}</span>
-            <input id="st-slug" name="slug" maxLength={40} value={value} onChange={(ev) => setValue(ev.target.value.toLowerCase())} className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" />
+        <Field label={t.settings.dom.storeDomain} htmlFor="st-slug" error={fieldError(state, e, "slug")}>
+          <div className="flex h-11 items-center gap-2 overflow-hidden rounded-xl border border-field-line bg-field px-3 focus-within:ring-2 focus-within:ring-accent/30" dir="ltr">
+            <Globe size={16} className="shrink-0 text-muted" />
+            {prefix && <span className="shrink-0 text-sm text-muted">{prefix}</span>}
+            <input id="st-slug" name="slug" maxLength={40} value={value} onChange={(ev) => setValue(ev.target.value.toLowerCase())} className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none" />
+            {suffix && <span className="shrink-0 text-sm text-muted">{suffix}</span>}
           </div>
           {value !== slug && <p className="mt-1.5 text-xs text-warning">{t.settings.general.slugWarning}</p>}
         </Field>
-        <SubmitButton pending={pending} pendingText={t.common.loading}>
+        <SubmitButton pending={pending} pendingText={t.common.loading} className="h-12 w-full">
           {t.settings.g.saveChanges}
         </SubmitButton>
       </form>
@@ -200,7 +204,7 @@ export function LanguagePicker({ lang, current, t }: { lang: string; current: st
 type Rule = "hidden" | "optional" | "required";
 
 // Store settings → Checkout (Zimam): what the buyer is asked, field by field
-export function CheckoutFieldsForm({ lang, values, t }: { lang: string; values: { name: Rule; commune: Rule; address: Rule; delivery: "hidden" | "optional" }; t: Text }) {
+export function CheckoutFieldsForm({ lang, values, t }: { lang: string; values: { name: Rule; commune: Rule; address: Rule; wilaya: "optional" | "required"; delivery: "hidden" | "optional" }; t: Text }) {
   const c = t.settings.co;
   const e = t.errors as Record<string, string>;
   const { state, pending, onSubmit } = useActionForm(saveCheckoutFields.bind(null, lang));
@@ -240,7 +244,7 @@ export function CheckoutFieldsForm({ lang, values, t }: { lang: string; values: 
         <div>
           {row("phone", c.phone, c.phoneHint, [], "required")}
           {row("name", c.name, c.nameHint, ["hidden", "optional", "required"])}
-          {row("wilaya", c.wilaya, c.wilayaHint, [], "required")}
+          {row("wilaya", c.wilaya, c.wilayaHint, ["optional", "required"])}
           {row("commune", c.commune, c.communeHint, ["hidden", "optional", "required"])}
           {row("address", c.address, c.addressHint, ["hidden", "optional", "required"])}
           {row("delivery", c.delivery, c.deliveryHint, ["hidden", "optional"])}
@@ -276,65 +280,6 @@ export function ProductPageForm({ lang, optionButtons, t }: { lang: string; opti
   );
 }
 
-export function SeoForm({ lang, values, shopName, url, t }: { lang: string; values: { title: string; description: string }; shopName: string; url: string; t: Text }) {
-  const s = t.settings.seo;
-  const e = t.errors as Record<string, string>;
-  const { state, pending, onSubmit } = useActionForm(saveSeo.bind(null, lang));
-  const [title, setTitle] = useState(values.title);
-  const [description, setDescription] = useState(values.description);
-  return (
-    <Card data-testid="settings-seo">
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
-        <h2 className="font-semibold">{s.title}</h2>
-        <FormMessage state={state} errors={e} success={t.common.saved} />
-        <Field label={s.metaTitle} htmlFor="seo-title" hint={`${s.metaTitleHint} · ${title.length}/70`} error={fieldError(state, e, "title")}>
-          <Input id="seo-title" name="title" dir="auto" maxLength={70} value={title} onChange={(ev) => setTitle(ev.target.value)} placeholder={shopName} />
-        </Field>
-        <Field label={s.metaDescription} htmlFor="seo-description" hint={`${s.metaDescriptionHint} · ${description.length}/160`} error={fieldError(state, e, "description")}>
-          <Textarea id="seo-description" name="description" dir="auto" rows={2} maxLength={160} value={description} onChange={(ev) => setDescription(ev.target.value)} />
-        </Field>
-        {/* How it looks in search results (always light, like Google) */}
-        <div className="rounded-lg bg-white p-4" dir="auto">
-          <p className="text-xs text-slate-500">{s.preview}</p>
-          <p className="truncate text-xs text-accent" dir="ltr">
-            {url}
-          </p>
-          <p className="truncate text-lg text-blue-800">{title || shopName}</p>
-          {description && <p className="line-clamp-2 text-sm text-slate-600">{description}</p>}
-        </div>
-        <SubmitButton pending={pending} pendingText={t.common.loading}>
-          {t.common.save}
-        </SubmitButton>
-      </form>
-    </Card>
-  );
-}
-
-export function PoliciesForm({ lang, values, t }: { lang: string; values: Partial<Record<PolicyKind, string>>; t: Text }) {
-  const p = t.settings.policies;
-  const e = t.errors as Record<string, string>;
-  const { state, pending, onSubmit } = useActionForm(savePolicies.bind(null, lang));
-  return (
-    <Card data-testid="settings-policies">
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
-        <div>
-          <h2 className="font-semibold">{p.title}</h2>
-          <p className="mt-0.5 text-sm text-muted">{p.hint}</p>
-        </div>
-        <FormMessage state={state} errors={e} success={t.common.saved} />
-        {policyKinds.map((k) => (
-          <Field key={k} label={p.kinds[k]} htmlFor={`policy-${k}`} error={fieldError(state, e, k)}>
-            <Textarea id={`policy-${k}`} name={k} dir="auto" rows={4} maxLength={10_000} defaultValue={values[k] ?? ""} placeholder={p.placeholder} />
-          </Field>
-        ))}
-        <SubmitButton pending={pending} pendingText={t.common.loading}>
-          {t.common.save}
-        </SubmitButton>
-      </form>
-    </Card>
-  );
-}
-
 type DomainState = { allowed: boolean; domain: string | null; token: string | null; verified: boolean; target: { cname: string | null; ip: string | null } };
 
 export function DomainCard({ lang, state: d, plansHref, t }: { lang: string; state: DomainState; plansHref: string | null; t: Text }) {
@@ -351,15 +296,10 @@ export function DomainCard({ lang, state: d, plansHref, t }: { lang: string; sta
       ]
     : [];
   return (
-    <Card className="space-y-4" data-testid="settings-domain" data-state={!d.domain ? "none" : d.verified ? "verified" : "pending"}>
-      <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-          <Globe size={20} />
-        </span>
-        <div>
-          <h2 className="font-semibold">{dm.title}</h2>
-          <p className="mt-0.5 text-sm text-muted">{dm.description}</p>
-        </div>
+    <section className="mx-auto w-full max-w-3xl space-y-5 py-4" data-testid="settings-domain" data-state={!d.domain ? "none" : d.verified ? "verified" : "pending"}>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">{dm.title}</h2>
+        <p className="mt-1 text-sm text-muted">{dm.description}</p>
       </div>
       {!d.allowed ? (
         <Alert variant="info">
@@ -372,17 +312,28 @@ export function DomainCard({ lang, state: d, plansHref, t }: { lang: string; sta
         </Alert>
       ) : (
         <>
-          <form onSubmit={form.onSubmit} noValidate className="flex flex-wrap items-end gap-2">
-            <div className="min-w-60 flex-1">
-              <FormMessage state={form.state} errors={e} />
-              <Field label={dm.label} htmlFor="domain" error={fieldError(form.state, e, "domain")}>
-                <Input id="domain" name="domain" dir="ltr" defaultValue={d.domain ?? ""} placeholder="mystore.com" />
-              </Field>
+          <form onSubmit={form.onSubmit} noValidate className="space-y-2">
+            <FormMessage state={form.state} errors={e} />
+            <div className="flex flex-wrap gap-2">
+              <label className="relative min-w-60 flex-1">
+                <Globe size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
+                <Input id="domain" name="domain" dir="ltr" aria-label={dm.label} defaultValue={d.domain ?? ""} placeholder="e.g. www.mystore.com" className="ps-9" />
+              </label>
+              <SubmitButton pending={form.pending} pendingText={t.common.loading} className="h-11">
+                <Plus size={15} /> {d.domain ? dm.save : dm.add}
+              </SubmitButton>
             </div>
-            <SubmitButton pending={form.pending} variant="secondary" pendingText={t.common.loading} className="mb-[1.4rem]">
-              {dm.save}
-            </SubmitButton>
+            {fieldError(form.state, e, "domain") && <p className="text-xs text-danger">{fieldError(form.state, e, "domain")}</p>}
           </form>
+          {!d.domain && (
+            <div className="flex flex-col items-center gap-2 py-10 text-center" data-testid="domain-empty">
+              <span className="grid size-12 place-items-center rounded-xl bg-panel-2 text-muted">
+                <Globe size={24} />
+              </span>
+              <p className="mt-2 font-semibold">{dm.emptyTitle}</p>
+              <p className="max-w-xs text-sm text-muted">{dm.emptyHint}</p>
+            </div>
+          )}
           {d.domain &&
             (d.verified ? (
               <Alert variant="success">
@@ -449,6 +400,6 @@ export function DomainCard({ lang, state: d, plansHref, t }: { lang: string; sta
           )}
         </>
       )}
-    </Card>
+    </section>
   );
 }

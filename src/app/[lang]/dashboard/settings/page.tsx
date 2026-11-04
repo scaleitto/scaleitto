@@ -3,14 +3,14 @@ import { LifeBuoy, ShieldCheck } from "lucide-react";
 import { getDictionary, asLocale } from "@/i18n";
 import { requireSection } from "@/server/auth/context";
 import { sectionHref } from "@/lib/permissions";
-import { storeLinkParts, storeUrl } from "@/lib/urls";
-import { Card, PageHeader } from "@/ui";
+import { storeLinkParts } from "@/lib/urls";
+import { PageHeader } from "@/ui";
 import { resolveDesign } from "@/features/design/types";
 import { storeForm } from "@/features/order-form/resolve";
 import { domainTarget, planAllowsDomain } from "@/features/settings/domain";
-import { CheckoutFieldsForm, DomainCard, GeneralForm, LanguagePicker, NotificationsCard, PoliciesForm, ProductPageForm, SeoForm, SlugForm } from "@/features/settings/SettingsForms";
+import { CheckoutFieldsForm, DomainCard, GeneralForm, LanguagePicker, NotificationsCard, ProductPageForm, SlugForm } from "@/features/settings/SettingsForms";
 
-const tabs = ["general", "domain", "language", "checkout", "productPage", "policies"] as const;
+const tabs = ["general", "domain", "language", "checkout", "productPage"] as const;
 type Tab = (typeof tabs)[number];
 
 // Store settings like Zimam: underline tabs General, Domain, Language, Checkout, Product page (+ our policy pages)
@@ -54,45 +54,49 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
               t={text}
             />
             <NotificationsCard t={text} />
-            <SeoForm lang={lang} values={{ title: shop.seo?.title ?? "", description: shop.seo?.description ?? "" }} shopName={shop.name} url={storeUrl(shop)} t={text} />
           </>
         )}
         {tab === "domain" && (
           <>
-            <SlugForm lang={lang} slug={shop.slug} host={`${link.prefix}`} t={text} />
+            <SlugForm lang={lang} slug={shop.slug} prefix={link.prefix} suffix={link.suffix} t={text} />
             <DomainCard
               lang={lang}
               state={{ allowed: await planAllowsDomain(shop.id), domain: shop.customDomain, token: shop.domainToken, verified: Boolean(shop.domainVerifiedAt), target: domainTarget() }}
               plansHref={role === "owner" ? sectionHref(lang, "plans") : null}
               t={text}
             />
-            <Card className="flex items-start gap-3">
-              <ShieldCheck size={20} className="mt-0.5 shrink-0 text-accent" />
-              <div>
-                <h2 className="font-semibold">{t.settings.dom.sslTitle}</h2>
-                <p className="mt-1 text-sm text-muted">{t.settings.dom.sslHint}</p>
+            <div className="mx-auto grid w-full max-w-3xl overflow-hidden rounded-2xl border border-line bg-panel md:grid-cols-2">
+              <div className="flex items-start gap-3 p-5">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                  <ShieldCheck size={18} />
+                </span>
+                <div>
+                  <h2 className="font-semibold">{t.settings.dom.sslTitle}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{t.settings.dom.sslHint}</p>
+                </div>
               </div>
-            </Card>
-            {whatsapp && (
-              <Card className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <LifeBuoy size={20} className="mt-0.5 shrink-0 text-accent" />
+              <div className="flex items-start gap-3 border-t border-line p-5 md:border-t-0 md:border-s">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                  <LifeBuoy size={18} />
+                </span>
+                <div className="space-y-3">
                   <div>
                     <h2 className="font-semibold">{t.settings.dom.helpTitle}</h2>
                     <p className="mt-1 text-sm text-muted">{t.settings.dom.helpHint}</p>
                   </div>
+                  {whatsapp && (
+                    <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:brightness-110" data-testid="domain-support">
+                      <LifeBuoy size={15} /> {t.settings.dom.support}
+                    </a>
+                  )}
                 </div>
-                <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:bg-panel-2">
-                  {t.settings.dom.support}
-                </a>
-              </Card>
-            )}
+              </div>
+            </div>
           </>
         )}
         {tab === "language" && <LanguagePicker lang={lang} current={shop.defaultLocale} t={text} />}
-        {tab === "checkout" && <CheckoutFieldsForm lang={lang} values={{ name: form.name, commune: form.commune, address: form.address, delivery: form.delivery === "both" ? "optional" : "hidden" }} t={text} />}
+        {tab === "checkout" && <CheckoutFieldsForm lang={lang} values={{ name: form.name, commune: form.commune, address: form.address, wilaya: form.wilaya, delivery: form.delivery === "both" ? "optional" : "hidden" }} t={text} />}
         {tab === "productPage" && <ProductPageForm lang={lang} optionButtons={form.optionButtons} t={text} />}
-        {tab === "policies" && <PoliciesForm lang={lang} values={shop.policies ?? {}} t={text} />}
       </div>
     </>
   );

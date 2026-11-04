@@ -11,6 +11,7 @@ import type { ActionState } from "@/lib/action";
 import { globalSchema, type GlobalInput } from "./validators";
 import { resolveDesign } from "./types";
 import { sanitizePages, type StorePages } from "./builder";
+import { policyKinds } from "@/lib/enums";
 
 const guard = (lang: string) => requireSection(asLocale(lang), "storeDesign");
 const MAX_HISTORY = 20;
@@ -77,4 +78,31 @@ export async function getDesignVersion(lang: string, id: string): Promise<StoreP
   const v = schema.designVersions;
   const [row] = await db.select().from(v).where(and(eq(v.shopId, shop.id), eq(v.id, id)));
   return row ? sanitizePages(row.pages, []) : null;
+}
+
+// The home page's Google & sharing texts (page settings of the home page)
+export async function saveHomeSeo(lang: string, input: { title: string; description: string }): Promise<ActionState> {
+  return safeAction("design/seo", async () => {
+    const { shop } = await guard(lang);
+    const title = String(input.title ?? "").trim().slice(0, 70);
+    const description = String(input.description ?? "").trim().slice(0, 160);
+    await db.update(schema.shops).set({ seo: { title: title || undefined, description: description || undefined } }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
+}
+
+// One policy page (Pages panel); an empty text removes it from the store
+export async function savePolicyPage(lang: string, kind: string, text: string): Promise<ActionState> {
+  return safeAction("design/policy", async () => {
+    const { shop } = await guard(lang);
+    if (!(policyKinds as readonly string[]).includes(kind)) return { ok: false, error: "invalid" };
+    const value = String(text ?? "").trim().slice(0, 10_000);
+    const policies: Record<string, string> = { ...(shop.policies ?? {}) };
+    if (value) policies[kind] = value;
+    else delete policies[kind];
+    await db.update(schema.shops).set({ policies }).where(eq(schema.shops.id, shop.id));
+    refresh();
+    return { ok: true };
+  });
 }

@@ -19,7 +19,7 @@ const emptyCart: CartItem[] = [];
 
 // Apps → Shopping cart: the lines (priced by the server), then one delivery form for the whole order
 // Store settings → Checkout, as the cart form follows it
-type CartFields = { name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required"; address: "hidden" | "optional" | "required"; delivery: "both" | "home" | "office"; preferDelivery: "home" | "office" };
+type CartFields = { wilaya?: "optional" | "required"; name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required"; address: "hidden" | "optional" | "required"; delivery: "both" | "home" | "office"; preferDelivery: "home" | "office" };
 
 export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency, action, payMethods = [], captcha = null, fields = { name: "required", commune: "required", address: "optional", delivery: "both", preferDelivery: "home" }, t }: { fields?: CartFields; slug: string; shopId: string; base: string; rates: RateMap; wilayas: { code: number; name: string }[]; arabic: boolean; currency: string; action: (prev: ActionState, fd: FormData) => Promise<ActionState>; payMethods?: OnlineMethod[]; captcha?: StoreCaptcha; t: StoreText }) {
   const snapshot = useRef<{ key: string; items: CartItem[] }>({ key: "", items: emptyCart });
@@ -151,6 +151,7 @@ export function CartPage({ slug, shopId, base, rates, wilayas, arabic, currency,
         </label>
         <label className="block space-y-1 text-sm font-semibold">
           {t.form.wilaya}
+          {fields.wilaya === "optional" && <span className="font-normal text-s-muted"> ({t.form.optional})</span>}
           <select id="wilaya" name="wilaya" value={wilaya ?? ""} onChange={(ev) => setWilaya(Number(ev.target.value) || null)} className={field}>
             <option value="">{t.form.chooseWilaya}</option>
             {wilayas.map((w) => (

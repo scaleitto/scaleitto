@@ -12,7 +12,8 @@ export const orderInputSchema = z.object({
     .string()
     .transform((v) => normalizePhone(v))
     .refine(isValidDzPhone, "e:phone"),
-  wilaya: z.coerce.number().int().refine((c) => wilayas.some((w) => w.code === c), "e:wilaya"),
+  // 0 = not given (allowed when the store makes the wilaya optional, checkContact)
+  wilaya: z.preprocess((v) => (v === "" || v === undefined || v === null ? 0 : v), z.coerce.number().int().refine((c) => c === 0 || wilayas.some((w) => w.code === c), "e:wilaya")),
   commune: z.string().trim().max(120, "e:commune").optional().default(""),
   address: z.string().trim().max(255).optional().default(""),
   deliveryType: z.enum(deliveryTypes, { error: "e:deliveryType" }),
@@ -32,7 +33,8 @@ export type OrderInput = z.output<typeof orderInputSchema>;
 
 // Store settings → Checkout: a hidden field is dropped, an optional one may stay empty, a required one must be filled.
 // Adds the errors to `errors` and returns the values to save.
-export function checkContact(rules: { name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required" }, input: { name: string; commune: string }, errors: Record<string, string>) {
+export function checkContact(rules: { name: "hidden" | "optional" | "required"; commune: "hidden" | "optional" | "required"; wilaya?: "optional" | "required" }, input: { name: string; commune: string; wilaya?: number }, errors: Record<string, string>) {
+  if ((rules.wilaya ?? "required") === "required" && !input.wilaya) errors.wilaya = "wilaya";
   const one = (key: "name" | "commune") => {
     const rule = rules[key];
     const value = rule === "hidden" ? "" : input[key];

@@ -42,6 +42,7 @@ export default async function phase12(browser) {
     await p.close();
     // The device notifications card (sound kept in this browser)
     await owner.selectOption("[data-testid=alert-sound]", "cash");
+    await owner.selectOption("[data-testid=alert-other]", "marimba");
     await owner.reload();
     await owner.waitForFunction(() => document.querySelector("[data-testid=alert-sound]")?.value === "cash", null, { timeout: 5000 }).catch(() => {});
     expect((await owner.inputValue("[data-testid=alert-sound]")) === "cash", "sound remembered on this device");
@@ -79,6 +80,7 @@ export default async function phase12(browser) {
     await form.locator("[data-field-rule=name] label", { hasText: "اختياري" }).click();
     await form.locator("[data-field-rule=commune] label", { hasText: "مخفي" }).click();
     await form.locator("[data-field-rule=delivery] label", { hasText: "مخفي" }).click();
+    await form.locator("[data-field-rule=wilaya] label", { hasText: "اختياري" }).click();
     await form.locator("button[type=submit]").click();
     await form.getByText("تم الحفظ").waitFor();
     const p = await browser.newPage();
@@ -86,11 +88,10 @@ export default async function phase12(browser) {
     await p.waitForSelector("#phone");
     expect(!(await p.locator("#commune").count()) && !(await p.locator("input[type=radio][name=deliveryType]").count()), "no commune, no delivery choice");
     await p.fill("#phone", "0770 22 33 44");
-    await p.selectOption("#wilaya", "16");
     await p.waitForTimeout(4200);
     await Promise.all([p.waitForURL(/\/thanks\?o=/), p.click("button[type=submit]")]);
-    const [[o]] = await db.query("SELECT customer_name, commune, delivery_type FROM orders WHERE id = ?", [new URL(p.url()).searchParams.get("o")]);
-    expect(o.customer_name === "" && o.commune === "" && o.delivery_type === "home", `order without name or commune (got ${JSON.stringify(o)})`);
+    const [[o]] = await db.query("SELECT customer_name, commune, delivery_type, wilaya_code, shipping_price FROM orders WHERE id = ?", [new URL(p.url()).searchParams.get("o")]);
+    expect(o.customer_name === "" && o.commune === "" && o.delivery_type === "home" && o.wilaya_code === 0 && o.shipping_price === 0, `order without name, wilaya or commune (got ${JSON.stringify(o)})`);
     // The dashboard's new-order alert sees it
     const latest = await (await owner.request.get(`${BASE}/api/orders/latest`)).json();
     expect(latest.number === 1001, `latest order number for the alerts (got ${JSON.stringify(latest)})`);
@@ -100,6 +101,7 @@ export default async function phase12(browser) {
     await form.locator("[data-field-rule=name] label", { hasText: "إجباري" }).click();
     await form.locator("[data-field-rule=commune] label", { hasText: "إجباري" }).click();
     await form.locator("[data-field-rule=delivery] label", { hasText: "اختياري" }).click();
+    await form.locator("[data-field-rule=wilaya] label", { hasText: "إجباري" }).click();
     await form.locator("button[type=submit]").click();
     await form.getByText("تم الحفظ").waitFor();
     await db.query("DELETE FROM orders WHERE shop_id = ?", [shopId]);
@@ -121,12 +123,13 @@ export default async function phase12(browser) {
     await db.query("UPDATE products SET options = '[]' WHERE shop_id = ? AND slug = 'montre'", [shopId]);
   });
 
-  await step("SEO title and description in the store's page head", async () => {
-    await owner.goto(section);
+  await step("SEO title and description (Store Design → home page settings) in the store's page head", async () => {
+    await owner.goto(`${BASE}/ar/dashboard/store-design`);
+    await owner.click("[data-testid=page-settings]");
     await owner.fill("#seo-title", "Montres de luxe à Alger");
     await owner.fill("#seo-description", "Livraison 58 wilayas, paiement à la livraison.");
-    await owner.locator("[data-testid=settings-seo] button[type=submit]").click();
-    await owner.locator("[data-testid=settings-seo]").getByText("تم الحفظ").waitFor();
+    await owner.click("[data-testid=save-seo]");
+    await owner.locator("[data-testid=home-seo]").getByText("تم الحفظ").waitFor();
     const p = await browser.newPage();
     await p.goto(`${BASE}/store/${newSlug}`);
     await p.waitForSelector("text=Boutique Lina");
@@ -138,11 +141,13 @@ export default async function phase12(browser) {
     await p.close();
   });
 
-  await step("policy pages: footer links only for written ones, page in the store's language", async () => {
-    await owner.goto(`${section}?tab=policies`);
+  await step("policy pages (Store Design → Pages): footer links only for written ones, page in the store's language", async () => {
+    await owner.goto(`${BASE}/ar/dashboard/store-design`);
+    await owner.click("[data-panel-button=pages]");
+    await owner.click("[data-policy=returns]");
     await owner.fill("#policy-returns", "Échange sous 7 jours.\nRemboursement si le produit est défectueux.");
-    await owner.locator("[data-testid=settings-policies] button[type=submit]").click();
-    await owner.locator("[data-testid=settings-policies]").getByText("تم الحفظ").waitFor();
+    await owner.click("[data-testid=save-policy]");
+    await owner.waitForSelector("#policy-returns", { state: "detached" });
     const p = await browser.newPage();
     await p.goto(`${BASE}/store/${newSlug}`);
     const links = p.locator("[data-testid=policy-links] a");

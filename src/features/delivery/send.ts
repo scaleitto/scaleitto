@@ -20,6 +20,8 @@ export async function sendParcel(shopId: string, orderId: string, accountId: str
   if (!order) return { ok: false, error: "notFound" };
   if (order.status !== "confirmed") return { ok: false, error: "confirmFirst" };
   if (await db.$count(schema.shipments, eq(schema.shipments.orderId, orderId))) return { ok: false, error: "alreadyShipped" };
+  // An order placed without a wilaya (optional in the checkout settings) must be completed first
+  if (!order.wilayaCode) return { ok: false, error: "wilayaMissing" };
   const [account] = await db.select().from(schema.carrierAccounts).where(and(eq(schema.carrierAccounts.shopId, shopId), eq(schema.carrierAccounts.id, accountId)));
   if (!account) return { ok: false, error: "notFound" };
 

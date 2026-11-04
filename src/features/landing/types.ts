@@ -124,6 +124,8 @@ export type FormSettings = {
   // Store settings → Checkout (Zimam): the buyer's name and commune can be hidden, optional or required
   name: FieldRule;
   commune: FieldRule;
+  // Zimam: the wilaya can be optional, never hidden (an order without one is priced later by the team)
+  wilaya: "optional" | "required";
   // Store settings → Product page: options always as buttons (else long lists become a dropdown)
   optionButtons: boolean;
 };
@@ -157,6 +159,7 @@ export const defaultForm: FormSettings = {
   stepper: false,
   name: "required",
   commune: "required",
+  wilaya: "required",
   optionButtons: false,
 };
 
@@ -416,6 +419,7 @@ export function resolveForm(input: unknown): FormSettings {
     address: oneOf(f.address, ["hidden", "optional", "required"] as const, defaultForm.address),
     name: oneOf(f.name, fieldRules, defaultForm.name),
     commune: oneOf(f.commune, fieldRules, defaultForm.commune),
+    wilaya: oneOf(f.wilaya, ["optional", "required"] as const, defaultForm.wilaya),
     optionButtons: bool(f.optionButtons, defaultForm.optionButtons),
     note: bool(f.note, defaultForm.note),
     delivery: oneOf(f.delivery, ["both", "home", "office"] as const, defaultForm.delivery),

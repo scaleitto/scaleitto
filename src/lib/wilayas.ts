@@ -89,12 +89,13 @@ export function carrierWilaya(code: number) {
 
 export function wilayaName(code: number, locale: string) {
   const w = wilayas.find((x) => x.code === code);
-  if (!w) return String(code);
+  // 0 = not given (optional wilaya, abandoned checkouts)
+  if (!w) return code ? String(code) : "—";
   return `${String(code).padStart(2, "0")} - ${locale === "ar" ? w.ar : w.fr}`;
 }
 
 // The wilaya's name alone (Zimam's tables and map): "Béjaïa" / "بجاية"
 export function wilayaTitle(code: number, locale: string) {
   const w = wilayas.find((x) => x.code === code);
-  return w ? (locale === "ar" ? w.ar : w.fr) : String(code);
+  return w ? (locale === "ar" ? w.ar : w.fr) : code ? String(code) : "—";
 }

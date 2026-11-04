@@ -9,7 +9,7 @@ import { ImageManager } from "@/ui/ImageManager";
 import { colorPresets, styleChoices, type StyleOverrides } from "./types";
 import { heroVariants, newId, MAX_FAQ, MAX_LINKS, type NavLink, type StoreSection } from "./builder";
 
-export type BuilderText = Pick<Dictionary, "design" | "media" | "errors" | "common">;
+export type BuilderText = Pick<Dictionary, "design" | "media" | "errors" | "common" | "settings">;
 
 // The global parts as the builder edits them (sent to saveStoreDesign as they are)
 export type GlobalState = {

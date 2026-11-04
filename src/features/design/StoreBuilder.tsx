@@ -45,6 +45,8 @@ import { storeTheme } from "./types";
 import { navHref, newId, newSection, pageHandle, samePages, storeSectionTypes, MAX_PAGES, MAX_SECTIONS, type StorePages, type StoreSection, type StoreSectionType } from "./builder";
 import { discardStoreDraft, getDesignVersion, listDesignHistory, publishStoreDesign, saveStoreDesign } from "./actions";
 import { GlobalFields, SectionFields, ThemeFields, type BuilderText, type GlobalState, type Targets } from "./BuilderFields";
+import { HomeSeoFields, PolicyPages } from "./PageExtras";
+import type { PolicyKind } from "@/lib/enums";
 
 type Doc = { global: GlobalState; draft: StorePages };
 type GlobalPart = "header" | "announcement" | "navigation" | "footer";
@@ -107,6 +109,8 @@ export function StoreBuilder({
   backHref,
   themesHref,
   title,
+  seo,
+  policies,
   t,
 }: {
   lang: string;
@@ -118,6 +122,8 @@ export function StoreBuilder({
   backHref: string;
   themesHref: string;
   title: string;
+  seo: { title: string; description: string };
+  policies: Partial<Record<PolicyKind, string>>;
   t: BuilderText;
 }) {
   const d = t.design;
@@ -544,6 +550,7 @@ export function StoreBuilder({
               <Button variant="secondary" className="w-full" onClick={addPage} disabled={doc.draft.custom.length >= MAX_PAGES}>
                 <Plus size={15} /> {b.addPage}
               </Button>
+              <PolicyPages lang={lang} initial={policies} t={t} />
               <div className="grid grid-cols-2 gap-2 pt-2 lg:hidden">
                 <Button variant="secondary" disabled={pending} onClick={discard}>
                   {b.discard}
@@ -623,7 +630,7 @@ export function StoreBuilder({
               </Button>
             </>
           ) : (
-            <p className="text-sm text-muted">{b.homeSettings}</p>
+            <HomeSeoFields lang={lang} initial={seo} shopName={preview.shopName} url={storeHref} t={t} />
           )}
         </div>
       </dialog>

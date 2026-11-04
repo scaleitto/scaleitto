@@ -65,7 +65,7 @@ export async function submitCart(slug: string, _prev: ActionState, formData: For
     const parsed = orderInputSchema.safeParse({ ...Object.fromEntries(formData), quantity: "1", variantId: "" });
     const form = storeForm(shop);
     const fieldErrors: Record<string, string> = parsed.success ? {} : fieldErrorsFrom(parsed.error);
-    const contact = checkContact(form, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim() }, fieldErrors);
+    const contact = checkContact(form, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim(), wilaya: Number(formData.get("wilaya")) || 0 }, fieldErrors);
     const deliveryType = String(formData.get("deliveryType") ?? "");
     if (form.delivery !== "both" && deliveryType !== form.delivery) fieldErrors.deliveryType = "deliveryType";
     if (form.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";

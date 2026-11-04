@@ -89,7 +89,7 @@ export async function submitOrder(slug: string, productId: string, landing: { id
     const deliveryType = String(formData.get("deliveryType") ?? "");
     if (settings.delivery !== "both" && deliveryType !== settings.delivery) fieldErrors.deliveryType = "deliveryType";
     if (settings.address === "required" && deliveryType === "home" && !String(formData.get("address") ?? "").trim()) fieldErrors.address = "address";
-    const contact = checkContact(settings, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim() }, fieldErrors);
+    const contact = checkContact(settings, { name: String(formData.get("name") ?? "").trim(), commune: String(formData.get("commune") ?? "").trim(), wilaya: Number(formData.get("wilaya")) || 0 }, fieldErrors);
     const extra: { label: string; value: string }[] = [];
     for (const c of settings.custom) {
       const raw = String(formData.get(`custom_${c.id}`) ?? "").trim();
