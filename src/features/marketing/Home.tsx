@@ -1,33 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BarChart3,
-  Check,
-  CheckCircle2,
-  Crown,
-  Download,
-  Headphones,
-  LayoutGrid,
-  Megaphone,
-  MousePointerClick,
-  Package,
-  PhoneCall,
-  Radar,
-  Settings,
-  Sheet,
-  ShieldCheck,
-  ShoppingBag,
-  ShoppingCart,
-  Sparkles,
-  Tag,
-  Truck,
-  Users,
-  Webhook,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ShoppingBag, Truck, X } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n";
 import { dir } from "@/i18n";
 import { limitKeys } from "@/lib/enums";
@@ -146,14 +119,6 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
           </div>
         </section>
 
-        {/* The product: the dashboard screen on a violet stage */}
-        <section className="relative isolate px-4 pt-16 sm:pt-24">
-          <div aria-hidden className="absolute inset-x-4 top-44 bottom-[-3rem] -z-10 mx-auto max-w-6xl rounded-[48px] bg-gradient-to-br from-[#6B50FF] to-[#3A27B0]" />
-          <div className="mx-auto max-w-5xl">
-            <DashboardScreen t={t} />
-          </div>
-        </section>
-
         {/* The journey of an order: a real sequence, so the steps are numbered */}
         <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
           <SectionHead title={l.journeyTitle} text={l.journeyText} center />
@@ -193,13 +158,13 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
               </Link>
             }
           />
-          <DeliveryCollage t={t} />
+          <DeliveryArt t={t} />
         </section>
 
         {/* The confirmation team: three phone screens */}
         <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
           <SectionHead title={l.teamTitle} text={l.teamText} center />
-          <TeamPhones t={t} />
+          <TeamCards t={t} />
         </section>
 
         {plans.length > 0 && <Pricing lang={lang} t={t} plans={plans} contact={contact} />}
@@ -209,7 +174,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
           <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[40px] bg-[#5B3FF0] px-6 py-16 text-center text-white sm:py-20">
             <span aria-hidden className="pointer-events-none absolute -top-24 -start-16 size-72 rounded-full bg-[#8B74FF]/60 blur-2xl" />
             <span aria-hidden className="pointer-events-none absolute -bottom-28 -end-10 size-80 rounded-full bg-[#12C59A]/40 blur-2xl" />
-            <Parcels />
+            <Art name="rocket" className="absolute -bottom-6 end-4 hidden size-44 rotate-12 opacity-95 md:block lg:size-56" />
             <h2 className={`${display} relative text-3xl font-bold text-balance sm:text-5xl`}>{l.ctaTitle}</h2>
             <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/90">{l.ctaText}</p>
             <Link href={register} className="relative mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#1B1446] transition hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-white/40 focus-visible:outline-none">
@@ -371,30 +336,35 @@ function HeroArt({ t }: { t: Dictionary }) {
   );
 }
 
-// The journey of an order, ad to analytics: numbered stops on one coloured track
+// 3D illustrations (3dicons by Vijay Verma, CC0 — public/home/*.webp, 320px, 6–16 KB each)
+function Art({ name, className = "" }: { name: string; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/home/${name}.webp`} alt="" width={320} height={320} loading="lazy" decoding="async" className={`pointer-events-none select-none ${className}`} />;
+}
+
+// The journey of an order, ad to analytics: numbered stops, each with its illustration
 function Journey({ steps }: { steps: string[][] }) {
-  const looks: [LucideIcon, string, string, string][] = [
-    [Megaphone, "bg-[#FF6F61]", "text-white", "bg-[#FFEDEA]"],
-    [MousePointerClick, "bg-[#FFB23E]", "text-[#1B1446]", "bg-[#FFF3DE]"],
-    [ShoppingBag, "bg-[#5B3FF0]", "text-white", "bg-[#EEEAFF]"],
-    [PhoneCall, "bg-[#12C59A]", "text-[#1B1446]", "bg-[#DDF7EF]"],
-    [Truck, "bg-[#4CB3FF]", "text-[#1B1446]", "bg-[#E3F2FF]"],
-    [BarChart3, "bg-[#8B74FF]", "text-white", "bg-[#F1EDFF]"],
+  const looks: [string, string, string][] = [
+    ["megaphone", "from-[#FFE1DC] to-[#FFF4F1]", "bg-[#FF6F61] text-white"],
+    ["mobile", "from-[#FFE9C7] to-[#FFF7EA]", "bg-[#FFB23E] text-[#1B1446]"],
+    ["money-bag", "from-[#E6E0FF] to-[#F6F3FF]", "bg-[#5B3FF0] text-white"],
+    ["phone-incoming", "from-[#D3F5EA] to-[#F0FCF8]", "bg-[#12C59A] text-[#1B1446]"],
+    ["map-pin", "from-[#DCEFFF] to-[#F2F9FF]", "bg-[#4CB3FF] text-[#1B1446]"],
+    ["chart", "from-[#ECE6FF] to-[#F8F6FF]", "bg-[#8B74FF] text-white"],
   ];
   return (
-    <ol className="relative mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {steps.map(([title, text], i) => {
-        const [Icon, bg, ink, field] = looks[i % looks.length];
+        const [art, glow, badge] = looks[i % looks.length];
         return (
-          <li key={title} className={`relative rounded-[28px] p-6 sm:p-7 ${field}`}>
-            <div className="flex items-center gap-3">
-              <span className={`flex size-12 items-center justify-center rounded-2xl ${bg} ${ink}`} aria-hidden>
-                <Icon size={22} />
-              </span>
-              <span className={`${display} text-sm font-bold text-[#5B3FF0]`}>{i + 1}</span>
+          <li key={title} className="group relative overflow-hidden rounded-[32px] bg-white p-7 ring-1 ring-[#1B1446]/[.06] transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(27,20,70,.35)]">
+            <span aria-hidden className={`absolute -top-16 -end-16 size-56 rounded-full bg-gradient-to-br ${glow}`} />
+            <div className="relative flex items-start justify-between">
+              <span className={`${display} flex size-10 items-center justify-center rounded-full text-base font-bold ${badge}`}>{i + 1}</span>
+              <Art name={art} className="-mt-3 -me-3 size-28 transition duration-300 group-hover:scale-105 group-hover:-rotate-3" />
             </div>
-            <h3 className={`${display} mt-5 text-xl font-bold text-[#1B1446]`}>{title}</h3>
-            <p className="mt-2 leading-relaxed text-[#3d3766]">{text}</p>
+            <h3 className={`${display} relative mt-2 text-xl font-bold text-[#1B1446]`}>{title}</h3>
+            <p className="relative mt-2 leading-relaxed text-[#3d3766]">{text}</p>
           </li>
         );
       })}
@@ -402,579 +372,149 @@ function Journey({ steps }: { steps: string[][] }) {
   );
 }
 
-// Parcels drifting across the call to action (decorative)
-function Parcels() {
-  const boxes: [string, string, string][] = [
-    ["start-[6%] top-[18%]", "bg-[#FFB23E]", "rotate-[-12deg]"],
-    ["end-[8%] top-[14%]", "bg-[#12C59A]", "rotate-[10deg]"],
-    ["start-[14%] bottom-[12%]", "bg-[#FF6F61]", "rotate-[8deg]"],
-    ["end-[14%] bottom-[16%]", "bg-[#4CB3FF]", "rotate-[-8deg]"],
-  ];
+// One feature card: its own colour field, a large illustration, the title and text
+function FeatureCard({ art, title, text, tone, wide = false, children }: { art: string; title: string; text: string; tone: string; wide?: boolean; children?: ReactNode }) {
+  const light = tone.includes("text-white");
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-0 hidden sm:block">
-      {boxes.map(([pos, bg, rot], i) => (
-        <span key={i} className={`absolute ${pos} ${rot} flex size-14 items-center justify-center rounded-2xl ${bg} text-[#1B1446]/80`}>
-          <Package size={26} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-const statusTone = {
-  new: "bg-[#fff4e5] text-warning",
-  confirmed: "bg-[#ecfdf3] text-[#047857]",
-  delivered: "bg-[#efedff] text-accent",
-  returned: "bg-[#fdecec] text-danger",
-} as const;
-
-// The product screen under the hero: the dashboard home with its sidebar, sales, a chart and the latest orders
-function DashboardScreen({ t }: { t: Dictionary }) {
-  const l = t.landing;
-  const m = l.mock;
-  const side: [LucideIcon, string][] = [
-    [LayoutGrid, t.sections.overview.title],
-    [Package, t.sections.products.title],
-    [ShoppingCart, t.sections.orders.title],
-    [Truck, t.sections.delivery.title],
-    [Headphones, t.sections.callCenters.title],
-    [Sparkles, t.sections.landingPages.title],
-    [BarChart3, t.sections.analytics.title],
-    [Settings, t.sections.settings.title],
-  ];
-  const bars = [38, 52, 44, 66, 58, 80, 72];
-  const statuses: (keyof typeof statusTone)[] = ["new", "confirmed", "delivered", "returned"];
-  return (
-    <div className="relative" aria-hidden data-ui>
-      <span className="pointer-events-none absolute -inset-x-6 -top-6 bottom-10 -z-10 rounded-[40px] bg-[#efedff]" />
-      <div className="overflow-hidden rounded-[22px] border border-[#e4e1f5] bg-white">
-        <div className="flex items-center gap-1.5 border-b border-[#efedf7] bg-[#fbfaff] px-4 py-3">
-          <span className="size-2.5 rounded-full bg-[#ff6159]" />
-          <span className="size-2.5 rounded-full bg-[#ffbd2e]" />
-          <span className="size-2.5 rounded-full bg-[#28c840]" />
-          <span className="mx-auto h-5 w-48 rounded-md bg-[#f0eef8]" />
-        </div>
-        <div className="grid md:grid-cols-[210px_1fr]">
-          <aside className="hidden border-e border-[#efedf7] bg-[#fbfaff] p-4 md:block">
-            <span className="mb-5 flex items-center gap-2 font-bold text-[#1B1446]">
-              <Mark size="size-7" /> {t.brand}
-            </span>
-            <ul className="space-y-1 text-sm">
-              {side.map(([Icon, label], i) => (
-                <li key={label} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ${i === 0 ? "bg-[#efedff] font-semibold text-accent" : "text-muted"}`}>
-                  <Icon size={16} /> {label}
-                </li>
-              ))}
-            </ul>
-          </aside>
-          <div className="space-y-4 p-4 sm:p-6">
-            <p className="text-lg font-bold text-[#1B1446]">{m.hello}</p>
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-              <div className="relative overflow-hidden rounded-2xl bg-[#5B3FF0] p-5 text-white">
-                <p className="relative text-sm text-white/70">{m.revenue}</p>
-                <p className="relative mt-1 text-3xl font-bold tabular-nums sm:text-4xl" dir="ltr">
-                  97 400 <span className="text-lg font-medium text-white/70">DZD</span>
-                </p>
-                <div className="relative mt-5 flex h-20 items-end gap-2">
-                  {bars.map((h, i) => (
-                    <span key={i} className="flex-1 rounded-t-md bg-[#a99ff8]" style={{ height: `${h}%` }} />
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Stat label={m.orders} value="76" change="+26%" />
-                <Stat label={m.visitors} value="1 579" change="+18%" />
-                <div className="col-span-2 rounded-2xl border border-[#efedf7] p-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">{m.rate}</span>
-                    <span className="font-bold text-[#1B1446] tabular-nums">72%</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0eef8]">
-                    <span className="block h-full w-[72%] rounded-full bg-accent" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <ul className="divide-y divide-[#F0EDFB] rounded-2xl border border-[#efedf7]">
-              {l.sampleOrders.map(([name, city, amount], i) => (
-                <li key={name} className="flex items-center gap-3 px-4 py-3 text-sm">
-                  <span className="w-12 shrink-0 font-semibold text-muted tabular-nums" dir="ltr">
-                    #{1043 - i}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-[#1B1446]">{name}</span>
-                    <span className="block text-xs text-muted">{city}</span>
-                  </span>
-                  <span className="hidden font-semibold text-[#1B1446] tabular-nums sm:block">{amount}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${statusTone[statuses[i]]}`}>{m[statuses[i]]}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+    <div className={`group relative flex overflow-hidden rounded-[32px] p-7 sm:p-8 ${tone} ${wide ? "lg:col-span-2 lg:flex-row lg:items-center lg:gap-8" : "flex-col"} flex-col`}>
+      <span aria-hidden className={`absolute -end-20 -top-20 size-72 rounded-full ${light ? "bg-white/10" : "bg-white/50"}`} />
+      <Art name={art} className={`relative shrink-0 transition duration-500 group-hover:-translate-y-1.5 group-hover:rotate-3 ${wide ? "size-40 lg:order-2 lg:size-56" : "size-36"}`} />
+      <div className="relative mt-4 lg:mt-0">
+        <h3 className={`${display} text-2xl font-bold sm:text-[1.7rem]`}>{title}</h3>
+        <p className={`mt-3 max-w-md leading-relaxed ${light ? "text-white/85" : "text-[#3d3766]"}`}>{text}</p>
+        {children}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, change }: { label: string; value: string; change: string }) {
-  return (
-    <div className="rounded-2xl border border-[#efedf7] p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-[#1B1446] tabular-nums" dir="ltr">
-        {value}
-      </p>
-      <p className="mt-1 text-xs font-semibold text-[#047857] tabular-nums" dir="ltr">
-        {change}
-      </p>
-    </div>
-  );
-}
-
-function CardText({ title, text, light = false }: { title: string; text: string; light?: boolean }) {
-  return (
-    <div className="relative">
-      <h3 className={`font-[family-name:var(--font-readex)] text-2xl font-bold tracking-tight ${light ? "text-white" : "text-[#1B1446]"}`}>{title}</h3>
-      <p className={`mt-2 leading-relaxed ${light ? "text-white/85" : "text-[#1B1446]"}`}>{text}</p>
-    </div>
-  );
-}
-
-// The features bento: rows of cards with their own pastel or night look
+// Features: a grid of colour fields of different sizes, one illustration each
 function Bento({ t }: { t: Dictionary }) {
   const c = t.landing.cards;
   return (
-    <div className="mt-12 space-y-4">
-      {/* The store banner */}
-      <div className="grid overflow-hidden rounded-[28px] bg-white ring-1 ring-[#1B1446]/5 md:grid-cols-2">
-        <div className="flex flex-col justify-center gap-3 bg-gradient-to-br from-[#FFE7C2] to-[#FFD3A1] p-7 sm:p-9">
-          <CardText title={c.store.title} text={c.store.text} />
-        </div>
-        <StoreScreen t={t} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.35fr]">
-        {/* Abandoned carts, with their source */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#DDF0FF] to-[#BFE2FF] p-6 sm:p-7">
-          <div aria-hidden data-ui>
-            <CartsTable t={t} />
-          </div>
-          <CardText title={c.carts.title} text={c.carts.text} />
-        </div>
-        {/* Image landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#6B50FF] to-[#4B30E0] p-6 sm:p-7">
-          <CardText title={c.posters.title} text={c.posters.text} light />
-          <PosterStack t={t} />
-        </div>
-        {/* AI landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#3A27B0] to-[#22166F] p-6 sm:p-7">
-          <CardText title={c.ai.title} text={c.ai.text} light />
-          <AiScreen t={t} />
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr_1fr]">
-        {/* Analytics */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#EDE9FF] to-[#DCD4FF] p-6 sm:p-7">
-          <AnalyticsScreen t={t} />
-          <CardText title={c.analytics.title} text={c.analytics.text} />
-        </div>
-        {/* Stock and variants */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#D4F6EC] to-[#B2EDDB] p-6 sm:p-7">
-          <CardText title={c.stock.title} text={c.stock.text} />
-          <StockScreen t={t} />
-        </div>
-        {/* Fake-order protection, drawn as a receipt */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#FFE6E2] to-[#FFCFC8] p-6 sm:p-7">
-          <CardText title={c.guard.title} text={c.guard.text} />
-          <GuardTicket t={t} />
-        </div>
-      </div>
+    <div className="mt-12 grid gap-5 lg:grid-cols-3">
+      <FeatureCard art="rocket" title={c.store.title} text={c.store.text} tone="bg-gradient-to-br from-[#6B50FF] to-[#4528D8] text-white" wide />
+      <FeatureCard art="magic-trick" title={c.ai.title} text={c.ai.text} tone="bg-gradient-to-br from-[#2E1F8F] to-[#1B1446] text-white">
+        <ul className="mt-5 flex flex-wrap gap-2">
+          {c.ai.chips.map((chip) => (
+            <li key={chip} className="rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white ring-1 ring-white/20">
+              {chip}
+            </li>
+          ))}
+        </ul>
+      </FeatureCard>
+      <FeatureCard art="picture" title={c.posters.title} text={c.posters.text} tone="bg-gradient-to-br from-[#FFE7C2] to-[#FFD29A] text-[#1B1446]" />
+      <FeatureCard art="bag" title={c.carts.title} text={c.carts.text} tone="bg-gradient-to-br from-[#DDF0FF] to-[#B9DEFF] text-[#1B1446]" />
+      <FeatureCard art="chart" title={c.analytics.title} text={c.analytics.text} tone="bg-gradient-to-br from-[#EEEAFF] to-[#D9D0FF] text-[#1B1446]" />
+      <FeatureCard art="cube" title={c.stock.title} text={c.stock.text} tone="bg-gradient-to-br from-[#D6F7EC] to-[#AEEBD7] text-[#1B1446]" />
+      <FeatureCard art="sheild" title={c.guard.title} text={c.guard.text} tone="bg-gradient-to-br from-[#FFE6E2] to-[#FFC9C1] text-[#1B1446]" wide>
+        <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+          {c.guard.items.map((item) => (
+            <li key={item} className="flex items-center gap-2 font-medium text-[#1B1446]">
+              <CheckCircle2 size={18} className="shrink-0 text-[#0b8f6f]" aria-hidden /> {item}
+            </li>
+          ))}
+        </ul>
+      </FeatureCard>
     </div>
   );
 }
 
-function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/70 bg-white p-4 ${className}`}>{children}</div>;
+// Integrations: white cards on the sky field, one illustration each
+function Apps({ t }: { t: Dictionary }) {
+  const arts = ["file-text", "tool", "target", "link", "folder"];
+  return (
+    <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {t.landing.apps.map(([name, text], i) => (
+        <li key={name} className="group flex items-start gap-4 rounded-[28px] bg-white p-5 ring-1 ring-[#1B1446]/[.05] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(27,20,70,.4)]">
+          <span className="flex size-20 shrink-0 items-center justify-center rounded-[22px] bg-[#F2F8FF]">
+            <Art name={arts[i % arts.length]} className="size-16 transition duration-300 group-hover:scale-110" />
+          </span>
+          <span className="min-w-0 pt-1">
+            <h3 className={`${display} text-lg font-bold text-[#1B1446]`} dir="auto">
+              {name}
+            </h3>
+            <p className="mt-1 text-[15px] leading-relaxed text-[#3d3766]">{text}</p>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
-function StoreScreen({ t }: { t: Dictionary }) {
-  const l = t.landing;
-  const tiles = ["bg-[#ffe1cc]", "bg-[#d9e7ff]", "bg-[#e3f8ec]"];
+// Delivery: parcels and the courier companies on one colour field
+function DeliveryArt({ t }: { t: Dictionary }) {
+  const d = t.landing.deliveryCard;
+  const carriers = ["Yalidine", "ZR Express", "Ecotrack", "NOEST", "Procolis", "DHD"];
   return (
-    <div className="relative bg-white p-6 sm:p-8" aria-hidden data-ui>
-      <div className="rounded-2xl border border-[#efedf7] p-4">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm font-bold text-[#1B1446]">
-            <span className="size-6 rounded-lg bg-[#ffb36b]" /> Atlas Shop
-          </span>
-          <ShoppingCart size={16} className="text-muted" />
-        </div>
-        <p className="mt-4 text-sm font-semibold text-[#1B1446]">{l.cards.store.best}</p>
-        <div className="mt-3 grid grid-cols-3 gap-2.5">
-          {tiles.map((tile, i) => (
-            <div key={tile}>
-              <div className={`flex aspect-square items-center justify-center rounded-xl ${tile}`}>
-                {i === 0 ? <WatchIcon /> : i === 1 ? <Headphones size={26} className="text-[#3b5bdb]" /> : <Package size={26} className="text-[#2f9e44]" />}
-              </div>
-              <span className="mt-1.5 block h-2 w-3/4 rounded bg-[#efedf7]" />
-              <span className="mt-1 block h-2 w-1/2 rounded bg-[#e0dcf5]" />
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex h-9 items-center justify-center rounded-xl bg-[#ffb36b] text-sm font-bold text-[#3b2410]">{l.mock.order}</div>
+    <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-[#E3F2FF] via-[#EEEAFF] to-[#FFF0DD] p-7 sm:p-10" aria-hidden>
+      <svg viewBox="0 0 400 200" className="absolute inset-x-0 top-10 w-full opacity-60">
+        <path d="M20 160 C 120 40, 260 220, 380 50" fill="none" stroke="#5B3FF0" strokeWidth="3" strokeDasharray="8 10" strokeLinecap="round" className="sc-route" />
+      </svg>
+      <div className="relative flex items-end justify-center gap-2">
+        <Art name="cube" className="size-28 -rotate-6 sm:size-36" />
+        <Art name="map-pin" className="size-36 sm:size-48" />
+        <Art name="cube" className="size-20 rotate-12 sm:size-24" />
       </div>
+      <div className="relative mx-auto mt-6 flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-[0_18px_40px_-24px_rgba(27,20,70,.5)]">
+        <span className="font-semibold text-[#1B1446]">{d.title}</span>
+        <span className="rounded-full bg-[#12C59A] px-3 py-1 text-sm font-bold text-[#1B1446]">18 · {d.ready}</span>
+      </div>
+      <ul className="relative mt-6 flex flex-wrap justify-center gap-2">
+        {carriers.map((name) => (
+          <li key={name} className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-[#1B1446] ring-1 ring-[#1B1446]/[.06]">
+            {name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// The confirmation team: share, confirm, follow — one illustrated card each
+function TeamCards({ t }: { t: Dictionary }) {
+  const l = t.landing;
+  const looks: [string, string][] = [
+    ["headphone", "from-[#FFE1DC] to-[#FFF4F1]"],
+    ["phone-incoming", "from-[#D3F5EA] to-[#F0FCF8]"],
+    ["target", "from-[#E6E0FF] to-[#F6F3FF]"],
+  ];
+  const agents = l.teamMock.agents;
+  const tints = ["bg-[#FFB23E]", "bg-[#12C59A]", "bg-[#5B3FF0]"];
+  return (
+    <div className="mt-12 grid gap-5 md:grid-cols-3">
+      {l.team.map(([title, text], i) => {
+        const [art, glow] = looks[i % looks.length];
+        return (
+          <div key={title} className={`group relative overflow-hidden rounded-[32px] bg-gradient-to-b ${glow} p-7 text-center`}>
+            <Art name={art} className="mx-auto size-32 transition duration-300 group-hover:scale-105" />
+            <h3 className={`${display} mt-3 text-2xl font-bold text-[#1B1446]`}>{title}</h3>
+            <p className="mt-2 leading-relaxed text-[#3d3766]">{text}</p>
+            {i === 0 && (
+              <div className="mt-5 flex justify-center -space-x-2 rtl:space-x-reverse" aria-hidden>
+                {agents.map(([name], n) => (
+                  <span key={name} className={`flex size-9 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white ${tints[n % 3]}`}>
+                    {name.charAt(0)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function WatchIcon() {
   return (
-    <span className="flex size-10 items-center justify-center rounded-[12px] border-[3px] border-[#c2410c]/80 bg-white/60">
-      <span className="h-3 w-0.5 origin-bottom -translate-y-1 rotate-45 rounded bg-[#c2410c]" />
-    </span>
+    <svg viewBox="0 0 48 48" className="size-12 text-[#c2410c]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+      <rect x="12" y="12" width="24" height="24" rx="7" />
+      <path d="M18 12l2-6h8l2 6M18 36l2 6h8l2-6M24 19v6l4 2" />
+    </svg>
   );
 }
 
-function CartsTable({ t }: { t: Dictionary }) {
-  const c = t.landing.cards.carts;
-  const rows: [string, string, string, boolean][] = [
-    ["Facebook", "bg-[#e7f0ff] text-[#1d4ed8]", c.abandoned, false],
-    ["TikTok", "bg-[#f1f1f1] text-[#1B1446]", c.converted, true],
-    ["Instagram", "bg-[#fde8f1] text-[#be185d]", c.converted, true],
-    ["Google", "bg-[#e8f5ec] text-[#15803d]", c.abandoned, false],
-    [c.other, "bg-[#f4f3fa] text-muted", c.abandoned, false],
-  ];
-  return (
-    <Panel className="p-0 text-xs">
-      <div className="flex justify-between border-b border-[#f0eef8] px-4 py-2.5 font-semibold text-[#1B1446]">
-        <span>{c.source}</span>
-        <span>{c.status}</span>
-      </div>
-      <ul className="divide-y divide-[#F0EDFB]">
-        {rows.map(([source, tone, status, won]) => (
-          <li key={source} className="flex items-center justify-between px-4 py-2.5">
-            <span className={`rounded-full px-2.5 py-0.5 font-semibold ${tone}`} dir="ltr">
-              {source}
-            </span>
-            <span className={`rounded-md px-2 py-0.5 font-semibold ${won ? "bg-[#ecfdf3] text-[#047857]" : "bg-[#fdecec] text-danger"}`}>{status}</span>
-          </li>
-        ))}
-      </ul>
-    </Panel>
-  );
-}
-
-// Three designed images stacked like the page they make
-function PosterStack({ t }: { t: Dictionary }) {
-  const looks = ["bg-[#5b45e0]", "bg-[#b45309]", "bg-[#0f766e]"];
-  const texts = t.landing.cards.ai.chips;
-  return (
-    <div className="relative mx-auto mt-auto h-56 w-full max-w-[15rem]" aria-hidden data-ui>
-      {looks.map((look, i) => (
-        <div
-          key={look}
-          className={`absolute inset-x-0 mx-auto flex h-44 w-36 flex-col justify-between rounded-2xl ${look} p-3 text-white ring-1 ring-white/20`}
-          style={{ top: `${i * 14}px`, transform: `translateX(${(i - 1) * 46}px) rotate(${(i - 1) * 7}deg)`, zIndex: i === 1 ? 3 : 1 }}
-        >
-          <span className="text-sm leading-tight font-bold">{texts[i]}</span>
-          <span className="mx-auto mb-1">
-            <WatchIcon />
-          </span>
-        </div>
-      ))}
-      <Sparkles size={22} className="absolute end-0 bottom-2 text-[#c9c1ff]" />
-    </div>
-  );
-}
-
-// The AI page generator: a phone with the "generate" header and the sections being written
-function AiScreen({ t }: { t: Dictionary }) {
-  const a = t.landing.cards.ai;
-  return (
-    <div className="relative mx-auto mt-auto w-full max-w-sm" aria-hidden data-ui>
-      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#4f3bd6]">
-        <Sparkles size={26} className="text-white" />
-      </div>
-      <div className="mx-auto mt-4 w-56 overflow-hidden rounded-t-[26px] border-x-4 border-t-4 border-[#a99ff8]/60 bg-white">
-        <p className="bg-[#5b45e0] px-3 py-3 text-center text-sm font-bold text-white">{a.generate}</p>
-        <div className="grid grid-cols-2 gap-2 p-3">
-          {a.chips.map((chip, i) => (
-            <span key={chip} className={`flex h-12 items-center justify-center rounded-lg border text-[11px] font-semibold ${i === 0 ? "border-accent bg-[#efedff] text-accent" : "border-[#efedf7] text-muted"}`}>
-              {chip}
-            </span>
-          ))}
-        </div>
-      </div>
-      {/* Floating section chips */}
-      <span className="absolute start-0 top-24 -rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent">{a.chips[1]}</span>
-      <span className="absolute end-0 top-32 rotate-12 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-accent">{a.chips[3]}</span>
-    </div>
-  );
-}
-
-function AnalyticsScreen({ t }: { t: Dictionary }) {
-  const c = t.landing.cards.analytics;
-  return (
-    <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr]" aria-hidden data-ui>
-      <Panel>
-        <p className="text-sm font-bold text-[#1B1446]">{c.chart}</p>
-        <svg viewBox="0 0 200 90" className="mt-3 h-28 w-full" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="home-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#7c6cf2" stopOpacity=".35" />
-              <stop offset="100%" stopColor="#7c6cf2" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d="M0 70 C20 66 30 40 50 46 S80 72 100 50 S140 14 160 26 S190 40 200 12 L200 90 L0 90 Z" fill="url(#home-area)" />
-          <path d="M0 70 C20 66 30 40 50 46 S80 72 100 50 S140 14 160 26 S190 40 200 12" fill="none" stroke="#6d5cf0" strokeWidth="2.5" />
-        </svg>
-        <p className="mt-2 text-xs font-semibold text-[#047857]">{c.change}</p>
-      </Panel>
-      <Panel className="space-y-2.5">
-        <p className="text-sm font-bold text-[#1B1446]">{c.best}</p>
-        {c.products.map((p, i) => (
-          <div key={p} className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs ${i === 0 ? "bg-[#efedff]" : ""}`}>
-            {i === 0 ? <Crown size={15} className="text-accent" /> : <span className="w-[15px] text-center text-muted tabular-nums">{i + 1}</span>}
-            <span className={`font-semibold ${i === 0 ? "text-accent" : "text-[#1B1446]"}`}>{p}</span>
-          </div>
-        ))}
-      </Panel>
-    </div>
-  );
-}
-
-function StockScreen({ t }: { t: Dictionary }) {
-  const c = t.landing.cards.stock;
-  const [black, white, m, l] = c.values;
-  return (
-    <div className="mt-auto space-y-3" aria-hidden data-ui>
-      <Panel>
-        <p className="text-sm font-bold text-[#1B1446]">{c.stock}</p>
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 text-xs">
-          <span className="rounded-lg border border-[#efedf7] px-3 py-2 text-muted" dir="ltr">
-            WATCH-01
-          </span>
-          <span className="rounded-lg border border-[#efedf7] px-3 py-2 font-semibold text-[#1B1446] tabular-nums">48</span>
-        </div>
-      </Panel>
-      <Panel className="space-y-2 text-xs">
-        {[
-          [c.color, [black, white]],
-          [c.size, [m, l]],
-        ].map(([label, values]) => (
-          <div key={label as string} className="flex items-center gap-2">
-            <span className="w-14 text-muted">{label as string}</span>
-            {(values as string[]).map((v) => (
-              <span key={v} className="rounded-md bg-[#efedff] px-2 py-1 font-semibold text-accent">
-                {v}
-              </span>
-            ))}
-          </div>
-        ))}
-      </Panel>
-    </div>
-  );
-}
-
-function GuardTicket({ t }: { t: Dictionary }) {
-  const c = t.landing.cards.guard;
-  return (
-    <div className="relative mt-auto rounded-2xl bg-white px-5 pt-5 pb-7" aria-hidden data-ui>
-      <div className="flex items-center gap-3 border-b border-dashed border-[#f1d9de] pb-3">
-        <ShieldCheck size={22} className="text-accent" />
-        <span className="font-bold text-[#1B1446]">{t.brand}</span>
-      </div>
-      <ul className="mt-3 space-y-2.5 text-sm">
-        {c.items.map((item) => (
-          <li key={item} className="flex items-center justify-between">
-            <span className="text-[#1B1446]">{item}</span>
-            <Check size={16} className="text-[#047857]" />
-          </li>
-        ))}
-      </ul>
-      <div className="mt-4 flex items-center justify-between border-t border-[#f1d9de] pt-3 text-sm">
-        <span className="text-muted">{c.blocked}</span>
-        <span className="font-bold text-danger tabular-nums">23</span>
-      </div>
-      {/* The torn bottom of the receipt */}
-      <span className="absolute inset-x-3 -bottom-2 flex justify-between">
-        {Array.from({ length: 9 }, (_, i) => (
-          <span key={i} className="size-4 rounded-full bg-[#f9d5e0]" />
-        ))}
-      </span>
-    </div>
-  );
-}
-
-// Integrations: a pastel top with the app's tile, then what it does
-function Apps({ t }: { t: Dictionary }) {
-  // Each app's own colour on its mark
-  const looks: [LucideIcon, string][] = [
-    [Sheet, "bg-[#1e9e5a]"],
-    [Tag, "bg-[#2f7cf6]"],
-    [Radar, "bg-[#5B3FF0]"],
-    [Webhook, "bg-[#FF6F61]"],
-    [Download, "bg-[#FFB23E]"],
-  ];
-  return (
-    <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {t.landing.apps.map(([name, text], i) => {
-        const [Icon, tile] = looks[i];
-        return (
-          <li key={name} className="rounded-[24px] bg-white p-6 shadow-[0_12px_30px_-20px_rgba(27,20,70,.35)] transition hover:-translate-y-1">
-            <span className={`flex size-12 items-center justify-center rounded-2xl ${tile} text-white`} aria-hidden>
-              <Icon size={24} />
-            </span>
-            <h3 className="mt-5 font-[family-name:var(--font-readex)] text-xl font-bold tracking-tight text-[#1B1446]" dir="auto">
-              {name}
-            </h3>
-            <p className="mt-1.5 leading-relaxed text-[#3d3766]">{text}</p>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// Delivery: the couriers' cards and the "send confirmed orders" settings, tilted like ayor's collage
-function DeliveryCollage({ t }: { t: Dictionary }) {
-  const l = t.landing;
-  const d = l.deliveryCard;
-  const carriers: [string, string, boolean][] = [
-    ["Yalidine", "bg-[#e11d48]", true],
-    ["ZR Express", "bg-[#f59e0b]", true],
-    ["NOEST", "bg-[#0ea5e9]", false],
-    ["Ecotrack", "bg-[#16a34a]", false],
-    ["DHD", "bg-[#7c3aed]", false],
-    ["Procolis", "bg-[#334155]", false],
-  ];
-  return (
-    <div className="relative mt-12 [perspective:1600px]" aria-hidden data-ui>
-      <div className="grid gap-4 md:grid-cols-[1fr_1.5fr] md:[transform:rotateX(14deg)_rotateZ(-3deg)]">
-        <Panel className="space-y-3 border-[#ebe8f7]">
-          <p className="flex items-center gap-2 font-bold text-[#1B1446]">
-            <Truck size={18} className="text-accent" /> {d.title}
-          </p>
-          <div className="rounded-xl border border-[#efedf7] p-3 text-sm">
-            <p className="text-xs text-muted">{d.type}</p>
-            <p className="mt-1 font-semibold text-[#1B1446]">{d.both}</p>
-          </div>
-          <div className="rounded-xl border border-[#efedf7] p-3 text-sm">
-            <p className="text-xs text-muted">{d.wilayas}</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {d.wilayaNames.map((w) => (
-                <span key={w} className="rounded-md bg-[#efedff] px-2 py-0.5 text-xs font-semibold text-accent">
-                  {w}
-                </span>
-              ))}
-            </div>
-          </div>
-          <p className="flex items-center gap-2 rounded-xl bg-[#ecfdf3] px-3 py-2 text-sm font-semibold text-[#047857]">
-            <CheckCircle2 size={16} /> 18 {d.ready}
-          </p>
-        </Panel>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {carriers.map(([name, color, on]) => (
-            <Panel key={name} className="flex flex-col items-center gap-2 border-[#ebe8f7] text-center">
-              <span className={`flex size-12 items-center justify-center rounded-2xl ${color} text-lg font-bold text-white`}>{name.charAt(0)}</span>
-              <span className="text-sm font-bold text-[#1B1446]" dir="ltr">
-                {name}
-              </span>
-              <span className={`w-full rounded-lg py-1.5 text-xs font-semibold ${on ? "bg-[#ecfdf3] text-[#047857]" : "border border-[#e4e1f5] text-accent"}`}>{on ? l.connected : l.connect}</span>
-            </Panel>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// The confirmation team, on three phones: sharing, the call, the performance
-function TeamPhones({ t }: { t: Dictionary }) {
-  const l = t.landing;
-  const m = l.teamMock;
-  const icons: [LucideIcon, string][] = [
-    [Users, "bg-[#f59e0b]"],
-    [PhoneCall, "bg-[#16a34a]"],
-    [BarChart3, "bg-[#e11d48]"],
-  ];
-  const screens = [
-    <div key="share" className="space-y-2.5">
-      {m.agents.map(([name, n], i) => (
-        <div key={name} className="flex items-center gap-2.5 rounded-xl bg-[#f7f6ff] p-2.5">
-          <span className="flex size-8 items-center justify-center rounded-full bg-[#5b45e0] text-xs font-bold text-white">{name.charAt(0)}</span>
-          <span className="flex-1">
-            <span className="block text-xs font-bold text-[#1B1446]">{name}</span>
-            <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
-              <span className="block h-full rounded-full bg-accent" style={{ width: `${[70, 52, 64][i]}%` }} />
-            </span>
-          </span>
-          <span className="text-xs font-bold text-[#1B1446] tabular-nums">{n}</span>
-        </div>
-      ))}
-      <p className="text-center text-[11px] text-muted">{m.open}</p>
-    </div>,
-    <div key="call" className="space-y-2.5">
-      <p className="text-xs font-bold text-[#1B1446]">{m.guide}</p>
-      {m.guideLines.map((line, i) => (
-        <p key={line} className="flex items-start gap-2 rounded-lg bg-[#f7f6ff] p-2 text-[11px] text-[#1B1446]">
-          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">{i + 1}</span>
-          {line}
-        </p>
-      ))}
-      <p className="flex items-center justify-center gap-1.5 rounded-lg bg-[#16a34a] py-2 text-[11px] font-bold text-white">
-        <Check size={13} /> {m.send}
-      </p>
-    </div>,
-    <div key="stats" className="space-y-2.5">
-      {[
-        [m.rate, "78%", 78],
-        [m.attendance, "96%", 96],
-      ].map(([label, value, w]) => (
-        <div key={label as string} className="rounded-xl bg-[#f7f6ff] p-2.5">
-          <div className="flex justify-between text-[11px]">
-            <span className="text-muted">{label as string}</span>
-            <span className="font-bold text-[#1B1446] tabular-nums">{value as string}</span>
-          </div>
-          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
-            <span className="block h-full rounded-full bg-accent" style={{ width: `${w}%` }} />
-          </span>
-        </div>
-      ))}
-      <div className="flex items-center justify-between rounded-xl bg-[#f7f6ff] p-2.5 text-[11px]">
-        <span className="text-muted">{m.speed}</span>
-        <span className="font-bold text-[#1B1446]">{m.speedValue}</span>
-      </div>
-    </div>,
-  ];
-  return (
-    <ul className="mt-12 grid gap-6 sm:grid-cols-3" aria-hidden data-ui>
-      {l.team.map(([label, hint], i) => {
-        const [Icon, tone] = icons[i];
-        return (
-          <li key={label} className="flex flex-col items-center gap-5">
-            <div className="flex h-80 w-full items-end justify-center overflow-hidden rounded-[28px] bg-[#f7f6ff] px-6 pt-8">
-              <div className="h-full w-full max-w-[220px] rounded-t-[30px] border-x-[6px] border-t-[6px] border-ink bg-white px-3.5 pt-6">
-                <span className="mx-auto mb-4 block h-4 w-20 rounded-full bg-[#1B1446]" />
-                {screens[i]}
-              </div>
-            </div>
-            <p className="flex items-center gap-2.5 text-xl font-bold text-[#1B1446]">
-              <span className={`flex size-8 items-center justify-center rounded-lg ${tone} text-white`}>
-                <Icon size={17} />
-              </span>
-              {label}
-            </p>
-            <p className="-mt-3 text-sm text-muted">{hint}</p>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// The plans as stored by the platform admin (prices and limits are never written by hand here), then the custom plan
 function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; plans: HomePlan[]; contact?: string }) {
   const l = t.landing;
   const p = t.plans;
@@ -993,30 +533,31 @@ function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; pla
             return (
               <div
                 key={plan.code}
-                className={`relative flex flex-col items-center rounded-[26px] px-5 pt-9 pb-6 text-center ${picked ? "bg-gradient-to-b from-[#6B50FF] to-[#4B30E0] text-white shadow-[0_24px_50px_-24px_rgba(91,63,240,.8)] lg:-translate-y-3" : "bg-white shadow-[0_12px_30px_-22px_rgba(27,20,70,.4)]"}`}
+                className={`relative flex flex-col items-center rounded-[26px] px-5 pt-8 pb-6 text-center ${picked ? "bg-white shadow-[0_28px_60px_-28px_rgba(91,63,240,.75)] ring-2 ring-[#5B3FF0] lg:-translate-y-3" : "bg-white ring-1 ring-[#1B1446]/[.06]"}`}
                 data-plan={plan.code}
               >
-                {tag && (
-                  <span className={`absolute -top-3.5 rounded-full px-3.5 py-1 text-xs font-bold ${picked ? "bg-[#FFB23E] text-[#1B1446]" : "bg-[#12C59A] text-[#1B1446]"}`}>
-                    {picked && <Crown size={12} className="me-1 inline" aria-hidden />}
-                    {tag}
-                  </span>
-                )}
-                <h3 className={`${display} text-2xl font-bold ${picked ? "text-white" : "text-[#1B1446]"}`}>{plan.name}</h3>
-                <p className={`${display} mt-4 text-3xl font-bold tabular-nums ${picked ? "text-white" : "text-[#1B1446]"}`}>{price.amount}</p>
-                <p className={`mt-1 min-h-5 text-sm ${picked ? "text-white/85" : "text-[#3d3766]"}`}>{price.note}</p>
-                <Link href={register} className={`mt-6 w-full rounded-full py-3 text-sm font-semibold transition active:scale-[.98] ${picked ? "bg-white text-[#4B30E0] hover:bg-[#F5F2FF]" : "bg-[#5B3FF0] text-white hover:bg-[#4B30E0]"}`}>
+                {tag && <span className={`absolute -top-3 rounded-full px-3 py-0.5 text-xs font-semibold ${picked ? "bg-[#5B3FF0] text-white" : "bg-[#EEEAFF] text-[#5B3FF0]"}`}>{tag}</span>}
+                <h3 className={`${display} text-2xl font-bold text-[#2E1F8F]`}>{plan.name}</h3>
+                <a href="#compare" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#5B3FF0] hover:underline">
+                  {l.compare}
+                </a>
+                <p className={`${display} mt-5 text-3xl font-bold text-[#1B1446] tabular-nums`}>{price.amount}</p>
+                <p className="mt-1 min-h-5 text-sm text-[#3d3766]">{price.note}</p>
+                <Link href={register} className={`mt-6 w-full rounded-full py-3 text-sm font-semibold transition active:scale-[.98] ${picked ? "bg-[#5B3FF0] text-white hover:bg-[#4B30E0]" : "bg-[#F5F2FF] text-[#1B1446] hover:bg-[#EEEAFF]"}`}>
                   {l.choose}
                 </Link>
-                <p className={`mt-4 text-sm ${picked ? "text-white/85" : "text-[#3d3766]"}`}>{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
+                <p className="mt-4 text-sm text-[#3d3766]">{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
               </div>
             );
           })}
-          <div className="flex flex-col items-center rounded-[26px] bg-white px-5 pt-9 pb-6 text-center shadow-[0_12px_30px_-22px_rgba(27,20,70,.4)]" data-plan="custom">
-            <h3 className={`${display} text-2xl font-bold text-[#1B1446]`}>{custom.name}</h3>
-            <p className={`${display} mt-4 text-3xl font-bold text-[#1B1446]`}>{custom.price}</p>
-            <p className="mt-1 min-h-5" />
-            <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-full bg-[#1B1446] py-3 text-sm font-semibold text-white transition hover:bg-[#2B1D8F] active:scale-[.98]">
+          <div className="flex flex-col items-center rounded-[26px] bg-white px-5 pt-8 pb-6 text-center ring-1 ring-[#1B1446]/[.06]" data-plan="custom">
+            <h3 className={`${display} text-2xl font-bold text-[#2E1F8F]`}>{custom.name}</h3>
+            <a href="#compare" className="mt-2 text-sm font-medium text-[#5B3FF0] hover:underline">
+              {l.compare}
+            </a>
+            <p className={`${display} mt-5 text-3xl font-bold text-[#1B1446]`}>{custom.price}</p>
+            <p className="mt-1 min-h-5 text-sm text-[#3d3766]" />
+            <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-full bg-[#F5F2FF] py-3 text-sm font-semibold text-[#1B1446] transition hover:bg-[#EEEAFF] active:scale-[.98]">
               {custom.contact}
             </a>
             <p className="mt-4 text-sm text-[#3d3766]">{custom.tagline}</p>

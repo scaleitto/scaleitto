@@ -447,6 +447,12 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   CTA with parcels, plum footer. Palette: violet #5B3FF0, plum ink #1B1446 (never black), mint #12C59A, apricot #FFB23E, coral #FF6F61,
   sky #4CB3FF, lilac mist #F5F2FF; headings in Readex Pro (`--font-readex`). The Taste skill's no-colour/no-gradient rules do NOT
   apply to the homepage (owner's choice); its contrast and dashboard rules still do.
+  Round 2 (owner: "the cards look old, no site screenshots"): after the hero there is NO product screenshot and no hand-drawn UI
+  mock; every card carries a 3D illustration (`Art` → `public/home/*.webp`, 3dicons CC0, docs/third-party.md): `Journey` (6 numbered
+  white cards), `Bento` = `FeatureCard`s (violet/indigo/apricot/sky/lilac/mint/coral fields, wide store + guard), `Apps` (white cards,
+  icon tiles), `DeliveryArt` (pin + parcels + courier names), `TeamCards`, CTA rocket. Pricing keeps Zimam's/ayor's plan card texts
+  (tag on top, name, "compare plans" link, price, note, button, tagline) — only colours change. The deploy folder must include
+  `public/` (CI's "Assemble deploy folder" copies it).
 - The platform's design system is `design-system/scaleitto/MASTER.md` (tokens, type, components, checklist): read it before UI
   work. ayor.ai is the owner's visual reference. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout
   only); primary violet #4f3bd6 (`accent`), #7c6cf2 (`accent-bright`) for indicators only, `ink` #080529 for marketing buttons and
