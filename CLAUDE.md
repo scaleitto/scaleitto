@@ -439,6 +439,14 @@ cash-on-delivery checkout. The owner of the repo is not a programmer — explain
   `[data-hero]` / `[data-reveal]` rise-in motion in globals.css (reduced-motion safe); the dashboard has flat cards (`--d-shadow-card` 1px),
   no icons in tinted squares on KPIs / status tabs, a darker accent (#047857), amber (#b45309), rose (#b93a2f) and muted (#556274) for 4.5:1
   contrast, and `text-xs` = 13px. New UI keeps to these rules; `.taste-skill/` (its screenshots) is git-ignored.
+- Homepage redesign (owner, Nov 2026: "modern, colourful, illustrations", replacing the Taste restyle; done with the frontend-design
+  skill): idea = orders arriving from the 69 wilayas. `marketing/Home.tsx` hero = `HeroArt` (the real map from `marketing/map-lite.ts`, a
+  light copy of `lib/algeria-map.ts` — credit line `landing.mapCredit` in the footer — lit wilayas, dashed routes `.sc-route` and pulses
+  `.sc-pulse` in globals.css, order cards and a phone store), the dashboard screen on a violet stage, `Journey` (landing.journey, numbered:
+  a real sequence), colourful bento, apps as white cards on a sky field, pricing on lilac (recommended = violet with a crown tag), violet
+  CTA with parcels, plum footer. Palette: violet #5B3FF0, plum ink #1B1446 (never black), mint #12C59A, apricot #FFB23E, coral #FF6F61,
+  sky #4CB3FF, lilac mist #F5F2FF; headings in Readex Pro (`--font-readex`). The Taste skill's no-colour/no-gradient rules do NOT
+  apply to the homepage (owner's choice); its contrast and dashboard rules still do.
 - The platform's design system is `design-system/scaleitto/MASTER.md` (tokens, type, components, checklist): read it before UI
   work. ayor.ai is the owner's visual reference. Interface font = IBM Plex Sans Arabic (`src/app/ui-font.ts`, `--font-ui`, [lang] layout
   only); primary violet #4f3bd6 (`accent`), #7c6cf2 (`accent-bright`) for indicators only, `ink` #080529 for marketing buttons and

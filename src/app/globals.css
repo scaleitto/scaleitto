@@ -267,3 +267,14 @@ input[type="range"] {
     [data-reveal] { animation-timeline: view(); animation-range: entry 0% entry 45%; animation-duration: auto; }
   }
 }
+
+/* Homepage hero map: dashed routes travel from Algiers, the lit wilayas pulse. Off for visitors who prefer less motion. */
+@keyframes sc-route { to { stroke-dashoffset: -52; } }
+@keyframes sc-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.25; }
+  50% { transform: scale(1.7); opacity: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sc-route { animation: sc-route 2.4s linear infinite; }
+  .sc-pulse { animation: sc-pulse 2.6s ease-in-out infinite; }
+}

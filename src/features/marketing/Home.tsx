@@ -10,12 +10,15 @@ import {
   Download,
   Headphones,
   LayoutGrid,
+  Megaphone,
+  MousePointerClick,
   Package,
   PhoneCall,
   Radar,
   Settings,
   Sheet,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Sparkles,
   Tag,
@@ -32,45 +35,41 @@ import type { Limits } from "@/server/db/schema";
 import { limitLine, priceParts } from "@/features/plans/labels";
 import { LanguageSwitcher } from "@/ui/LanguageSwitcher";
 import { LogoMark } from "@/ui/Logo";
+import { liteMap } from "./map-lite";
 
-// The platform's public homepage (design-system/scaleitto/pages/homepage.md), modelled on ayor's: a centred hero with
-// a deep-indigo call to action, a product screen, a bento of pastel cards that each show a real part of the product,
-// integrations, delivery, the confirmation team, and plan cards with a comparison table. Every screen is drawn in
-// HTML/CSS from the dictionary (no images to load), and only shows features that exist.
+// The platform's public homepage. Idea: orders arriving from the 69 wilayas. The hero is an illustration of the real map
+// of Algeria (light outlines, map-lite.ts) with lit wilayas, delivery routes and order cards around a phone store; then
+// the product screen, the journey of an order (a real sequence: ad → analytics), colourful feature cards that each show
+// a real part of the product, apps, delivery, the confirmation team, plans and a violet call to action. Everything is
+// drawn in HTML/SVG from the dictionary (no images to load) and only shows features that exist.
+//
+// Palette ("souk at dusk"): royal violet #5B3FF0 (the brand, actions), plum ink #1B1446 (text, never black), mint
+// #12C59A (confirmed, money), apricot #FFB23E (parcels), coral #FF6F61 (protection), sky #4CB3FF (delivery), on white and
+// lilac mist #F5F2FF. Headings in Readex Pro (--font-readex), text in the interface font.
 
 export type HomePlan = { code: string; name: string; priceMonthly: number; orderPack: number | null; limits: Limits; features: string[] };
 
 // The plan the homepage highlights (plan codes are fixed, see the admin plans editor)
 const RECOMMENDED = "rocket";
 
-const inkButton =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-3.5 text-base font-medium text-white transition hover:bg-[#1d1650] active:scale-[.98] focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:outline-none";
-const softButton = "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-fg transition hover:bg-accent/10 focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:outline-none";
-// The two-tone headings: the first line in violet, the second in ink
-const violetText = "text-ink";
+const display = "font-[family-name:var(--font-readex)] tracking-tight";
+const primaryButton =
+  "inline-flex items-center justify-center gap-2 rounded-full bg-[#5B3FF0] px-7 py-3.5 text-base font-semibold text-white shadow-[0_14px_30px_-12px_rgba(91,63,240,.65)] transition hover:-translate-y-0.5 hover:bg-[#4B30E0] focus-visible:ring-4 focus-visible:ring-[#5B3FF0]/30 focus-visible:outline-none active:translate-y-0";
+const quietButton =
+  "inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 text-base font-semibold text-[#1B1446] ring-1 ring-[#1B1446]/10 transition hover:ring-[#5B3FF0]/40 focus-visible:ring-4 focus-visible:ring-[#5B3FF0]/30 focus-visible:outline-none";
+const headingClass = `${display} text-[2.1rem] leading-[1.15] font-bold text-balance text-[#1B1446] sm:text-5xl`;
 
 function Mark({ size = "size-9" }: { size?: string }) {
   return <LogoMark className={size} />;
 }
 
-function Heading({ top, bottom, center = false }: { top: string; bottom: string; center?: boolean }) {
+// A section head: the title and its text, then an action
+function SectionHead({ title, text, action, center = false }: { title: string; text: string; action?: ReactNode; center?: boolean }) {
   return (
-    <h2 className={`text-[2.1rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-5xl ${center ? "text-center" : ""}`}>
-      <span className={`block ${violetText}`}>{top}</span>
-      <span className="block text-ink">{bottom}</span>
-    </h2>
-  );
-}
-
-// A section head: the title on one side, the text and an action on the other
-function SectionHead({ top, bottom, text, action }: { top: string; bottom: string; text: string; action: ReactNode }) {
-  return (
-    <div className="grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-12" data-reveal>
-      <Heading top={top} bottom={bottom} />
-      <div className="space-y-5">
-        <p className="text-lg leading-relaxed text-ink">{text}</p>
-        {action}
-      </div>
+    <div className={`max-w-3xl ${center ? "mx-auto text-center" : ""}`}>
+      <h2 className={headingClass}>{title}</h2>
+      <p className="mt-5 text-lg leading-relaxed text-[#3d3766]">{text}</p>
+      {action && <div className="mt-7">{action}</div>}
     </div>
   );
 }
@@ -84,17 +83,18 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
     ["#apps", l.nav.apps],
     ...(plans.length ? [["#pricing", l.nav.pricing]] : []),
   ];
+  const factDots = ["bg-[#12C59A]", "bg-[#FFB23E]", "bg-[#4CB3FF]"];
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-fg">
-      <header className="sticky top-0 z-30 bg-white">
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#1B1446]">
+      <header className="sticky top-0 z-30 border-b border-[#1B1446]/5 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link href={`/${lang}`} className="flex items-center gap-2.5">
             <Mark />
-            <span className="text-xl font-bold tracking-tight text-ink">{t.brand}</span>
+            <span className={`${display} text-xl font-bold`}>{t.brand}</span>
           </Link>
-          <nav className="hidden items-center gap-8 text-[15px] text-muted md:flex">
+          <nav className="hidden items-center gap-8 text-[15px] font-medium text-[#3d3766] md:flex">
             {nav.map(([href, label]) => (
-              <a key={href} href={href} className="transition-colors hover:text-ink">
+              <a key={href} href={href} className="transition-colors hover:text-[#5B3FF0]">
                 {label}
               </a>
             ))}
@@ -103,11 +103,11 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
             <LanguageSwitcher current={lang} />
             {/* Phones: no room for both actions, the sign-in link waits for wider screens */}
             <span className="hidden sm:contents">
-              <Link href={`/${lang}/login`} className={softButton}>
+              <Link href={`/${lang}/login`} className="rounded-full px-4 py-2.5 text-sm font-semibold text-[#1B1446] transition hover:bg-[#F5F2FF]">
                 {l.login}
               </Link>
             </span>
-            <Link href={register} className="inline-flex items-center rounded-[10px] bg-ink px-3.5 py-2.5 text-sm font-medium whitespace-nowrap text-white transition hover:brightness-150 sm:px-5">
+            <Link href={register} className="inline-flex items-center rounded-full bg-[#5B3FF0] px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-[#4B30E0] sm:px-5">
               {l.start}
             </Link>
           </div>
@@ -115,43 +115,58 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
       </header>
 
       <main>
-        {/* Hero, centred like ayor's: announcement, two-tone title, one dark call to action */}
-        <section className="relative px-4 pt-10 text-center sm:pt-14" data-hero>
-          <h1 className="mx-auto mt-2 max-w-4xl text-[2.2rem] leading-[1.1] font-bold tracking-tight text-balance sm:text-6xl lg:text-7xl">
-            <span className={`block pb-1 ${violetText}`}>{l.titleTop}</span>
-            <span className="block text-ink">{l.titleBottom}</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink sm:text-xl">{l.subtitle}</p>
-          <div className="mt-9">
-            <Link href={register} className={inkButton}>
-              {l.cta}
-            </Link>
+        {/* Hero: the promise on one side, orders arriving from across Algeria on the other */}
+        <section className="relative overflow-hidden bg-[#F5F2FF]">
+          <span aria-hidden className="pointer-events-none absolute -top-48 -start-40 size-[560px] rounded-full bg-[#5B3FF0]/20 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-56 end-[-10rem] size-[520px] rounded-full bg-[#12C59A]/20 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute top-1/3 end-1/3 size-[260px] rounded-full bg-[#FFB23E]/20 blur-3xl" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-4 lg:pt-20 lg:pb-24">
+            <div className="text-center lg:text-start" data-hero>
+              <h1 className={`${display} text-[2.4rem] leading-[1.1] font-bold text-balance sm:text-6xl lg:text-[3.6rem]`}>
+                {l.titleTop} {l.titleBottom}
+              </h1>
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[#3d3766] sm:text-xl lg:mx-0">{l.subtitle}</p>
+              <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                <Link href={register} className={primaryButton}>
+                  {l.cta} <Arrow size={18} aria-hidden />
+                </Link>
+                <Link href={`/${lang}/login`} className={quietButton}>
+                  {l.login}
+                </Link>
+              </div>
+              <ul className="mt-9 flex flex-wrap justify-center gap-2.5 lg:justify-start">
+                {l.facts.map((f, i) => (
+                  <li key={f} className="flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-sm font-medium text-[#1B1446] ring-1 ring-[#1B1446]/5">
+                    <span className={`size-2.5 rounded-full ${factDots[i % 3]}`} aria-hidden /> {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <HeroArt t={t} />
           </div>
         </section>
 
-        {/* The facts band (where ayor shows its customers: we only state what is true) */}
-        <div className="mt-12 bg-[#f4f2ff]">
-          <ul className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-5 text-base text-ink">
-            {l.facts.map((f) => (
-              <li key={f} className="flex items-center gap-2">
-                <CheckCircle2 size={17} className="text-accent" aria-hidden /> {f}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <section className="mx-auto max-w-6xl px-4 pt-12 sm:pt-16" data-reveal>
-          <DashboardScreen t={t} />
+        {/* The product: the dashboard screen on a violet stage */}
+        <section className="relative isolate px-4 pt-16 sm:pt-24">
+          <div aria-hidden className="absolute inset-x-4 top-44 bottom-[-3rem] -z-10 mx-auto max-w-6xl rounded-[48px] bg-gradient-to-br from-[#6B50FF] to-[#3A27B0]" />
+          <div className="mx-auto max-w-5xl">
+            <DashboardScreen t={t} />
+          </div>
         </section>
 
-        {/* Features: a bento of pastel cards, each with a small screen of that part of the product */}
+        {/* The journey of an order: a real sequence, so the steps are numbered */}
+        <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
+          <SectionHead title={l.journeyTitle} text={l.journeyText} center />
+          <Journey steps={l.journey} />
+        </section>
+
+        {/* Features: colourful cards, each with a small screen of that part of the product */}
         <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:pt-32">
           <SectionHead
-            top={l.featuresTop}
-            bottom={l.featuresBottom}
+            title={`${l.featuresTop} ${l.featuresBottom}`}
             text={l.featuresText}
             action={
-              <a href="#apps" className={inkButton}>
+              <a href="#apps" className={primaryButton}>
                 {l.discover}
               </a>
             }
@@ -159,29 +174,21 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
           <Bento t={t} />
         </section>
 
-        {/* Integrations */}
-        <section id="apps" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:pt-32">
-          <SectionHead
-            top={l.appsTitle}
-            bottom=""
-            text={l.appsText}
-            action={
-              <Link href={register} className={inkButton}>
-                {l.discover}
-              </Link>
-            }
-          />
-          <Apps t={t} />
+        {/* Integrations, on a sky field */}
+        <section id="apps" className="scroll-mt-20 px-4 pt-24 sm:pt-32">
+          <div className="mx-auto max-w-6xl rounded-[40px] bg-[#EAF6FF] px-5 py-12 sm:px-10 sm:py-16">
+            <SectionHead title={l.appsTitle} text={l.appsText} />
+            <Apps t={t} />
+          </div>
         </section>
 
         {/* Delivery */}
-        <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
+        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-24 sm:pt-32 lg:grid-cols-[1fr_1.3fr]">
           <SectionHead
-            top={l.deliveryTitle}
-            bottom=""
+            title={l.deliveryTitle}
             text={l.deliveryText}
             action={
-              <Link href={register} className={inkButton}>
+              <Link href={register} className={primaryButton}>
                 {l.deliveryCta}
               </Link>
             }
@@ -189,35 +196,36 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
           <DeliveryCollage t={t} />
         </section>
 
-        {/* The confirmation team: three phone screens, like ayor's app section */}
+        {/* The confirmation team: three phone screens */}
         <section className="mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
-          <div className="mx-auto max-w-3xl text-center" data-reveal>
-            <h2 className={`text-[2.1rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-5xl ${violetText}`}>{l.teamTitle}</h2>
-            <p className="mt-5 text-lg leading-relaxed text-ink">{l.teamText}</p>
-          </div>
+          <SectionHead title={l.teamTitle} text={l.teamText} center />
           <TeamPhones t={t} />
         </section>
 
         {plans.length > 0 && <Pricing lang={lang} t={t} plans={plans} contact={contact} />}
 
+        {/* Call to action: the brand's violet field with parcels on their way */}
         <section className="px-4 pt-24 pb-24 sm:pt-32">
-          <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[32px] bg-ink px-6 py-16 text-center text-white sm:py-20">
-            <h2 className="relative text-3xl font-bold tracking-tight text-balance sm:text-5xl">{l.ctaTitle}</h2>
-            <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/85">{l.ctaText}</p>
-            <Link href={register} className="relative mt-9 inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-medium text-ink transition hover:bg-[#efedff] focus-visible:ring-4 focus-visible:ring-white/40 focus-visible:outline-none">
-              {l.cta}
+          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[40px] bg-[#5B3FF0] px-6 py-16 text-center text-white sm:py-20">
+            <span aria-hidden className="pointer-events-none absolute -top-24 -start-16 size-72 rounded-full bg-[#8B74FF]/60 blur-2xl" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-28 -end-10 size-80 rounded-full bg-[#12C59A]/40 blur-2xl" />
+            <Parcels />
+            <h2 className={`${display} relative text-3xl font-bold text-balance sm:text-5xl`}>{l.ctaTitle}</h2>
+            <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/90">{l.ctaText}</p>
+            <Link href={register} className="relative mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#1B1446] transition hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-white/40 focus-visible:outline-none">
+              {l.cta} <Arrow size={18} aria-hidden />
             </Link>
           </div>
         </section>
       </main>
 
-      <footer className="bg-[#f4f2ff]">
+      <footer className="bg-[#1B1446] text-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
           <div className="space-y-4">
-            <span className="flex items-center gap-2.5 text-lg font-bold text-ink">
+            <span className={`${display} flex items-center gap-2.5 text-lg font-bold`}>
               <Mark /> {t.brand}
             </span>
-            <p className="max-w-sm text-ink">{l.footer.tagline}</p>
+            <p className="max-w-sm text-white/80">{l.footer.tagline}</p>
           </div>
           <FooterLinks
             title={l.footer.platform}
@@ -235,9 +243,12 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
             ]}
           />
         </div>
-        <p className="px-4 pb-8 text-center text-sm text-ink">
-          © {t.brand}. {l.rights}
-        </p>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-6 text-sm text-white/70">
+          <p>
+            © {t.brand}. {l.rights}
+          </p>
+          <p>{l.mapCredit}</p>
+        </div>
       </footer>
     </div>
   );
@@ -246,11 +257,11 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 function FooterLinks({ title, links }: { title: string; links: string[][] }) {
   return (
     <div>
-      <p className="font-semibold text-ink">{title}</p>
-      <ul className="mt-4 space-y-3 text-ink">
+      <p className="font-semibold">{title}</p>
+      <ul className="mt-4 space-y-3 text-white/80">
         {links.map(([href, label]) => (
           <li key={href}>
-            <Link href={href} className="transition-colors hover:text-ink">
+            <Link href={href} className="transition-colors hover:text-white">
               {label}
             </Link>
           </li>
@@ -260,6 +271,155 @@ function FooterLinks({ title, links }: { title: string; links: string[][] }) {
   );
 }
 
+// The wilayas lit on the hero map, with their colour (Algiers, Oran, Constantine, Sétif, Béjaïa, Ghardaïa, Tamanrasset)
+const litWilayas: [number, string][] = [
+  [16, "#5B3FF0"],
+  [31, "#12C59A"],
+  [25, "#FFB23E"],
+  [19, "#FF6F61"],
+  [6, "#4CB3FF"],
+  [47, "#8B74FF"],
+  [30, "#12C59A"],
+];
+
+// Hero illustration: Algeria's 69 wilayas, routes between the lit ones, order cards and a phone store floating on top
+function HeroArt({ t }: { t: Dictionary }) {
+  const l = t.landing;
+  const m = l.mock;
+  const centre = (code: number) => {
+    const w = liteMap.find(([c]) => c === code)!;
+    return [w[2], w[3]] as const;
+  };
+  const [ax, ay] = centre(16);
+  const routes = [31, 25, 47, 30].map((code) => {
+    const [x, y] = centre(code);
+    // A gentle arc from Algiers to each wilaya
+    const mx = (ax + x) / 2 + (y - ay) * 0.18;
+    const my = (ay + y) / 2 - Math.abs(x - ax) * 0.25;
+    return `M${ax} ${ay} Q${mx.toFixed(0)} ${my.toFixed(0)} ${x} ${y}`;
+  });
+  const lit = new Map(litWilayas);
+  const [first, second] = l.sampleOrders;
+  return (
+    <div className="relative mx-auto w-full max-w-[560px]" aria-hidden data-ui>
+      <svg viewBox="0 0 600 596" className="w-full drop-shadow-[0_30px_40px_rgba(91,63,240,.18)]">
+        <g>
+          {liteMap.map(([code, d]) => (
+            <path key={code} d={d} fill={lit.get(code) ?? "#E4DEFF"} fillOpacity={lit.has(code) ? 0.9 : 1} stroke="#fff" strokeWidth={1.4} strokeLinejoin="round" />
+          ))}
+        </g>
+        {routes.map((d, i) => (
+          <path key={i} d={d} fill="none" stroke="#1B1446" strokeOpacity={0.55} strokeWidth={2} strokeDasharray="6 7" strokeLinecap="round" className="sc-route" style={{ animationDelay: `${i * 0.4}s` }} />
+        ))}
+        {litWilayas.map(([code, color]) => {
+          const [x, y] = centre(code);
+          return (
+            <g key={code}>
+              <circle cx={x} cy={y} r={14} fill={color} opacity={0.25} className="sc-pulse" style={{ transformOrigin: `${x}px ${y}px` }} />
+              <circle cx={x} cy={y} r={6.5} fill="#fff" stroke={color} strokeWidth={3.5} />
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Orders arriving */}
+      <div className="absolute top-[40%] right-0 w-[11.5rem] sm:w-[13.5rem] rounded-2xl bg-white p-3.5 shadow-[0_18px_40px_-18px_rgba(27,20,70,.45)] sm:right-[-3%]">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#12C59A]/15 text-[#0b8f6f]">
+            <ShoppingBag size={19} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-[#1B1446]">#1043 · {first[1]}</p>
+            <p className="text-sm text-[#3d3766]" dir="auto">
+              {first[2]}
+            </p>
+          </div>
+        </div>
+        <span className="mt-2.5 inline-flex rounded-full bg-[#12C59A] px-2.5 py-0.5 text-xs font-bold text-white">{m.confirmed}</span>
+      </div>
+      <div className="absolute bottom-[4%] left-0 w-[11rem] sm:w-[12.5rem] rounded-2xl bg-white p-3.5 shadow-[0_18px_40px_-18px_rgba(27,20,70,.45)] sm:left-[-4%]">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#FFB23E]/20 text-[#b26b00]">
+            <Truck size={19} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-[#1B1446]">#1042 · {second[1]}</p>
+            <p className="text-sm text-[#3d3766]" dir="auto">
+              {second[2]}
+            </p>
+          </div>
+        </div>
+        <span className="mt-2.5 inline-flex rounded-full bg-[#4CB3FF] px-2.5 py-0.5 text-xs font-bold text-[#0b2a44]">{m.delivered}</span>
+      </div>
+
+      {/* The phone store */}
+      <div className="absolute bottom-[-4%] right-[24%] hidden w-[9rem] rotate-[6deg] sm:block rounded-[26px] bg-[#1B1446] p-1.5 shadow-[0_30px_50px_-20px_rgba(27,20,70,.6)] sm:w-[10.5rem]">
+        <div className="overflow-hidden rounded-[20px] bg-white">
+          <div className="flex aspect-[4/3] items-center justify-center bg-[#FFE7C2]">
+            <WatchIcon />
+          </div>
+          <div className="space-y-1.5 p-2.5">
+            <p className="truncate text-xs font-bold text-[#1B1446]">{m.product}</p>
+            <p className="text-xs font-bold text-[#5B3FF0]" dir="auto">
+              4 500 DZD
+            </p>
+            <span className="block rounded-lg bg-[#5B3FF0] py-1.5 text-center text-xs font-bold text-white">{m.order}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The journey of an order, ad to analytics: numbered stops on one coloured track
+function Journey({ steps }: { steps: string[][] }) {
+  const looks: [LucideIcon, string, string, string][] = [
+    [Megaphone, "bg-[#FF6F61]", "text-white", "bg-[#FFEDEA]"],
+    [MousePointerClick, "bg-[#FFB23E]", "text-[#1B1446]", "bg-[#FFF3DE]"],
+    [ShoppingBag, "bg-[#5B3FF0]", "text-white", "bg-[#EEEAFF]"],
+    [PhoneCall, "bg-[#12C59A]", "text-[#1B1446]", "bg-[#DDF7EF]"],
+    [Truck, "bg-[#4CB3FF]", "text-[#1B1446]", "bg-[#E3F2FF]"],
+    [BarChart3, "bg-[#8B74FF]", "text-white", "bg-[#F1EDFF]"],
+  ];
+  return (
+    <ol className="relative mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {steps.map(([title, text], i) => {
+        const [Icon, bg, ink, field] = looks[i % looks.length];
+        return (
+          <li key={title} className={`relative rounded-[28px] p-6 sm:p-7 ${field}`}>
+            <div className="flex items-center gap-3">
+              <span className={`flex size-12 items-center justify-center rounded-2xl ${bg} ${ink}`} aria-hidden>
+                <Icon size={22} />
+              </span>
+              <span className={`${display} text-sm font-bold text-[#5B3FF0]`}>{i + 1}</span>
+            </div>
+            <h3 className={`${display} mt-5 text-xl font-bold text-[#1B1446]`}>{title}</h3>
+            <p className="mt-2 leading-relaxed text-[#3d3766]">{text}</p>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// Parcels drifting across the call to action (decorative)
+function Parcels() {
+  const boxes: [string, string, string][] = [
+    ["start-[6%] top-[18%]", "bg-[#FFB23E]", "rotate-[-12deg]"],
+    ["end-[8%] top-[14%]", "bg-[#12C59A]", "rotate-[10deg]"],
+    ["start-[14%] bottom-[12%]", "bg-[#FF6F61]", "rotate-[8deg]"],
+    ["end-[14%] bottom-[16%]", "bg-[#4CB3FF]", "rotate-[-8deg]"],
+  ];
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0 hidden sm:block">
+      {boxes.map(([pos, bg, rot], i) => (
+        <span key={i} className={`absolute ${pos} ${rot} flex size-14 items-center justify-center rounded-2xl ${bg} text-[#1B1446]/80`}>
+          <Package size={26} />
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const statusTone = {
   new: "bg-[#fff4e5] text-warning",
@@ -296,7 +456,7 @@ function DashboardScreen({ t }: { t: Dictionary }) {
         </div>
         <div className="grid md:grid-cols-[210px_1fr]">
           <aside className="hidden border-e border-[#efedf7] bg-[#fbfaff] p-4 md:block">
-            <span className="mb-5 flex items-center gap-2 font-bold text-ink">
+            <span className="mb-5 flex items-center gap-2 font-bold text-[#1B1446]">
               <Mark size="size-7" /> {t.brand}
             </span>
             <ul className="space-y-1 text-sm">
@@ -308,9 +468,9 @@ function DashboardScreen({ t }: { t: Dictionary }) {
             </ul>
           </aside>
           <div className="space-y-4 p-4 sm:p-6">
-            <p className="text-lg font-bold text-ink">{m.hello}</p>
+            <p className="text-lg font-bold text-[#1B1446]">{m.hello}</p>
             <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-              <div className="relative overflow-hidden rounded-2xl bg-ink p-5 text-white">
+              <div className="relative overflow-hidden rounded-2xl bg-[#5B3FF0] p-5 text-white">
                 <p className="relative text-sm text-white/70">{m.revenue}</p>
                 <p className="relative mt-1 text-3xl font-bold tabular-nums sm:text-4xl" dir="ltr">
                   97 400 <span className="text-lg font-medium text-white/70">DZD</span>
@@ -327,7 +487,7 @@ function DashboardScreen({ t }: { t: Dictionary }) {
                 <div className="col-span-2 rounded-2xl border border-[#efedf7] p-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">{m.rate}</span>
-                    <span className="font-bold text-ink tabular-nums">72%</span>
+                    <span className="font-bold text-[#1B1446] tabular-nums">72%</span>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0eef8]">
                     <span className="block h-full w-[72%] rounded-full bg-accent" />
@@ -335,17 +495,17 @@ function DashboardScreen({ t }: { t: Dictionary }) {
                 </div>
               </div>
             </div>
-            <ul className="divide-y divide-white rounded-2xl border border-[#efedf7]">
+            <ul className="divide-y divide-[#F0EDFB] rounded-2xl border border-[#efedf7]">
               {l.sampleOrders.map(([name, city, amount], i) => (
                 <li key={name} className="flex items-center gap-3 px-4 py-3 text-sm">
                   <span className="w-12 shrink-0 font-semibold text-muted tabular-nums" dir="ltr">
                     #{1043 - i}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-ink">{name}</span>
+                    <span className="block truncate font-semibold text-[#1B1446]">{name}</span>
                     <span className="block text-xs text-muted">{city}</span>
                   </span>
-                  <span className="hidden font-semibold text-ink tabular-nums sm:block">{amount}</span>
+                  <span className="hidden font-semibold text-[#1B1446] tabular-nums sm:block">{amount}</span>
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${statusTone[statuses[i]]}`}>{m[statuses[i]]}</span>
                 </li>
               ))}
@@ -361,7 +521,7 @@ function Stat({ label, value, change }: { label: string; value: string; change: 
   return (
     <div className="rounded-2xl border border-[#efedf7] p-4">
       <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink tabular-nums" dir="ltr">
+      <p className="mt-1 text-2xl font-bold text-[#1B1446] tabular-nums" dir="ltr">
         {value}
       </p>
       <p className="mt-1 text-xs font-semibold text-[#047857] tabular-nums" dir="ltr">
@@ -374,8 +534,8 @@ function Stat({ label, value, change }: { label: string; value: string; change: 
 function CardText({ title, text, light = false }: { title: string; text: string; light?: boolean }) {
   return (
     <div className="relative">
-      <h3 className={`text-2xl font-bold tracking-tight ${light ? "text-white" : "text-ink"}`}>{title}</h3>
-      <p className={`mt-2 leading-relaxed ${light ? "text-white/85" : "text-ink"}`}>{text}</p>
+      <h3 className={`font-[family-name:var(--font-readex)] text-2xl font-bold tracking-tight ${light ? "text-white" : "text-[#1B1446]"}`}>{title}</h3>
+      <p className={`mt-2 leading-relaxed ${light ? "text-white/85" : "text-[#1B1446]"}`}>{text}</p>
     </div>
   );
 }
@@ -386,46 +546,46 @@ function Bento({ t }: { t: Dictionary }) {
   return (
     <div className="mt-12 space-y-4">
       {/* The store banner */}
-      <div className="grid overflow-hidden rounded-[28px] border border-[#e4e1f5] md:grid-cols-2">
-        <div className="flex flex-col justify-center gap-3 bg-[#dcd6ff] p-7 sm:p-9">
+      <div className="grid overflow-hidden rounded-[28px] bg-white ring-1 ring-[#1B1446]/5 md:grid-cols-2">
+        <div className="flex flex-col justify-center gap-3 bg-gradient-to-br from-[#FFE7C2] to-[#FFD3A1] p-7 sm:p-9">
           <CardText title={c.store.title} text={c.store.text} />
         </div>
         <StoreScreen t={t} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.35fr]" data-reveal>
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.35fr]">
         {/* Abandoned carts, with their source */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-[#c9cffc] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#DDF0FF] to-[#BFE2FF] p-6 sm:p-7">
           <div aria-hidden data-ui>
             <CartsTable t={t} />
           </div>
           <CardText title={c.carts.title} text={c.carts.text} />
         </div>
         {/* Image landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-[#140c4a] p-6 sm:p-7">
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#6B50FF] to-[#4B30E0] p-6 sm:p-7">
           <CardText title={c.posters.title} text={c.posters.text} light />
           <PosterStack t={t} />
         </div>
         {/* AI landing pages */}
-        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-ink p-6 sm:p-7">
+        <div className="relative flex flex-col gap-6 overflow-hidden rounded-[28px] bg-gradient-to-b from-[#3A27B0] to-[#22166F] p-6 sm:p-7">
           <CardText title={c.ai.title} text={c.ai.text} light />
           <AiScreen t={t} />
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr_1fr]" data-reveal>
+      <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr_1fr]">
         {/* Analytics */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-[#f6f5ff] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#EDE9FF] to-[#DCD4FF] p-6 sm:p-7">
           <AnalyticsScreen t={t} />
           <CardText title={c.analytics.title} text={c.analytics.text} />
         </div>
         {/* Stock and variants */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-[#bdeee2] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#D4F6EC] to-[#B2EDDB] p-6 sm:p-7">
           <CardText title={c.stock.title} text={c.stock.text} />
           <StockScreen t={t} />
         </div>
         {/* Fake-order protection, drawn as a receipt */}
-        <div className="flex flex-col gap-6 rounded-[28px] bg-[#f9d5e0] p-6 sm:p-7">
+        <div className="flex flex-col gap-6 rounded-[28px] bg-gradient-to-b from-[#FFE6E2] to-[#FFCFC8] p-6 sm:p-7">
           <CardText title={c.guard.title} text={c.guard.text} />
           <GuardTicket t={t} />
         </div>
@@ -445,12 +605,12 @@ function StoreScreen({ t }: { t: Dictionary }) {
     <div className="relative bg-white p-6 sm:p-8" aria-hidden data-ui>
       <div className="rounded-2xl border border-[#efedf7] p-4">
         <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm font-bold text-ink">
+          <span className="flex items-center gap-2 text-sm font-bold text-[#1B1446]">
             <span className="size-6 rounded-lg bg-[#ffb36b]" /> Atlas Shop
           </span>
           <ShoppingCart size={16} className="text-muted" />
         </div>
-        <p className="mt-4 text-sm font-semibold text-ink">{l.cards.store.best}</p>
+        <p className="mt-4 text-sm font-semibold text-[#1B1446]">{l.cards.store.best}</p>
         <div className="mt-3 grid grid-cols-3 gap-2.5">
           {tiles.map((tile, i) => (
             <div key={tile}>
@@ -480,18 +640,18 @@ function CartsTable({ t }: { t: Dictionary }) {
   const c = t.landing.cards.carts;
   const rows: [string, string, string, boolean][] = [
     ["Facebook", "bg-[#e7f0ff] text-[#1d4ed8]", c.abandoned, false],
-    ["TikTok", "bg-[#f1f1f1] text-ink", c.converted, true],
+    ["TikTok", "bg-[#f1f1f1] text-[#1B1446]", c.converted, true],
     ["Instagram", "bg-[#fde8f1] text-[#be185d]", c.converted, true],
     ["Google", "bg-[#e8f5ec] text-[#15803d]", c.abandoned, false],
     [c.other, "bg-[#f4f3fa] text-muted", c.abandoned, false],
   ];
   return (
     <Panel className="p-0 text-xs">
-      <div className="flex justify-between border-b border-[#f0eef8] px-4 py-2.5 font-semibold text-ink">
+      <div className="flex justify-between border-b border-[#f0eef8] px-4 py-2.5 font-semibold text-[#1B1446]">
         <span>{c.source}</span>
         <span>{c.status}</span>
       </div>
-      <ul className="divide-y divide-white">
+      <ul className="divide-y divide-[#F0EDFB]">
         {rows.map(([source, tone, status, won]) => (
           <li key={source} className="flex items-center justify-between px-4 py-2.5">
             <span className={`rounded-full px-2.5 py-0.5 font-semibold ${tone}`} dir="ltr">
@@ -558,7 +718,7 @@ function AnalyticsScreen({ t }: { t: Dictionary }) {
   return (
     <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr]" aria-hidden data-ui>
       <Panel>
-        <p className="text-sm font-bold text-ink">{c.chart}</p>
+        <p className="text-sm font-bold text-[#1B1446]">{c.chart}</p>
         <svg viewBox="0 0 200 90" className="mt-3 h-28 w-full" preserveAspectRatio="none">
           <defs>
             <linearGradient id="home-area" x1="0" x2="0" y1="0" y2="1">
@@ -572,11 +732,11 @@ function AnalyticsScreen({ t }: { t: Dictionary }) {
         <p className="mt-2 text-xs font-semibold text-[#047857]">{c.change}</p>
       </Panel>
       <Panel className="space-y-2.5">
-        <p className="text-sm font-bold text-ink">{c.best}</p>
+        <p className="text-sm font-bold text-[#1B1446]">{c.best}</p>
         {c.products.map((p, i) => (
           <div key={p} className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs ${i === 0 ? "bg-[#efedff]" : ""}`}>
             {i === 0 ? <Crown size={15} className="text-accent" /> : <span className="w-[15px] text-center text-muted tabular-nums">{i + 1}</span>}
-            <span className={`font-semibold ${i === 0 ? "text-accent" : "text-ink"}`}>{p}</span>
+            <span className={`font-semibold ${i === 0 ? "text-accent" : "text-[#1B1446]"}`}>{p}</span>
           </div>
         ))}
       </Panel>
@@ -590,12 +750,12 @@ function StockScreen({ t }: { t: Dictionary }) {
   return (
     <div className="mt-auto space-y-3" aria-hidden data-ui>
       <Panel>
-        <p className="text-sm font-bold text-ink">{c.stock}</p>
+        <p className="text-sm font-bold text-[#1B1446]">{c.stock}</p>
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 text-xs">
           <span className="rounded-lg border border-[#efedf7] px-3 py-2 text-muted" dir="ltr">
             WATCH-01
           </span>
-          <span className="rounded-lg border border-[#efedf7] px-3 py-2 font-semibold text-ink tabular-nums">48</span>
+          <span className="rounded-lg border border-[#efedf7] px-3 py-2 font-semibold text-[#1B1446] tabular-nums">48</span>
         </div>
       </Panel>
       <Panel className="space-y-2 text-xs">
@@ -623,12 +783,12 @@ function GuardTicket({ t }: { t: Dictionary }) {
     <div className="relative mt-auto rounded-2xl bg-white px-5 pt-5 pb-7" aria-hidden data-ui>
       <div className="flex items-center gap-3 border-b border-dashed border-[#f1d9de] pb-3">
         <ShieldCheck size={22} className="text-accent" />
-        <span className="font-bold text-ink">{t.brand}</span>
+        <span className="font-bold text-[#1B1446]">{t.brand}</span>
       </div>
       <ul className="mt-3 space-y-2.5 text-sm">
         {c.items.map((item) => (
           <li key={item} className="flex items-center justify-between">
-            <span className="text-ink">{item}</span>
+            <span className="text-[#1B1446]">{item}</span>
             <Check size={16} className="text-[#047857]" />
           </li>
         ))}
@@ -649,30 +809,27 @@ function GuardTicket({ t }: { t: Dictionary }) {
 
 // Integrations: a pastel top with the app's tile, then what it does
 function Apps({ t }: { t: Dictionary }) {
-  // Each app's own colour, on its mark only
+  // Each app's own colour on its mark
   const looks: [LucideIcon, string][] = [
     [Sheet, "bg-[#1e9e5a]"],
     [Tag, "bg-[#2f7cf6]"],
-    [Radar, "bg-[#5b45e0]"],
-    [Webhook, "bg-[#d97706]"],
-    [Download, "bg-[#4d7c0f]"],
+    [Radar, "bg-[#5B3FF0]"],
+    [Webhook, "bg-[#FF6F61]"],
+    [Download, "bg-[#FFB23E]"],
   ];
-  // A list set in large type on one tinted field (no row of identical cards)
   return (
-    <ul className="mt-12 grid gap-x-12 gap-y-9 rounded-[28px] bg-[#f4f2ff] p-7 sm:p-10 md:grid-cols-2" data-reveal>
+    <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {t.landing.apps.map(([name, text], i) => {
         const [Icon, tile] = looks[i];
         return (
-          <li key={name} className="flex items-start gap-4">
-            <span className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-xl ${tile} text-white`} aria-hidden>
-              <Icon size={22} />
+          <li key={name} className="rounded-[24px] bg-white p-6 shadow-[0_12px_30px_-20px_rgba(27,20,70,.35)] transition hover:-translate-y-1">
+            <span className={`flex size-12 items-center justify-center rounded-2xl ${tile} text-white`} aria-hidden>
+              <Icon size={24} />
             </span>
-            <span className="min-w-0">
-              <h3 className="text-2xl font-bold tracking-tight text-ink" dir="auto">
-                {name}
-              </h3>
-              <p className="mt-1.5 text-base leading-relaxed text-ink">{text}</p>
-            </span>
+            <h3 className="mt-5 font-[family-name:var(--font-readex)] text-xl font-bold tracking-tight text-[#1B1446]" dir="auto">
+              {name}
+            </h3>
+            <p className="mt-1.5 leading-relaxed text-[#3d3766]">{text}</p>
           </li>
         );
       })}
@@ -693,15 +850,15 @@ function DeliveryCollage({ t }: { t: Dictionary }) {
     ["Procolis", "bg-[#334155]", false],
   ];
   return (
-    <div className="relative mt-12 [perspective:1600px]" aria-hidden data-ui data-reveal>
+    <div className="relative mt-12 [perspective:1600px]" aria-hidden data-ui>
       <div className="grid gap-4 md:grid-cols-[1fr_1.5fr] md:[transform:rotateX(14deg)_rotateZ(-3deg)]">
         <Panel className="space-y-3 border-[#ebe8f7]">
-          <p className="flex items-center gap-2 font-bold text-ink">
+          <p className="flex items-center gap-2 font-bold text-[#1B1446]">
             <Truck size={18} className="text-accent" /> {d.title}
           </p>
           <div className="rounded-xl border border-[#efedf7] p-3 text-sm">
             <p className="text-xs text-muted">{d.type}</p>
-            <p className="mt-1 font-semibold text-ink">{d.both}</p>
+            <p className="mt-1 font-semibold text-[#1B1446]">{d.both}</p>
           </div>
           <div className="rounded-xl border border-[#efedf7] p-3 text-sm">
             <p className="text-xs text-muted">{d.wilayas}</p>
@@ -721,7 +878,7 @@ function DeliveryCollage({ t }: { t: Dictionary }) {
           {carriers.map(([name, color, on]) => (
             <Panel key={name} className="flex flex-col items-center gap-2 border-[#ebe8f7] text-center">
               <span className={`flex size-12 items-center justify-center rounded-2xl ${color} text-lg font-bold text-white`}>{name.charAt(0)}</span>
-              <span className="text-sm font-bold text-ink" dir="ltr">
+              <span className="text-sm font-bold text-[#1B1446]" dir="ltr">
                 {name}
               </span>
               <span className={`w-full rounded-lg py-1.5 text-xs font-semibold ${on ? "bg-[#ecfdf3] text-[#047857]" : "border border-[#e4e1f5] text-accent"}`}>{on ? l.connected : l.connect}</span>
@@ -748,20 +905,20 @@ function TeamPhones({ t }: { t: Dictionary }) {
         <div key={name} className="flex items-center gap-2.5 rounded-xl bg-[#f7f6ff] p-2.5">
           <span className="flex size-8 items-center justify-center rounded-full bg-[#5b45e0] text-xs font-bold text-white">{name.charAt(0)}</span>
           <span className="flex-1">
-            <span className="block text-xs font-bold text-ink">{name}</span>
+            <span className="block text-xs font-bold text-[#1B1446]">{name}</span>
             <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
               <span className="block h-full rounded-full bg-accent" style={{ width: `${[70, 52, 64][i]}%` }} />
             </span>
           </span>
-          <span className="text-xs font-bold text-ink tabular-nums">{n}</span>
+          <span className="text-xs font-bold text-[#1B1446] tabular-nums">{n}</span>
         </div>
       ))}
       <p className="text-center text-[11px] text-muted">{m.open}</p>
     </div>,
     <div key="call" className="space-y-2.5">
-      <p className="text-xs font-bold text-ink">{m.guide}</p>
+      <p className="text-xs font-bold text-[#1B1446]">{m.guide}</p>
       {m.guideLines.map((line, i) => (
-        <p key={line} className="flex items-start gap-2 rounded-lg bg-[#f7f6ff] p-2 text-[11px] text-ink">
+        <p key={line} className="flex items-start gap-2 rounded-lg bg-[#f7f6ff] p-2 text-[11px] text-[#1B1446]">
           <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">{i + 1}</span>
           {line}
         </p>
@@ -778,7 +935,7 @@ function TeamPhones({ t }: { t: Dictionary }) {
         <div key={label as string} className="rounded-xl bg-[#f7f6ff] p-2.5">
           <div className="flex justify-between text-[11px]">
             <span className="text-muted">{label as string}</span>
-            <span className="font-bold text-ink tabular-nums">{value as string}</span>
+            <span className="font-bold text-[#1B1446] tabular-nums">{value as string}</span>
           </div>
           <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#e4e1f5]">
             <span className="block h-full rounded-full bg-accent" style={{ width: `${w}%` }} />
@@ -787,23 +944,23 @@ function TeamPhones({ t }: { t: Dictionary }) {
       ))}
       <div className="flex items-center justify-between rounded-xl bg-[#f7f6ff] p-2.5 text-[11px]">
         <span className="text-muted">{m.speed}</span>
-        <span className="font-bold text-ink">{m.speedValue}</span>
+        <span className="font-bold text-[#1B1446]">{m.speedValue}</span>
       </div>
     </div>,
   ];
   return (
-    <ul className="mt-12 grid gap-6 sm:grid-cols-3" aria-hidden data-ui data-reveal>
+    <ul className="mt-12 grid gap-6 sm:grid-cols-3" aria-hidden data-ui>
       {l.team.map(([label, hint], i) => {
         const [Icon, tone] = icons[i];
         return (
           <li key={label} className="flex flex-col items-center gap-5">
             <div className="flex h-80 w-full items-end justify-center overflow-hidden rounded-[28px] bg-[#f7f6ff] px-6 pt-8">
               <div className="h-full w-full max-w-[220px] rounded-t-[30px] border-x-[6px] border-t-[6px] border-ink bg-white px-3.5 pt-6">
-                <span className="mx-auto mb-4 block h-4 w-20 rounded-full bg-ink" />
+                <span className="mx-auto mb-4 block h-4 w-20 rounded-full bg-[#1B1446]" />
                 {screens[i]}
               </div>
             </div>
-            <p className="flex items-center gap-2.5 text-xl font-bold text-ink">
+            <p className="flex items-center gap-2.5 text-xl font-bold text-[#1B1446]">
               <span className={`flex size-8 items-center justify-center rounded-lg ${tone} text-white`}>
                 <Icon size={17} />
               </span>
@@ -825,47 +982,48 @@ function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; pla
   const custom = p.custom;
   const contactHref = contact ? `https://wa.me/${contact}?text=${encodeURIComponent(custom.whatsapp)}` : register;
   return (
-    <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:pt-32">
-      <div className="mx-auto max-w-2xl text-center" data-reveal>
-        <h2 className={`text-[2.1rem] leading-[1.15] font-bold tracking-tight text-balance sm:text-5xl ${violetText}`}>{l.pricingTitle}</h2>
-        <p className="mt-5 text-lg text-ink">{l.pricingText}</p>
-      </div>
-      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing" data-reveal>
-        {plans.map((plan) => {
-          const picked = plan.code === RECOMMENDED;
-          const tag = plan.orderPack ? p.payg : picked ? p.recommended : null;
-          const price = priceParts(plan, t);
-          return (
-            <div
-              key={plan.code}
-              className={`relative flex flex-col items-center rounded-[22px] px-5 pt-8 pb-6 text-center ${picked ? "bg-ink text-white" : "bg-[#f4f2ff]"}`}
-              data-plan={plan.code}
-            >
-              <h3 className={`text-2xl font-bold ${picked ? "text-white" : "text-ink"}`}>{plan.name}</h3>
-              <p className={`mt-4 text-3xl font-bold tracking-tight tabular-nums ${picked ? "text-white" : "text-ink"}`}>{price.amount}</p>
-              <p className={`mt-1 min-h-5 text-sm ${picked ? "text-white/85" : "text-ink"}`}>{price.note}</p>
-              <Link href={register} className={`mt-6 w-full rounded-xl py-3 text-sm font-medium transition active:scale-[.98] ${picked ? "bg-white text-ink hover:bg-[#efedff]" : "bg-ink text-white hover:bg-[#1d1650]"}`}>
-                {l.choose}
-              </Link>
-              {/* What sets this plan apart, said with its tagline (no badge above the price) */}
-              <p className={`mt-4 text-sm ${picked ? "text-white/85" : "text-ink"}`}>
-                {tag && <b className={`block font-semibold ${picked ? "text-[#c9c2ff]" : "text-accent"}`}>{tag}</b>}
-                {(p.taglines as Record<string, string>)[plan.code] ?? ""}
-              </p>
-            </div>
-          );
-        })}
-        <div className="flex flex-col items-center rounded-[22px] bg-[#f4f2ff] px-5 pt-8 pb-6 text-center" data-plan="custom">
-          <h3 className="text-2xl font-bold text-ink">{custom.name}</h3>
-          <p className="mt-4 text-3xl font-bold tracking-tight text-ink">{custom.price}</p>
-          <p className="mt-1 min-h-5" />
-          <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-xl bg-ink py-3 text-sm font-medium text-white transition hover:bg-[#1d1650] active:scale-[.98]">
-            {custom.contact}
-          </a>
-          <p className="mt-4 text-sm text-ink">{custom.tagline}</p>
+    <section id="pricing" className="scroll-mt-20 px-4 pt-24 sm:pt-32">
+      <div className="mx-auto max-w-6xl rounded-[40px] bg-[#F5F2FF] px-4 py-12 sm:px-8 sm:py-16">
+        <SectionHead title={l.pricingTitle} text={l.pricingText} center />
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing">
+          {plans.map((plan) => {
+            const picked = plan.code === RECOMMENDED;
+            const tag = plan.orderPack ? p.payg : picked ? p.recommended : null;
+            const price = priceParts(plan, t);
+            return (
+              <div
+                key={plan.code}
+                className={`relative flex flex-col items-center rounded-[26px] px-5 pt-9 pb-6 text-center ${picked ? "bg-gradient-to-b from-[#6B50FF] to-[#4B30E0] text-white shadow-[0_24px_50px_-24px_rgba(91,63,240,.8)] lg:-translate-y-3" : "bg-white shadow-[0_12px_30px_-22px_rgba(27,20,70,.4)]"}`}
+                data-plan={plan.code}
+              >
+                {tag && (
+                  <span className={`absolute -top-3.5 rounded-full px-3.5 py-1 text-xs font-bold ${picked ? "bg-[#FFB23E] text-[#1B1446]" : "bg-[#12C59A] text-[#1B1446]"}`}>
+                    {picked && <Crown size={12} className="me-1 inline" aria-hidden />}
+                    {tag}
+                  </span>
+                )}
+                <h3 className={`${display} text-2xl font-bold ${picked ? "text-white" : "text-[#1B1446]"}`}>{plan.name}</h3>
+                <p className={`${display} mt-4 text-3xl font-bold tabular-nums ${picked ? "text-white" : "text-[#1B1446]"}`}>{price.amount}</p>
+                <p className={`mt-1 min-h-5 text-sm ${picked ? "text-white/85" : "text-[#3d3766]"}`}>{price.note}</p>
+                <Link href={register} className={`mt-6 w-full rounded-full py-3 text-sm font-semibold transition active:scale-[.98] ${picked ? "bg-white text-[#4B30E0] hover:bg-[#F5F2FF]" : "bg-[#5B3FF0] text-white hover:bg-[#4B30E0]"}`}>
+                  {l.choose}
+                </Link>
+                <p className={`mt-4 text-sm ${picked ? "text-white/85" : "text-[#3d3766]"}`}>{(p.taglines as Record<string, string>)[plan.code] ?? ""}</p>
+              </div>
+            );
+          })}
+          <div className="flex flex-col items-center rounded-[26px] bg-white px-5 pt-9 pb-6 text-center shadow-[0_12px_30px_-22px_rgba(27,20,70,.4)]" data-plan="custom">
+            <h3 className={`${display} text-2xl font-bold text-[#1B1446]`}>{custom.name}</h3>
+            <p className={`${display} mt-4 text-3xl font-bold text-[#1B1446]`}>{custom.price}</p>
+            <p className="mt-1 min-h-5" />
+            <a href={contactHref} target={contact ? "_blank" : undefined} rel={contact ? "noreferrer" : undefined} className="mt-6 w-full rounded-full bg-[#1B1446] py-3 text-sm font-semibold text-white transition hover:bg-[#2B1D8F] active:scale-[.98]">
+              {custom.contact}
+            </a>
+            <p className="mt-4 text-sm text-[#3d3766]">{custom.tagline}</p>
+          </div>
         </div>
+        <Compare t={t} plans={plans} />
       </div>
-      <Compare t={t} plans={plans} />
     </section>
   );
 }
@@ -875,11 +1033,11 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
   const p = t.plans;
   return (
     <div id="compare" className="mt-16 scroll-mt-24">
-      <h3 className="text-center text-2xl font-bold text-ink">{l.compareTitle}</h3>
-      <div className="mt-6 overflow-x-auto rounded-[22px] bg-[#f4f2ff]">
+      <h3 className={`${display} text-center text-2xl font-bold text-[#1B1446]`}>{l.compareTitle}</h3>
+      <div className="mt-6 overflow-x-auto rounded-[22px] bg-white">
         <table className="w-full min-w-[640px] text-sm" data-testid="plan-compare">
           <thead>
-            <tr className="text-ink">
+            <tr className="bg-[#EDE9FF] text-[#1B1446]">
               <th className="p-4 text-start font-semibold" />
               {plans.map((plan) => (
                 <th key={plan.code} className="p-4 font-bold">
@@ -889,14 +1047,14 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
               <th className="p-4 font-bold">{p.custom.name}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white">
+          <tbody className="divide-y divide-[#F0EDFB]">
             {limitKeys.map((k) => (
               <tr key={k}>
-                <td className="p-4 text-ink">{p.limits[k]}</td>
+                <td className="p-4 text-[#1B1446]">{p.limits[k]}</td>
                 {plans.map((plan) => {
                   const line = limitLine(plan, k, t);
                   return (
-                    <td key={plan.code} className="p-4 text-center font-semibold text-ink tabular-nums">
+                    <td key={plan.code} className="p-4 text-center font-semibold text-[#1B1446] tabular-nums">
                       {line.value || line.label}
                     </td>
                   );
@@ -905,7 +1063,7 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
               </tr>
             ))}
             <tr>
-              <td className="p-4 text-ink">{l.customDomain}</td>
+              <td className="p-4 text-[#1B1446]">{l.customDomain}</td>
               {plans.map((plan) => (
                 <td key={plan.code} className="p-4 text-center">
                   {plan.features.includes("custom_domain") ? <Check size={18} className="mx-auto text-[#047857]" aria-label="✓" /> : <X size={18} className="mx-auto text-muted" aria-label="✕" />}
@@ -918,7 +1076,7 @@ function Compare({ t, plans }: { t: Dictionary; plans: HomePlan[] }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-4 text-center text-sm text-ink">{p.allFeatures}</p>
+      <p className="mt-4 text-center text-sm text-[#1B1446]">{p.allFeatures}</p>
     </div>
   );
 }
