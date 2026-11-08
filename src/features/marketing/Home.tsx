@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, ShoppingBag, Truck, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Boxes, Check, CheckCircle2, CreditCard, LayoutTemplate, Layers, MapPin, Megaphone, MessageCircle, PackageCheck, PhoneCall, Radar, Sheet, ShieldCheck, ShoppingBag, ShoppingCart, Store, Tag, Target, Truck, UserCheck, Users, X, type LucideIcon } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n";
 import { dir } from "@/i18n";
 import { limitKeys } from "@/lib/enums";
@@ -89,9 +89,9 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 
       <main>
         {/* Hero: the promise on one side, orders arriving from across Algeria on the other */}
-        <section className="relative overflow-hidden bg-[#F5F2FF]">
-          <span aria-hidden className="pointer-events-none absolute -top-48 -start-40 size-[560px] rounded-full bg-[#5B3FF0]/20 blur-3xl" />
-          <span aria-hidden className="pointer-events-none absolute -bottom-56 end-[-10rem] size-[520px] rounded-full bg-[#12C59A]/20 blur-3xl" />
+        <section className="relative overflow-hidden bg-[#F6F8FC]">
+          <span aria-hidden className="pointer-events-none absolute -top-48 -start-40 size-[560px] rounded-full bg-[#2DD4BF]/20 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-56 end-[-10rem] size-[520px] rounded-full bg-[#5CC2FF]/20 blur-3xl" />
           <span aria-hidden className="pointer-events-none absolute top-1/3 end-1/3 size-[260px] rounded-full bg-[#FFB23E]/20 blur-3xl" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:pt-14 lg:grid-cols-[1.15fr_1fr] lg:gap-4 lg:pt-20 lg:pb-24">
             <div className="text-center lg:text-start" data-hero>
@@ -128,7 +128,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
         {/* Features: colourful cards, each with a small screen of that part of the product */}
         <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:pt-32">
           <SectionHead
-            title={`${l.featuresTop} ${l.featuresBottom}`}
+            title={`${l.featuresTop} ${l.featuresBottom}`.trim()}
             text={l.featuresText}
             action={
               <a href="#apps" className={primaryButton}>
@@ -141,7 +141,7 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 
         {/* Integrations, on a sky field */}
         <section id="apps" className="scroll-mt-20 px-4 pt-24 sm:pt-32">
-          <div className="mx-auto max-w-6xl rounded-[40px] bg-[#EAF6FF] px-5 py-12 sm:px-10 sm:py-16">
+          <div className="mx-auto max-w-6xl rounded-[40px] bg-[#F1F7FD] px-5 py-12 sm:px-10 sm:py-16">
             <SectionHead title={l.appsTitle} text={l.appsText} />
             <Apps t={t} />
           </div>
@@ -171,15 +171,21 @@ export function MarketingHome({ lang, t, plans, contact }: { lang: Locale; t: Di
 
         {/* Call to action: the brand's violet field with parcels on their way */}
         <section className="px-4 pt-24 pb-24 sm:pt-32">
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[40px] bg-[#5B3FF0] px-6 py-16 text-center text-white sm:py-20">
-            <span aria-hidden className="pointer-events-none absolute -top-24 -start-16 size-72 rounded-full bg-[#8B74FF]/60 blur-2xl" />
-            <span aria-hidden className="pointer-events-none absolute -bottom-28 -end-10 size-80 rounded-full bg-[#12C59A]/40 blur-2xl" />
-            <Art name="rocket" className="absolute -bottom-6 end-4 hidden size-44 rotate-12 opacity-95 md:block lg:size-56" />
+          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[40px] bg-gradient-to-br from-[#0F9488] via-[#0E7C8C] to-[#1D4ED8] px-6 py-16 text-center text-white sm:py-20">
+            <span aria-hidden className="pointer-events-none absolute -top-24 -start-16 size-72 rounded-full bg-[#2DD4BF]/50 blur-2xl" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-28 -end-10 size-80 rounded-full bg-[#60A5FA]/40 blur-2xl" />
             <h2 className={`${display} relative text-3xl font-bold text-balance sm:text-5xl`}>{l.ctaTitle}</h2>
             <p className="relative mx-auto mt-4 max-w-lg text-lg text-white/90">{l.ctaText}</p>
             <Link href={register} className="relative mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#1B1446] transition hover:-translate-y-0.5 focus-visible:ring-4 focus-visible:ring-white/40 focus-visible:outline-none">
               {l.cta} <Arrow size={18} aria-hidden />
             </Link>
+            <ul className="relative mx-auto mt-10 flex max-w-xl flex-wrap justify-center gap-2.5">
+              {l.facts.map((f) => (
+                <li key={f} className="flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-medium ring-1 ring-white/25">
+                  <Check size={15} aria-hidden /> {f}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       </main>
@@ -238,12 +244,12 @@ function FooterLinks({ title, links }: { title: string; links: string[][] }) {
 
 // The wilayas lit on the hero map, with their colour (Algiers, Oran, Constantine, Sétif, Béjaïa, Ghardaïa, Tamanrasset)
 const litWilayas: [number, string][] = [
-  [16, "#5B3FF0"],
+  [16, "#0F9488"],
   [31, "#12C59A"],
   [25, "#FFB23E"],
   [19, "#FF6F61"],
   [6, "#4CB3FF"],
-  [47, "#8B74FF"],
+  [47, "#5B3FF0"],
   [30, "#12C59A"],
 ];
 
@@ -270,7 +276,7 @@ function HeroArt({ t }: { t: Dictionary }) {
       <svg viewBox="0 0 600 596" className="w-full drop-shadow-[0_30px_40px_rgba(91,63,240,.18)]">
         <g>
           {liteMap.map(([code, d]) => (
-            <path key={code} d={d} fill={lit.get(code) ?? "#E4DEFF"} fillOpacity={lit.has(code) ? 0.9 : 1} stroke="#fff" strokeWidth={1.4} strokeLinejoin="round" />
+            <path key={code} d={d} fill={lit.get(code) ?? "#DFE6F1"} fillOpacity={lit.has(code) ? 0.9 : 1} stroke="#fff" strokeWidth={1.4} strokeLinejoin="round" />
           ))}
         </g>
         {routes.map((d, i) => (
@@ -336,35 +342,56 @@ function HeroArt({ t }: { t: Dictionary }) {
   );
 }
 
-// 3D illustrations (3dicons by Vijay Verma, CC0 — public/home/*.webp, 320px, 6–16 KB each)
-function Art({ name, className = "" }: { name: string; className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/home/${name}.webp`} alt="" width={320} height={320} loading="lazy" decoding="async" className={`pointer-events-none select-none ${className}`} />;
+// A flat icon on a gradient tile (no 3D): the page's one icon style, from the dashboard's own icon set
+function IconTile({ icon: Icon, tone, size = "md" }: { icon: LucideIcon; tone: string; size?: "sm" | "md" | "lg" }) {
+  const box = size === "lg" ? "size-16 rounded-[20px]" : size === "sm" ? "size-11 rounded-xl" : "size-14 rounded-2xl";
+  const glyph = size === "lg" ? 30 : size === "sm" ? 21 : 26;
+  return (
+    <span className={`relative flex shrink-0 items-center justify-center bg-gradient-to-br text-white ${box} ${tone}`} aria-hidden>
+      <span className="absolute inset-x-1.5 top-1 h-1/3 rounded-full bg-white/20 blur-[2px]" />
+      <Icon size={glyph} strokeWidth={2.2} className="relative" />
+    </span>
+  );
 }
 
-// The journey of an order, ad to analytics: numbered stops, each with its illustration
+// Colour pairs for the tiles (gradient + a soft shadow of the same hue)
+const tiles = {
+  coral: "from-[#FF8A7A] to-[#F2554A] shadow-[0_12px_24px_-12px_rgba(242,85,74,.7)]",
+  apricot: "from-[#FFC261] to-[#F59E0B] shadow-[0_12px_24px_-12px_rgba(245,158,11,.7)]",
+  violet: "from-[#7B63FF] to-[#5B3FF0] shadow-[0_12px_24px_-12px_rgba(91,63,240,.7)]",
+  mint: "from-[#34D9AE] to-[#0EA57F] shadow-[0_12px_24px_-12px_rgba(14,165,127,.7)]",
+  sky: "from-[#5CC2FF] to-[#2C8EF0] shadow-[0_12px_24px_-12px_rgba(44,142,240,.7)]",
+  teal: "from-[#2DD4BF] to-[#0F9488] shadow-[0_12px_24px_-12px_rgba(15,148,136,.7)]",
+  pink: "from-[#FF7EB6] to-[#E5487F] shadow-[0_12px_24px_-12px_rgba(229,72,127,.7)]",
+  green: "from-[#4ADE80] to-[#16A34A] shadow-[0_12px_24px_-12px_rgba(22,163,74,.7)]",
+  blue: "from-[#60A5FA] to-[#2563EB] shadow-[0_12px_24px_-12px_rgba(37,99,235,.7)]",
+  amber: "from-[#FBBF24] to-[#D97706] shadow-[0_12px_24px_-12px_rgba(217,119,6,.7)]",
+  slate: "from-[#64748B] to-[#334155] shadow-[0_12px_24px_-12px_rgba(51,65,85,.7)]",
+  white: "from-white/25 to-white/10 ring-1 ring-white/30",
+} as const;
+
+// The journey of an order, ad to analytics: numbered stops
 function Journey({ steps }: { steps: string[][] }) {
-  const looks: [string, string, string][] = [
-    ["megaphone", "from-[#FFE1DC] to-[#FFF4F1]", "bg-[#FF6F61] text-white"],
-    ["mobile", "from-[#FFE9C7] to-[#FFF7EA]", "bg-[#FFB23E] text-[#1B1446]"],
-    ["money-bag", "from-[#E6E0FF] to-[#F6F3FF]", "bg-[#5B3FF0] text-white"],
-    ["phone-incoming", "from-[#D3F5EA] to-[#F0FCF8]", "bg-[#12C59A] text-[#1B1446]"],
-    ["map-pin", "from-[#DCEFFF] to-[#F2F9FF]", "bg-[#4CB3FF] text-[#1B1446]"],
-    ["chart", "from-[#ECE6FF] to-[#F8F6FF]", "bg-[#8B74FF] text-white"],
+  const looks: [LucideIcon, keyof typeof tiles][] = [
+    [Megaphone, "coral"],
+    [LayoutTemplate, "apricot"],
+    [ShoppingBag, "violet"],
+    [PhoneCall, "mint"],
+    [Truck, "sky"],
+    [BarChart3, "teal"],
   ];
   return (
     <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {steps.map(([title, text], i) => {
-        const [art, glow, badge] = looks[i % looks.length];
+        const [icon, tone] = looks[i % looks.length];
         return (
-          <li key={title} className="group relative overflow-hidden rounded-[32px] bg-white p-7 ring-1 ring-[#1B1446]/[.06] transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(27,20,70,.35)]">
-            <span aria-hidden className={`absolute -top-16 -end-16 size-56 rounded-full bg-gradient-to-br ${glow}`} />
-            <div className="relative flex items-start justify-between">
-              <span className={`${display} flex size-10 items-center justify-center rounded-full text-base font-bold ${badge}`}>{i + 1}</span>
-              <Art name={art} className="-mt-3 -me-3 size-28 transition duration-300 group-hover:scale-105 group-hover:-rotate-3" />
+          <li key={title} className="group relative rounded-[28px] bg-white p-7 ring-1 ring-[#1B1446]/[.07] transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-34px_rgba(27,20,70,.35)]">
+            <div className="flex items-center justify-between">
+              <IconTile icon={icon} tone={tiles[tone]} />
+              <span className={`${display} text-4xl font-bold text-[#1B1446]/10`}>{String(i + 1).padStart(2, "0")}</span>
             </div>
-            <h3 className={`${display} relative mt-2 text-xl font-bold text-[#1B1446]`}>{title}</h3>
-            <p className="relative mt-2 leading-relaxed text-[#3d3766]">{text}</p>
+            <h3 className={`${display} mt-6 text-xl font-bold text-[#1B1446]`}>{title}</h3>
+            <p className="mt-2 leading-relaxed text-[#3d3766]">{text}</p>
           </li>
         );
       })}
@@ -372,43 +399,43 @@ function Journey({ steps }: { steps: string[][] }) {
   );
 }
 
-// One feature card: its own colour field, a large illustration, the title and text
-function FeatureCard({ art, title, text, tone, wide = false, children }: { art: string; title: string; text: string; tone: string; wide?: boolean; children?: ReactNode }) {
+// One feature card: its own colour field, an icon tile, the title and text
+function FeatureCard({ icon, tile, title, text, tone, wide = false, children }: { icon: LucideIcon; tile: string; title: string; text: string; tone: string; wide?: boolean; children?: ReactNode }) {
   const light = tone.includes("text-white");
   return (
-    <div className={`group relative flex overflow-hidden rounded-[32px] p-7 sm:p-8 ${tone} ${wide ? "lg:col-span-2 lg:flex-row lg:items-center lg:gap-8" : "flex-col"} flex-col`}>
-      <span aria-hidden className={`absolute -end-20 -top-20 size-72 rounded-full ${light ? "bg-white/10" : "bg-white/50"}`} />
-      <Art name={art} className={`relative shrink-0 transition duration-500 group-hover:-translate-y-1.5 group-hover:rotate-3 ${wide ? "size-40 lg:order-2 lg:size-56" : "size-36"}`} />
-      <div className="relative mt-4 lg:mt-0">
-        <h3 className={`${display} text-2xl font-bold sm:text-[1.7rem]`}>{title}</h3>
-        <p className={`mt-3 max-w-md leading-relaxed ${light ? "text-white/85" : "text-[#3d3766]"}`}>{text}</p>
-        {children}
+    <div className={`group relative flex flex-col overflow-hidden rounded-[30px] p-7 sm:p-8 ${tone} ${wide ? "lg:col-span-2" : ""}`}>
+      <span aria-hidden className={`absolute -end-24 -top-24 size-72 rounded-full ${light ? "bg-white/10" : "bg-white/60"}`} />
+      <div className="relative transition duration-300 group-hover:-translate-y-0.5">
+        <IconTile icon={icon} tone={tile} size="lg" />
       </div>
+      <h3 className={`${display} relative mt-6 text-2xl font-bold`}>{title}</h3>
+      <p className={`relative mt-3 max-w-lg leading-relaxed ${light ? "text-white/90" : "text-[#3d3766]"}`}>{text}</p>
+      {children}
     </div>
   );
 }
 
-// Features: a grid of colour fields of different sizes, one illustration each
+// Features: colour fields of different sizes, one clear icon each
 function Bento({ t }: { t: Dictionary }) {
   const c = t.landing.cards;
   return (
     <div className="mt-12 grid gap-5 lg:grid-cols-3">
-      <FeatureCard art="rocket" title={c.store.title} text={c.store.text} tone="bg-gradient-to-br from-[#6B50FF] to-[#4528D8] text-white" wide />
-      <FeatureCard art="magic-trick" title={c.ai.title} text={c.ai.text} tone="bg-gradient-to-br from-[#2E1F8F] to-[#1B1446] text-white">
-        <ul className="mt-5 flex flex-wrap gap-2">
+      <FeatureCard icon={Store} tile={tiles.white} title={c.store.title} text={c.store.text} tone="bg-gradient-to-br from-[#0F9488] to-[#0B6B63] text-white" wide />
+      <FeatureCard icon={LayoutTemplate} tile={tiles.white} title={c.ai.title} text={c.ai.text} tone="bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] text-white">
+        <ul className="relative mt-5 flex flex-wrap gap-2">
           {c.ai.chips.map((chip) => (
-            <li key={chip} className="rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white ring-1 ring-white/20">
+            <li key={chip} className="rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white ring-1 ring-white/25">
               {chip}
             </li>
           ))}
         </ul>
       </FeatureCard>
-      <FeatureCard art="picture" title={c.posters.title} text={c.posters.text} tone="bg-gradient-to-br from-[#FFE7C2] to-[#FFD29A] text-[#1B1446]" />
-      <FeatureCard art="bag" title={c.carts.title} text={c.carts.text} tone="bg-gradient-to-br from-[#DDF0FF] to-[#B9DEFF] text-[#1B1446]" />
-      <FeatureCard art="chart" title={c.analytics.title} text={c.analytics.text} tone="bg-gradient-to-br from-[#EEEAFF] to-[#D9D0FF] text-[#1B1446]" />
-      <FeatureCard art="cube" title={c.stock.title} text={c.stock.text} tone="bg-gradient-to-br from-[#D6F7EC] to-[#AEEBD7] text-[#1B1446]" />
-      <FeatureCard art="sheild" title={c.guard.title} text={c.guard.text} tone="bg-gradient-to-br from-[#FFE6E2] to-[#FFC9C1] text-[#1B1446]" wide>
-        <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+      <FeatureCard icon={CreditCard} tile={tiles.amber} title={c.payments.title} text={c.payments.text} tone="bg-[#FFF3DD] text-[#1B1446]" />
+      <FeatureCard icon={ShoppingCart} tile={tiles.sky} title={c.carts.title} text={c.carts.text} tone="bg-[#E4F2FF] text-[#1B1446]" />
+      <FeatureCard icon={BarChart3} tile={tiles.violet} title={c.analytics.title} text={c.analytics.text} tone="bg-[#EFECFF] text-[#1B1446]" />
+      <FeatureCard icon={Boxes} tile={tiles.mint} title={c.stock.title} text={c.stock.text} tone="bg-[#DDF7EE] text-[#1B1446]" />
+      <FeatureCard icon={ShieldCheck} tile={tiles.coral} title={c.guard.title} text={c.guard.text} tone="bg-[#FFE9E5] text-[#1B1446]" wide>
+        <ul className="relative mt-5 grid gap-2 sm:grid-cols-2">
           {c.guard.items.map((item) => (
             <li key={item} className="flex items-center gap-2 font-medium text-[#1B1446]">
               <CheckCircle2 size={18} className="shrink-0 text-[#0b8f6f]" aria-hidden /> {item}
@@ -420,49 +447,68 @@ function Bento({ t }: { t: Dictionary }) {
   );
 }
 
-// Integrations: white cards on the sky field, one illustration each
+// Apps: the platform's real, ready apps (names and texts from the dashboard's Apps page) plus Sheets and pixels
 function Apps({ t }: { t: Dictionary }) {
-  const arts = ["file-text", "tool", "target", "link", "folder"];
+  const a = t.apps.cards;
+  const [sheets, , pixels] = t.landing.apps;
+  const list: [LucideIcon, keyof typeof tiles, string, string][] = [
+    [MessageCircle, "green", a.whatsapp.name, a.whatsapp.card],
+    [CreditCard, "blue", a.payments.name, a.payments.card],
+    [ShieldCheck, "coral", a.fakeGuard.name, a.fakeGuard.card],
+    [ShoppingCart, "apricot", a.abandoned.name, a.abandoned.card],
+    [UserCheck, "violet", a.agentAssign.name, a.agentAssign.card],
+    [Truck, "sky", a.deliveryAssign.name, a.deliveryAssign.card],
+    [MapPin, "pink", a.orderTracking.name, a.orderTracking.card],
+    [Tag, "amber", a.promotions.name, a.promotions.card],
+    [ShoppingBag, "teal", a.cart.name, a.cart.card],
+    [Layers, "slate", a.wholesale.name, a.wholesale.card],
+    [Sheet, "green", sheets[0], sheets[1]],
+    [Radar, "violet", pixels[0], pixels[1]],
+  ];
   return (
-    <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {t.landing.apps.map(([name, text], i) => (
-        <li key={name} className="group flex items-start gap-4 rounded-[28px] bg-white p-5 ring-1 ring-[#1B1446]/[.05] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(27,20,70,.4)]">
-          <span className="flex size-20 shrink-0 items-center justify-center rounded-[22px] bg-[#F2F8FF]">
-            <Art name={arts[i % arts.length]} className="size-16 transition duration-300 group-hover:scale-110" />
-          </span>
-          <span className="min-w-0 pt-1">
-            <h3 className={`${display} text-lg font-bold text-[#1B1446]`} dir="auto">
+    <>
+      <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="home-apps">
+        {list.map(([icon, tone, name, text]) => (
+          <li key={name} className="group rounded-[24px] bg-white p-5 ring-1 ring-[#1B1446]/[.06] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(27,20,70,.4)]">
+            <IconTile icon={icon} tone={tiles[tone]} size="sm" />
+            <h3 className={`${display} mt-4 text-[1.05rem] font-bold text-[#1B1446]`} dir="auto">
               {name}
             </h3>
-            <p className="mt-1 text-[15px] leading-relaxed text-[#3d3766]">{text}</p>
-          </span>
-        </li>
-      ))}
-    </ul>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-[#3d3766]">{text}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-6 text-center font-semibold text-[#2C6FB8]">{t.landing.appsMore}</p>
+    </>
   );
 }
 
-// Delivery: parcels and the courier companies on one colour field
+// Delivery: a route from the store to the customer, the courier companies under it
 function DeliveryArt({ t }: { t: Dictionary }) {
   const d = t.landing.deliveryCard;
   const carriers = ["Yalidine", "ZR Express", "Ecotrack", "NOEST", "Procolis", "DHD"];
   return (
-    <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-[#E3F2FF] via-[#EEEAFF] to-[#FFF0DD] p-7 sm:p-10" aria-hidden>
-      <svg viewBox="0 0 400 200" className="absolute inset-x-0 top-10 w-full opacity-60">
-        <path d="M20 160 C 120 40, 260 220, 380 50" fill="none" stroke="#5B3FF0" strokeWidth="3" strokeDasharray="8 10" strokeLinecap="round" className="sc-route" />
-      </svg>
-      <div className="relative flex items-end justify-center gap-2">
-        <Art name="cube" className="size-28 -rotate-6 sm:size-36" />
-        <Art name="map-pin" className="size-36 sm:size-48" />
-        <Art name="cube" className="size-20 rotate-12 sm:size-24" />
+    <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-[#E4F2FF] to-[#DDF7EE] p-7 sm:p-10" aria-hidden>
+      <div className="relative flex items-center justify-between gap-3">
+        <IconTile icon={Store} tone={tiles.teal} size="lg" />
+        <svg viewBox="0 0 200 40" className="h-10 flex-1" preserveAspectRatio="none">
+          <path d="M4 20 C 50 0, 150 40, 196 20" fill="none" stroke="#0F9488" strokeWidth="3" strokeDasharray="7 8" strokeLinecap="round" className="sc-route" />
+        </svg>
+        <IconTile icon={Truck} tone={tiles.sky} size="lg" />
+        <svg viewBox="0 0 200 40" className="h-10 flex-1" preserveAspectRatio="none">
+          <path d="M4 20 C 50 40, 150 0, 196 20" fill="none" stroke="#2C8EF0" strokeWidth="3" strokeDasharray="7 8" strokeLinecap="round" className="sc-route" />
+        </svg>
+        <IconTile icon={MapPin} tone={tiles.coral} size="lg" />
       </div>
-      <div className="relative mx-auto mt-6 flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-[0_18px_40px_-24px_rgba(27,20,70,.5)]">
-        <span className="font-semibold text-[#1B1446]">{d.title}</span>
+      <div className="relative mt-8 flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3.5 shadow-[0_18px_40px_-26px_rgba(27,20,70,.5)]">
+        <span className="flex items-center gap-2.5 font-semibold text-[#1B1446]">
+          <PackageCheck size={20} className="text-[#0F9488]" /> {d.title}
+        </span>
         <span className="rounded-full bg-[#12C59A] px-3 py-1 text-sm font-bold text-[#1B1446]">18 · {d.ready}</span>
       </div>
-      <ul className="relative mt-6 flex flex-wrap justify-center gap-2">
+      <ul className="relative mt-5 flex flex-wrap gap-2">
         {carriers.map((name) => (
-          <li key={name} className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-[#1B1446] ring-1 ring-[#1B1446]/[.06]">
+          <li key={name} className="rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-[#1B1446] ring-1 ring-[#1B1446]/[.06]">
             {name}
           </li>
         ))}
@@ -471,27 +517,27 @@ function DeliveryArt({ t }: { t: Dictionary }) {
   );
 }
 
-// The confirmation team: share, confirm, follow — one illustrated card each
+// The confirmation team: share, confirm, follow
 function TeamCards({ t }: { t: Dictionary }) {
   const l = t.landing;
-  const looks: [string, string][] = [
-    ["headphone", "from-[#FFE1DC] to-[#FFF4F1]"],
-    ["phone-incoming", "from-[#D3F5EA] to-[#F0FCF8]"],
-    ["target", "from-[#E6E0FF] to-[#F6F3FF]"],
+  const looks: [LucideIcon, keyof typeof tiles, string][] = [
+    [Users, "apricot", "bg-[#FFF3DD]"],
+    [PhoneCall, "mint", "bg-[#DDF7EE]"],
+    [Target, "sky", "bg-[#E4F2FF]"],
   ];
   const agents = l.teamMock.agents;
-  const tints = ["bg-[#FFB23E]", "bg-[#12C59A]", "bg-[#5B3FF0]"];
+  const tints = ["bg-[#F59E0B]", "bg-[#0EA57F]", "bg-[#2C8EF0]"];
   return (
     <div className="mt-12 grid gap-5 md:grid-cols-3">
       {l.team.map(([title, text], i) => {
-        const [art, glow] = looks[i % looks.length];
+        const [icon, tone, field] = looks[i % looks.length];
         return (
-          <div key={title} className={`group relative overflow-hidden rounded-[32px] bg-gradient-to-b ${glow} p-7 text-center`}>
-            <Art name={art} className="mx-auto size-32 transition duration-300 group-hover:scale-105" />
-            <h3 className={`${display} mt-3 text-2xl font-bold text-[#1B1446]`}>{title}</h3>
+          <div key={title} className={`rounded-[30px] p-7 ${field}`}>
+            <IconTile icon={icon} tone={tiles[tone]} size="lg" />
+            <h3 className={`${display} mt-6 text-2xl font-bold text-[#1B1446]`}>{title}</h3>
             <p className="mt-2 leading-relaxed text-[#3d3766]">{text}</p>
             {i === 0 && (
-              <div className="mt-5 flex justify-center -space-x-2 rtl:space-x-reverse" aria-hidden>
+              <div className="mt-5 flex -space-x-2 rtl:space-x-reverse" aria-hidden>
                 {agents.map(([name], n) => (
                   <span key={name} className={`flex size-9 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white ${tints[n % 3]}`}>
                     {name.charAt(0)}
@@ -523,7 +569,7 @@ function Pricing({ lang, t, plans, contact }: { lang: Locale; t: Dictionary; pla
   const contactHref = contact ? `https://wa.me/${contact}?text=${encodeURIComponent(custom.whatsapp)}` : register;
   return (
     <section id="pricing" className="scroll-mt-20 px-4 pt-24 sm:pt-32">
-      <div className="mx-auto max-w-6xl rounded-[40px] bg-[#F5F2FF] px-4 py-12 sm:px-8 sm:py-16">
+      <div className="mx-auto max-w-6xl rounded-[40px] bg-[#F6F7FB] px-4 py-12 sm:px-8 sm:py-16">
         <SectionHead title={l.pricingTitle} text={l.pricingText} center />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="home-pricing">
           {plans.map((plan) => {
