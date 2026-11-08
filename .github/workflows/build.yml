@@ -91,4 +91,4 @@ jobs:
           name: scaleitto-build
           path: .next/standalone
           include-hidden-files: true
-          retention-days: 14
+          retention-days: 3
